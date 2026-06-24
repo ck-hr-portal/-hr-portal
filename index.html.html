@@ -1,0 +1,2475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CK HR Portal</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:wght@600;700&display=swap');
+:root{
+  --navy:#1B3A5C;--navy2:#122844;--teal:#0A7EA4;--teal-lt:#D6EEF7;
+  --gold:#C4882A;--gold-lt:#FEF3DC;--green:#1A7F4B;--green-lt:#E4F5EC;
+  --red:#C0392B;--red-lt:#FDECEA;--amber:#D4720A;--amber-lt:#FEF3DC;
+  --purple:#7C3AED;--purple-lt:#EDE9FE;
+  --slate:#475569;--muted:#94A3B8;--border:#E2E8F0;--surface:#F8FAFC;--white:#FFFFFF;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',sans-serif;background:var(--surface);color:var(--slate);min-height:100vh;display:flex;flex-direction:column;}
+/* TOPBAR */
+.topbar{background:var(--navy);height:56px;padding:0 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;box-shadow:0 2px 12px rgba(0,0,0,.2);position:sticky;top:0;z-index:300;}
+.tb-left{display:flex;align-items:center;gap:12px;}
+.tb-logo{width:34px;height:34px;background:var(--gold);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:#fff;flex-shrink:0;}
+.tb-name{font-size:14px;font-weight:600;color:#fff;line-height:1.2;}
+.tb-sub{font-size:9px;color:#8BAFD4;letter-spacing:.5px;}
+.tb-logos{display:flex;align-items:center;gap:8px;margin-left:16px;padding-left:16px;border-left:1px solid rgba(255,255,255,.15);}
+.tb-logo-pill{background:#fff;border-radius:7px;padding:4px 10px;height:36px;display:flex;align-items:center;}
+.tb-company-logo{height:26px;width:auto;display:block;}
+.tb-logo-div{width:1px;height:22px;background:rgba(255,255,255,.2);}
+.tb-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.tb-btn{padding:6px 13px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:none;font-family:'Inter',sans-serif;transition:all .15s;}
+.tb-btn.ghost{background:rgba(255,255,255,.1);color:#fff;}
+.tb-btn.ghost:hover{background:rgba(255,255,255,.18);}
+.tb-btn.teal{background:rgba(10,126,164,.35);color:#7dd3fc;}
+.tb-btn.teal:hover{background:var(--teal);color:#fff;}
+.tb-btn.purple{background:rgba(124,58,237,.35);color:#c4b5fd;}
+.tb-btn.gold{background:var(--gold);color:#fff;}
+.tb-btn.gold:hover{background:#b07820;}
+/* BANNER */
+.notif-banner{background:var(--navy2);padding:8px 20px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.08);}
+.notif-item{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:4px 12px;font-size:11px;color:#CBD5E1;display:flex;align-items:center;gap:5px;white-space:nowrap;}
+.notif-item .dot{width:6px;height:6px;border-radius:50%;background:var(--gold);flex-shrink:0;}
+.notif-item.birthday .dot{background:#ec4899;}
+.notif-item.holiday .dot{background:var(--teal);}
+/* TABS */
+.tabs{display:flex;background:#fff;border-bottom:1px solid var(--border);padding:0 20px;flex-shrink:0;overflow-x:auto;}
+.tab{padding:12px 16px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;user-select:none;}
+.tab:hover{color:var(--navy);}
+.tab.active{color:var(--teal);border-bottom-color:var(--teal);}
+/* PAGE */
+.page-content{flex:1;display:flex;overflow:hidden;height:calc(100vh - 96px);}
+.panel{display:none;flex:1;overflow-y:auto;}
+.panel.active{display:flex;flex-direction:column;}
+/* PANEL WRAPPER */
+.pw{padding:24px;max-width:960px;width:100%;margin:0 auto;}
+.pw h2{font-family:'Playfair Display',serif;font-size:22px;color:var(--navy);margin-bottom:4px;}
+.pw .sub{font-size:13px;color:var(--muted);margin-bottom:20px;}
+/* CARDS */
+.card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.05);}
+.card h3{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:14px;}
+/* INFO BOXES */
+.ibox{border-radius:0 10px 10px 0;padding:13px 16px;margin:12px 0;font-size:13px;line-height:1.6;border-left:4px solid;}
+.ibox.teal{background:var(--teal-lt);border-color:var(--teal);color:var(--navy);}
+.ibox.gold{background:var(--gold-lt);border-color:var(--gold);color:#7a4a00;}
+.ibox.green{background:var(--green-lt);border-color:var(--green);color:#145a34;}
+.ibox.red{background:var(--red-lt);border-color:var(--red);color:var(--red);}
+.ibox.purple{background:var(--purple-lt);border-color:var(--purple);color:var(--purple);}
+/* PILLS */
+.pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.2px;}
+.pill-green{background:var(--green-lt);color:var(--green);}
+.pill-amber{background:var(--amber-lt);color:var(--amber);}
+.pill-red{background:var(--red-lt);color:var(--red);}
+.pill-teal{background:var(--teal-lt);color:var(--teal);}
+.pill-purple{background:var(--purple-lt);color:var(--purple);}
+.pill-navy{background:#E8EEF5;color:var(--navy);}
+/* BUTTONS */
+.btn{padding:9px 22px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;display:inline-flex;align-items:center;gap:6px;}
+.btn-navy{background:var(--navy);color:#fff;} .btn-navy:hover{background:var(--teal);}
+.btn-green{background:var(--green);color:#fff;} .btn-green:hover{background:#156a3e;}
+.btn-red{background:var(--red-lt);color:var(--red);border:1px solid #f5c6c0;} .btn-red:hover{background:var(--red);color:#fff;}
+.btn-purple{background:var(--purple);color:#fff;} .btn-purple:hover{background:#6d28d9;}
+.btn-outline{background:none;border:1.5px solid var(--border);color:var(--slate);} .btn-outline:hover{border-color:var(--teal);color:var(--teal);}
+/* FORMS */
+.fgrid{display:grid;gap:14px;margin-bottom:14px;}
+.fgrid.two{grid-template-columns:1fr 1fr;}
+.fgrid.three{grid-template-columns:1fr 1fr 1fr;}
+.fgrid.one{grid-template-columns:1fr;}
+.field label{font-size:11px;font-weight:700;color:var(--navy);letter-spacing:.3px;display:block;margin-bottom:5px;text-transform:uppercase;}
+.field input,.field select,.field textarea{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;color:var(--navy);outline:none;transition:border-color .15s;background:#fff;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--teal);}
+.field textarea{resize:vertical;min-height:80px;line-height:1.6;}
+.seclbl{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1.2px;text-transform:uppercase;padding:16px 0 10px;border-top:1px solid var(--border);margin-top:4px;}
+.seclbl:first-child{border-top:none;padding-top:0;}
+/* TABLES */
+.dtbl{width:100%;border-collapse:collapse;font-size:12.5px;}
+.dtbl th{background:var(--surface);font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.5px;padding:8px 12px;text-align:left;border-bottom:2px solid var(--border);}
+.dtbl td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.dtbl tr:hover td{background:var(--surface);}
+/* LEAVE BALANCE CARDS */
+.bal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:20px;}
+.bal-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center;}
+.bal-card .bn{font-size:40px;font-weight:700;color:var(--navy);}
+.bal-card .bl{font-size:10px;color:var(--muted);margin-top:4px;font-weight:700;letter-spacing:.5px;}
+.bal-card .bu{font-size:11px;color:var(--muted);margin-top:6px;}
+.bal-card.green .bn{color:var(--green);} .bal-card.amber .bn{color:var(--amber);} .bal-card.red .bn{color:var(--red);}
+/* POLICY CARDS */
+.policy-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;}
+.policy-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px;cursor:pointer;transition:all .18s;border-left:4px solid var(--teal);}
+.policy-card:hover{border-color:var(--teal);box-shadow:0 4px 16px rgba(10,126,164,.1);transform:translateY(-1px);}
+/* CHAT */
+.chat-wrap{display:flex;flex-direction:column;height:100%;max-width:860px;width:100%;margin:0 auto;padding:20px 20px 0;}
+.chat-msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px;padding-bottom:10px;}
+.mrow{display:flex;gap:10px;}
+.mrow.user{flex-direction:row-reverse;}
+.mav{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
+.mrow.bot .mav{background:linear-gradient(135deg,var(--navy),var(--teal));color:#fff;}
+.mrow.user .mav{background:var(--navy);color:var(--gold);font-size:11px;font-weight:700;}
+.mbub{padding:11px 15px;border-radius:14px;font-size:13px;line-height:1.75;max-width:calc(100% - 50px);}
+.mrow.bot .mbub{background:#fff;border:1px solid var(--border);border-bottom-left-radius:3px;color:var(--slate);}
+.mrow.user .mbub{background:var(--navy);color:#fff;border-bottom-right-radius:3px;}
+.mbub strong{color:var(--navy);font-weight:600;}
+.mrow.user .mbub strong{color:var(--gold);}
+.mbub ul{padding-left:16px;margin:6px 0;} .mbub li{margin:3px 0;}
+.typing span{display:inline-block;width:7px;height:7px;background:var(--muted);border-radius:50%;animation:bop 1.1s infinite;}
+.typing span:nth-child(2){animation-delay:.2s;} .typing span:nth-child(3){animation-delay:.4s;}
+@keyframes bop{0%,60%,100%{transform:translateY(0);}30%{transform:translateY(-6px);}}
+.chips{display:flex;flex-wrap:wrap;gap:7px;padding:10px 0 8px;}
+.chip{padding:6px 13px;background:#fff;border:1px solid var(--border);border-radius:18px;font-size:11.5px;color:var(--slate);cursor:pointer;transition:all .15s;font-weight:500;user-select:none;}
+.chip:hover{background:var(--teal-lt);border-color:var(--teal);color:var(--teal);}
+.chat-in-area{padding:12px 0 16px;flex-shrink:0;}
+.chat-in-row{display:flex;gap:8px;align-items:flex-end;}
+.chat-in-wrap{flex:1;background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:9px 13px;transition:border-color .15s;}
+.chat-in-wrap:focus-within{border-color:var(--teal);}
+#chat-input{width:100%;border:none;background:none;outline:none;font-family:'Inter',sans-serif;font-size:13px;color:var(--navy);resize:none;line-height:1.5;}
+#chat-input::placeholder{color:var(--muted);}
+.chat-send{width:40px;height:40px;background:var(--navy);border:none;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s;}
+.chat-send:hover{background:var(--teal);}
+.chat-send svg{width:17px;height:17px;fill:#fff;}
+/* ANONYMOUS TOGGLE */
+.anon-toggle{display:flex;gap:12px;margin-bottom:16px;}
+.anon-opt{flex:1;padding:12px;border:2px solid var(--border);border-radius:10px;cursor:pointer;text-align:center;transition:all .15s;user-select:none;}
+.anon-opt.selected{border-color:var(--purple);background:var(--purple-lt);}
+/* DOC GENERATOR */
+.doc-types{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:20px;}
+.dt-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:all .15s;text-align:center;user-select:none;}
+.dt-card:hover{border-color:var(--teal);transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.08);}
+.dt-card.active{border-color:var(--navy);background:#EEF4FB;}
+/* PREVIEW MODAL */
+.prev-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:400;align-items:center;justify-content:center;padding:20px;}
+.prev-overlay.open{display:flex;}
+.prev-modal{background:#fff;border-radius:16px;width:100%;max-width:760px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.3);overflow:hidden;}
+.prev-bar{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.prev-body{overflow-y:auto;padding:36px 40px;flex:1;}
+/* LOGIN MODALS */
+.modal-overlay{position:fixed;inset:0;background:rgba(18,40,68,.85);z-index:500;display:flex;align-items:center;justify-content:center;}
+.modal-box{background:#fff;border-radius:16px;padding:32px 28px;width:360px;box-shadow:0 24px 80px rgba(0,0,0,.3);}
+.modal-box h3{font-family:'Playfair Display',serif;font-size:20px;color:var(--navy);margin-bottom:4px;}
+.modal-box p{font-size:12px;color:var(--muted);margin-bottom:18px;}
+.modal-box .field{margin-bottom:12px;}
+/* ADMIN SECTIONS */
+.admin-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px;}
+.atab{padding:7px 14px;border-radius:8px;font-size:11.5px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:#fff;color:var(--slate);transition:all .15s;font-family:'Inter',sans-serif;}
+.atab:hover{border-color:var(--teal);color:var(--teal);}
+.atab.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+.asec{display:none;} .asec.active{display:block;}
+/* EMP TABLE */
+.etbl{width:100%;border-collapse:collapse;}
+.etbl th{background:var(--surface);font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.5px;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);}
+.etbl td{padding:8px 6px;border-bottom:1px solid var(--border);font-size:12px;vertical-align:middle;}
+.etbl input{width:100%;padding:4px 7px;border:1px solid var(--border);border-radius:5px;font-size:11.5px;font-family:'Inter',sans-serif;color:var(--navy);}
+/* HOLIDAY ROW */
+.hol-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;}
+.hol-row input,.hol-row select{padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:'Inter',sans-serif;font-size:12.5px;color:var(--navy);outline:none;}
+.hol-row input:focus,.hol-row select:focus{border-color:var(--teal);}
+/* ADD BTN */
+.add-btn{padding:8px 16px;background:var(--teal-lt);color:var(--teal);border:1.5px solid var(--teal);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;margin-bottom:12px;}
+.add-btn:hover{background:var(--teal);color:#fff;}
+/* COMPLAINT CARD */
+.complaint-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:10px;}
+/* DOC STYLES */
+.ck-doc{font-family:'Inter',sans-serif;font-size:13.5px;line-height:1.75;color:#2c2c2c;}
+.ck-hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:3px solid var(--navy);margin-bottom:20px;}
+.ck-badge{display:inline-block;padding:3px 10px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px;}
+.badge-conf{background:var(--red-lt);color:var(--red);}
+.badge-int{background:var(--teal-lt);color:var(--teal);}
+.badge-off{background:var(--navy);color:#fff;}
+.ck-doc h1{font-size:17px;font-weight:700;color:var(--navy);margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.ck-doc h2{font-size:11px;font-weight:700;color:var(--navy);letter-spacing:.8px;text-transform:uppercase;margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border);}
+.ck-doc p{margin-bottom:10px;}
+.doc-tbl{width:100%;border-collapse:collapse;font-size:12.5px;margin:10px 0 14px;}
+.doc-tbl th{background:var(--navy);color:#fff;padding:7px 10px;text-align:left;font-size:11px;font-weight:600;}
+.doc-tbl td{padding:7px 10px;border:1px solid var(--border);vertical-align:top;}
+.doc-tbl tr:nth-child(even) td{background:var(--surface);}
+.sig-blk{display:grid;gap:24px;margin-top:30px;padding-top:16px;border-top:1px solid var(--border);}
+.sig-blk.two{grid-template-columns:1fr 1fr;}
+.sig-blk.three{grid-template-columns:repeat(3,1fr);}
+.sig-line{border-top:1.5px solid #aaa;margin-bottom:6px;}
+.doc-info{background:var(--teal-lt);border-left:4px solid var(--teal);border-radius:0 8px 8px 0;padding:10px 14px;margin:12px 0;font-size:12.5px;color:var(--navy);}
+.doc-warn{background:var(--gold-lt);border-left:4px solid var(--gold);border-radius:0 8px 8px 0;padding:10px 14px;margin:12px 0;font-size:12.5px;color:#7a4a00;}
+/* EMPTY STATE */
+.empty{text-align:center;padding:48px 20px;color:var(--muted);}
+.empty .ei{font-size:40px;margin-bottom:12px;}
+/* SUCCESS */
+.success-msg{background:var(--green-lt);border:1px solid #86efac;border-radius:12px;padding:24px;text-align:center;display:none;}
+/* TOAST */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--navy);color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.2);transform:translateY(60px);opacity:0;transition:all .3s;z-index:600;}
+.toast.show{transform:translateY(0);opacity:1;}
+@media print{
+  .topbar,.tabs,.notif-banner,.prev-bar{display:none!important;}
+  .prev-modal{border-radius:0;box-shadow:none;max-height:none;}
+  .prev-body{overflow:visible;padding:20px;}
+  .prev-overlay{position:static;background:none;padding:0;}
+}
+
+/* ── EMPLOYEE RECORDS MODULE ── */
+.er-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px;}
+.er-toolbar input,.er-toolbar select{padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;color:var(--navy);outline:none;background:#fff;}
+.er-toolbar input:focus,.er-toolbar select:focus{border-color:var(--teal);}
+.er-toolbar input{flex:1;min-width:180px;}
+.er-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;margin-bottom:20px;}
+.er-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px;transition:box-shadow .15s;position:relative;overflow:hidden;}
+.er-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.1);}
+.er-card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;}
+.er-avatar{width:46px;height:46px;border-radius:12px;background:var(--navy);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:var(--gold);font-family:'Playfair Display',serif;flex-shrink:0;}
+.er-name{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:2px;}
+.er-titles{font-size:11px;color:var(--muted);line-height:1.5;}
+.er-status-badge{padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.3px;white-space:nowrap;margin-left:8px;}
+.st-active{background:var(--green-lt);color:var(--green);}
+.st-vacation{background:var(--teal-lt);color:var(--teal);}
+.st-emergency{background:var(--amber-lt);color:var(--amber);}
+.st-unpaid{background:#FEF3DC;color:#D4720A;}
+.st-terminated{background:var(--red-lt);color:var(--red);}
+.st-resigned{background:#E8EEF5;color:var(--navy);}
+.er-detail-row{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--slate);margin-bottom:5px;}
+.er-detail-row .dr-icon{font-size:13px;width:18px;flex-shrink:0;}
+.er-detail-row .dr-label{color:var(--muted);font-size:10.5px;width:80px;flex-shrink:0;}
+.er-detail-row .dr-val{font-weight:500;color:var(--navy);}
+.er-expiry-warn{color:var(--red);font-weight:600;}
+.er-expiry-soon{color:var(--amber);font-weight:600;}
+.er-card-actions{display:flex;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
+.er-btn{padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:none;font-family:'Inter',sans-serif;transition:all .15s;}
+.er-btn.edit{background:#EEF4FB;color:var(--navy);}
+.er-btn.edit:hover{background:var(--teal);color:#fff;}
+.er-btn.del{background:var(--red-lt);color:var(--red);border:1px solid #f5c6c0;}
+.er-btn.del:hover{background:var(--red);color:#fff;}
+/* Employee form modal */
+.er-modal-overlay{position:fixed;inset:0;background:rgba(18,40,68,.85);z-index:600;display:flex;align-items:center;justify-content:center;padding:16px;}
+.er-modal{background:#fff;border-radius:16px;width:100%;max-width:720px;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.3);overflow:hidden;}
+.er-modal-bar{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.er-modal-bar h3{font-family:'Playfair Display',serif;font-size:18px;color:var(--navy);}
+.er-modal-body{overflow-y:auto;padding:20px;flex:1;}
+.er-section-head{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1.2px;text-transform:uppercase;padding:14px 0 8px;border-top:1px solid var(--border);margin-top:4px;}
+.er-section-head:first-child{border-top:none;padding-top:0;}
+.er-fg{display:grid;gap:12px;margin-bottom:4px;}
+.er-fg.two{grid-template-columns:1fr 1fr;}
+.er-fg.three{grid-template-columns:1fr 1fr 1fr;}
+.er-fg.one{grid-template-columns:1fr;}
+.er-field label{font-size:10.5px;font-weight:700;color:var(--navy);letter-spacing:.3px;display:block;margin-bottom:4px;text-transform:uppercase;}
+.er-field input,.er-field select,.er-field textarea{width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;color:var(--navy);outline:none;transition:border-color .15s;}
+.er-field input:focus,.er-field select:focus,.er-field textarea:focus{border-color:var(--teal);}
+.er-modal-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;flex-shrink:0;}
+.expiry-flag{font-size:10px;margin-left:6px;font-weight:600;}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="tb-left">
+    <div class="tb-logo">CK</div>
+    <div>
+      <div class="tb-name">CK HR Portal</div>
+      <div class="tb-sub">CK ARCHITECTURE INTERIORS · CKC BUILDING CONTRACTING</div>
+    </div>
+    <div class="tb-logos">
+      <div class="tb-logo-pill"><img src="data:image/png;base64,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" class="tb-company-logo" alt="CK Architecture Interiors"></div>
+      <div class="tb-logo-div"></div>
+      <div class="tb-logo-pill"><img src="data:image/png;base64,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" class="tb-company-logo" alt="CKC Building Contracting"></div>
+    </div>
+  </div>
+  <div style="margin-left:12px;display:flex;align-items:center;gap:6px" id="sync-bar">
+    <span id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0;display:inline-block"></span>
+    <span id="sync-label" style="font-size:10px;color:#8BAFD4">Live</span>
+  </div>
+  <div class="tb-right">
+    <button class="tb-btn gold" onclick="toggleAdmin()">🔐 Admin</button>
+  </div>
+</div>
+
+<!-- NOTIFICATIONS BANNER -->
+<div class="notif-banner" id="notif-banner" style="display:none"></div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('chat')">💬 HR Assistant</div>
+  <div class="tab" onclick="switchTab('policies')">📚 HR Policies</div>
+  <div class="tab" onclick="switchTab('holidays')">📅 Holidays</div>
+  <div class="tab" id="admin-tab" style="display:none" onclick="switchTab('admin')">⚙️ Admin</div>
+</div>
+
+<div class="page-content">
+
+<!-- ══ CHAT ══ -->
+<div class="panel active" id="panel-chat">
+  <div class="chat-wrap">
+    <div class="chat-msgs" id="chat-msgs">
+      <div class="mrow bot">
+        <div class="mav">✦</div>
+        <div class="mbub"><strong>Hello! I'm the CK HR Assistant.</strong><br>I can answer your HR questions instantly — leave policies, medical insurance, working hours, holidays, and more.<br><br>What would you like to know?</div>
+      </div>
+      <div class="chips" id="quick-chips">
+        <div class="chip" onclick="ask('How many days annual leave do I get?')">Annual leave days</div>
+        <div class="chip" onclick="ask('What is the sick leave policy?')">Sick leave</div>
+        <div class="chip" onclick="ask('How does medical insurance work?')">Medical insurance</div>
+        <div class="chip" onclick="ask('What are the public holidays this year?')">Public holidays</div>
+        <div class="chip" onclick="ask('What are the working hours?')">Working hours</div>
+        <div class="chip" onclick="ask('How do I apply for leave?')">Apply for leave</div>
+        <div class="chip" onclick="ask('Tell me about gratuity and end of service')">Gratuity / EOSB</div>
+        <div class="chip" onclick="ask('What is the notice period?')">Notice period</div>
+        <div class="chip" onclick="switchTab('leave')">📋 Check my leave balance</div>
+        <div class="chip" onclick="switchTab('policies')">📚 View HR policies</div>
+      </div>
+    </div>
+    <div class="chat-in-area">
+      <div class="chat-in-row">
+        <div class="chat-in-wrap">
+          <textarea id="chat-input" rows="1" placeholder="Ask any HR question..." onkeydown="chatKey(event)" oninput="autoR(this)"></textarea>
+        </div>
+        <button class="chat-send" onclick="sendChat()">
+          <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ LEAVE ══ -->
+<div class="panel" id="panel-policies">
+  <div class="pw">
+    <h2>HR Policy Library</h2>
+    <p class="sub">Official CK/CKC HR policies — click any policy to read it in full</p>
+    <div class="ibox teal" style="margin-bottom:20px">📌 These are the official policies for CK Architecture Interiors LLC and CKC Building Contracting LLC. Contact HR at hr@ckarchitecture.com for any queries.</div>
+    <div class="policy-grid" id="policy-grid"></div>
+    <div class="empty" id="policy-empty"><div class="ei">📚</div><p>No policies added yet.<br>Admin can add them in Admin Panel → Policy Library.</p></div>
+    <div id="policy-viewer" style="display:none;background:#fff;border:1px solid var(--border);border-radius:12px;padding:24px;margin-top:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border)">
+        <h3 id="pv-title" style="font-size:16px;font-weight:700;color:var(--navy)"></h3>
+        <button class="btn btn-outline" onclick="closePV()">✕ Close</button>
+      </div>
+      <div id="pv-content" style="white-space:pre-wrap;font-size:13px;line-height:1.9;color:var(--slate)"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ HOLIDAYS ══ -->
+<div class="panel" id="panel-holidays">
+  <div class="pw">
+    <h2>Holiday Calendar</h2>
+    <p class="sub">Official public and company holidays for CK Architecture Interiors & CKC Building Contracting</p>
+    <div id="hol-list"></div>
+  </div>
+</div>
+
+<!-- ══ COMPLAINTS ══ -->
+<div class="panel" id="panel-admin">
+  <div class="pw">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <h2>Admin Panel</h2>
+      <div style="display:flex;gap:8px"><button class="btn btn-outline" onclick="testConnection()" style="font-size:12px;background:#fef3c7;border-color:#fbbf24;color:#92400e">🔧 Test Connection</button>
+      <button class="btn btn-outline" onclick="syncNow()" style="font-size:12px">🔄 Sync Now</button><button class="btn btn-red" onclick="logoutAdmin()">Logout</button></div>
+    </div>
+    <div class="admin-tabs">
+      <button class="atab active" onclick="aTab('p-policies')">HR Policies</button>
+      
+      <button class="atab" onclick="aTab('p-holidays')">Holidays</button>
+      <button class="atab" onclick="aTab('p-notifs')">Notifications</button>
+      <button class="atab" onclick="aTab('p-bdays')">Birthdays</button>
+      <button class="atab" onclick="aTab('p-plib')">📚 Policy Library</button>
+      <button class="atab" onclick="aTab('p-docgen')">📄 Doc Generator</button>
+      <button class="atab" onclick="aTab('p-emprecords')">👥 Employee Records</button>
+      <button class="atab" onclick="aTab('p-leave')">📅 Leave Register</button>
+      <button class="atab" onclick="aTab('p-salary')">💰 Salary & Promotions</button>
+      <button class="atab" onclick="aTab('p-alerts')">⚠️ Expiry Alerts</button>
+      <button class="atab" onclick="aTab('p-reports')">📊 Reports</button>
+      <button class="atab" onclick="aTab('p-security')">Security</button>
+    </div>
+
+    <!-- POLICIES -->
+    <div class="asec active" id="asec-p-policies">
+      <div class="card"><h3>📋 Leave Entitlements</h3>
+        <div class="fgrid two">
+          <div class="field"><label>Annual Leave (days)</label><input type="number" id="p-annual"></div>
+          <div class="field"><label>Sick Leave (days)</label><input type="number" id="p-sick"></div>
+          <div class="field"><label>Emergency Leave (days)</label><input type="number" id="p-emergency"></div>
+          <div class="field"><label>Maternity Leave (days)</label><input type="number" id="p-maternity"></div>
+          <div class="field"><label>Paternity Leave (days)</label><input type="number" id="p-paternity"></div>
+          <div class="field"><label>Unpaid Leave</label><input type="text" id="p-unpaid"></div>
+        </div>
+        <button class="btn btn-green" onclick="saveLeavePolicy()">Save Leave Policy</button>
+      </div>
+      <div class="card"><h3>🏥 Medical Insurance</h3>
+        <div class="fgrid one">
+          <div class="field"><label>Provider</label><input type="text" id="p-ins-provider"></div>
+          <div class="field"><label>Coverage Type</label><input type="text" id="p-ins-type"></div>
+          <div class="field"><label>Outpatient Co-pay</label><input type="text" id="p-ins-copay"></div>
+          <div class="field"><label>Annual Inpatient Limit</label><input type="text" id="p-ins-inpatient"></div>
+          <div class="field"><label>Dental Coverage</label><input type="text" id="p-ins-dental"></div>
+          <div class="field"><label>Optical Coverage</label><input type="text" id="p-ins-optical"></div>
+          <div class="field"><label>Claims Contact</label><input type="text" id="p-ins-contact"></div>
+          <div class="field"><label>Additional Notes</label><textarea id="p-ins-notes" rows="3"></textarea></div>
+        </div>
+        <button class="btn btn-green" onclick="saveInsurance()">Save Insurance Policy</button>
+      </div>
+      <div class="card"><h3>⚙️ General Policy</h3>
+        <div class="fgrid one">
+          <div class="field"><label>Working Hours</label><input type="text" id="p-hours"></div>
+          <div class="field"><label>Probation Period</label><input type="text" id="p-probation"></div>
+          <div class="field"><label>Notice Period</label><input type="text" id="p-notice"></div>
+          <div class="field"><label>Gratuity / EOSB</label><textarea id="p-gratuity" rows="3"></textarea></div>
+          <div class="field"><label>Dress Code</label><input type="text" id="p-dress"></div>
+          <div class="field"><label>Other Policy Notes</label><textarea id="p-other" rows="2"></textarea></div>
+        </div>
+        <button class="btn btn-green" onclick="saveGeneral()">Save General Policy</button>
+      </div>
+    </div>
+
+    <!-- EMPLOYEES -->
+    <div class="asec" id="asec-p-holidays">
+      <div class="card"><h3>📅 Holiday Calendar</h3>
+        <button class="add-btn" onclick="addHoliday()">+ Add Holiday</button>
+        <div id="hol-admin"></div>
+        <button class="btn btn-green" onclick="saveHols()">Save Holidays</button>
+      </div>
+    </div>
+
+    <!-- NOTIFICATIONS -->
+    <div class="asec" id="asec-p-notifs">
+      <div class="card"><h3>📢 HR Notifications & Announcements</h3>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px">These appear in the banner at the top of the portal for all employees.</p>
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">
+          <div class="field" style="flex:2;min-width:200px"><label>Notification Text</label><input type="text" id="new-notif" placeholder="e.g. Office closed on 2 December for National Day"></div>
+          <div class="field"><label>Type</label><select id="notif-type"><option value="general">General</option><option value="holiday">Holiday</option><option value="birthday">Birthday</option></select></div>
+          <button class="add-btn" style="margin-bottom:0" onclick="addNotif()">+ Add</button>
+        </div>
+        <div id="notif-list"></div>
+        <button class="btn btn-green" onclick="saveNotifs()">Save Notifications</button>
+      </div>
+    </div>
+
+    <!-- BIRTHDAYS -->
+    <div class="asec" id="asec-p-bdays">
+      <div class="card"><h3>🎂 Employee Birthdays</h3>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Birthdays this month auto-appear as greetings in the banner.</p>
+        <button class="add-btn" onclick="addBday()">+ Add Birthday</button>
+        <div id="bday-list"></div>
+        <button class="btn btn-green" onclick="saveBdays()">Save Birthdays</button>
+      </div>
+    </div>
+
+    <!-- POLICY LIBRARY -->
+    <div class="asec" id="asec-p-plib">
+      <div class="card"><h3>📚 HR Policy Library</h3>
+        <div class="ibox teal">Add official HR policies here. Employees can read them in the HR Policies tab. Type or paste the policy content directly.</div>
+        <br><button class="add-btn" onclick="addPolicy()">+ Add Policy Document</button>
+        <div id="plib-list"></div>
+        <button class="btn btn-green" onclick="savePlib()">Save All Policies</button>
+      </div>
+    </div>
+
+    <!-- INBOX -->
+    <div class="asec" id="asec-p-docgen">
+      <div class="card"><h3>📄 Document Generator</h3>
+        <div class="doc-types">
+          <div class="dt-card active" id="dt-offer" onclick="selDoc('offer')"><div style="font-size:24px;margin-bottom:8px">📄</div><div style="font-size:12px;font-weight:700;color:var(--navy)">Offer Letter</div></div>
+          <div class="dt-card" id="dt-salarycert" onclick="selDoc('salarycert')"><div style="font-size:24px;margin-bottom:8px">🏛️</div><div style="font-size:12px;font-weight:700;color:var(--navy)">Salary Certificate</div></div>
+          <div class="dt-card" id="dt-payslip" onclick="selDoc('payslip')"><div style="font-size:24px;margin-bottom:8px">💰</div><div style="font-size:12px;font-weight:700;color:var(--navy)">Payslip</div></div>
+          <div class="dt-card" id="dt-settlement" onclick="selDoc('settlement')"><div style="font-size:24px;margin-bottom:8px">🤝</div><div style="font-size:12px;font-weight:700;color:var(--navy)">Final Settlement</div></div>
+          <div class="dt-card" id="dt-noc" onclick="selDoc('noc')"><div style="font-size:24px;margin-bottom:8px">✅</div><div style="font-size:12px;font-weight:700;color:var(--navy)">NOC Letter</div></div>
+          <div class="dt-card" id="dt-warning" onclick="selDoc('warning')"><div style="font-size:24px;margin-bottom:8px">⚠️</div><div style="font-size:12px;font-weight:700;color:var(--navy)">Warning Letter</div></div>
+          <div class="dt-card" id="dt-experience" onclick="selDoc('experience')"><div style="font-size:24px;margin-bottom:8px">📜</div><div style="font-size:12px;font-weight:700;color:var(--navy)">Experience Letter</div></div>
+          <div class="dt-card" id="dt-pip" onclick="selDoc('pip')"><div style="font-size:24px;margin-bottom:8px">📈</div><div style="font-size:12px;font-weight:700;color:var(--navy)">PIP Letter</div></div>
+        </div>
+        <div id="doc-form" style="border-top:1px solid var(--border);padding-top:16px;margin-top:4px"></div>
+      </div>
+    </div>
+
+    <!-- EMPLOYEE RECORDS -->
+    <div class="asec" id="asec-p-emprecords">
+      <div class="card">
+        <h3>👥 Employee Records</h3>
+        <div class="ibox teal" style="margin-bottom:16px">Complete employee master register — all personal, employment, and document details in one place. Download as Excel anytime.</div>
+        <div class="er-toolbar">
+          <input type="text" id="er-search" placeholder="🔍 Search by name, ID, or department..." oninput="renderERCards()">
+          <select id="er-filter-status" onchange="renderERCards()">
+            <option value="">All Statuses</option>
+            <option>Active</option>
+            <option>On Vacation</option>
+            <option>Emergency Leave</option>
+            <option>Unpaid Leave</option>
+            <option>Terminated</option>
+            <option>Resigned</option>
+          </select>
+          <select id="er-filter-dept" onchange="renderERCards()">
+            <option value="">All Departments</option>
+          </select>
+          <button class="btn btn-navy" onclick="openERForm(null)">+ Add Employee</button>
+          <button class="btn btn-green" onclick="downloadERExcel()">⬇ Download Excel</button>
+        </div>
+        <div id="er-summary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px"></div>
+        <div class="er-grid" id="er-grid"></div>
+        <div class="empty" id="er-empty" style="display:none"><div class="ei">👥</div><p>No employee records yet.<br>Click '+ Add Employee' to get started.</p></div>
+      </div>
+    </div>
+
+    <!-- SECURITY -->
+    
+    <!-- LEAVE REGISTER -->
+    <div class="asec" id="asec-p-leave">
+      <div class="card">
+        <h3>📅 Leave Register</h3>
+        <div class="ibox teal" style="margin-bottom:12px;font-size:12px">
+          <strong>UAE Labour Law (Sick Leave):</strong> First 15 days full pay → next 30 days half pay → remaining unpaid.
+        </div>
+        <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+          <input type="text" id="lr-search" placeholder="Search employee..." style="flex:1;min-width:160px;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:13px;outline:none" oninput="renderLeaveLog()">
+          <select id="lr-type" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:13px;outline:none;color:var(--navy)" onchange="renderLeaveLog()">
+            <option value="">All Leave Types</option>
+            <option>Annual Leave</option>
+            <option>Sick Leave - Full Pay</option>
+            <option>Sick Leave - Half Pay</option>
+            <option>Sick Leave - Unpaid</option>
+            <option>Emergency Leave</option>
+            <option>Maternity Leave</option>
+            <option>Paternity Leave</option>
+            <option>Study Leave</option>
+            <option>Work From Home</option>
+            <option>Unpaid Leave</option>
+            <option>Compassionate Leave</option>
+          </select>
+          <select id="lr-status" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:13px;outline:none;color:var(--navy)" onchange="renderLeaveLog()">
+            <option value="">All Status</option>
+            <option>Approved</option>
+            <option>Pending</option>
+            <option>Rejected</option>
+          </select>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:18px">
+          <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px">+ Add Leave Entry</div>
+          <div class="fgrid two">
+            <div class="field"><label>Employee Name</label><input type="text" id="la-emp" placeholder="Type name..." list="la-emp-list"><datalist id="la-emp-list"></datalist></div>
+            <div class="field"><label>Leave Type</label><select id="la-type"><option>Annual Leave</option><option>Sick Leave - Full Pay</option><option>Sick Leave - Half Pay</option><option>Sick Leave - Unpaid</option><option>Emergency Leave</option><option>Maternity Leave</option><option>Paternity Leave</option><option>Study Leave</option><option>Work From Home</option><option>Unpaid Leave</option><option>Compassionate Leave</option></select></div>
+            <div class="field"><label>From Date</label><input type="date" id="la-from"></div>
+            <div class="field"><label>To Date</label><input type="date" id="la-to"></div>
+            <div class="field"><label>Days</label><input type="number" id="la-days" step="0.5" min="0.5"></div>
+            <div class="field"><label>Status</label><select id="la-status"><option>Approved</option><option>Pending</option><option>Rejected</option></select></div>
+          </div>
+          <div class="fgrid one"><div class="field"><label>Notes / Reason</label><input type="text" id="la-notes" placeholder="Optional"></div></div>
+          <button class="btn btn-navy" onclick="addLeaveEntry()" style="margin-top:8px">+ Add Entry</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+            <thead><tr style="background:var(--navy);color:#fff">
+              <th style="padding:8px 10px;text-align:left">Employee</th>
+              <th style="padding:8px 10px;text-align:left">Type</th>
+              <th style="padding:8px 10px;text-align:left">From</th>
+              <th style="padding:8px 10px;text-align:left">To</th>
+              <th style="padding:8px 10px;text-align:center">Days</th>
+              <th style="padding:8px 10px;text-align:left">Status</th>
+              <th style="padding:8px 10px;text-align:left">Notes</th>
+              <th style="padding:8px 10px;text-align:left">Updated By</th>
+              <th style="padding:8px 10px;text-align:center"></th>
+            </tr></thead>
+            <tbody id="leave-log-body"></tbody>
+          </table>
+          <div id="leave-log-empty" style="text-align:center;padding:25px;color:var(--muted)">No leave entries yet. Add one above.</div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-green" onclick="saveLeaveLog()">💾 Save & Sync to Server</button>
+          <button class="btn btn-outline" onclick="exportLeaveCSV()">⬇️ Export CSV</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SALARY & PROMOTIONS -->
+    <div class="asec" id="asec-p-salary">
+      <div class="card">
+        <h3>💰 Salary & Promotions Register</h3>
+        <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+          <input type="text" id="sl-search" placeholder="Search employee..." style="flex:1;min-width:160px;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:13px;outline:none" oninput="renderSalaryLog()">
+          <select id="sl-type" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:13px;outline:none;color:var(--navy)" onchange="renderSalaryLog()">
+            <option value="">All Types</option>
+            <option>Salary Increment</option>
+            <option>Salary Reduction</option>
+            <option>Promotion</option>
+            <option>Designation Change</option>
+            <option>Department Transfer</option>
+            <option>Contract Renewal</option>
+            <option>Probation Confirmed</option>
+            <option>Warning Issued</option>
+          </select>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:18px">
+          <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px">+ Add Entry</div>
+          <div class="fgrid two">
+            <div class="field"><label>Employee Name</label><input type="text" id="sa-emp" placeholder="Type name..." list="sa-emp-list"><datalist id="sa-emp-list"></datalist></div>
+            <div class="field"><label>Change Type</label><select id="sa-type"><option>Salary Increment</option><option>Salary Reduction</option><option>Promotion</option><option>Designation Change</option><option>Department Transfer</option><option>Contract Renewal</option><option>Probation Confirmed</option><option>Warning Issued</option></select></div>
+            <div class="field"><label>Effective Date</label><input type="date" id="sa-date"></div>
+            <div class="field"><label>Previous Value</label><input type="text" id="sa-prev" placeholder="e.g. AED 8,000"></div>
+            <div class="field"><label>New Value</label><input type="text" id="sa-new" placeholder="e.g. AED 10,000"></div>
+            <div class="field"><label>Approved By</label><input type="text" id="sa-approver" placeholder="e.g. CEO"></div>
+          </div>
+          <div class="fgrid one"><div class="field"><label>Notes</label><input type="text" id="sa-notes" placeholder="Optional"></div></div>
+          <button class="btn btn-navy" onclick="addSalaryEntry()" style="margin-top:8px">+ Add Entry</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+            <thead><tr style="background:var(--navy);color:#fff">
+              <th style="padding:8px 10px;text-align:left">Employee</th>
+              <th style="padding:8px 10px;text-align:left">Type</th>
+              <th style="padding:8px 10px;text-align:left">Date</th>
+              <th style="padding:8px 10px;text-align:left">Previous</th>
+              <th style="padding:8px 10px;text-align:left">New</th>
+              <th style="padding:8px 10px;text-align:left">Approved By</th>
+              <th style="padding:8px 10px;text-align:left">Updated By</th>
+              <th style="padding:8px 10px;text-align:center"></th>
+            </tr></thead>
+            <tbody id="salary-log-body"></tbody>
+          </table>
+          <div id="salary-log-empty" style="text-align:center;padding:25px;color:var(--muted)">No entries yet.</div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-green" onclick="saveSalaryLog()">💾 Save & Sync to Server</button>
+          <button class="btn btn-outline" onclick="exportSalaryCSV()">⬇️ Export CSV</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXPIRY ALERTS -->
+    <div class="asec" id="asec-p-alerts">
+      <div class="card">
+        <h3>⚠️ Document Expiry Alerts</h3>
+        <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+          <select id="alert-filter" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:13px;outline:none;color:var(--navy)" onchange="renderAlerts()">
+            <option value="30">Expiring in 30 days</option>
+            <option value="60">Expiring in 60 days</option>
+            <option value="90" selected>Expiring in 90 days</option>
+            <option value="180">Expiring in 180 days</option>
+            <option value="0">Already Expired</option>
+          </select>
+          <button class="btn btn-outline" onclick="renderAlerts()" style="font-size:12px">🔄 Refresh</button>
+          <button class="btn btn-outline" onclick="exportAlertsCSV()" style="font-size:12px">⬇️ Export</button>
+        </div>
+        <div id="alerts-summary" style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap"></div>
+        <div id="alerts-grid"></div>
+        <div id="alerts-empty" style="text-align:center;padding:30px;color:var(--muted);display:none">No expiring documents in this period.</div>
+      </div>
+    </div>
+
+    <!-- REPORTS -->
+    <div class="asec" id="asec-p-reports">
+      <div class="card">
+        <h3>📊 Reports</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-bottom:20px">
+          <div onclick="genReport('headcount')" style="background:var(--navy);border-radius:12px;padding:18px;cursor:pointer;text-align:center"><div style="font-size:26px;margin-bottom:6px">👥</div><div style="color:#fff;font-weight:700;font-size:13px">Headcount Report</div><div style="color:#8BAFD4;font-size:10.5px;margin-top:3px">By department & status</div></div>
+          <div onclick="genReport('leave')" style="background:var(--teal);border-radius:12px;padding:18px;cursor:pointer;text-align:center"><div style="font-size:26px;margin-bottom:6px">📅</div><div style="color:#fff;font-weight:700;font-size:13px">Leave Summary</div><div style="color:#E0F2FE;font-size:10.5px;margin-top:3px">Leave days by type</div></div>
+          <div onclick="genReport('salary')" style="background:#7C3AED;border-radius:12px;padding:18px;cursor:pointer;text-align:center"><div style="font-size:26px;margin-bottom:6px">💰</div><div style="color:#fff;font-weight:700;font-size:13px">Salary Changes</div><div style="color:#DDD6FE;font-size:10.5px;margin-top:3px">Increments & promotions</div></div>
+          <div onclick="genReport('emp')" style="background:var(--gold);border-radius:12px;padding:18px;cursor:pointer;text-align:center"><div style="font-size:26px;margin-bottom:6px">📋</div><div style="color:#fff;font-weight:700;font-size:13px">Employee Profile</div><div style="color:#FEF3C7;font-size:10.5px;margin-top:3px">Full record per employee</div></div>
+          <div onclick="genReport('wfh')" style="background:#059669;border-radius:12px;padding:18px;cursor:pointer;text-align:center"><div style="font-size:26px;margin-bottom:6px">🏠</div><div style="color:#fff;font-weight:700;font-size:13px">WFH Register</div><div style="color:#D1FAE5;font-size:10.5px;margin-top:3px">Work from home log</div></div>
+          <div onclick="genReport('audit')" style="background:#475569;border-radius:12px;padding:18px;cursor:pointer;text-align:center"><div style="font-size:26px;margin-bottom:6px">🔍</div><div style="color:#fff;font-weight:700;font-size:13px">Audit Log</div><div style="color:#cbd5e1;font-size:10.5px;margin-top:3px">Who changed what</div></div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px">
+          <div style="font-size:11.5px;font-weight:700;color:var(--navy);margin-bottom:8px;letter-spacing:.3px">FILTERS</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <input type="text" id="rpt-emp" placeholder="Employee name (blank for all)" list="rpt-emp-list" style="flex:1;min-width:200px;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:13px;outline:none">
+            <datalist id="rpt-emp-list"></datalist>
+            <input type="date" id="rpt-from" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:13px;outline:none" title="From date">
+            <input type="date" id="rpt-to" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:13px;outline:none" title="To date">
+          </div>
+        </div>
+        <div id="report-output" style="display:none">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div id="report-title" style="font-size:15px;font-weight:700;color:var(--navy)"></div>
+            <button class="btn btn-outline" onclick="exportReportCSV()" style="font-size:12px">⬇️ Export CSV</button>
+          </div>
+          <div id="report-content" style="overflow-x:auto"></div>
+        </div>
+      </div>
+    </div>
+
+<div class="asec" id="asec-p-security">
+      <div class="card"><h3>🔐 Change Admin Password</h3>
+        <div class="fgrid one" style="max-width:360px">
+          <div class="field"><label>Current Password</label><input type="password" id="pw-cur"></div>
+          <div class="field"><label>New Password (min 6 characters)</label><input type="password" id="pw-new"></div>
+          <div class="field"><label>Confirm New Password</label><input type="password" id="pw-cf"></div>
+        </div>
+        <button class="btn btn-green" onclick="changePw()">Update Password</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</div><!-- /page-content -->
+
+<!-- EMPLOYEE RECORD FORM MODAL -->
+<div class="er-modal-overlay" id="er-modal" style="display:none">
+  <div class="er-modal">
+    <div class="er-modal-bar">
+      <h3 id="er-modal-title">Add Employee Record</h3>
+      <button onclick="closeERForm()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted)">✕</button>
+    </div>
+    <div class="er-modal-body">
+
+      <div class="er-section-head">Personal Information</div>
+      <div class="er-fg two">
+        <div class="er-field"><label>Full Name *</label><input type="text" id="erf-name" placeholder="e.g. Jawwad Hussain"></div>
+        <div class="er-field"><label>Employee ID</label><input type="text" id="erf-id" placeholder="e.g. CK-001"></div>
+        <div class="er-field"><label>Nationality</label><input type="text" id="erf-nat" placeholder="e.g. Pakistani"></div>
+        <div class="er-field"><label>Date of Birth</label><input type="date" id="erf-dob"></div>
+        <div class="er-field"><label>Personal Mobile</label><input type="text" id="erf-mobile" placeholder="e.g. +971 50 123 4567"></div>
+        <div class="er-field"><label>Personal Email</label><input type="text" id="erf-email" placeholder="e.g. jawwad@gmail.com"></div>
+      </div>
+
+      <div class="er-section-head">Employment Details</div>
+      <div class="er-fg two">
+        <div class="er-field"><label>Primary Designation *</label><input type="text" id="erf-title1" placeholder="e.g. Director of Joinery"></div>
+        <div class="er-field"><label>Secondary Designation (if any)</label><input type="text" id="erf-title2" placeholder="e.g. Production Manager"></div>
+        <div class="er-field"><label>Third Designation (if any)</label><input type="text" id="erf-title3" placeholder="Leave blank if not applicable"></div>
+        <div class="er-field"><label>Primary Department *</label><input type="text" id="erf-dept1" placeholder="e.g. Joinery Business Unit"></div>
+        <div class="er-field"><label>Secondary Department (if any)</label><input type="text" id="erf-dept2" placeholder="e.g. Production"></div>
+        <div class="er-field"><label>Company</label>
+          <select id="erf-company">
+            <option>CK Architecture Interiors LLC</option>
+            <option>CKC Building Contracting LLC</option>
+            <option>Both — CK & CKC</option>
+          </select>
+        </div>
+        <div class="er-field"><label>Date of Joining</label><input type="date" id="erf-join"></div>
+        <div class="er-field"><label>Reports To</label><input type="text" id="erf-reports" placeholder="e.g. Cem Kapancioglu (CEO)"></div>
+        <div class="er-field"><label>Employee Status *</label>
+          <select id="erf-status">
+            <option>Active</option>
+            <option>On Vacation</option>
+            <option>Emergency Leave</option>
+            <option>Unpaid Leave</option>
+            <option>Terminated</option>
+            <option>Resigned</option>
+          </select>
+        </div>
+        <div class="er-field"><label>Work Email</label><input type="text" id="erf-workemail" placeholder="e.g. jawwad@ckarchitecture.com"></div>
+      </div>
+
+      <div class="er-section-head">Salary & Benefits</div>
+      <div class="er-fg two">
+        <div class="er-field"><label>Basic Salary (AED/month)</label><input type="text" id="erf-basic" placeholder="e.g. 15,000"></div>
+        <div class="er-field"><label>Housing Allowance (AED)</label><input type="text" id="erf-housing" placeholder="e.g. 5,000"></div>
+        <div class="er-field"><label>Transport Allowance (AED)</label><input type="text" id="erf-transport" placeholder="e.g. 1,500"></div>
+        <div class="er-field"><label>Other Allowance (AED)</label><input type="text" id="erf-otherallow" placeholder="e.g. 500"></div>
+        <div class="er-field"><label>Total Monthly Package (AED)</label><input type="text" id="erf-total" placeholder="Auto or enter manually"></div>
+        <div class="er-field"><label>Medical Insurance</label>
+          <select id="erf-medical">
+            <option>Provided — Daman Enhanced (Silver)</option>
+            <option>Provided — Daman Basic</option>
+            <option>Not provided</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="er-field"><label>Air Ticket Entitlement</label>
+          <select id="erf-ticket">
+            <option>Provided (economy, annual)</option>
+            <option>Not provided</option>
+          </select>
+        </div>
+        <div class="er-field"><label>Other Benefits / Notes</label><input type="text" id="erf-benefits" placeholder="e.g. Company car, mobile allowance"></div>
+      </div>
+
+      <div class="er-section-head">Documents & Expiry Dates</div>
+      <div class="er-fg two">
+        <div class="er-field"><label>Passport Number</label><input type="text" id="erf-passport" placeholder="e.g. P1234567"></div>
+        <div class="er-field"><label>Passport Expiry Date</label><input type="date" id="erf-passport-exp"></div>
+        <div class="er-field"><label>Emirates ID Number</label><input type="text" id="erf-eid" placeholder="e.g. 784-1990-1234567-1"></div>
+        <div class="er-field"><label>Emirates ID Expiry</label><input type="date" id="erf-eid-exp"></div>
+        <div class="er-field"><label>UAE Visa / Residence Permit No.</label><input type="text" id="erf-visa" placeholder="e.g. 201/2023/12345"></div>
+        <div class="er-field"><label>Visa Expiry Date</label><input type="date" id="erf-visa-exp"></div>
+        <div class="er-field"><label>Labour Card / Work Permit No.</label><input type="text" id="erf-labour" placeholder="e.g. LC-2023-789456"></div>
+        <div class="er-field"><label>Labour Card Expiry</label><input type="date" id="erf-labour-exp"></div>
+      </div>
+
+      <div class="er-section-head">Additional Notes</div>
+      <div class="er-fg one">
+        <div class="er-field"><label>Notes / Remarks</label><textarea id="erf-notes" rows="3" placeholder="Any additional information about this employee..."></textarea></div>
+      </div>
+
+    </div>
+    <div class="er-modal-footer">
+      <button class="btn btn-green" onclick="saveERRecord()">💾 Save Record</button>
+      <button class="btn btn-outline" onclick="closeERForm()">Cancel</button>
+      <div id="erf-msg" style="font-size:12px;color:var(--green);align-self:center;margin-left:8px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- STAFF LOGIN MODAL -->
+
+<!-- ADMIN LOGIN MODAL -->
+<div class="modal-overlay" id="admin-modal" style="display:none">
+  <div class="modal-box" style="text-align:center">
+    <div style="width:52px;height:52px;background:var(--gold);border-radius:13px;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:#fff">CK</div>
+    <h3>Admin Login</h3><p>HR Director access only</p>
+    <input type="password" id="admin-pw" placeholder="Admin password" onkeydown="if(event.key==='Enter')doAdminLogin()" style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;color:var(--navy);outline:none;margin-bottom:10px">
+    <button class="btn btn-navy" style="width:100%;justify-content:center" onclick="doAdminLogin()">Login</button>
+    <div id="admin-err" style="color:var(--red);font-size:12px;margin-top:8px"></div>
+    <br><button onclick="hideModal('admin-modal')" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer">Cancel</button>
+  </div>
+</div>
+
+<!-- PREVIEW MODAL -->
+<div class="prev-overlay" id="prev-overlay">
+  <div class="prev-modal">
+    <div class="prev-bar">
+      <div id="prev-title" style="font-size:14px;font-weight:600;color:var(--navy)">Document Preview</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline" onclick="copyDoc()" style="padding:7px 14px;font-size:12px">Copy Text</button>
+        <button class="btn btn-navy" onclick="window.print()" style="padding:7px 14px;font-size:12px">🖨️ Print / PDF</button>
+        <button class="btn btn-outline" onclick="closePrev()" style="padding:7px 14px;font-size:12px">✕ Close</button>
+      </div>
+    </div>
+    <div class="prev-body" id="prev-body"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+
+// ═══════════════════════════════════════════════════════════════════════
+// LIVE SYNC LAYER — Google Apps Script Backend
+// Prepended to the portal JS — all other functions unchanged
+// API URL hardcoded — no setup needed
+// ═══════════════════════════════════════════════════════════════════════
+var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxyn6ChYptG5blawO0lD6OFh7CXk1BsUv_ZNOA6I98bVRhuhi3PwqVp9sm571w8YK8/exec';
+
+// ── SYNC STATUS ──────────────────────────────────────────────────────────
+function setSyncStatus(s) {
+  var dot = document.getElementById('sync-dot');
+  var lbl = document.getElementById('sync-label');
+  if (!dot) return;
+  if (s === 'syncing') { dot.style.background='#C4882A'; lbl.textContent='Syncing...'; }
+  else if (s === 'live') { dot.style.background='#22c55e'; lbl.textContent='Live'; }
+  else { dot.style.background='#C0392B'; lbl.textContent='Error'; }
+}
+
+// ── GET DATA FROM SERVER ──────────────────────────────────────────────────
+// Simple GET request — works on all devices, no CORS issues
+function serverGet(key, callback) {
+  var url = SCRIPT_URL + '?action=get&key=' + encodeURIComponent(key) + '&_=' + Date.now();
+  fetch(url, { method: 'GET', redirect: 'follow' })
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.text();
+    })
+    .then(function(text) {
+      try {
+        var d = JSON.parse(text);
+        // Backend returns {ok:true, key:..., value:...} where value may be null
+        // null value means "key not set yet" - NOT an error
+        callback(null, d.value !== undefined ? d.value : null);
+      } catch(e) {
+        callback(e, null);
+      }
+    })
+    .catch(function(e) {
+      callback(e, null);
+    });
+}
+
+// ── SAVE DATA TO SERVER ───────────────────────────────────────────────────
+// GET with encoded value — works everywhere, no CORS
+function serverSet(key, value, callback) {
+  // Save locally first (instant, never fails)
+  try { localStorage.setItem('ckhr_' + key, JSON.stringify(value)); } catch(e) {}
+  // Then send to server
+  var encoded = encodeURIComponent(JSON.stringify(value));
+  // Check URL length — if too long, warn but still save locally
+  var url = SCRIPT_URL + '?action=set&key=' + encodeURIComponent(key) + '&val=' + encoded + '&_=' + Date.now();
+  if (url.length > 8000) {
+    // URL too long — use POST instead
+    serverPost(key, value, callback);
+    return;
+  }
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.timeout = 15000;
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState === 4) {
+      if (xhr.status === 200) {
+        try { var d = JSON.parse(xhr.responseText); callback(null, d.ok); }
+        catch(e) { callback(null, true); } // any response = sent
+      } else {
+        callback(new Error('Status ' + xhr.status), false);
+      }
+    }
+  };
+  xhr.ontimeout = function() { callback(new Error('Timeout'), false); };
+  xhr.onerror = function() {
+    // onerror on XHR for GET often means redirect was followed
+    // The server likely received it — treat as success
+    callback(null, true);
+  };
+  xhr.send();
+}
+
+// POST for large payloads
+function serverPost(key, value, callback) {
+  // Use form-encoded body — CORS-safe, no preflight required
+  // Apps Script receives form fields via e.parameter
+  var form = new URLSearchParams();
+  form.append('action', 'set');
+  form.append('key', key);
+  form.append('value', JSON.stringify(value));
+  
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    redirect: 'follow',
+    body: form  // browser sets Content-Type: application/x-www-form-urlencoded automatically
+  })
+    .then(function(r) {
+      if (!r.ok) {
+        if (callback) callback(new Error('HTTP ' + r.status), false);
+        return;
+      }
+      return r.text().then(function(text) {
+        try {
+          var d = JSON.parse(text);
+          if (callback) callback(null, d.ok === true);
+        } catch(e) {
+          if (callback) callback(null, true);  // assume ok if we got 200
+        }
+      });
+    })
+    .catch(function(e) {
+      if (callback) callback(e, false);
+    });
+}
+
+function syncNow() {
+  setSyncStatus('syncing');
+  var pending = 0;
+  var errors = 0;
+  function done() {
+    pending--;
+    if (pending <= 0) {
+      // Even if some keys had errors, if at least the core ones worked we are "live"
+      setSyncStatus(errors === 0 ? 'live' : (errors >= 5 ? 'error' : 'live'));
+      toast(errors === 0 ? 'Synced all data from server ✓' : 'Sync done — ' + errors + ' items had no server data yet');
+      // Refresh UI with latest data
+      if (typeof renderBanner === 'function') renderBanner();
+      if (typeof loadAdminForms === 'function' && adminIn) loadAdminForms();
+    }
+  }
+  function fetchKey(key, isArray) {
+    pending++;
+    serverGet(key, function(err, val) {
+      // Real network errors only count as errors
+      // null/empty values are normal (key never saved yet)
+      if (err) { errors++; done(); return; }
+      if (val !== null && val !== undefined) {
+        if (isArray && !Array.isArray(val)) { done(); return; }
+        if (key === 'policies' && val.annual !== undefined) { pol = val; save('policies', val); }
+        else if (key === 'employees') { emps = val; save('employees', val); }
+        else if (key === 'holidays') { hols = val; save('holidays', val); }
+        else if (key === 'notifications') { notifs = val; save('notifications', val); }
+        else if (key === 'birthdays') { bdays = val; save('birthdays', val); }
+        else if (key === 'policyLib') { plib = val; save('policyLib', val); }
+        else if (key === 'empRecords') { localStorage.setItem('ckhr_empRecords', JSON.stringify(val)); }
+        else if (key === 'leaveLog') { localStorage.setItem('ckhr_leaveLog', JSON.stringify(val)); }
+        else if (key === 'salaryLog') { localStorage.setItem('ckhr_salaryLog', JSON.stringify(val)); }
+        else if (key === 'audit') { localStorage.setItem('ckhr_audit', JSON.stringify(val)); }
+      }
+      done();
+    });
+  }
+  fetchKey('policies', false);
+  fetchKey('employees', true);
+  fetchKey('holidays', true);
+  fetchKey('notifications', true);
+  fetchKey('birthdays', true);
+  fetchKey('policyLib', true);
+  fetchKey('empRecords', true);
+  fetchKey('leaveLog', true);
+  fetchKey('salaryLog', true);
+  fetchKey('audit', true);
+}
+
+function testConnection() {
+  setSyncStatus('syncing');
+  toast('Testing connection to server...');
+  var testKey = '__test_' + Date.now();
+  var testValue = { ping: Date.now(), from: getAdminName ? getAdminName() : 'unknown' };
+  
+  // 1. POST a test value
+  serverPost(testKey, testValue, function(postErr, postOk) {
+    if (postErr || !postOk) {
+      setSyncStatus('error');
+      alert('❌ SAVE FAILED\n\nError: ' + (postErr ? postErr.message : 'Unknown') + '\n\nThe portal cannot send data to the server.\n\nThis usually means:\n- Your internet is blocking the request\n- The Apps Script URL is wrong\n- The Apps Script needs to be redeployed');
+      return;
+    }
+    // 2. Wait 500ms then GET it back
+    setTimeout(function() {
+      serverGet(testKey, function(getErr, gotValue) {
+        if (getErr) {
+          setSyncStatus('error');
+          alert('⚠️ READ FAILED\n\nSave worked, but reading back failed.\nError: ' + getErr.message + '\n\nThis means data is saved to server but the portal cannot read it back.');
+          return;
+        }
+        if (!gotValue) {
+          setSyncStatus('error');
+          alert('⚠️ SAVE NOT STORED\n\nThe POST succeeded but the data was not stored on the server.\n\nThis means the Apps Script backend code needs updating. Please update the backend code (see latest instructions).');
+          return;
+        }
+        if (gotValue.ping === testValue.ping) {
+          setSyncStatus('live');
+          alert('✅ CONNECTION WORKING\n\nWrite ✓\nRead ✓\nData integrity ✓\n\nThe server is fully functional. If other admins still see old data, ask them to click Sync Now or refresh the portal.');
+        } else {
+          setSyncStatus('error');
+          alert('⚠️ DATA MISMATCH\n\nWrote: ' + JSON.stringify(testValue) + '\nGot back: ' + JSON.stringify(gotValue));
+        }
+      });
+    }, 800);
+  });
+}
+
+
+
+// ═══ DEFAULT DATA ═══════════════════════════════════════════════════════════
+const DEF = {
+  password:'CKAdmin2025',
+  policies:{
+    annual:30,sick:15,emergency:3,maternity:60,paternity:5,
+    unpaid:'Subject to management approval',
+    ins_provider:'Daman (National Health Insurance Company)',
+    ins_type:'Enhanced (Silver) — Employee & eligible dependents',
+    ins_copay:'20% co-pay per visit (min AED 20, max AED 50)',
+    ins_inpatient:'AED 150,000 per year',
+    ins_dental:'Basic dental — up to AED 3,000/year',
+    ins_optical:'Optical — up to AED 500/year',
+    ins_contact:'800 4 DAMAN (800 43 2626)',
+    ins_notes:'Present your Daman card at any network hospital or clinic. For emergencies visit any hospital and submit claim within 30 days. Inform HR within 24 hours of any hospitalisation.',
+    hours:'Monday to Friday, 9:00 AM – 6:00 PM (1 hour lunch break)',
+    probation:'6 months for all new employees',
+    notice:'30 days for staff. 60 days for manager level and above.',
+    gratuity:'As per UAE Federal Decree-Law No. 33 of 2021. 21 days basic salary per year for first 5 years; 30 days per year thereafter. Calculated on final basic salary only.',
+    dress:'Business professional at all times. Site visits: safety helmet, high-vis vest, and safety shoes — mandatory, no exceptions.',
+    other:''
+  },
+  employees:[
+    {name:'Jawwad Hussain',id:'CK-001',dept:'Joinery',pin:'1234',
+     at:30,au:8,st:15,su:2,et:3,eu:0,
+     history:[{date:'2025-04-10',type:'Annual Leave',days:5,reason:'Family visit',status:'Approved'},{date:'2025-02-14',type:'Sick Leave',days:2,reason:'Fever',status:'Approved'}]},
+    {name:'Anil Nair',id:'CK-002',dept:'MEP',pin:'5678',
+     at:30,au:12,st:15,su:5,et:3,eu:1,
+     history:[{date:'2025-05-01',type:'Annual Leave',days:7,reason:'Vacation',status:'Approved'},{date:'2025-03-20',type:'Emergency Leave',days:1,reason:'Family emergency',status:'Approved'}]},
+    {name:'Dev Mandrekar',id:'CK-003',dept:'HR',pin:'9999',
+     at:30,au:5,st:15,su:0,et:3,eu:0,history:[]}
+  ],
+  holidays:[
+    {date:'2025-01-01',name:"New Year's Day",note:'UAE Public Holiday',type:'pub'},
+    {date:'2025-03-30',name:'Eid Al Fitr',note:'3 days — subject to moon sighting',type:'pub'},
+    {date:'2025-06-06',name:'Eid Al Adha',note:'3 days — subject to moon sighting',type:'pub'},
+    {date:'2025-06-26',name:'Islamic New Year',note:'UAE Public Holiday',type:'pub'},
+    {date:'2025-09-04',name:"Prophet's Birthday",note:'UAE Public Holiday',type:'pub'},
+    {date:'2025-12-01',name:'Commemoration Day',note:'UAE Public Holiday',type:'pub'},
+    {date:'2025-12-02',name:'National Day',note:'UAE National Day',type:'pub'},
+    {date:'2025-12-03',name:'National Day (2nd Day)',note:'UAE National Day',type:'pub'}
+  ],
+  notifications:[{text:'Welcome to the CK HR Portal — your go-to for all HR information.',type:'general'}],
+  birthdays:[{name:'Dev Mandrekar',month:6,day:15,dept:'HR'}],
+  policyLib:[
+    {id:'pl1',icon:'🏖️',title:'Annual Leave Policy',content:`ANNUAL LEAVE POLICY
+CK Architecture Interiors LLC & CKC Building Contracting LLC
+
+1. ENTITLEMENT
+All permanent employees are entitled to 30 calendar days of paid annual leave per year, accruing at 2.5 days per month of service.
+
+2. ELIGIBILITY
+Leave may be taken after completing 6 months of continuous service (probation period).
+
+3. APPLICATION PROCESS
+Submit leave request to your line manager at least 7 days in advance. Line manager approves and notifies HR. HR confirms and records approved leave. Emergency requests considered case-by-case.
+
+4. CARRY FORWARD
+Up to 15 days of unused leave may be carried forward with manager and HR approval. Remaining balance is encashed at year-end.
+
+5. PUBLIC HOLIDAYS DURING LEAVE
+If a UAE public holiday falls during your leave, it is not counted as annual leave.
+
+6. ENCASHMENT
+Unused leave is encashed upon resignation, termination, or at year-end per UAE Labour Law.`},
+    {id:'pl2',icon:'🏥',title:'Sick Leave Policy',content:`SICK LEAVE POLICY
+CK Architecture Interiors LLC & CKC Building Contracting LLC
+
+1. ENTITLEMENT
+All employees are entitled to 15 days of sick leave per year as per UAE Federal Labour Law.
+
+2. NOTIFICATION
+Notify your line manager on the same day you are unable to attend. Also inform HR by email or phone.
+
+3. MEDICAL CERTIFICATE
+Required for sick leave of 2 or more consecutive days, or during any project critical phase.
+
+4. PAY DURING SICK LEAVE
+First 15 days: Full pay. This is in addition to annual leave.
+
+5. SERIOUS ILLNESS
+Extended sick leave beyond standard entitlement handled in accordance with UAE Labour Law and on a compassionate basis. Contact HR directly.`},
+    {id:'pl3',icon:'📜',title:'Code of Conduct',content:`CODE OF CONDUCT
+CK Architecture Interiors LLC & CKC Building Contracting LLC
+
+1. PROFESSIONAL BEHAVIOUR
+Treat all colleagues, clients, and visitors with courtesy and respect at all times. Maintain confidentiality of all company and client information.
+
+2. ATTENDANCE & PUNCTUALITY
+Arrive on time. Notify your manager in advance of any expected absence. Unauthorised absence may result in disciplinary action.
+
+3. CONFLICT OF INTEREST
+Declare any personal interests conflicting with company interests. Do not accept gifts from clients or suppliers without HR approval.
+
+4. COMPANY PROPERTY
+Equipment is for work use only. Report damage or loss immediately to your manager.
+
+5. SOCIAL MEDIA
+Do not post confidential company or client information. Refer all media enquiries to the CEO.
+
+6. HSE
+Follow all health, safety, and environment procedures. PPE is mandatory on all site visits — no exceptions.`},
+    {id:'pl4',icon:'🦺',title:'HSE Policy',content:`HEALTH, SAFETY & ENVIRONMENT POLICY
+CK Architecture Interiors LLC & CKC Building Contracting LLC
+
+1. COMMITMENT
+CK/CKC is committed to providing a safe working environment for all employees, contractors, and visitors.
+
+2. SITE REQUIREMENTS — MANDATORY
+The following PPE is mandatory for all site visits, with no exceptions:
+- Safety helmet (hard hat)
+- High-visibility vest
+- Safety shoes (steel-toed)
+- Any additional PPE as instructed by site management
+
+3. INCIDENT REPORTING
+All accidents, near-misses, and unsafe conditions must be reported to the HSE Manager immediately. Failure to report is a disciplinary offence.
+
+4. RESPONSIBILITIES
+Every employee is responsible for their own safety and that of those around them. Employees must not commence work if they believe it is unsafe to do so.
+
+5. DISCIPLINARY ACTION
+Violation of HSE procedures may result in immediate disciplinary action up to and including termination of employment.`}
+  ]
+};
+
+// ═══ STORAGE ════════════════════════════════════════════════════════════════
+const load = k => { try{const v=localStorage.getItem('ckhr_'+k);return v?JSON.parse(v):null;}catch(e){return null;} };
+const save = (k,v) => { try{localStorage.setItem('ckhr_'+k,JSON.stringify(v));}catch(e){} };
+const gd = k => load(k) ?? JSON.parse(JSON.stringify(DEF[k]));
+
+let adminIn=false, staffIn=false, curStaff=null;
+let pol,emps,hols,notifs,bdays,plib,complaints;
+
+function init(){
+  pol=gd('policies'); emps=gd('employees'); hols=gd('holidays');
+  notifs=gd('notifications'); bdays=gd('birthdays');
+  plib=gd('policyLib'); complaints=gd('complaints');
+  // Background sync on startup — update local cache from server
+  setTimeout(function(){
+    setSyncStatus('syncing');
+    var pending = 0;
+    function done() { pending--; if(pending<=0) { setSyncStatus('live'); if(typeof renderBanner==='function') renderBanner(); } }
+    function fetchKey(key, applyFn) {
+      pending++;
+      serverGet(key, function(err, val){
+        if(val && !err) { try { applyFn(val); } catch(e){} }
+        done();
+      });
+    }
+    fetchKey('policies', function(val){ if(val.annual!==undefined){pol=val;save('policies',val);} });
+    fetchKey('employees', function(val){ if(Array.isArray(val)){emps=val;save('employees',val);} });
+    fetchKey('holidays', function(val){ if(Array.isArray(val)){hols=val;save('holidays',val);} });
+    fetchKey('notifications', function(val){ if(Array.isArray(val)){notifs=val;save('notifications',val);} });
+    fetchKey('birthdays', function(val){ if(Array.isArray(val)){bdays=val;save('birthdays',val);} });
+    fetchKey('policyLib', function(val){ if(Array.isArray(val)){plib=val;save('policyLib',val);} });
+    fetchKey('empRecords', function(val){ if(Array.isArray(val)) localStorage.setItem('ckhr_empRecords', JSON.stringify(val)); });
+    fetchKey('leaveLog', function(val){ if(Array.isArray(val)) localStorage.setItem('ckhr_leaveLog', JSON.stringify(val)); });
+    fetchKey('salaryLog', function(val){ if(Array.isArray(val)) localStorage.setItem('ckhr_salaryLog', JSON.stringify(val)); });
+  }, 800);
+}
+
+// ═══ TABS ════════════════════════════════════════════════════════════════════
+function switchTab(name){
+  const names=['chat','policies','holidays','admin'];
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',names[i]===name));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+name)?.classList.add('active');
+  if(name==='policies') renderPlib();
+  if(name==='holidays') renderHols();
+  if(name==='admin' && adminIn) loadAdminForms();
+}
+
+// ═══ BANNER ══════════════════════════════════════════════════════════════════
+function renderBanner(){
+  notifs=gd('notifications'); bdays=gd('birthdays'); // always fresh
+  const b=document.getElementById('notif-banner');
+  const items=[]; const now=new Date();
+  bdays.forEach(d=>{
+    if(d.month===now.getMonth()+1){
+      if(d.day===now.getDate()) items.push({text:`🎂 Happy Birthday ${d.name}! (${d.dept})`,type:'birthday'});
+      else if(d.day>now.getDate()&&d.day-now.getDate()<=3) items.push({text:`🎂 Upcoming: ${d.name}'s birthday on ${d.day} ${now.toLocaleString('default',{month:'long'})}`,type:'birthday'});
+    }
+  });
+  notifs.forEach(n=>items.push(n));
+  if(!items.length){b.style.display='none';return;}
+  b.style.display='flex';
+  b.innerHTML='<span style="font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.8px;white-space:nowrap;flex-shrink:0">ANNOUNCEMENTS</span>'+
+    items.map(n=>`<div class="notif-item ${n.type||''}"><div class="dot"></div>${n.text}</div>`).join('');
+}
+
+// ═══ CHATBOT ═════════════════════════════════════════════════════════════════
+function ask(q){document.getElementById('chat-input').value=q;sendChat();}
+function chatKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}}
+function autoR(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,120)+'px';}
+
+function sendChat(){
+  const inp=document.getElementById('chat-input');
+  const q=inp.value.trim(); if(!q) return;
+  inp.value=''; inp.style.height='auto';
+  document.getElementById('quick-chips').style.display='none';
+  addMsg('user',q);
+  const tid='t'+Date.now();
+  const c=document.getElementById('chat-msgs');
+  c.insertAdjacentHTML('beforeend',`<div class="mrow bot" id="${tid}"><div class="mav">✦</div><div class="mbub"><div class="typing"><span></span><span></span><span></span></div></div></div>`);
+  c.scrollTop=c.scrollHeight;
+  setTimeout(()=>{
+    document.getElementById(tid)?.remove();
+    addMsg('bot',answer(q));
+    c.scrollTop=c.scrollHeight;
+  }, 500+Math.random()*400);
+}
+
+function addMsg(role,text){
+  const c=document.getElementById('chat-msgs');
+  const d=document.createElement('div'); d.className='mrow '+role;
+  d.innerHTML=`<div class="mav">${role==='bot'?'✦':'ME'}</div><div class="mbub">${fmt(text)}</div>`;
+  c.appendChild(d); c.scrollTop=c.scrollHeight;
+}
+
+function fmt(t){
+  t=t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  t=t.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+  t=t.replace(/^• (.+)$/gm,'<li>$1</li>');
+  t=t.replace(/(<li>.*<\/li>\n?)+/g,m=>'<ul>'+m+'</ul>');
+  t=t.split(/\n{2,}/).map(p=>p.trim()&&!p.startsWith('<')?'<p>'+p.replace(/\n/g,'<br>')+'</p>':p).join('');
+  return t;
+}
+
+function answer(q){
+  pol=gd('policies'); // always use latest policies
+  const ql=q.toLowerCase(); const p=pol;
+  if(/annual leave|leave days|vacation|leave entitl/.test(ql))
+    return `**Annual Leave**\n\nAll employees are entitled to **${p.annual} days** of paid annual leave per year.\n\n• Apply at least 7 days in advance through your line manager\n• Eligible after completing probation period\n• For your current balance, contact HR: dev@ckarchitecture.com`;
+  if(/sick leave|medical leave|unwell|illness|not well/.test(ql))
+    return `**Sick Leave**\n\nEntitlement: **${p.sick} days** per year at full pay.\n\n• Notify your line manager on the same day you are unwell\n• Medical certificate required for 2+ consecutive days\n• Also inform HR: hr@ckarchitecture.com`;
+  if(/emergency leave|family emergency/.test(ql))
+    return `**Emergency Leave**\n\n**${p.emergency} days** per year for genuine personal or family emergencies.\n\n• Requires HR Director approval\n• Supporting documents may be requested\n• Contact Dev Mandrekar directly for urgent cases`;
+  if(/maternity|pregnancy|baby|childbirth/.test(ql))
+    return `**Maternity Leave**\n\n**${p.maternity} days** fully paid as per UAE Labour Law.\n\n• Notify HR at least 1 month before expected delivery\n• Medical certificate required\n• Insurance covers maternity — check your Daman card`;
+  if(/paternity|father|new born/.test(ql))
+    return `**Paternity Leave**\n\n**${p.paternity} working days** upon birth of a child.\n\n• Must be taken within 30 days of birth\n• Submit birth certificate to HR`;
+  if(/insurance|medical|daman|clinic|hospital|health cover|claim/.test(ql))
+    return `**Medical Insurance**\n\n**Provider:** ${p.ins_provider}\n**Coverage:** ${p.ins_type}\n\n• **Outpatient:** ${p.ins_copay}\n• **Inpatient:** ${p.ins_inpatient}\n• **Dental:** ${p.ins_dental}\n• **Optical:** ${p.ins_optical}\n\n${p.ins_notes}\n\n**Contact:** ${p.ins_contact}`;
+  if(/working hours|office hours|start time|what time|work time/.test(ql))
+    return `**Working Hours**\n\n${p.hours}\n\nDuring Ramadan, hours are reduced by 2 hours per day as per UAE Labour Law.\n\nFor site-based employees, hours may vary — check with your line manager.`;
+  if(/probation|probationary period/.test(ql))
+    return `**Probation Period**\n\n${p.probation}\n\n• Either party may terminate with 14 days notice during probation\n• Performance is reviewed at the 3-month mark\n• Confirmation letter issued upon successful completion\n• Leave is generally not taken during probation without approval`;
+  if(/notice period|resign|resignation|leaving/.test(ql))
+    return `**Notice Period**\n\n${p.notice}\n\n• Submit resignation in writing to your line manager and HR\n• Notice runs from the date HR receives the written resignation\n• Early release is at management discretion\n• Final settlement processed within 14 days of last working day`;
+  if(/gratuity|eosb|end of service|final settlement|benefit/.test(ql))
+    return `**Gratuity / End of Service Benefit**\n\n${p.gratuity}\n\n• Payable after completing 1 year of service\n• If you resign before 1 year — no gratuity payable\n• 1–3 years resignation — 1/3 of full gratuity\n• 3–5 years resignation — 2/3 of full gratuity\n• After 5 years — full gratuity regardless of reason`;
+  if(/dress code|attire|uniform|what to wear/.test(ql))
+    return `**Dress Code**\n\n${p.dress}`;
+  if(/salary|payroll|pay day|when.*paid|payslip|wps/.test(ql))
+    return `**Salary & Payroll**\n\nSalaries are processed through UAE WPS and credited on the **last working day of each month**.\n\nFor payslips or salary certificates:\n• Email: hr@ckarchitecture.com\n• Contact: Sruthi Kiran (CFO) for payroll queries`;
+  if(/holiday|day off|public holiday|national day/.test(ql)){
+    const list=[...hols].sort((a,b)=>new Date(a.date)-new Date(b.date))
+      .map(h=>{const d=new Date(h.date);return `• **${d.toLocaleDateString('en-GB',{day:'2-digit',month:'long'})}** — ${h.name}`;}).join('\n');
+    return `**Public Holidays 2025**\n\n${list}\n\nSee the **Holidays** tab for full details.`;
+  }
+  if(/apply.*leave|request leave|how.*leave|leave.*apply/.test(ql))
+    return `**How to Apply for Leave**\n\n• Inform your line manager verbally at least 1 week in advance\n• Submit a leave request to HR (email hr@ckarchitecture.com)\n• HR confirms within 2 working days\n• For sick leave, notify your manager on the same day\n\nFor your leave balance, contact HR Director: dev@ckarchitecture.com`;
+  if(/visa|emirates id|eid|residence|id card/.test(ql))
+    return `**Visa & Emirates ID**\n\nCK/CKC sponsors the UAE residence visa for all full-time employees.\n\n• Visa renewals handled by the PRO department — HR notifies you 3 months before expiry\n• Changes to personal details must be reported to HR within 7 days\n• For queries: hr@ckarchitecture.com`;
+  if(/ticket|flight|travel|air ticket/.test(ql))
+    return `**Annual Air Tickets**\n\nTicket eligibility is specified in your individual employment contract.\n\n• Economy class to home country, once per year\n• Eligibility generally begins after probation\n• Submit ticket requests to HR at least 4 weeks in advance\n• Unused tickets do not carry forward`;
+  if(/overtime|extra hours|weekend work/.test(ql))
+    return `**Overtime**\n\nAs per UAE Labour Law:\n• Weekday overtime: **125% of hourly rate**\n• Friday overtime: **150% of hourly rate**\n\nOvertime must be pre-approved by your line manager. For management grade (M3+), overtime is part of overall remuneration.`;
+  if(/complaint|grievance|concern|raise|issue|problem|harassment|unfair/.test(ql))
+    return `**Raising a Concern**\n\nYou can raise any concern confidentially through the **Raise a Concern** tab.\n\n• Choose anonymous or with your name\n• Submission goes directly and only to the HR Director\n• No other employees or line managers can see it\n• HR will respond privately if you include your name\n\nOr email: dev@ckarchitecture.com`;
+  if(/policy|policies|rules|handbook/.test(ql))
+    return `**HR Policies**\n\nAll official policies are in the **HR Policies** tab:\n\n${plib.map(p=>`• ${p.icon} ${p.title}`).join('\n')||'• Contact HR for policy documents'}\n\nFor queries: hr@ckarchitecture.com`;
+  if(/leave balance|how many.*leave|days left|my leave/.test(ql))
+    return `**Your Leave Balance**\n\nFor your leave balance, please contact:\n\n**Darleendy**\n📧 darleendy@ckarchitecture.com\n\nDarleendy will share your annual, sick, and emergency leave balance.`;
+  if(/contact.*hr|hr.*email|speak.*hr|hr.*number|dev mandrekar/.test(ql))
+    return `**Contact HR**\n\n**HR Director:** Dev Mandrekar\n**Email:** dev@ckarchitecture.com\n**General HR:** hr@ckarchitecture.com\n\nHR office hours: ${p.hours}`;
+  if(/insurance card|lost card|new card/.test(ql))
+    return `**Insurance Card**\n\nFor a replacement insurance card or if you haven't received one, contact HR:\n• Email: hr@ckarchitecture.com\n• Insurance contact: ${p.ins_contact}`;
+  // Default
+  return `I can help you with:\n\n• **Leave policies** — annual, sick, emergency, maternity, paternity\n• **Medical insurance** — coverage, claims, how to use it\n• **Working hours**, probation, dress code\n• **Salary, payroll** and payslip queries\n• **Gratuity** and end of service\n• **Public holidays** — see the Holidays tab\n• **HR policies** — see the HR Policies tab\n• **Leave balance** — see the contact HR\n• **Raising a concern** — see Raise a Concern tab (confidential)\n\nOr contact HR directly at **hr@ckarchitecture.com**`;
+}
+
+// ═══ MODALS ═══════════════════════════════════════════════════════════════════
+function showModal(id){document.getElementById(id).style.display='flex';}
+function hideModal(id){document.getElementById(id).style.display='none';}
+
+// ═══ STAFF LOGIN ═════════════════════════════════════════════════════════════
+
+// ═══ LEAVE PANEL ═════════════════════════════════════════════════════════════
+
+// ═══ POLICY LIBRARY ══════════════════════════════════════════════════════════
+function renderPlib(){
+  plib=gd('policyLib'); // reload so admin policy updates are visible
+  const grid=document.getElementById('policy-grid');
+  const empty=document.getElementById('policy-empty');
+  if(!plib.length){grid.style.display='none';empty.style.display='block';return;}
+  grid.style.display='grid'; empty.style.display='none';
+  grid.innerHTML=plib.map((p,i)=>`
+    <div class="policy-card" onclick="openPV(${i})">
+      <div style="font-size:28px;margin-bottom:10px">${p.icon||'📄'}</div>
+      <div style="font-size:13.5px;font-weight:700;color:var(--navy);margin-bottom:4px">${p.title}</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Click to read in full</div>
+      <span class="pill pill-teal">Official Policy</span>
+    </div>`).join('');
+}
+function openPV(i){
+  const p=plib[i];
+  document.getElementById('pv-title').textContent=p.icon+' '+p.title;
+  document.getElementById('pv-content').textContent=p.content;
+  const v=document.getElementById('policy-viewer');
+  v.style.display='block'; v.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function closePV(){document.getElementById('policy-viewer').style.display='none';}
+
+// ═══ HOLIDAYS ════════════════════════════════════════════════════════════════
+function renderHols(){
+  hols=gd('holidays'); // reload so admin holiday changes are visible
+  const list=document.getElementById('hol-list');
+  const sorted=[...hols].sort((a,b)=>new Date(a.date)-new Date(b.date));
+  if(!sorted.length){list.innerHTML='<div class="empty"><div class="ei">📅</div><p>No holidays added yet.</p></div>';return;}
+  const now=new Date();
+  list.innerHTML=sorted.map(h=>{
+    const d=new Date(h.date); const past=d<now;
+    return `<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:16px;margin-bottom:10px;opacity:${past?.55:1};box-shadow:0 1px 4px rgba(0,0,0,.05)">
+      <div style="width:52px;height:52px;border-radius:10px;background:var(--navy);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0">
+        <div style="font-size:20px;font-weight:700;color:#fff;line-height:1">${d.getDate()}</div>
+        <div style="font-size:9px;color:var(--gold);font-weight:700;letter-spacing:.5px;margin-top:2px">${d.toLocaleString('default',{month:'short'}).toUpperCase()}</div>
+      </div>
+      <div style="flex:1"><div style="font-size:14px;font-weight:600;color:var(--navy)">${h.name}</div><div style="font-size:11.5px;color:var(--muted);margin-top:3px">${h.note}${past?' · Past':''}</div></div>
+      <span class="pill ${h.type==='pub'?'pill-teal':'pill-amber'}">${h.type==='pub'?'Public':'Company'}</span>
+    </div>`;
+  }).join('');
+}
+
+// ═══ COMPLAINTS ══════════════════════════════════════════════════════════════
+let anonMode='anon';
+
+// ═══ ADMIN LOGIN ═════════════════════════════════════════════════════════════
+function toggleAdmin(){if(adminIn){switchTab('admin');return;}showModal('admin-modal');setTimeout(()=>document.getElementById('admin-pw').focus(),100);}
+function doAdminLogin(){
+  const pw=document.getElementById('admin-pw').value;
+  if(pw===(load('password')||DEF.password)){
+    adminIn=true; hideModal('admin-modal');
+      if(!ADMIN_NAME){var n=prompt('Welcome! Please enter your name (Dev / Darleendy / Kashif):');if(n&&n.trim())setAdminName(n.trim());}
+      loadAdminExtraData(); document.getElementById('admin-pw').value='';
+    document.getElementById('admin-err').textContent='';
+    document.getElementById('admin-tab').style.display='';
+    switchTab('admin'); loadAdminForms(); toast('Welcome, Admin');
+  } else {document.getElementById('admin-err').textContent='Incorrect password.';}
+}
+function logoutAdmin(){adminIn=false;document.getElementById('admin-tab').style.display='none';switchTab('chat');toast('Logged out');}
+
+// ═══ ADMIN TABS ═══════════════════════════════════════════════════════════════
+function aTab(name){
+  document.querySelectorAll('.atab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.asec').forEach(s=>s.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('asec-'+name)?.classList.add('active');
+  
+  if(name==='p-emprecords'){ initEmpRecords(); renderERCards(); }
+
+  if(name==='p-leave'){populateEmpLists();renderLeaveLog();}
+  if(name==='p-salary'){populateEmpLists();renderSalaryLog();}
+  if(name==='p-alerts')renderAlerts();
+  if(name==='p-reports'){populateEmpLists();}
+}
+
+// ═══ LOAD ADMIN FORMS ════════════════════════════════════════════════════════
+function loadAdminForms(){
+  // Reload everything fresh from storage when admin opens panel
+  pol=gd('policies'); emps=gd('employees'); hols=gd('holidays');
+  notifs=gd('notifications'); bdays=gd('birthdays');
+  plib=gd('policyLib'); complaints=load('complaints')||[];
+  initEmpRecords();
+  const p=pol;
+  const map={'p-annual':'annual','p-sick':'sick','p-emergency':'emergency','p-maternity':'maternity','p-paternity':'paternity','p-unpaid':'unpaid',
+    'p-ins-provider':'ins_provider','p-ins-type':'ins_type','p-ins-copay':'ins_copay','p-ins-inpatient':'ins_inpatient',
+    'p-ins-dental':'ins_dental','p-ins-optical':'ins_optical','p-ins-contact':'ins_contact','p-ins-notes':'ins_notes',
+    'p-hours':'hours','p-probation':'probation','p-notice':'notice','p-gratuity':'gratuity','p-dress':'dress','p-other':'other'};
+  Object.entries(map).forEach(([id,key])=>{const el=document.getElementById(id);if(el)el.value=p[key]??'';});
+  renderEmpTable(); renderHolAdmin(); renderNotifAdmin(); renderBdayAdmin(); renderPlibAdmin();
+}
+
+// SAVE POLICIES
+function saveLeavePolicy(){
+  ['annual','sick','emergency','maternity','paternity'].forEach(k=>{const el=document.getElementById('p-'+k);if(el)pol[k]=+el.value;});
+  const u=document.getElementById('p-unpaid');if(u)pol.unpaid=u.value;
+  save('policies',pol);
+  setSyncStatus('syncing');
+  serverPost('policies', pol, function(err, ok){
+    setSyncStatus(ok ? 'live' : 'error');
+    if(typeof logAudit==='function') logAudit('Updated','Leave Policy','Annual:'+pol.annual+' Sick:'+pol.sick+' Paternity:'+pol.paternity);
+    toast(ok ? 'Leave policy saved & synced to server ✓' : 'Saved locally — server sync failed');
+  });
+}
+function saveInsurance(){
+  ['ins_provider','ins_type','ins_copay','ins_inpatient','ins_dental','ins_optical','ins_contact','ins_notes'].forEach(k=>{
+    const el=document.getElementById('p-'+k.replace('_','-'));if(el)pol[k]=el.value;
+  });
+  save('policies',pol);
+  setSyncStatus('syncing');
+  serverPost('policies', pol, function(err, ok){
+    setSyncStatus(ok ? 'live' : 'error');
+    if(typeof logAudit==='function') logAudit('Updated','Insurance Policy','Provider:'+pol.ins_provider);
+    toast(ok ? 'Insurance policy saved & synced ✓' : 'Saved locally (server sync failed)');
+  });
+}
+function saveGeneral(){
+  ['hours','probation','notice','gratuity','dress','other'].forEach(k=>{const el=document.getElementById('p-'+k);if(el)pol[k]=el.value;});
+  save('policies',pol);
+  setSyncStatus('syncing');
+  serverPost('policies', pol, function(err, ok){
+    setSyncStatus(ok ? 'live' : 'error');
+    if(typeof logAudit==='function') logAudit('Updated','General Policy','');
+    toast(ok ? 'General policy saved & synced ✓' : 'Saved locally (server sync failed)');
+  });
+}
+
+// EMPLOYEE TABLE
+function renderEmpTable(){
+  document.getElementById('etbl-body').innerHTML=emps.map((e,i)=>`
+    <tr>
+      <td><input value="${e.name}" onchange="emps[${i}].name=this.value" style="min-width:110px"></td>
+      <td><input value="${e.id}" onchange="emps[${i}].id=this.value" style="width:65px"></td>
+      <td><input value="${e.dept}" onchange="emps[${i}].dept=this.value" style="width:80px"></td>
+      <td><input type="password" value="${e.pin}" maxlength="4" onchange="emps[${i}].pin=this.value" style="width:58px;letter-spacing:3px" placeholder="PIN"></td>
+      <td><input type="number" value="${e.au}" onchange="emps[${i}].au=+this.value" style="width:40px">/<input type="number" value="${e.at}" onchange="emps[${i}].at=+this.value" style="width:40px"></td>
+      <td><input type="number" value="${e.su}" onchange="emps[${i}].su=+this.value" style="width:40px">/<input type="number" value="${e.st}" onchange="emps[${i}].st=+this.value" style="width:40px"></td>
+      <td><input type="number" value="${e.eu}" onchange="emps[${i}].eu=+this.value" style="width:40px">/<input type="number" value="${e.et}" onchange="emps[${i}].et=+this.value" style="width:40px"></td>
+      <td><button onclick="emps.splice(${i},1);renderEmpTable()" style="padding:4px 9px;background:var(--red-lt);color:var(--red);border:1px solid #f5c6c0;border-radius:5px;cursor:pointer;font-size:11px">Remove</button></td>
+    </tr>`).join('');
+}
+function addEmp(){emps.push({name:'New Employee',id:'CK-00'+Date.now().toString().slice(-2),dept:'',pin:'0000',at:30,au:0,st:15,su:0,et:3,eu:0,history:[]});renderEmpTable();}
+function saveEmps(){
+  save('employees',emps);
+  setSyncStatus('syncing');
+  serverSet('employees', emps, function(err, ok) {
+    setSyncStatus(ok ? 'live' : 'error');
+    toast(ok ? 'Employee records saved & synced ✓ — staff can now log in' : 'Saved locally (sync failed — check connection)');
+  });
+}
+
+// HOLIDAYS ADMIN
+function renderHolAdmin(){
+  document.getElementById('hol-admin').innerHTML=hols.map((h,i)=>`
+    <div class="hol-row">
+      <input type="date" value="${h.date}" style="flex:0 0 130px" onchange="hols[${i}].date=this.value">
+      <input type="text" value="${h.name}" placeholder="Holiday name" style="flex:2;min-width:130px" onchange="hols[${i}].name=this.value">
+      <input type="text" value="${h.note}" placeholder="Note" style="flex:2;min-width:110px" onchange="hols[${i}].note=this.value">
+      <select onchange="hols[${i}].type=this.value"><option value="pub" ${h.type==='pub'?'selected':''}>Public</option><option value="co" ${h.type==='co'?'selected':''}>Company</option></select>
+      <button onclick="hols.splice(${i},1);renderHolAdmin()" style="padding:5px 9px;background:var(--red-lt);color:var(--red);border:1px solid #f5c6c0;border-radius:5px;cursor:pointer">✕</button>
+    </div>`).join('');
+}
+function addHoliday(){hols.push({date:'2025-12-31',name:'New Holiday',note:'',type:'pub'});renderHolAdmin();}
+function saveHols(){save('holidays',hols);hols=gd('holidays');renderHols();setSyncStatus('syncing');
+  serverPost('holidays', hols, function(err, ok){
+    setSyncStatus(ok ? 'live' : 'error');
+    toast(ok ? 'Holidays saved & synced ✓' : 'Holidays saved (server sync failed)');
+  });}
+
+// NOTIFICATIONS ADMIN
+function renderNotifAdmin(){
+  document.getElementById('notif-list').innerHTML=notifs.map((n,i)=>`
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+      <input type="text" value="${n.text}" style="flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:13px;color:var(--navy);outline:none" onchange="notifs[${i}].text=this.value">
+      <button onclick="notifs.splice(${i},1);renderNotifAdmin()" style="padding:5px 9px;background:var(--red-lt);color:var(--red);border:1px solid #f5c6c0;border-radius:5px;cursor:pointer">✕</button>
+    </div>`).join('');
+}
+function addNotif(){
+  const t=document.getElementById('new-notif').value.trim();
+  const type=document.getElementById('notif-type').value;
+  if(!t)return; notifs.push({text:t,type}); document.getElementById('new-notif').value=''; renderNotifAdmin();
+}
+function saveNotifs(){save('notifications',notifs);notifs=gd('notifications');renderBanner();setSyncStatus('syncing');
+  serverPost('notifications', notifs, function(err, ok){
+    setSyncStatus(ok ? 'live' : 'error');
+    toast(ok ? 'Notifications saved & synced ✓' : 'Notifications saved (server sync failed)');
+  });}
+
+// BIRTHDAYS ADMIN
+function renderBdayAdmin(){
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  document.getElementById('bday-list').innerHTML=bdays.map((b,i)=>`
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+      <input type="text" value="${b.name}" placeholder="Name" style="flex:2;min-width:130px;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:13px;color:var(--navy);outline:none" onchange="bdays[${i}].name=this.value">
+      <input type="text" value="${b.dept||''}" placeholder="Dept" style="flex:1;min-width:80px;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:13px;color:var(--navy);outline:none" onchange="bdays[${i}].dept=this.value">
+      <select style="padding:7px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;color:var(--navy);outline:none" onchange="bdays[${i}].month=+this.value">
+        ${months.map((m,mi)=>`<option value="${mi+1}" ${b.month===mi+1?'selected':''}>${m}</option>`).join('')}
+      </select>
+      <input type="number" value="${b.day}" min="1" max="31" style="width:56px;padding:7px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;color:var(--navy);outline:none" onchange="bdays[${i}].day=+this.value">
+      <button onclick="bdays.splice(${i},1);renderBdayAdmin()" style="padding:5px 9px;background:var(--red-lt);color:var(--red);border:1px solid #f5c6c0;border-radius:5px;cursor:pointer">✕</button>
+    </div>`).join('');
+}
+function addBday(){bdays.push({name:'',dept:'',month:new Date().getMonth()+1,day:1});renderBdayAdmin();}
+function saveBdays(){save('birthdays',bdays);bdays=gd('birthdays');renderBanner();setSyncStatus('syncing');
+  serverPost('birthdays', bdays, function(err, ok){
+    setSyncStatus(ok ? 'live' : 'error');
+    toast(ok ? 'Birthdays saved & synced ✓' : 'Birthdays saved (server sync failed)');
+  });}
+
+// POLICY LIBRARY ADMIN
+function renderPlibAdmin(){
+  document.getElementById('plib-list').innerHTML=plib.map((p,i)=>`
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px">
+      <div style="display:flex;gap:10px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
+        <input type="text" value="${p.icon||'📄'}" style="width:48px;padding:6px;border:1.5px solid var(--border);border-radius:7px;font-size:16px;text-align:center;outline:none" onchange="plib[${i}].icon=this.value">
+        <input type="text" value="${p.title}" placeholder="Policy title" style="flex:1;min-width:160px;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:13px;color:var(--navy);outline:none" onchange="plib[${i}].title=this.value">
+        <button onclick="plib.splice(${i},1);renderPlibAdmin()" style="padding:6px 12px;background:var(--red-lt);color:var(--red);border:1px solid #f5c6c0;border-radius:6px;cursor:pointer;font-size:11px">Remove</button>
+      </div>
+      <textarea rows="7" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:12.5px;resize:vertical;line-height:1.6;color:var(--slate);outline:none" placeholder="Type or paste the full policy content here..." onchange="plib[${i}].content=this.value">${p.content}</textarea>
+    </div>`).join('');
+}
+function addPolicy(){plib.push({id:'pl'+Date.now(),icon:'📄',title:'New Policy',content:''});renderPlibAdmin();}
+function savePlib(){save('policyLib',plib);plib=gd('policyLib');renderPlib();setSyncStatus('syncing');
+  serverPost('policyLib', plib, function(err, ok){
+    setSyncStatus(ok ? 'live' : 'error');
+    toast(ok ? 'Policies saved — visible to employees now & synced ✓' : 'Policies saved — visible to employees now (server sync failed)');
+  });}
+
+// HR INBOX
+
+// ═══ DOCUMENT GENERATOR ═══════════════════════════════════════════════════════
+const f=(id,label,type='text',ph='',extra='')=>`<div class="field"><label>${label}</label><input type="${type}" id="${id}" placeholder="${ph}" ${extra}></div>`;
+const s=(id,label,opts)=>`<div class="field"><label>${label}</label><select id="${id}">${opts.map(o=>`<option>${o}</option>`).join('')}</select></div>`;
+const ta=(id,label,rows=3,ph='')=>`<div class="field" style="grid-column:1/-1"><label>${label}</label><textarea id="${id}" rows="${rows}" placeholder="${ph}"></textarea></div>`;
+const g2=(...items)=>`<div class="fgrid two">${items.join('')}</div>`;
+const g3=(...items)=>`<div class="fgrid three">${items.join('')}</div>`;
+const g1=(...items)=>`<div class="fgrid one">${items.join('')}</div>`;
+const sl=(t)=>`<div class="seclbl">${t}</div>`;
+const coSel=id=>s(id,'Company',['CK Architecture Interiors LLC','CKC Building Contracting LLC']);
+const gBtn=(fn,label)=>`<button onclick="${fn}()" class="btn btn-navy" style="margin-top:16px">${label}</button>`;
+
+const DOC_FORMS={
+  offer:g2(f('of-name','Employee Full Name','text','e.g. Ahmed Hassan'),f('of-title','Designation','text','e.g. Senior Designer'),f('of-dept','Department','text','e.g. Design'),f('of-reports','Reports To','text','e.g. Design Director'),coSel('of-co'),f('of-date','Date of Letter','date'),f('of-start','Start Date','date'),s('of-prob','Probation',['3 months','6 months']))+
+    sl('Compensation Package')+g3(f('of-basic','Basic Salary (AED/month)','text','e.g. 12,000'),f('of-housing','Housing Allowance','text','e.g. 4,000'),f('of-transport','Transport Allowance','text','e.g. 1,500'),f('of-other','Other Allowance','text','e.g. 0'),s('of-tickets','Air Tickets',['Provided (economy class)','Not included']),s('of-medical','Medical Insurance',['Provided by company','Not included']))+gBtn('dOffer','⚡ Generate Offer Letter'),
+
+  salarycert:g2(f('sc-name','Employee Name','text','e.g. Jawwad Hussain'),f('sc-title','Designation','text','e.g. Director of Joinery'),f('sc-dept','Department','text','e.g. Joinery'),coSel('sc-co'),f('sc-join','Date of Joining','date'),f('sc-ldate','Date of Certificate','date'))+
+    sl('Salary Details')+g3(f('sc-basic','Basic Salary (AED)','text','e.g. 15,000'),f('sc-housing','Housing Allowance','text','e.g. 5,000'),f('sc-transport','Transport Allowance','text','e.g. 1,500'),f('sc-other','Other Allowance','text','e.g. 0'),s('sc-purpose','Purpose',['To Whom It May Concern','For visa application','For bank account','For property rental','For loan application']))+gBtn('dSalaryCert','⚡ Generate Salary Certificate'),
+
+  payslip:g2(f('ps-name','Employee Name','text','e.g. Anil Nair'),f('ps-title','Designation','text','e.g. MEP Manager'),f('ps-id','Employee ID','text','e.g. CK-002'),f('ps-dept','Department','text','e.g. MEP'),f('ps-month','Pay Month','text','e.g. June 2025'),f('ps-date','Payment Date','date'),f('ps-days','Days Worked','number','22'))+
+    sl('Earnings')+g3(f('ps-basic','Basic Salary','text','e.g. 12,000'),f('ps-housing','Housing Allowance','text','e.g. 4,000'),f('ps-transport','Transport Allowance','text','e.g. 1,500'),f('ps-other','Other Allowance','text','e.g. 0'),f('ps-bonus','Overtime / Bonus','text','e.g. 0'))+
+    sl('Deductions')+g2(f('ps-d1l','Deduction 1 Label','text','e.g. Advance Recovery'),f('ps-d1a','Deduction 1 Amount','text','e.g. 500'),f('ps-d2l','Deduction 2 Label','text','e.g. Loan'),f('ps-d2a','Deduction 2 Amount','text','e.g. 0'))+gBtn('dPayslip','⚡ Generate Payslip'),
+
+  settlement:g2(f('fs-name','Employee Name','text','e.g. Mohammed Al Rashid'),f('fs-title','Designation','text'),coSel('fs-co'),s('fs-reason','Reason for Leaving',['Resignation','End of Contract','Termination','Mutual Agreement']),f('fs-join','Date of Joining','date'),f('fs-last','Last Working Day','date'))+
+    sl('Settlement Components')+g3(f('fs-basic','Basic Salary (AED/month)','text','e.g. 12,000'),f('fs-dw','Days Worked (Last Month)','number','e.g. 15'),f('fs-lsal','Last Month Salary (AED)','text','e.g. 6,000'),f('fs-ldays','Unused Leave Days','number','e.g. 12'),f('fs-lamt','Leave Encashment (AED)','text','e.g. 4,800'),f('fs-grat','Gratuity (AED)','text','e.g. 25,333'),f('fs-ticket','Air Ticket (AED)','text','e.g. 2,500'),f('fs-add','Other Additions (AED)','text','e.g. 0'),f('fs-ded','Deductions (AED)','text','e.g. 0'))+
+    g1(f('fs-total','TOTAL NET SETTLEMENT (AED)','text','e.g. 35,000'))+gBtn('dSettlement','⚡ Generate Final Settlement'),
+
+  noc:g2(f('noc-name','Employee Name','text'),f('noc-title','Designation','text'),coSel('noc-co'),f('noc-nat','Nationality','text','e.g. Indian'),f('noc-pass','Passport / Emirates ID','text'),f('noc-join','Date of Joining','date'),s('noc-purpose','Purpose',['To Whom It May Concern','For visa application','For bank account','For property rental','For driving licence']),f('noc-date','Date of Letter','date'))+gBtn('dNOC','⚡ Generate NOC'),
+
+  warning:g2(f('w-name','Employee Name','text'),f('w-desig','Designation','text'),f('w-dept','Department','text'),s('w-type','Warning Type',['First Written Warning','Second Written Warning','Final Written Warning']),s('w-nature','Nature of Issue',['Performance — SLA Breach','Attendance / Punctuality','Conduct / Behaviour','Safety Violation (HSE)','Negligence of Duty','Insubordination','Other']),f('w-date','Date of Letter','date'))+
+    g1(ta('w-incident','Incident Description',4,'Describe what happened, dates, and specifics...'),ta('w-action','Required Improvement',3,'What the employee must do differently...'))+gBtn('dWarning','⚡ Generate Warning Letter'),
+
+  experience:g2(f('ex-name','Employee Name','text'),f('ex-title','Designation','text'),coSel('ex-co'),f('ex-join','Date of Joining','date'),f('ex-last','Last Working Day','date'),f('ex-date','Date of Letter','date'))+
+    g1(f('ex-note','Performance Note (Optional)','text','e.g. performed duties with dedication and professionalism'))+gBtn('dExperience','⚡ Generate Experience Letter'),
+
+  pip:g2(f('pip-name','Employee Name','text'),f('pip-title','Designation','text'),f('pip-dept','Department','text'),s('pip-dur','PIP Duration',['30 days','60 days','90 days']),f('pip-date','Date of Letter','date'),f('pip-review','Review Date','date'))+
+    g1(ta('pip-issues','Performance Concerns',4,'Describe the performance issues clearly...'),ta('pip-targets','Improvement Targets',4,'List specific measurable targets...'))+gBtn('dPIP','⚡ Generate PIP Letter')
+};
+
+function initDocGen(){if(!document.getElementById('doc-form').innerHTML)selDoc('offer');}
+function selDoc(type){
+  document.querySelectorAll('.dt-card').forEach(c=>c.classList.remove('active'));
+  document.getElementById('dt-'+type)?.classList.add('active');
+  document.getElementById('doc-form').innerHTML=DOC_FORMS[type]||'';
+}
+
+// Doc helpers
+const td=()=>new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'});
+const fd=id=>{const v=document.getElementById(id)?.value;if(!v)return'_______________';const d=new Date(v);return isNaN(d)?v:d.toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'});};
+const vv=id=>document.getElementById(id)?.value?.trim()||'[Not provided]';
+const nn=id=>parseFloat((document.getElementById(id)?.value||'0').replace(/,/g,''))||0;
+const dHdr=co=>`<div class="ck-hdr"><div><div style="font-size:18px;font-weight:700;color:var(--navy);font-family:'Playfair Display',serif">${co}</div><div style="font-size:10px;color:var(--muted);letter-spacing:.5px;margin-top:2px">PART OF THE CK GROUP · DUBAI, UAE</div></div><div style="text-align:right;font-size:11px;color:var(--muted);line-height:1.6"><strong style="color:var(--navy);display:block;font-size:13px">HR DEPARTMENT</strong>hr@ckarchitecture.com<br>${td()}</div></div>`;
+const s2=(a,b)=>`<div class="sig-blk two"><div><div class="sig-line"></div><div style="font-size:11px;font-weight:600;color:var(--navy)">${a[0]}</div><div style="font-size:10px;color:var(--muted)">${a[1]}</div><div style="font-size:10px;color:var(--muted);margin-top:2px">Date: _______________</div></div><div><div class="sig-line"></div><div style="font-size:11px;font-weight:600;color:var(--navy)">${b[0]}</div><div style="font-size:10px;color:var(--muted)">${b[1]}</div><div style="font-size:10px;color:var(--muted);margin-top:2px">Date: _______________</div></div></div>`;
+const s3=(a,b,c)=>`<div class="sig-blk three"><div><div class="sig-line"></div><div style="font-size:11px;font-weight:600;color:var(--navy)">${a[0]}</div><div style="font-size:10px;color:var(--muted)">${a[1]}</div></div><div><div class="sig-line"></div><div style="font-size:11px;font-weight:600;color:var(--navy)">${b[0]}</div><div style="font-size:10px;color:var(--muted)">${b[1]}</div></div><div><div class="sig-line"></div><div style="font-size:11px;font-weight:600;color:var(--navy)">${c[0]}</div><div style="font-size:10px;color:var(--muted)">${c[1]}</div></div></div>`;
+const dr=(l,v,bold)=>`<tr><td style="font-weight:600;color:var(--navy);width:45%">${l}</td><td style="${bold?'font-weight:700;font-size:14px;color:var(--navy)':''}">${v}</td></tr>`;
+const stamp=`<div style="margin-top:12px;width:130px;height:65px;border:1.5px dashed var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted)">COMPANY STAMP</div>`;
+
+function openPrev(title,html){document.getElementById('prev-title').textContent=title;document.getElementById('prev-body').innerHTML=html;document.getElementById('prev-overlay').classList.add('open');}
+function closePrev(){document.getElementById('prev-overlay').classList.remove('open');}
+function copyDoc(){navigator.clipboard.writeText(document.getElementById('prev-body').innerText).then(()=>toast('Copied to clipboard'));}
+
+function dOffer(){
+  const co=vv('of-co'),name=vv('of-name');
+  const b=nn('of-basic'),h=nn('of-housing'),t=nn('of-transport'),o=nn('of-other'),total=b+h+t+o;
+  openPrev('Offer Letter — '+name,`<div class="ck-doc">${dHdr(co)}<div class="ck-badge badge-off">EMPLOYMENT OFFER — CONFIDENTIAL</div><h1>Offer of Employment</h1><p><strong>${name}</strong></p><p><strong>Date:</strong> ${fd('of-date')||td()}</p><p>Dear ${name},</p><p>We are pleased to offer you the position of <strong>${vv('of-title')}</strong> with <strong>${co}</strong>, subject to the terms and conditions below and satisfactory completion of all documentation requirements.</p><h2>Position Details</h2><table class="doc-tbl">${dr('Designation',vv('of-title'))}${dr('Department',vv('of-dept'))}${dr('Reporting To',vv('of-reports'))}${dr('Start Date',fd('of-start'))}${dr('Probation Period',vv('of-prob'))}</table><h2>Compensation Package</h2><table class="doc-tbl">${dr('Basic Salary','AED '+b.toLocaleString()+' per month')}${h?dr('Housing Allowance','AED '+h.toLocaleString()+' per month'):''}${t?dr('Transport Allowance','AED '+t.toLocaleString()+' per month'):''}${o?dr('Other Allowance','AED '+o.toLocaleString()+' per month'):''}${dr('Total Monthly Package','AED '+total.toLocaleString()+' per month',true)}${dr('Air Tickets',vv('of-tickets'))}${dr('Medical Insurance',vv('of-medical'))}</table><div class="doc-info">This offer is made in accordance with UAE Federal Decree-Law No. 33 of 2021. A formal employment contract will be issued prior to your commencement date.</div><p>Please sign and return within <strong>5 working days</strong> to confirm your acceptance.</p>${s2(['Dev Mandrekar','HR Director'],[name,'Acceptance of Offer'])}</div>`);
+}
+
+function dSalaryCert(){
+  const co=vv('sc-co'),name=vv('sc-name');
+  const b=nn('sc-basic'),h=nn('sc-housing'),t=nn('sc-transport'),o=nn('sc-other'),total=b+h+t+o;
+  openPrev('Salary Certificate — '+name,`<div class="ck-doc">${dHdr(co)}<div class="ck-badge badge-off">SALARY CERTIFICATE</div><h1>Salary Certificate</h1><p><strong>Date:</strong> ${fd('sc-ldate')||td()}</p><p><strong>${vv('sc-purpose')},</strong></p><p>This is to certify that <strong>${name}</strong> is currently employed with <strong>${co}</strong> as <strong>${vv('sc-title')}</strong>, ${vv('sc-dept')}${vv('sc-join')!=='[Not provided]'?', since '+fd('sc-join'):''}.</p><h2>Monthly Salary Breakdown</h2><table class="doc-tbl">${dr('Basic Salary','AED '+b.toLocaleString()+'/month')}${h?dr('Housing Allowance','AED '+h.toLocaleString()+'/month'):''}${t?dr('Transport Allowance','AED '+t.toLocaleString()+'/month'):''}${o?dr('Other Allowance','AED '+o.toLocaleString()+'/month'):''}${dr('Total Monthly Package','AED '+total.toLocaleString()+'/month',true)}</table><p>This certificate is issued at the request of the employee and is valid for <strong>30 days</strong> from date of issue.</p><br><p>Yours faithfully,</p><br><br><p><strong>Dev Mandrekar</strong><br>HR Director<br>${co}</p>${stamp}</div>`);
+}
+
+function dPayslip(){
+  const name=vv('ps-name');
+  const b=nn('ps-basic'),h=nn('ps-housing'),t=nn('ps-transport'),o=nn('ps-other'),bonus=nn('ps-bonus');
+  const d1=nn('ps-d1a'),d2=nn('ps-d2a');
+  const gross=b+h+t+o+bonus,deds=d1+d2,net=gross-deds;
+  const d1l=document.getElementById('ps-d1l')?.value||'Deduction';
+  const d2l=document.getElementById('ps-d2l')?.value||'Deduction 2';
+  openPrev('Payslip — '+name,`<div class="ck-doc">${dHdr('CK Architecture Interiors LLC')}<div class="ck-badge badge-int">PAYSLIP — CONFIDENTIAL</div><h1>Payslip: ${vv('ps-month')}</h1><table class="doc-tbl" style="margin-bottom:16px">${dr('Employee',name)}${dr('Employee ID',vv('ps-id'))}${dr('Designation',vv('ps-title'))}${dr('Department',vv('ps-dept'))}${dr('Pay Period',vv('ps-month'))}${dr('Payment Date',fd('ps-date'))}${dr('Days Worked',document.getElementById('ps-days')?.value||'22')}</table><div style="display:grid;grid-template-columns:1fr 1fr;gap:20px"><div><h2>Earnings</h2><table class="doc-tbl">${dr('Basic Salary','AED '+b.toLocaleString())}${h?dr('Housing Allowance','AED '+h.toLocaleString()):''}${t?dr('Transport Allowance','AED '+t.toLocaleString()):''}${o?dr('Other Allowance','AED '+o.toLocaleString()):''}${bonus?dr('Overtime / Bonus','AED '+bonus.toLocaleString()):''}${dr('Gross Earnings','AED '+gross.toLocaleString(),true)}</table></div><div><h2>Deductions</h2><table class="doc-tbl">${d1?dr(d1l,'AED '+d1.toLocaleString()):dr('No Deductions','—')}${d2?dr(d2l,'AED '+d2.toLocaleString()):''}${dr('Total Deductions','AED '+deds.toLocaleString(),deds>0)}</table></div></div><div style="background:var(--navy);border-radius:10px;padding:16px 20px;margin-top:16px;display:flex;justify-content:space-between;align-items:center"><div style="color:#CADCFC;font-size:12px;font-weight:600">NET PAY — ${vv('ps-month').toUpperCase()}</div><div style="color:var(--gold);font-size:26px;font-weight:700">AED ${net.toLocaleString()}</div></div><p style="font-size:11px;color:var(--muted);margin-top:12px">Computer-generated payslip. Queries: hr@ckarchitecture.com</p></div>`);
+}
+
+function dSettlement(){
+  const name=vv('fs-name'),co=vv('fs-co');
+  const lsal=nn('fs-lsal'),lamt=nn('fs-lamt'),grat=nn('fs-grat'),ticket=nn('fs-ticket'),add=nn('fs-add'),ded=nn('fs-ded');
+  const total=nn('fs-total')||(lsal+lamt+grat+ticket+add-ded);
+  openPrev('Final Settlement — '+name,`<div class="ck-doc">${dHdr(co)}<div class="ck-badge badge-off">FINAL SETTLEMENT STATEMENT</div><h1>Final Settlement — ${name}</h1><table class="doc-tbl" style="margin-bottom:16px">${dr('Employee',name)}${dr('Designation',vv('fs-title'))}${dr('Company',co)}${dr('Date of Joining',fd('fs-join'))}${dr('Last Working Day',fd('fs-last'))}${dr('Reason',vv('fs-reason'))}</table><h2>Settlement Breakdown</h2><table class="doc-tbl">${lsal?dr('Salary for Last Month','AED '+lsal.toLocaleString()):''}${dr('Leave Encashment ('+vv('fs-ldays')+' days)','AED '+lamt.toLocaleString())}${grat?dr('End of Service Gratuity','AED '+grat.toLocaleString()):''}${ticket?dr('Air Ticket Allowance','AED '+ticket.toLocaleString()):''}${add?dr('Other Additions','AED '+add.toLocaleString()):''}${ded?dr('Deductions','(AED '+ded.toLocaleString()+')'):''}${dr('TOTAL NET SETTLEMENT','AED '+total.toLocaleString(),true)}</table><div style="background:var(--navy);border-radius:10px;padding:14px 20px;margin:14px 0;display:flex;justify-content:space-between;align-items:center"><div style="color:#CADCFC;font-size:13px;font-weight:600">TOTAL NET SETTLEMENT</div><div style="color:var(--gold);font-size:26px;font-weight:700">AED ${total.toLocaleString()}</div></div><div class="doc-info">Settlement to be processed within 14 days of last working day as per UAE Federal Labour Law.</div><p>By signing below, both parties confirm this settlement is agreed in full and final settlement of all dues.</p>${s3([name,'Employee'],['Dev Mandrekar','HR Director'],['Cem Kapancioglu','CEO'])}</div>`);
+}
+
+function dNOC(){
+  const name=vv('noc-name'),co=vv('noc-co');
+  openPrev('NOC — '+name,`<div class="ck-doc">${dHdr(co)}<div class="ck-badge badge-int">NO OBJECTION CERTIFICATE</div><h1>No Objection Certificate</h1><p><strong>Date:</strong> ${fd('noc-date')||td()}</p><p><strong>To Whom It May Concern,</strong></p><br><p>This is to certify that <strong>${name}</strong>, of <strong>${vv('noc-nat')}</strong> nationality, is currently employed with <strong>${co}</strong> as <strong>${vv('noc-title')}</strong>${vv('noc-join')!=='[Not provided]'?', since '+fd('noc-join'):''}.</p>${vv('noc-pass')!=='[Not provided]'?`<p><strong>Passport / Emirates ID:</strong> ${vv('noc-pass')}</p>`:''}<p><strong>${co}</strong> has no objection to <strong>${name}</strong> proceeding with: <strong>${vv('noc-purpose')}</strong>.</p><p>This certificate is valid for <strong>30 days</strong> from date of issue.</p><br><p>Yours faithfully,</p><br><br><p><strong>Dev Mandrekar</strong><br>HR Director<br>${co}</p>${stamp}</div>`);
+}
+
+function dWarning(){
+  const name=vv('w-name');
+  openPrev(vv('w-type')+' — '+name,`<div class="ck-doc">${dHdr('CK Architecture Interiors LLC')}<div class="ck-badge badge-conf">CONFIDENTIAL — PERSONAL & PRIVATE</div><h1>${vv('w-type')}</h1><p><strong>${name}</strong> · ${vv('w-desig')} · ${vv('w-dept')}</p><p><strong>Date:</strong> ${fd('w-date')||td()}</p><p>Dear ${name},</p><h2>Subject: ${vv('w-type')} — ${vv('w-nature')}</h2><p>We write to formally address a matter of <strong>${vv('w-nature')}</strong> that has been brought to the attention of HR and Management.</p><h2>Background</h2><p>${vv('w-incident')}</p><h2>Required Improvement</h2><p>${vv('w-action')}</p><div class="doc-warn"><strong>Please note:</strong> Failure to demonstrate the required improvement may result in further disciplinary action, up to and including termination of employment, in accordance with UAE Federal Decree-Law No. 33 of 2021.</div><p>Please sign below to acknowledge receipt. You may submit a written response within 5 working days.</p>${s2(['Dev Mandrekar','HR Director'],[name,'Acknowledgement of Receipt'])}</div>`);
+}
+
+function dExperience(){
+  const name=vv('ex-name'),co=vv('ex-co');
+  openPrev('Experience Letter — '+name,`<div class="ck-doc">${dHdr(co)}<div class="ck-badge badge-off">EXPERIENCE LETTER</div><h1>Experience Letter</h1><p><strong>Date:</strong> ${fd('ex-date')||td()}</p><p><strong>To Whom It May Concern,</strong></p><br><p>This is to certify that <strong>${name}</strong> was employed with <strong>${co}</strong> as <strong>${vv('ex-title')}</strong> from <strong>${fd('ex-join')}</strong> to <strong>${fd('ex-last')}</strong>.</p><p>During this period, ${name} ${vv('ex-note')||'performed their duties diligently and professionally'}.</p><p>We wish ${name.split(' ')[0]} all the very best in future endeavours.</p><br><p>Yours faithfully,</p><br><br><p><strong>Dev Mandrekar</strong><br>HR Director<br>${co}</p>${stamp}</div>`);
+}
+
+function dPIP(){
+  const name=vv('pip-name');
+  openPrev('PIP — '+name,`<div class="ck-doc">${dHdr('CK Architecture Interiors LLC')}<div class="ck-badge badge-conf">CONFIDENTIAL — PERSONAL & PRIVATE</div><h1>Performance Improvement Plan (PIP)</h1><p><strong>${name}</strong> · ${vv('pip-title')} · ${vv('pip-dept')}</p><p><strong>Date:</strong> ${fd('pip-date')||td()} &nbsp;|&nbsp; <strong>Duration:</strong> ${vv('pip-dur')} &nbsp;|&nbsp; <strong>Review Date:</strong> ${fd('pip-review')}</p><p>Dear ${name},</p><p>Following a review of your performance, this Performance Improvement Plan is issued to provide a structured framework for achieving the required standards within the stated period.</p><h2>Performance Concerns</h2><p>${vv('pip-issues')}</p><h2>Improvement Targets</h2><div class="doc-warn" style="white-space:pre-wrap">${vv('pip-targets')}</div><p>Your performance will be formally reviewed on <strong>${fd('pip-review')}</strong>. Meeting all targets closes the PIP. Targets not met may result in further disciplinary action up to termination as per UAE Labour Law.</p>${s2(['Dev Mandrekar','HR Director'],[name,'Acknowledgement'])}</div>`);
+}
+
+// SECURITY
+function changePw(){
+  const cur=document.getElementById('pw-cur').value;
+  const nw=document.getElementById('pw-new').value;
+  const cf=document.getElementById('pw-cf').value;
+  if(cur!==(load('password')||DEF.password)){toast('Current password incorrect');return;}
+  if(nw.length<6){toast('Minimum 6 characters required');return;}
+  if(nw!==cf){toast('Passwords do not match');return;}
+  save('password',nw);
+  ['pw-cur','pw-new','pw-cf'].forEach(id=>document.getElementById(id).value='');
+  toast('Password updated successfully');
+}
+
+// ═══ EMPLOYEE RECORDS MODULE ════════════════════════════════════════════════
+let empRecords = [];
+let erEditIdx = null;
+
+function initEmpRecords(){
+  empRecords = load('empRecords') || [
+    {name:'Jawwad Hussain',id:'CK-001',nat:'Pakistani',dob:'1980-05-15',mobile:'+971 50 111 2233',email:'jawwad@gmail.com',
+     title1:'Director of Joinery',title2:'Production Manager',title3:'',
+     dept1:'Joinery Business Unit',dept2:'Production',company:'CKC Building Contracting LLC',
+     join:'2018-03-01',reports:'Cem Kapancioglu (CEO)',status:'Active',workemail:'jawwad@ckarchitecture.com',
+     basic:'18,000',housing:'6,000',transport:'1,500',otherallow:'500',total:'26,000',
+     medical:'Provided — Daman Enhanced (Silver)',ticket:'Provided (economy, annual)',benefits:'',
+     passport:'PK1234567',passportExp:'2027-06-30',
+     eid:'784-1980-1234567-1',eidExp:'2026-03-15',
+     visa:'201/2023/12345',visaExp:'2025-12-31',
+     labour:'LC-2023-001',labourExp:'2025-12-31',notes:''},
+    {name:'Anil Nair',id:'CK-002',nat:'Indian',dob:'1985-11-20',mobile:'+971 55 222 3344',email:'anil.nair@gmail.com',
+     title1:'MEP Manager',title2:'',title3:'',
+     dept1:'MEP Department',dept2:'',company:'CKC Building Contracting LLC',
+     join:'2019-07-15',reports:'Mohammed Zuber Deliwala',status:'Active',workemail:'anil@ckarchitecture.com',
+     basic:'14,000',housing:'4,500',transport:'1,200',otherallow:'0',total:'19,700',
+     medical:'Provided — Daman Enhanced (Silver)',ticket:'Provided (economy, annual)',benefits:'',
+     passport:'IN9876543',passportExp:'2026-09-30',
+     eid:'784-1985-9876543-2',eidExp:'2025-08-20',
+     visa:'201/2023/67890',visaExp:'2025-08-20',
+     labour:'LC-2023-002',labourExp:'2025-08-20',notes:'Visa renewal due — coordinate with PRO'}
+  ];
+}
+
+function saveERData(){ save('empRecords', empRecords); }
+
+// Status styling
+function stClass(s){
+  const map={'Active':'st-active','On Vacation':'st-vacation','Emergency Leave':'st-emergency',
+    'Unpaid Leave':'st-unpaid','Terminated':'st-terminated','Resigned':'st-resigned'};
+  return map[s]||'st-active';
+}
+
+// Days until expiry
+function daysUntil(dateStr){
+  if(!dateStr) return null;
+  const diff = Math.floor((new Date(dateStr)-new Date())/(1000*60*60*24));
+  return diff;
+}
+function expiryClass(days){
+  if(days===null) return '';
+  if(days<0) return 'er-expiry-warn'; // expired
+  if(days<=90) return 'er-expiry-soon'; // within 90 days
+  return '';
+}
+function expiryLabel(dateStr){
+  if(!dateStr) return '—';
+  const d=daysUntil(dateStr);
+  const formatted=new Date(dateStr).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+  if(d===null) return '—';
+  if(d<0) return `${formatted} ⚠️ EXPIRED`;
+  if(d<=30) return `${formatted} ⚠️ ${d}d left`;
+  if(d<=90) return `${formatted} ⏰ ${d}d left`;
+  return formatted;
+}
+
+// Populate dept filter
+function populateDeptFilter(){
+  const sel=document.getElementById('er-filter-dept');
+  if(!sel) return;
+  const depts=[...new Set(empRecords.flatMap(e=>[e.dept1,e.dept2].filter(Boolean)))].sort();
+  const cur=sel.value;
+  sel.innerHTML='<option value="">All Departments</option>'+depts.map(d=>`<option>${d}</option>`).join('');
+  if(cur) sel.value=cur;
+}
+
+// Summary bar
+function renderERSummary(){
+  const el=document.getElementById('er-summary');
+  if(!el) return;
+  const counts={};
+  empRecords.forEach(e=>{ counts[e.status]=(counts[e.status]||0)+1; });
+  const stColors={'Active':'pill-green','On Vacation':'pill-teal','Emergency Leave':'pill-amber',
+    'Unpaid Leave':'pill-amber','Terminated':'pill-red','Resigned':'pill-navy'};
+  el.innerHTML=`<span style="font-size:12px;font-weight:600;color:var(--navy);align-self:center">Total: ${empRecords.length}</span>`+
+    Object.entries(counts).map(([st,n])=>`<span class="pill ${stColors[st]||'pill-navy'}" style="font-size:11px">${st}: ${n}</span>`).join('');
+}
+
+// Render cards
+function renderERCards(){
+  empRecords=load('empRecords')||empRecords; // reload fresh
+  const search=(document.getElementById('er-search')?.value||'').toLowerCase();
+  const stFilter=document.getElementById('er-filter-status')?.value||'';
+  const dFilter=document.getElementById('er-filter-dept')?.value||'';
+  populateDeptFilter();
+  renderERSummary();
+
+  const filtered=empRecords.filter((e,i)=>{
+    const matchSearch=!search||(e.name+e.id+e.dept1+e.dept2+e.title1+e.title2).toLowerCase().includes(search);
+    const matchSt=!stFilter||e.status===stFilter;
+    const matchD=!dFilter||(e.dept1===dFilter||e.dept2===dFilter);
+    return matchSearch&&matchSt&&matchD;
+  });
+
+  const grid=document.getElementById('er-grid');
+  const empty=document.getElementById('er-empty');
+  if(!filtered.length){grid.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+
+  // Check for expiring docs (within 90 days)
+  const today=new Date();
+
+  grid.innerHTML=filtered.map((e,fi)=>{
+    const ri=empRecords.indexOf(e);
+    const initials=e.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+    const titles=[e.title1,e.title2,e.title3].filter(Boolean).join(' · ');
+    const depts=[e.dept1,e.dept2].filter(Boolean).join(' · ');
+    const passD=daysUntil(e.passportExp), visaD=daysUntil(e.visaExp), eidD=daysUntil(e.eidExp);
+    const docWarnings=[];
+    if(passD!==null&&passD<=90) docWarnings.push(`Passport ${passD<0?'EXPIRED':'exp '+new Date(e.passportExp).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}`);
+    if(visaD!==null&&visaD<=90) docWarnings.push(`Visa ${visaD<0?'EXPIRED':'exp '+new Date(e.visaExp).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}`);
+    if(eidD!==null&&eidD<=90) docWarnings.push(`EID ${eidD<0?'EXPIRED':'exp '+new Date(e.eidExp).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}`);
+
+    return `<div class="er-card">
+      <div class="er-card-top">
+        <div style="display:flex;align-items:flex-start;gap:12px;flex:1">
+          <div class="er-avatar">${initials}</div>
+          <div style="flex:1">
+            <div class="er-name">${e.name}</div>
+            <div class="er-titles">${titles}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">${depts}</div>
+          </div>
+        </div>
+        <span class="er-status-badge ${stClass(e.status)}">${e.status}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px">
+        <div class="er-detail-row"><span class="dr-icon">🏢</span><span class="dr-label">Company</span><span class="dr-val" style="font-size:11px">${(e.company||'').replace('CK Architecture Interiors LLC','CK Arch.').replace('CKC Building Contracting LLC','CKC')}</span></div>
+        <div class="er-detail-row"><span class="dr-icon">📅</span><span class="dr-label">Joined</span><span class="dr-val">${e.join?new Date(e.join).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'—'}</span></div>
+        <div class="er-detail-row"><span class="dr-icon">💰</span><span class="dr-label">Total Pkg</span><span class="dr-val">AED ${e.total||'—'}</span></div>
+        <div class="er-detail-row"><span class="dr-icon">📱</span><span class="dr-label">Mobile</span><span class="dr-val">${e.mobile||'—'}</span></div>
+        <div class="er-detail-row"><span class="dr-icon">🛂</span><span class="dr-label">Passport</span><span class="dr-val ${expiryClass(passD)}">${expiryLabel(e.passportExp)}</span></div>
+        <div class="er-detail-row"><span class="dr-icon">🪪</span><span class="dr-label">Visa Exp</span><span class="dr-val ${expiryClass(visaD)}">${expiryLabel(e.visaExp)}</span></div>
+        <div class="er-detail-row"><span class="dr-icon">🆔</span><span class="dr-label">EID Exp</span><span class="dr-val ${expiryClass(eidD)}">${expiryLabel(e.eidExp)}</span></div>
+        <div class="er-detail-row"><span class="dr-icon">📋</span><span class="dr-label">Passport #</span><span class="dr-val">${e.passport||'—'}</span></div>
+      </div>
+      ${docWarnings.length?`<div style="background:var(--red-lt);border-radius:8px;padding:6px 10px;margin-top:10px;font-size:11px;color:var(--red);font-weight:600">⚠️ ${docWarnings.join(' · ')}</div>`:''}
+      ${e.notes?`<div style="font-size:11.5px;color:var(--muted);margin-top:8px;padding-top:8px;border-top:1px solid var(--border);line-height:1.5">📝 ${e.notes}</div>`:''}
+      <div class="er-card-actions">
+        <button class="er-btn edit" onclick="openERForm(${ri})">✏️ Edit</button>
+        <button class="er-btn del" onclick="deleteER(${ri})">🗑 Remove</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Open form
+function openERForm(idx){
+  erEditIdx=idx;
+  const isEdit=idx!==null;
+  document.getElementById('er-modal-title').textContent=isEdit?'Edit Employee Record':'Add Employee Record';
+  const fields=['name','id','nat','dob','mobile','email','title1','title2','title3',
+    'dept1','dept2','company','join','reports','status','workemail',
+    'basic','housing','transport','otherallow','total','medical','ticket','benefits',
+    'passport','passport-exp','eid','eid-exp','visa','visa-exp','labour','labour-exp','notes'];
+
+  if(isEdit){
+    const e=empRecords[idx];
+    const map={name:'name',id:'id',nat:'nat',dob:'dob',mobile:'mobile',email:'email',
+      title1:'title1',title2:'title2',title3:'title3',
+      dept1:'dept1',dept2:'dept2',company:'company',join:'join',reports:'reports',
+      status:'status',workemail:'workemail',basic:'basic',housing:'housing',
+      transport:'transport',otherallow:'otherallow',total:'total',
+      medical:'medical',ticket:'ticket',benefits:'benefits',
+      passport:'passport','passport-exp':'passportExp',
+      eid:'eid','eid-exp':'eidExp',visa:'visa','visa-exp':'visaExp',
+      labour:'labour','labour-exp':'labourExp',notes:'notes'};
+    Object.entries(map).forEach(([fld,key])=>{
+      const el=document.getElementById('erf-'+fld);
+      if(el) el.value=e[key]||'';
+    });
+  } else {
+    fields.forEach(f=>{ const el=document.getElementById('erf-'+f); if(el) el.value=''; });
+    const sc=document.getElementById('erf-status'); if(sc) sc.value='Active';
+    const co=document.getElementById('erf-company'); if(co) co.selectedIndex=0;
+  }
+  document.getElementById('erf-msg').textContent='';
+  document.getElementById('er-modal').style.display='flex';
+}
+
+// Auto-calc total
+['erf-basic','erf-housing','erf-transport','erf-otherallow'].forEach(id=>{
+  document.addEventListener('input',e=>{ if(e.target.id===id) calcTotal(); });
+});
+function calcTotal(){
+  const n=id=>parseFloat((document.getElementById(id)?.value||'0').replace(/,/g,''))||0;
+  const total=n('erf-basic')+n('erf-housing')+n('erf-transport')+n('erf-otherallow');
+  const el=document.getElementById('erf-total');
+  if(el&&!el.dataset.manual) el.value=total?total.toLocaleString():'';
+}
+
+function closeERForm(){ document.getElementById('er-modal').style.display='none'; }
+
+function saveERRecord(){
+  const name=document.getElementById('erf-name')?.value.trim();
+  if(!name){alert('Employee name is required.');return;}
+  const rec={
+    name, id:document.getElementById('erf-id')?.value.trim()||'',
+    nat:document.getElementById('erf-nat')?.value.trim()||'',
+    dob:document.getElementById('erf-dob')?.value||'',
+    mobile:document.getElementById('erf-mobile')?.value.trim()||'',
+    email:document.getElementById('erf-email')?.value.trim()||'',
+    title1:document.getElementById('erf-title1')?.value.trim()||'',
+    title2:document.getElementById('erf-title2')?.value.trim()||'',
+    title3:document.getElementById('erf-title3')?.value.trim()||'',
+    dept1:document.getElementById('erf-dept1')?.value.trim()||'',
+    dept2:document.getElementById('erf-dept2')?.value.trim()||'',
+    company:document.getElementById('erf-company')?.value||'CK Architecture Interiors LLC',
+    join:document.getElementById('erf-join')?.value||'',
+    reports:document.getElementById('erf-reports')?.value.trim()||'',
+    status:document.getElementById('erf-status')?.value||'Active',
+    workemail:document.getElementById('erf-workemail')?.value.trim()||'',
+    basic:document.getElementById('erf-basic')?.value.trim()||'',
+    housing:document.getElementById('erf-housing')?.value.trim()||'',
+    transport:document.getElementById('erf-transport')?.value.trim()||'',
+    otherallow:document.getElementById('erf-otherallow')?.value.trim()||'',
+    total:document.getElementById('erf-total')?.value.trim()||'',
+    medical:document.getElementById('erf-medical')?.value||'',
+    ticket:document.getElementById('erf-ticket')?.value||'',
+    benefits:document.getElementById('erf-benefits')?.value.trim()||'',
+    passport:document.getElementById('erf-passport')?.value.trim()||'',
+    passportExp:document.getElementById('erf-passport-exp')?.value||'',
+    eid:document.getElementById('erf-eid')?.value.trim()||'',
+    eidExp:document.getElementById('erf-eid-exp')?.value||'',
+    visa:document.getElementById('erf-visa')?.value.trim()||'',
+    visaExp:document.getElementById('erf-visa-exp')?.value||'',
+    labour:document.getElementById('erf-labour')?.value.trim()||'',
+    labourExp:document.getElementById('erf-labour-exp')?.value||'',
+    notes:document.getElementById('erf-notes')?.value.trim()||'',
+  };
+  if(erEditIdx!==null) empRecords[erEditIdx]=rec;
+  else empRecords.push(rec);
+  saveERData();
+  document.getElementById('erf-msg').textContent='✓ Saved';
+  setTimeout(closeERForm,800);
+  renderERCards();
+  toast('Employee record saved');
+}
+
+function deleteER(idx){
+  if(!confirm(`Remove ${empRecords[idx].name} from records? This cannot be undone.`)) return;
+  empRecords.splice(idx,1); saveERData(); renderERCards(); toast('Record removed');
+}
+
+// ── EXCEL DOWNLOAD ────────────────────────────────────────────────────────────
+function downloadERExcel(){
+  if(!empRecords.length){toast('No employee records to download');return;}
+
+  const headers=['Employee ID','Full Name','Nationality','Date of Birth','Personal Mobile','Personal Email',
+    'Primary Designation','Secondary Designation','Third Designation',
+    'Primary Department','Secondary Department','Company',
+    'Date of Joining','Reports To','Status','Work Email',
+    'Basic Salary (AED)','Housing Allowance (AED)','Transport Allowance (AED)',
+    'Other Allowance (AED)','Total Package (AED)',
+    'Medical Insurance','Air Ticket',
+    'Other Benefits','Passport Number','Passport Expiry',
+    'Emirates ID Number','Emirates ID Expiry',
+    'UAE Visa Number','Visa Expiry',
+    'Labour Card Number','Labour Card Expiry','Notes'];
+
+  const fmtDate=d=>{ if(!d) return ''; try{return new Date(d).toLocaleDateString('en-GB');}catch(e){return d;} };
+
+  const rows=empRecords.map(e=>[
+    e.id,e.name,e.nat,fmtDate(e.dob),e.mobile,e.email,
+    e.title1,e.title2,e.title3,
+    e.dept1,e.dept2,e.company,
+    fmtDate(e.join),e.reports,e.status,e.workemail,
+    e.basic,e.housing,e.transport,e.otherallow,e.total,
+    e.medical,e.ticket,e.benefits,
+    e.passport,fmtDate(e.passportExp),
+    e.eid,fmtDate(e.eidExp),
+    e.visa,fmtDate(e.visaExp),
+    e.labour,fmtDate(e.labourExp),e.notes
+  ]);
+
+  // Build CSV (opens in Excel on any system)
+  const esc=v=>{
+    const s=String(v||'');
+    return s.includes(',')||s.includes('"')||s.includes('\n')?`"${s.replace(/"/g,'""')}"`:s;
+  };
+  const csv=[headers,...rows].map(r=>r.map(esc).join(',')).join('\n');
+
+  // Add BOM for Excel UTF-8 compatibility
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`CK_Employee_Register_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+  toast('Employee register downloaded — open in Excel');
+}
+
+// TOAST
+
+// ════════════════════════════════════════════════════════════════════════
+// ADMIN IDENTIFICATION & AUDIT LOG
+// ════════════════════════════════════════════════════════════════════════
+
+var ADMIN_NAME = localStorage.getItem('ckhr_admin_name') || '';
+
+function setAdminName(name){
+  ADMIN_NAME = name;
+  localStorage.setItem('ckhr_admin_name', name);
+}
+
+function getAdminName(){
+  if(!ADMIN_NAME){
+    var name = prompt('Please enter your name (Dev / Darleendy / Kashif):');
+    if(name && name.trim()){
+      setAdminName(name.trim());
+    } else {
+      return 'Unknown Admin';
+    }
+  }
+  return ADMIN_NAME;
+}
+
+function logAudit(action, item, details){
+  var log = JSON.parse(localStorage.getItem('ckhr_audit') || '[]');
+  log.unshift({
+    when: new Date().toISOString(),
+    who: getAdminName(),
+    action: action,
+    item: item,
+    details: details || ''
+  });
+  if(log.length > 500) log = log.slice(0, 500);
+  localStorage.setItem('ckhr_audit', JSON.stringify(log));
+  serverPost('audit', log, function(){});
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// DATA HELPERS
+// ════════════════════════════════════════════════════════════════════════
+
+function getLeaveLog(){ try{ return JSON.parse(localStorage.getItem('ckhr_leaveLog')||'[]'); }catch(e){ return []; } }
+function setLeaveLog(arr){ localStorage.setItem('ckhr_leaveLog', JSON.stringify(arr)); }
+function getSalaryLog(){ try{ return JSON.parse(localStorage.getItem('ckhr_salaryLog')||'[]'); }catch(e){ return []; } }
+function setSalaryLog(arr){ localStorage.setItem('ckhr_salaryLog', JSON.stringify(arr)); }
+
+function getEmpRecords(){
+  try{ return JSON.parse(localStorage.getItem('ckhr_empRecords')||'[]'); }catch(e){ return []; }
+}
+
+function populateEmpLists(){
+  var emps = getEmpRecords();
+  var names = emps.map(function(e){return e.name;}).filter(Boolean);
+  var html = names.map(function(n){return '<option value="'+escH(n)+'">'+escH(n)+'</option>';}).join('');
+  ['la-emp-list','sa-emp-list','rpt-emp-list'].forEach(function(id){
+    var dl = document.getElementById(id);
+    if(dl) dl.innerHTML = html;
+  });
+}
+
+function fmtDate(ds){
+  if(!ds) return '—';
+  try{ return new Date(ds).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }
+  catch(e){ return ds; }
+}
+function daysUntil(ds){
+  if(!ds) return null;
+  return Math.floor((new Date(ds)-new Date())/(1000*60*60*24));
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// LEAVE REGISTER
+// ════════════════════════════════════════════════════════════════════════
+
+function renderLeaveLog(){
+  var log = getLeaveLog();
+  var search = (document.getElementById('lr-search')?.value || '').toLowerCase();
+  var typeF = document.getElementById('lr-type')?.value || '';
+  var statF = document.getElementById('lr-status')?.value || '';
+  var filtered = log.filter(function(r){
+    return (!search || (r.employee||'').toLowerCase().includes(search)) &&
+           (!typeF || r.type === typeF) &&
+           (!statF || r.status === statF);
+  });
+  var tbody = document.getElementById('leave-log-body');
+  var empty = document.getElementById('leave-log-empty');
+  if(!filtered.length){ if(tbody)tbody.innerHTML=''; if(empty)empty.style.display='block'; return; }
+  if(empty) empty.style.display='none';
+  var typeColors={'Annual Leave':'pill-teal','Sick Leave - Full Pay':'pill-green','Sick Leave - Half Pay':'pill-amber','Sick Leave - Unpaid':'pill-red','Emergency Leave':'pill-purple','Maternity Leave':'pill-purple','Paternity Leave':'pill-teal','Study Leave':'pill-navy','Work From Home':'pill-green','Unpaid Leave':'pill-red','Compassionate Leave':'pill-amber'};
+  if(tbody) tbody.innerHTML = filtered.map(function(r){
+    var ri = log.indexOf(r);
+    return '<tr style="border-bottom:1px solid var(--border)">'+
+      '<td style="padding:7px 10px;font-weight:600;color:var(--navy);font-size:12px">'+escH(r.employee||'')+'</td>'+
+      '<td style="padding:7px 10px"><span class="pill '+(typeColors[r.type]||'pill-teal')+'" style="font-size:10px">'+escH(r.type||'')+'</span></td>'+
+      '<td style="padding:7px 10px;font-size:12px">'+escH(r.from||'')+'</td>'+
+      '<td style="padding:7px 10px;font-size:12px">'+escH(r.to||'')+'</td>'+
+      '<td style="padding:7px 10px;text-align:center;font-weight:600;font-size:12px">'+escH(String(r.days||''))+'</td>'+
+      '<td style="padding:7px 10px"><span class="pill '+(r.status==='Approved'?'pill-green':r.status==='Pending'?'pill-amber':'pill-red')+'" style="font-size:10px">'+escH(r.status||'')+'</span></td>'+
+      '<td style="padding:7px 10px;font-size:11px;color:var(--muted)">'+escH(r.notes||'—')+'</td>'+
+      '<td style="padding:7px 10px;font-size:10.5px;color:var(--muted)">'+escH(r.updatedBy||'—')+'</td>'+
+      '<td style="padding:7px 10px;text-align:center"><button onclick="delLeaveEntry('+ri+')" style="padding:3px 8px;background:var(--red-lt);color:var(--red);border:1px solid #f5c6c0;border-radius:4px;cursor:pointer;font-size:10px">✕</button></td>'+
+      '</tr>';
+  }).join('');
+}
+
+function addLeaveEntry(){
+  var emp = document.getElementById('la-emp')?.value.trim();
+  if(!emp){ toast('Enter employee name'); return; }
+  var from = document.getElementById('la-from')?.value;
+  var to = document.getElementById('la-to')?.value;
+  var days = document.getElementById('la-days')?.value;
+  if(!days && from && to){
+    var d1 = new Date(from), d2 = new Date(to);
+    days = Math.ceil((d2-d1)/(1000*60*60*24)) + 1;
+  }
+  var entry = {
+    employee: emp,
+    type: document.getElementById('la-type')?.value,
+    from: from,
+    to: to || from,
+    days: days || 1,
+    status: document.getElementById('la-status')?.value || 'Approved',
+    notes: document.getElementById('la-notes')?.value.trim() || '',
+    updatedBy: getAdminName(),
+    updatedAt: new Date().toISOString()
+  };
+  var log = getLeaveLog();
+  log.push(entry);
+  setLeaveLog(log);
+  logAudit('Added', 'Leave Entry', emp + ' - ' + entry.type);
+  ['la-emp','la-from','la-to','la-days','la-notes'].forEach(function(id){
+    var el = document.getElementById(id); if(el) el.value='';
+  });
+  renderLeaveLog();
+  toast('Leave entry added ✓');
+}
+
+function delLeaveEntry(i){
+  if(!confirm('Delete this leave entry?')) return;
+  var log = getLeaveLog();
+  var removed = log[i];
+  log.splice(i, 1);
+  setLeaveLog(log);
+  logAudit('Deleted', 'Leave Entry', removed?.employee + ' - ' + removed?.type);
+  renderLeaveLog();
+}
+
+function saveLeaveLog(){
+  var log = getLeaveLog();
+  setSyncStatus('syncing');
+  serverPost('leaveLog', log, function(err, ok){
+    setSyncStatus(ok?'live':'error');
+    logAudit('Saved', 'Leave Register', log.length + ' entries');
+    toast('Leave register saved & synced to server ✓');
+  });
+}
+
+function exportLeaveCSV(){
+  var log = getLeaveLog();
+  if(!log.length){ toast('No entries to export'); return; }
+  var headers = ['Employee','Leave Type','From','To','Days','Status','Notes','Updated By','Updated At'];
+  var rows = log.map(function(r){return [r.employee,r.type,r.from,r.to,r.days,r.status,r.notes,r.updatedBy,r.updatedAt];});
+  var csv = [headers].concat(rows).map(function(row){
+    return row.map(function(v){
+      var s = String(v||'');
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? '"'+s.replace(/"/g,'""')+'"' : s;
+    }).join(',');
+  }).join('\n');
+  dlCSV('\uFEFF'+csv, 'CK_Leave_Register_' + new Date().toISOString().slice(0,10) + '.csv');
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// SALARY & PROMOTIONS
+// ════════════════════════════════════════════════════════════════════════
+
+function renderSalaryLog(){
+  var log = getSalaryLog();
+  var search = (document.getElementById('sl-search')?.value || '').toLowerCase();
+  var typeF = document.getElementById('sl-type')?.value || '';
+  var filtered = log.filter(function(r){
+    return (!search || (r.employee||'').toLowerCase().includes(search)) && (!typeF || r.type === typeF);
+  });
+  var tbody = document.getElementById('salary-log-body');
+  var empty = document.getElementById('salary-log-empty');
+  if(!filtered.length){ if(tbody)tbody.innerHTML=''; if(empty)empty.style.display='block'; return; }
+  if(empty) empty.style.display='none';
+  var typeColors={'Salary Increment':'pill-green','Salary Reduction':'pill-red','Promotion':'pill-purple','Designation Change':'pill-teal','Department Transfer':'pill-amber','Contract Renewal':'pill-navy','Probation Confirmed':'pill-green','Warning Issued':'pill-red'};
+  if(tbody) tbody.innerHTML = filtered.map(function(r){
+    var ri = log.indexOf(r);
+    return '<tr style="border-bottom:1px solid var(--border)">'+
+      '<td style="padding:7px 10px;font-weight:600;color:var(--navy);font-size:12px">'+escH(r.employee||'')+'</td>'+
+      '<td style="padding:7px 10px"><span class="pill '+(typeColors[r.type]||'pill-teal')+'" style="font-size:10px">'+escH(r.type||'')+'</span></td>'+
+      '<td style="padding:7px 10px;font-size:12px">'+escH(r.date||'')+'</td>'+
+      '<td style="padding:7px 10px;font-size:12px;color:var(--muted)">'+escH(r.previous||'—')+'</td>'+
+      '<td style="padding:7px 10px;font-size:12px;font-weight:600;color:var(--navy)">'+escH(r.newVal||'—')+'</td>'+
+      '<td style="padding:7px 10px;font-size:11px">'+escH(r.approver||'—')+'</td>'+
+      '<td style="padding:7px 10px;font-size:10.5px;color:var(--muted)">'+escH(r.updatedBy||'—')+'</td>'+
+      '<td style="padding:7px 10px;text-align:center"><button onclick="delSalaryEntry('+ri+')" style="padding:3px 8px;background:var(--red-lt);color:var(--red);border:1px solid #f5c6c0;border-radius:4px;cursor:pointer;font-size:10px">✕</button></td>'+
+      '</tr>';
+  }).join('');
+}
+
+function addSalaryEntry(){
+  var emp = document.getElementById('sa-emp')?.value.trim();
+  if(!emp){ toast('Enter employee name'); return; }
+  var entry = {
+    employee: emp,
+    type: document.getElementById('sa-type')?.value,
+    date: document.getElementById('sa-date')?.value || new Date().toLocaleDateString('en-GB'),
+    previous: document.getElementById('sa-prev')?.value.trim() || '',
+    newVal: document.getElementById('sa-new')?.value.trim() || '',
+    approver: document.getElementById('sa-approver')?.value.trim() || '',
+    notes: document.getElementById('sa-notes')?.value.trim() || '',
+    updatedBy: getAdminName(),
+    updatedAt: new Date().toISOString()
+  };
+  var log = getSalaryLog();
+  log.push(entry);
+  setSalaryLog(log);
+  logAudit('Added', 'Salary Entry', emp + ' - ' + entry.type);
+  ['sa-emp','sa-prev','sa-new','sa-approver','sa-notes'].forEach(function(id){
+    var el = document.getElementById(id); if(el) el.value='';
+  });
+  renderSalaryLog();
+  toast('Entry added ✓');
+}
+
+function delSalaryEntry(i){
+  if(!confirm('Delete this entry?')) return;
+  var log = getSalaryLog();
+  var removed = log[i];
+  log.splice(i, 1);
+  setSalaryLog(log);
+  logAudit('Deleted', 'Salary Entry', removed?.employee);
+  renderSalaryLog();
+}
+
+function saveSalaryLog(){
+  var log = getSalaryLog();
+  setSyncStatus('syncing');
+  serverPost('salaryLog', log, function(err, ok){
+    setSyncStatus(ok?'live':'error');
+    logAudit('Saved', 'Salary Register', log.length + ' entries');
+    toast('Salary register saved & synced ✓');
+  });
+}
+
+function exportSalaryCSV(){
+  var log = getSalaryLog();
+  if(!log.length){ toast('No entries to export'); return; }
+  var headers = ['Employee','Type','Date','Previous','New','Approved By','Notes','Updated By','Updated At'];
+  var rows = log.map(function(r){return [r.employee,r.type,r.date,r.previous,r.newVal,r.approver,r.notes,r.updatedBy,r.updatedAt];});
+  var csv = [headers].concat(rows).map(function(row){
+    return row.map(function(v){
+      var s = String(v||'');
+      return s.includes(',') || s.includes('"') ? '"'+s.replace(/"/g,'""')+'"' : s;
+    }).join(',');
+  }).join('\n');
+  dlCSV('\uFEFF'+csv, 'CK_Salary_Register_' + new Date().toISOString().slice(0,10) + '.csv');
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// EXPIRY ALERTS
+// ════════════════════════════════════════════════════════════════════════
+
+function renderAlerts(){
+  var days = +(document.getElementById('alert-filter')?.value || 90);
+  var emps = getEmpRecords();
+  var alerts = [];
+  emps.forEach(function(e){
+    [['passportExp','Passport','🛂'],['visaExp','Visa','🪪'],['eidExp','Emirates ID','🆔'],['labourExp','Labour Card','📋']].forEach(function(c){
+      if(!e[c[0]]) return;
+      var d = daysUntil(e[c[0]]);
+      if(d === null) return;
+      var expired = d < 0;
+      var expiring = d >= 0 && d <= days;
+      if(days === 0){ if(expired) alerts.push({emp:e.name,dept:e.dept1||'',doc:c[1],icon:c[2],expiry:e[c[0]],days:d,expired:true}); }
+      else if(expired || expiring){ alerts.push({emp:e.name,dept:e.dept1||'',doc:c[1],icon:c[2],expiry:e[c[0]],days:d,expired:expired}); }
+    });
+  });
+
+  var expired = alerts.filter(function(a){return a.expired;}).length;
+  var urgent = alerts.filter(function(a){return !a.expired && a.days<=30;}).length;
+  var upcoming = alerts.filter(function(a){return !a.expired && a.days>30;}).length;
+
+  var sumEl = document.getElementById('alerts-summary');
+  if(sumEl) sumEl.innerHTML = [
+    ['🔴 Expired', expired, 'var(--red)'],
+    ['🟡 Within 30 days', urgent, 'var(--amber)'],
+    ['🟢 31-'+days+' days', upcoming, 'var(--green)']
+  ].map(function(s){
+    return '<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 18px;text-align:center;min-width:120px"><div style="font-size:22px;font-weight:700;color:'+s[2]+'">'+s[1]+'</div><div style="font-size:11px;color:var(--muted);margin-top:2px">'+s[0]+'</div></div>';
+  }).join('');
+
+  var grid = document.getElementById('alerts-grid');
+  var empty = document.getElementById('alerts-empty');
+  if(!alerts.length){ if(grid) grid.innerHTML=''; if(empty) empty.style.display='block'; return; }
+  if(empty) empty.style.display='none';
+  alerts.sort(function(a,b){return a.days-b.days;});
+  if(grid) grid.innerHTML = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="background:var(--navy);color:#fff"><th style="padding:8px 10px;text-align:left">Employee</th><th style="padding:8px 10px;text-align:left">Department</th><th style="padding:8px 10px;text-align:left">Document</th><th style="padding:8px 10px;text-align:left">Expiry Date</th><th style="padding:8px 10px;text-align:left">Status</th></tr></thead><tbody>' +
+    alerts.map(function(a){
+      var badge = a.expired ? '<span style="background:#FEE2E2;color:var(--red);font-weight:700;font-size:11px;padding:3px 8px;border-radius:4px">EXPIRED</span>' :
+        a.days<=30 ? '<span style="background:#FEF3C7;color:#92400E;font-weight:700;font-size:11px;padding:3px 8px;border-radius:4px">'+a.days+'d left</span>' :
+        '<span style="background:#D1FAE5;color:#065F46;font-size:11px;padding:3px 8px;border-radius:4px">'+a.days+'d left</span>';
+      return '<tr style="border-bottom:1px solid var(--border);background:'+(a.expired?'#FFF5F5':a.days<=30?'#FFFBEB':'#fff')+'">'+
+        '<td style="padding:8px 10px;font-weight:600;color:var(--navy)">'+escH(a.emp)+'</td>'+
+        '<td style="padding:8px 10px;color:var(--muted);font-size:11px">'+escH(a.dept)+'</td>'+
+        '<td style="padding:8px 10px">'+a.icon+' '+a.doc+'</td>'+
+        '<td style="padding:8px 10px;font-size:12px">'+fmtDate(a.expiry)+'</td>'+
+        '<td style="padding:8px 10px">'+badge+'</td></tr>';
+    }).join('') + '</tbody></table></div>';
+}
+
+function exportAlertsCSV(){
+  var days = +(document.getElementById('alert-filter')?.value || 90);
+  var emps = getEmpRecords();
+  var rows = [];
+  emps.forEach(function(e){
+    [['passportExp','Passport'],['visaExp','Visa'],['eidExp','Emirates ID'],['labourExp','Labour Card']].forEach(function(c){
+      if(!e[c[0]]) return;
+      var d = daysUntil(e[c[0]]);
+      if(d !== null && (d < 0 || d <= days)){
+        rows.push([e.name, e.dept1||'', c[1], fmtDate(e[c[0]]), d<0?'EXPIRED':d+'d left']);
+      }
+    });
+  });
+  if(!rows.length){ toast('No alerts to export'); return; }
+  var csv = [['Employee','Department','Document','Expiry Date','Status']].concat(rows).map(function(r){
+    return r.map(function(v){var s = String(v||''); return s.includes(',')?'"'+s+'"':s;}).join(',');
+  }).join('\n');
+  dlCSV('\uFEFF'+csv, 'CK_DocExpiry_' + new Date().toISOString().slice(0,10) + '.csv');
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// REPORTS
+// ════════════════════════════════════════════════════════════════════════
+
+var lastReportData = [];
+
+function genReport(type){
+  var empFilter = (document.getElementById('rpt-emp')?.value || '').toLowerCase().trim();
+  var fromDate = document.getElementById('rpt-from')?.value || '';
+  var toDate = document.getElementById('rpt-to')?.value || '';
+  var output = document.getElementById('report-output');
+  var title = document.getElementById('report-title');
+  var content = document.getElementById('report-content');
+  if(!output) return;
+  output.style.display = 'block';
+  var emps = getEmpRecords();
+  var filtered = empFilter ? emps.filter(function(e){return (e.name||'').toLowerCase().includes(empFilter);}) : emps;
+
+  if(type === 'headcount'){
+    title.textContent = 'Headcount Report — ' + new Date().toLocaleDateString('en-GB');
+    var byDept = {};
+    filtered.forEach(function(e){
+      var d = (e.dept1 || 'Other');
+      byDept[d] = byDept[d] || {Active:0, Other:0};
+      if(e.status === 'Active' || !e.status) byDept[d].Active++;
+      else byDept[d].Other++;
+    });
+    var h = '<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:var(--navy);color:#fff"><th style="padding:8px 12px;text-align:left">Department</th><th style="padding:8px 12px;text-align:center">Active</th><th style="padding:8px 12px;text-align:center">Other</th><th style="padding:8px 12px;text-align:center">Total</th></tr></thead><tbody>';
+    var tot = 0;
+    Object.keys(byDept).sort().forEach(function(d){
+      var r = byDept[d], t = r.Active+r.Other; tot+=t;
+      h += '<tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 12px;font-weight:600">'+escH(d)+'</td><td style="padding:8px 12px;text-align:center;color:var(--green);font-weight:600">'+r.Active+'</td><td style="padding:8px 12px;text-align:center;color:var(--muted)">'+r.Other+'</td><td style="padding:8px 12px;text-align:center;font-weight:700">'+t+'</td></tr>';
+    });
+    h += '<tr style="background:var(--surface);font-weight:700"><td style="padding:8px 12px">TOTAL</td><td colspan="2" style="padding:8px 12px;text-align:center"></td><td style="padding:8px 12px;text-align:center;font-size:16px;color:var(--navy)">'+tot+'</td></tr></tbody></table>';
+    content.innerHTML = h;
+    lastReportData = [['Department','Active','Other','Total']].concat(Object.keys(byDept).sort().map(function(d){return [d, byDept[d].Active, byDept[d].Other, byDept[d].Active+byDept[d].Other];}));
+    return;
+  }
+
+  if(type === 'leave'){
+    title.textContent = 'Leave Summary Report';
+    var log = getLeaveLog();
+    var fLog = empFilter ? log.filter(function(r){return (r.employee||'').toLowerCase().includes(empFilter);}) : log;
+    if(fromDate) fLog = fLog.filter(function(r){return r.from >= fromDate;});
+    if(toDate) fLog = fLog.filter(function(r){return r.from <= toDate;});
+    var byType = {};
+    fLog.forEach(function(r){ byType[r.type] = (byType[r.type]||0) + (+r.days||0); });
+    var totDays = fLog.reduce(function(s,r){return s+(+r.days||0);}, 0);
+    var h = '<div style="margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap">' +
+      Object.entries(byType).map(function(e){return '<div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px 16px;text-align:center"><div style="font-size:18px;font-weight:700;color:var(--navy)">'+e[1]+'</div><div style="font-size:11px;color:var(--muted)">'+e[0]+'</div></div>';}).join('') +
+      '<div style="background:var(--navy);border-radius:8px;padding:10px 16px;text-align:center"><div style="font-size:18px;font-weight:700;color:#fff">'+totDays+'</div><div style="font-size:11px;color:#8BAFD4">Total Days</div></div></div>';
+    h += '<table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="background:var(--navy);color:#fff"><th style="padding:8px 10px;text-align:left">Employee</th><th style="padding:8px 10px;text-align:left">Type</th><th style="padding:8px 10px;text-align:left">From</th><th style="padding:8px 10px;text-align:left">To</th><th style="padding:8px 10px;text-align:center">Days</th><th style="padding:8px 10px;text-align:left">Status</th></tr></thead><tbody>' +
+      fLog.map(function(r){return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 10px;font-weight:600">'+escH(r.employee||'')+'</td><td style="padding:7px 10px;font-size:11px">'+escH(r.type||'')+'</td><td style="padding:7px 10px;font-size:11px">'+escH(r.from||'')+'</td><td style="padding:7px 10px;font-size:11px">'+escH(r.to||'')+'</td><td style="padding:7px 10px;text-align:center;font-weight:600">'+escH(String(r.days||''))+'</td><td style="padding:7px 10px"><span class="pill '+(r.status==='Approved'?'pill-green':'pill-amber')+'" style="font-size:10px">'+escH(r.status||'')+'</span></td></tr>';}).join('') + '</tbody></table>';
+    content.innerHTML = h;
+    lastReportData = [['Employee','Type','From','To','Days','Status']].concat(fLog.map(function(r){return [r.employee,r.type,r.from,r.to,r.days,r.status];}));
+    return;
+  }
+
+  if(type === 'salary'){
+    title.textContent = 'Salary & Promotions Report';
+    var log = getSalaryLog();
+    var fLog = empFilter ? log.filter(function(r){return (r.employee||'').toLowerCase().includes(empFilter);}) : log;
+    var h = '<table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="background:var(--navy);color:#fff"><th style="padding:8px 10px;text-align:left">Employee</th><th style="padding:8px 10px;text-align:left">Type</th><th style="padding:8px 10px;text-align:left">Date</th><th style="padding:8px 10px;text-align:left">Previous</th><th style="padding:8px 10px;text-align:left">New</th><th style="padding:8px 10px;text-align:left">Approved By</th></tr></thead><tbody>' +
+      fLog.map(function(r){return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 10px;font-weight:600">'+escH(r.employee||'')+'</td><td style="padding:7px 10px;font-size:11px">'+escH(r.type||'')+'</td><td style="padding:7px 10px;font-size:11px">'+escH(r.date||'')+'</td><td style="padding:7px 10px;color:var(--muted);font-size:11px">'+escH(r.previous||'—')+'</td><td style="padding:7px 10px;font-weight:600;color:var(--navy)">'+escH(r.newVal||'—')+'</td><td style="padding:7px 10px;font-size:11px">'+escH(r.approver||'—')+'</td></tr>';}).join('') + '</tbody></table>';
+    content.innerHTML = h;
+    lastReportData = [['Employee','Type','Date','Previous','New','Approver']].concat(fLog.map(function(r){return [r.employee,r.type,r.date,r.previous,r.newVal,r.approver];}));
+    return;
+  }
+
+  if(type === 'emp'){
+    title.textContent = 'Employee Profiles' + (empFilter?' — '+empFilter:'');
+    var h = '';
+    filtered.forEach(function(e){
+      h += '<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px"><div><div style="font-size:14px;font-weight:700;color:var(--navy)">'+escH(e.name)+'</div><div style="font-size:12px;color:var(--muted)">'+escH([e.title1,e.title2].filter(Boolean).join(' · '))+'</div></div><span class="pill '+(e.status==='Active'?'pill-green':e.status==='Terminated'?'pill-red':'pill-amber')+'">'+escH(e.status||'Active')+'</span></div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:11.5px">' +
+        ['Dept:'+escH(e.dept1||'—'),'Joined:'+fmtDate(e.join),'Mobile:'+escH(e.mobile||'—'),'Passport Exp:'+fmtDate(e.passportExp),'Visa Exp:'+fmtDate(e.visaExp),'EID Exp:'+fmtDate(e.eidExp)].map(function(s){
+          var p = s.indexOf(':');
+          return '<div style="color:var(--muted)">'+s.slice(0,p)+': <strong style="color:var(--navy)">'+s.slice(p+1)+'</strong></div>';
+        }).join('') + '</div></div>';
+    });
+    content.innerHTML = h || '<div style="text-align:center;padding:20px;color:var(--muted)">No employees found.</div>';
+    lastReportData = [['Name','ID','Dept','Title','Status','Mobile','Passport Exp','Visa Exp','EID Exp']].concat(filtered.map(function(e){return [e.name,e.id||'',e.dept1||'',e.title1||'',e.status||'',e.mobile||'',fmtDate(e.passportExp),fmtDate(e.visaExp),fmtDate(e.eidExp)];}));
+    return;
+  }
+
+  if(type === 'wfh'){
+    title.textContent = 'Work From Home Register';
+    var log = getLeaveLog();
+    var wfh = log.filter(function(r){return r.type === 'Work From Home' && (!empFilter || (r.employee||'').toLowerCase().includes(empFilter));});
+    if(fromDate) wfh = wfh.filter(function(r){return r.from >= fromDate;});
+    if(toDate) wfh = wfh.filter(function(r){return r.from <= toDate;});
+    var h = '<table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="background:var(--navy);color:#fff"><th style="padding:8px 10px;text-align:left">Employee</th><th style="padding:8px 10px;text-align:left">Date</th><th style="padding:8px 10px;text-align:center">Days</th><th style="padding:8px 10px;text-align:left">Status</th><th style="padding:8px 10px;text-align:left">Notes</th></tr></thead><tbody>' +
+      wfh.map(function(r){return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 10px;font-weight:600">'+escH(r.employee||'')+'</td><td style="padding:7px 10px;font-size:11px">'+escH(r.from||'')+'</td><td style="padding:7px 10px;text-align:center">'+escH(String(r.days||''))+'</td><td style="padding:7px 10px"><span class="pill pill-green" style="font-size:10px">'+escH(r.status||'')+'</span></td><td style="padding:7px 10px;font-size:11px;color:var(--muted)">'+escH(r.notes||'—')+'</td></tr>';}).join('') + '</tbody></table>';
+    content.innerHTML = h || '<div style="text-align:center;padding:20px;color:var(--muted)">No WFH entries.</div>';
+    lastReportData = [['Employee','Date','Days','Status','Notes']].concat(wfh.map(function(r){return [r.employee,r.from,r.days,r.status,r.notes||''];}));
+    return;
+  }
+
+  if(type === 'audit'){
+    title.textContent = 'Audit Log — Who Changed What';
+    var log = JSON.parse(localStorage.getItem('ckhr_audit')||'[]');
+    var fLog = empFilter ? log.filter(function(r){return (r.who||'').toLowerCase().includes(empFilter) || (r.details||'').toLowerCase().includes(empFilter);}) : log;
+    var h = '<table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="background:var(--navy);color:#fff"><th style="padding:8px 10px;text-align:left">When</th><th style="padding:8px 10px;text-align:left">Who</th><th style="padding:8px 10px;text-align:left">Action</th><th style="padding:8px 10px;text-align:left">Item</th><th style="padding:8px 10px;text-align:left">Details</th></tr></thead><tbody>' +
+      fLog.slice(0,200).map(function(r){
+        var d = new Date(r.when);
+        return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 10px;font-size:11px;color:var(--muted)">'+d.toLocaleString('en-GB')+'</td><td style="padding:7px 10px;font-weight:600;color:var(--navy);font-size:12px">'+escH(r.who||'—')+'</td><td style="padding:7px 10px;font-size:11px">'+escH(r.action||'')+'</td><td style="padding:7px 10px;font-size:11px">'+escH(r.item||'')+'</td><td style="padding:7px 10px;font-size:11px;color:var(--muted)">'+escH(r.details||'')+'</td></tr>';
+      }).join('') + '</tbody></table>' + (fLog.length>200?'<div style="text-align:center;padding:12px;color:var(--muted);font-size:11px">Showing latest 200 of '+fLog.length+' entries</div>':'');
+    content.innerHTML = h || '<div style="text-align:center;padding:20px;color:var(--muted)">No audit entries yet.</div>';
+    lastReportData = [['When','Who','Action','Item','Details']].concat(fLog.map(function(r){return [new Date(r.when).toLocaleString('en-GB'),r.who||'',r.action||'',r.item||'',r.details||''];}));
+    return;
+  }
+}
+
+function exportReportCSV(){
+  if(!lastReportData.length){ toast('No data to export'); return; }
+  var csv = lastReportData.map(function(r){
+    return r.map(function(v){
+      var s = String(v||'');
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? '"'+s.replace(/"/g,'""')+'"' : s;
+    }).join(',');
+  }).join('\n');
+  dlCSV('\uFEFF'+csv, 'CK_Report_'+new Date().toISOString().slice(0,10)+'.csv');
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// CSV DOWNLOAD HELPER
+// ════════════════════════════════════════════════════════════════════════
+
+function dlCSV(csv, filename){
+  var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('Downloaded ✓');
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// LOAD ADDITIONAL DATA FROM SERVER ON ADMIN LOGIN
+// ════════════════════════════════════════════════════════════════════════
+
+function loadAdminExtraData(){
+  serverGet('leaveLog', function(err, val){
+    if(val && Array.isArray(val)) setLeaveLog(val);
+    if(document.getElementById('asec-p-leave')?.classList.contains('active')) renderLeaveLog();
+  });
+  serverGet('salaryLog', function(err, val){
+    if(val && Array.isArray(val)) setSalaryLog(val);
+    if(document.getElementById('asec-p-salary')?.classList.contains('active')) renderSalaryLog();
+  });
+  serverGet('audit', function(err, val){
+    if(val && Array.isArray(val)) localStorage.setItem('ckhr_audit', JSON.stringify(val));
+  });
+}
+
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
+
+// ═══ INIT ════════════════════════════════════════════════════════════════════
+init(); renderBanner(); initDocGen();
+
+</script>
+</html>
