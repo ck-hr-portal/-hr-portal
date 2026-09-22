@@ -545,7 +545,13 @@ tr:hover td{background:#fafbfc;}
   <div class="modal">
     <div class="modal-title">Leave Record <span class="modal-close" onclick="closeModal('leaveModal')">✕</span></div>
     <div class="form-grid">
-      <div class="form-group form-full"><label>Employee Name *</label><input type="text" id="lvEmp"></div>
+      <div class="form-group form-full"><label>Employee *</label>
+        <select id="lvEmpSel" style="width:100%;padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;">
+          <option value="">— Select Employee —</option>
+        </select>
+        <input type="hidden" id="lvEmp">
+        <input type="hidden" id="lvEmpKey">
+      </div>
       <div class="form-group"><label>Leave Type *</label><select id="lvType"><option>Annual Leave</option><option>Sick Leave</option><option>Emergency Leave</option><option>Maternity Leave</option><option>Paternity Leave</option><option>Hajj Leave</option><option>Study Leave</option><option>Unpaid Leave</option><option>Compassionate Leave</option><option>Work From Home</option><option>Other</option></select></div>
       <div class="form-group"><label>Status</label><select id="lvStatus"><option>Approved</option><option>Pending</option><option>Rejected</option></select></div>
       <div class="form-group"><label>From *</label><input type="date" id="lvFrom"></div>
@@ -563,7 +569,13 @@ tr:hover td{background:#fafbfc;}
   <div class="modal">
     <div class="modal-title">Salary / Promotion Record <span class="modal-close" onclick="closeModal('salModal')">✕</span></div>
     <div class="form-grid">
-      <div class="form-group form-full"><label>Employee Name *</label><input type="text" id="slEmp"></div>
+      <div class="form-group form-full"><label>Employee *</label>
+        <select id="slEmpSel" style="width:100%;padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;">
+          <option value="">— Select Employee —</option>
+        </select>
+        <input type="hidden" id="slEmp">
+        <input type="hidden" id="slEmpKey">
+      </div>
       <div class="form-group"><label>Record Type *</label><select id="slType"><option>Salary Increment</option><option>Promotion</option><option>Grade Change</option><option>Bonus</option><option>Allowance Change</option><option>Salary Reduction</option><option>Reinstatement</option></select></div>
       <div class="form-group"><label>Effective Date</label><input type="date" id="slDate"></div>
       <div class="form-group"><label>Previous Amount / Grade</label><input type="text" id="slPrev"></div>
@@ -581,7 +593,13 @@ tr:hover td{background:#fafbfc;}
   <div class="modal">
     <div class="modal-title">New Employee Loan <span class="modal-close" onclick="closeModal('loanModal')">✕</span></div>
     <div class="form-grid">
-      <div class="form-group form-full"><label>Employee Name *</label><input type="text" id="loEmp"></div>
+      <div class="form-group form-full"><label>Employee *</label>
+        <select id="loEmpSel" style="width:100%;padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;">
+          <option value="">— Select Employee —</option>
+        </select>
+        <input type="hidden" id="loEmp">
+        <input type="hidden" id="loEmpKey">
+      </div>
       <div class="form-group"><label>Loan Amount (AED) *</label><input type="number" id="loAmt"></div>
       <div class="form-group"><label>Date Approved</label><input type="date" id="loDate"></div>
       <div class="form-group"><label>Monthly Deduction (AED)</label><input type="number" id="loDeduct"></div>
@@ -614,7 +632,13 @@ tr:hover td{background:#fafbfc;}
   <div class="modal">
     <div class="modal-title">Issue Asset / Equipment <span class="modal-close" onclick="closeModal('assetModal')">✕</span></div>
     <div class="form-grid">
-      <div class="form-group form-full"><label>Employee Name *</label><input type="text" id="asEmp"></div>
+      <div class="form-group form-full"><label>Employee *</label>
+        <select id="asEmpSel" style="width:100%;padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;">
+          <option value="">— Select Employee —</option>
+        </select>
+        <input type="hidden" id="asEmp">
+        <input type="hidden" id="asEmpKey">
+      </div>
       <div class="form-group"><label>Category *</label><select id="asCat"><option>IT Equipment</option><option>Safety Kit</option><option>Uniform</option><option>Tools</option><option>Access Card / Key</option><option>Vehicle</option><option>Other</option></select></div>
       <div class="form-group"><label>Item Name *</label><input type="text" id="asItem" placeholder="e.g. Laptop, Safety Helmet, Uniform Shirt"></div>
       <div class="form-group"><label>Serial / Batch No.</label><input type="text" id="asSerial"></div>
@@ -731,6 +755,22 @@ function getAnniversaries(){
     }
   });
   return results;
+}
+
+function buildEmpDropdown(selectId, includeBlank=true){
+  const sel = document.getElementById(selectId);
+  if(!sel) return;
+  const current = sel.value;
+  const emps = Object.entries(DB.employees)
+    .sort((a,b)=>a[1].name?.localeCompare(b[1].name||'')||0);
+  sel.innerHTML = (includeBlank ? '<option value="">— Select Employee —</option>' : '') +
+    emps.map(([k,e])=>`<option value="${k}|${e.empId||''}|${e.name||''}" 
+      ${current.includes(k)?'selected':''}>${e.name||''} ${e.empId?'('+e.empId+')':''} — ${e.dept||''}</option>`).join('');
+}
+
+function parseEmpSelect(val){
+  const parts = val.split('|');
+  return {key: parts[0]||'', empId: parts[1]||'', name: parts[2]||''};
 }
 
 function initListeners(){
@@ -965,7 +1005,16 @@ window.filterLeave=function(){
   const q=v('leaveSearch').toLowerCase(),type=document.getElementById('leaveTypeF').value,status=document.getElementById('leaveStatusF').value;
   renderLeave(Object.entries(DB.leave).filter(([k,l])=>(!q||l.empName?.toLowerCase().includes(q))&&(!type||l.type===type)&&(!status||l.status===status)));
 };
-window.openLeaveModal=function(){['lvEmp','lvFrom','lvTo','lvApproved','lvNotes'].forEach(id=>sv(id,''));sv('lvKey','');sv('lvType','Annual Leave');sv('lvStatus','Approved');document.getElementById('leaveModal').classList.add('open');};
+window.openLeaveModal=function(){
+  ['lvEmp','lvEmpKey','lvFrom','lvTo','lvApproved','lvNotes'].forEach(id=>sv(id,''));
+  sv('lvKey','');sv('lvType','Annual Leave');sv('lvStatus','Approved');
+  buildEmpDropdown('lvEmpSel');
+  document.getElementById('lvEmpSel').onchange=function(){
+    const p=parseEmpSelect(this.value);
+    sv('lvEmp',p.name);sv('lvEmpKey',p.key);
+  };
+  document.getElementById('leaveModal').classList.add('open');
+};
 window.editLeave=function(key){const l=DB.leave[key];sv('lvEmp',l.empName);sv('lvType',l.type);sv('lvStatus',l.status);sv('lvFrom',l.from);sv('lvTo',l.to);sv('lvApproved',l.approvedBy);sv('lvNotes',l.notes);sv('lvKey',key);document.getElementById('leaveModal').classList.add('open');};
 window.saveLeave=function(){
   const data={empName:v('lvEmp'),type:v('lvType'),status:v('lvStatus'),from:v('lvFrom'),to:v('lvTo'),approvedBy:v('lvApproved'),notes:v('lvNotes'),ts:Date.now()};
@@ -993,13 +1042,40 @@ function renderSal(data){
   }).join('');
 }
 window.filterSal=function(){const q=v('salSearch').toLowerCase(),type=document.getElementById('salTypeF').value;renderSal(Object.entries(DB.salary).filter(([k,s])=>(!q||s.empName?.toLowerCase().includes(q))&&(!type||s.type===type)));};
-window.openSalModal=function(){['slEmp','slDate','slPrev','slNew','slApproved','slReason'].forEach(id=>sv(id,''));sv('slKey','');sv('slType','Salary Increment');document.getElementById('salModal').classList.add('open');};
+window.openSalModal=function(){
+  ['slEmp','slEmpKey','slDate','slPrev','slNew','slApproved','slReason'].forEach(id=>sv(id,''));
+  sv('slKey','');sv('slType','Salary Increment');
+  buildEmpDropdown('slEmpSel');
+  document.getElementById('slEmpSel').onchange=function(){
+    const p=parseEmpSelect(this.value);
+    sv('slEmp',p.name);sv('slEmpKey',p.key);
+  };
+  document.getElementById('salModal').classList.add('open');
+};
 window.editSal=function(key){const s=DB.salary[key];sv('slEmp',s.empName);sv('slType',s.type);sv('slDate',s.date);sv('slPrev',s.prev);sv('slNew',s.newVal);sv('slApproved',s.approvedBy);sv('slReason',s.reason);sv('slKey',key);document.getElementById('salModal').classList.add('open');};
 window.saveSal=function(){
-  const data={empName:v('slEmp'),type:v('slType'),date:v('slDate'),prev:v('slPrev'),newVal:v('slNew'),approvedBy:v('slApproved'),reason:v('slReason'),ts:Date.now()};
-  if(!data.empName){alert('Employee name required');return;}
-  const key=v('slKey');const op=key?set(ref(db,'salary/'+key),data):set(push(ref(db,'salary')),data);
-  op.then(()=>{logAudit(key?'Edit Salary':'Add Salary Record',data.empName,`${data.type}: ${data.prev} → ${data.newVal}`);closeModal('salModal');showAlert('sal-alert','Record saved!');});
+  const empKey=v('slEmpKey');
+  const data={
+    empName:v('slEmp'),empId:empKey,type:v('slType'),
+    date:v('slDate'),prev:v('slPrev'),newVal:v('slNew'),
+    approvedBy:v('slApproved'),reason:v('slReason'),ts:Date.now()
+  };
+  if(!data.empName){alert('Please select an employee');return;}
+  const key=v('slKey');
+  const op=key?set(ref(db,'salary/'+key),data):set(push(ref(db,'salary')),data);
+  op.then(()=>{
+    // Auto-update employee gross salary if it's a salary change
+    if(empKey && data.newVal && (data.type==='Salary Increment'||data.type==='Salary Reduction'||data.type==='Reinstatement')){
+      const emp=DB.employees[empKey];
+      if(emp){
+        const updated={...emp, grossSalary:data.newVal, lastSalaryChange:data.date, lastSalaryBy:data.approvedBy};
+        set(ref(db,'employees/'+empKey), updated);
+      }
+    }
+    logAudit(key?'Edit Salary':'Add Salary Record',data.empName,`${data.type}: ${data.prev} → ${data.newVal}`);
+    closeModal('salModal');
+    showAlert('sal-alert','Record saved! Employee profile updated.');
+  });
 };
 window.delSal=function(key){if(!confirm('Delete?'))return;remove(ref(db,'salary/'+key)).then(()=>showAlert('sal-alert','Deleted.'));};
 
@@ -1046,7 +1122,16 @@ function renderLoans(data){
   }).join('');
 }
 window.filterLoans=function(){const q=v('loanSearch').toLowerCase(),status=document.getElementById('loanStatusF').value;renderLoans(Object.entries(DB.loans).filter(([k,l])=>(!q||l.empName?.toLowerCase().includes(q))&&(!status||l.status===status)));};
-window.openLoanModal=function(){['loEmp','loAmt','loDate','loDeduct','loInst','loApproved','loPurpose','loNotes'].forEach(id=>sv(id,''));sv('loKey','');document.getElementById('loanModal').classList.add('open');};
+window.openLoanModal=function(){
+  ['loEmp','loEmpKey','loAmt','loDate','loDeduct','loInst','loApproved','loPurpose','loNotes'].forEach(id=>sv(id,''));
+  sv('loKey','');
+  buildEmpDropdown('loEmpSel');
+  document.getElementById('loEmpSel').onchange=function(){
+    const p=parseEmpSelect(this.value);
+    sv('loEmp',p.name);sv('loEmpKey',p.key);
+  };
+  document.getElementById('loanModal').classList.add('open');
+};
 window.editLoan=function(key){const l=DB.loans[key];sv('loEmp',l.empName);sv('loAmt',l.amount);sv('loDate',l.dateApproved);sv('loDeduct',l.monthlyDeduct);sv('loInst',l.instalments);sv('loApproved',l.approvedBy);sv('loPurpose',l.purpose);sv('loNotes',l.notes);sv('loKey',key);document.getElementById('loanModal').classList.add('open');};
 window.saveLoan=function(){
   const data={empName:v('loEmp'),amount:v('loAmt'),dateApproved:v('loDate'),monthlyDeduct:v('loDeduct'),instalments:v('loInst'),approvedBy:v('loApproved'),purpose:v('loPurpose'),notes:v('loNotes'),status:'Active',ts:Date.now()};
@@ -1105,7 +1190,16 @@ function renderAssets(data){
   </tr>`).join('');
 }
 window.filterAssets=function(){const q=v('assetSearch').toLowerCase(),cat=document.getElementById('assetCatF').value,status=document.getElementById('assetStatusF').value;renderAssets(Object.entries(DB.assets).filter(([k,a])=>(!q||[a.empName,a.item,a.serial].some(x=>x?.toLowerCase().includes(q)))&&(!cat||a.category===cat)&&(!status||a.status===status)));};
-window.openAssetModal=function(){['asEmp','asItem','asSerial','asDate','asReturn','asNotes'].forEach(id=>sv(id,''));sv('asKey','');sv('asCat','IT Equipment');sv('asCond','New');sv('asStatus','Issued');document.getElementById('assetModal').classList.add('open');};
+window.openAssetModal=function(){
+  ['asEmp','asEmpKey','asItem','asSerial','asDate','asReturn','asNotes'].forEach(id=>sv(id,''));
+  sv('asKey','');sv('asCat','IT Equipment');sv('asCond','New');sv('asStatus','Issued');
+  buildEmpDropdown('asEmpSel');
+  document.getElementById('asEmpSel').onchange=function(){
+    const p=parseEmpSelect(this.value);
+    sv('asEmp',p.name);sv('asEmpKey',p.key);
+  };
+  document.getElementById('assetModal').classList.add('open');
+};
 window.editAsset=function(key){const a=DB.assets[key];sv('asEmp',a.empName);sv('asCat',a.category);sv('asItem',a.item);sv('asSerial',a.serial);sv('asDate',a.issueDate);sv('asCond',a.condition);sv('asStatus',a.status);sv('asReturn',a.returnDate);sv('asNotes',a.notes);sv('asKey',key);document.getElementById('assetModal').classList.add('open');};
 window.saveAsset=function(){
   const data={empName:v('asEmp'),category:v('asCat'),item:v('asItem'),serial:v('asSerial'),issueDate:v('asDate'),condition:v('asCond'),status:v('asStatus'),returnDate:v('asReturn'),notes:v('asNotes'),by:adminName,ts:Date.now()};
