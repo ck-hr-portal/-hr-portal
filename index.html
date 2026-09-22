@@ -412,6 +412,16 @@ tr:hover td{background:#fafbfc;}
           <div class="card" style="cursor:pointer;border-top:3px solid #e67e22;" onclick="runReport('loans')"><div class="card-title">🏦 Loan Report</div><p style="font-size:12px;color:#888;">All loans — outstanding balances</p><div class="btn-row"><button class="btn btn-sm" style="background:#e67e22;color:#fff;">📥 Download Excel</button></div></div>
           <div class="card" style="cursor:pointer;border-top:3px solid #27ae60;" onclick="runReport('assets')"><div class="card-title">💼 Asset Register</div><p style="font-size:12px;color:#888;">All issued items per employee</p><div class="btn-row"><button class="btn btn-sm" style="background:#27ae60;color:#fff;">📥 Download Excel</button></div></div>
           <div class="card" style="cursor:pointer;border-top:3px solid #1C3557;" onclick="runReport('salary')"><div class="card-title">💹 Salary Changes</div><p style="font-size:12px;color:#888;">All increments and promotions</p><div class="btn-row"><button class="btn btn-sm btn-primary">📥 Download Excel</button></div></div>
+          <div class="card" style="border-top:3px solid #C9A84C;grid-column:1/-1;">
+            <div class="card-title">👤 Individual Employee Profile Report</div>
+            <p style="font-size:12px;color:#888;margin-bottom:12px;">Full employment history for a single employee — profile, salary history, leave, loans, assets. Download as Excel.</p>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <select id="profileEmpSel" style="flex:1;min-width:280px;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;">
+                <option value="">— Select Employee —</option>
+              </select>
+              <button class="btn btn-gold" onclick="runProfileReport()">📥 Download Employee Profile</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -802,6 +812,10 @@ window.showPage=function(page,el){
   if(el)el.classList.add('active');
   if(page==='expiry')renderExpiry();
   if(page==='birthdays')renderBirthdays();
+  if(page==='reports'){
+    document.getElementById('reportOutput').style.display='none';
+    buildEmpDropdown('profileEmpSel');
+  }
 };
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
@@ -1324,6 +1338,161 @@ window.generateDoc=function(){
 window.printDoc=function(){const w=window.open('','_blank');w.document.write(`<html><body><pre style="font-family:Arial;font-size:13px;line-height:1.8;padding:40px;">${document.getElementById('docContent').textContent}</pre></body></html>`);w.print();};
 
 // ── REPORTS & EXCEL DOWNLOADS ─────────────────────────────────────────────────
+window.runProfileReport=function(){
+  const val=document.getElementById('profileEmpSel').value;
+  if(!val){alert('Please select an employee first');return;}
+  const parts=val.split('|');
+  const empKey=parts[0];
+  const emp=DB.employees[empKey];
+  if(!emp){alert('Employee not found');return;}
+
+  const wb=XLSX.utils.book_new();
+  const today=new Date().toLocaleDateString('en-AE',{day:'2-digit',month:'long',year:'numeric'});
+
+  // ── SHEET 1: Profile Summary ──────────────────────────────────────────────
+  const profile=[
+    ['CK ARCHITECTURE INTERIORS LLC  |  CKC BUILDING CONTRACTING LLC'],
+    ['EMPLOYEE PROFILE REPORT'],
+    [`Generated: ${today}`],
+    [''],
+    ['PERSONAL & EMPLOYMENT DETAILS'],
+    ['Employee ID',          emp.empId||'—'],
+    ['Full Name',            emp.name||'—'],
+    ['Designation',          emp.desig||'—'],
+    ['Department',           emp.dept||'—'],
+    ['Entity',               emp.entity||'—'],
+    ['Nationality',          emp.nationality||'—'],
+    ['Gender',               emp.gender||'—'],
+    ['Date of Birth',        emp.dob||'—'],
+    ['Date of Joining',      emp.join||'—'],
+    ['Contract Type',        emp.contract||'—'],
+    ['Grade',                emp.grade||'—'],
+    ['Project / Site',       emp.site||'—'],
+    ['Reporting Manager',    emp.manager||'—'],
+    ['Status',               emp.status||'Active'],
+    ['Mobile',               emp.mobile||'—'],
+    ['Company Email',        emp.email||'—'],
+    [''],
+    ['CURRENT COMPENSATION'],
+    ['Basic Salary (AED)',   emp.basicSalary||'—'],
+    ['Gross Salary (AED)',   emp.grossSalary||'—'],
+    ['Housing Allowance',    emp.house||'—'],
+    ['Transport Allowance',  emp.transport||'—'],
+    ['Other Allowances',     emp.otherAllowances||'—'],
+    ['Bank',                 emp.bank||'—'],
+    ['Annual Leave Entitlement', emp.annualLeaveEnt||'—'],
+    ['Annual Leave Balance', emp.annualLeaveBalance||'—'],
+    [''],
+    ['DOCUMENT DETAILS'],
+    ['Passport No.',         emp.passport||'—'],
+    ['Passport Expiry',      emp.passExp||'—'],
+    ['Visa No.',             emp.visa||'—'],
+    ['Visa Expiry',          emp.visaExp||'—'],
+    ['Emirates ID',          emp.eid||'—'],
+    ['Emirates ID Expiry',   emp.eidExp||'—'],
+    ['Labour Card',          emp.lab||'—'],
+    ['Labour Card Expiry',   emp.labExp||'—'],
+    ['Medical Insurance',    emp.medInsurance||'—'],
+  ];
+
+  // Calculate years of service
+  if(emp.join){
+    const yrs=((new Date()-new Date(emp.join))/(365.25*86400000)).toFixed(1);
+    profile.splice(20,0,['Years of Service', yrs+' years']);
+  }
+
+  // Exit details if applicable
+  if(emp.exitDate){
+    profile.push(['']);
+    profile.push(['EXIT DETAILS']);
+    profile.push(['Last Working Day', emp.exitDate||'—']);
+    profile.push(['Exit Type',        emp.exitType||'—']);
+    profile.push(['Notice Period',    emp.notice||'—']);
+    profile.push(['Exit Interview',   emp.exitInt||'—']);
+    profile.push(['Settlement',       emp.settle||'—']);
+    profile.push(['Rehire Eligible',  emp.rehire||'—']);
+    profile.push(['Reason',           emp.exitReason||'—']);
+  }
+
+  const ws1=XLSX.utils.aoa_to_sheet(profile);
+  ws1['!cols']=[{wch:28},{wch:40}];
+  XLSX.utils.book_append_sheet(wb,ws1,'Profile');
+
+  // ── SHEET 2: Salary History ───────────────────────────────────────────────
+  const salRows=Object.values(DB.salary)
+    .filter(s=>s.empId===empKey||s.empName===emp.name)
+    .sort((a,b)=>a.date>b.date?1:-1);
+
+  const sal=[['SALARY & COMPENSATION HISTORY — '+emp.name],[''],
+    ['Date','Type','Previous (AED)','New Amount (AED)','% Change','Reason','Approved By']];
+  salRows.forEach(s=>{
+    const prev=parseFloat(s.prev)||0, nw=parseFloat(s.newVal)||0;
+    const pct=prev?((nw-prev)/prev*100).toFixed(1)+'%':'—';
+    sal.push([s.date,s.type,s.prev,s.newVal,pct,s.reason,s.approvedBy]);
+  });
+  if(salRows.length===0) sal.push(['No salary records found','','','','','','']);
+
+  const ws2=XLSX.utils.aoa_to_sheet(sal);
+  ws2['!cols']=[{wch:14},{wch:20},{wch:16},{wch:16},{wch:10},{wch:30},{wch:18}];
+  XLSX.utils.book_append_sheet(wb,ws2,'Salary History');
+
+  // ── SHEET 3: Leave History ────────────────────────────────────────────────
+  const leaveRows=Object.values(DB.leave)
+    .filter(l=>l.empName===emp.name)
+    .sort((a,b)=>a.from>b.from?1:-1);
+
+  const lv=[['LEAVE HISTORY — '+emp.name],[''],
+    ['From','To','Days','Leave Type','Status','Approved By','Notes']];
+  leaveRows.forEach(l=>{
+    const days=l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:'—';
+    lv.push([l.from,l.to,days,l.type,l.status,l.approvedBy,l.notes]);
+  });
+  if(leaveRows.length===0) lv.push(['No leave records found','','','','','','']);
+
+  const ws3=XLSX.utils.aoa_to_sheet(lv);
+  ws3['!cols']=[{wch:14},{wch:14},{wch:8},{wch:22},{wch:12},{wch:18},{wch:30}];
+  XLSX.utils.book_append_sheet(wb,ws3,'Leave History');
+
+  // ── SHEET 4: Loans ────────────────────────────────────────────────────────
+  const loanRows=Object.entries(DB.loans)
+    .filter(([k,l])=>l.empName===emp.name)
+    .sort((a,b)=>a[1].dateApproved>b[1].dateApproved?1:-1);
+
+  const ln=[['LOAN HISTORY — '+emp.name],[''],
+    ['Date Approved','Amount (AED)','Purpose','Monthly Deduction','Total Paid','Outstanding','Status','Approved By']];
+  loanRows.forEach(([k,l])=>{
+    const paid=Object.values(DB.repayments).filter(r=>r.loanKey===k).reduce((s,r)=>s+parseFloat(r.amt||0),0);
+    const outstanding=Math.max(0,parseFloat(l.amount||0)-paid);
+    ln.push([l.dateApproved,l.amount,l.purpose,l.monthlyDeduct,paid.toFixed(2),outstanding.toFixed(2),l.status,l.approvedBy]);
+  });
+  if(loanRows.length===0) ln.push(['No loan records found','','','','','','','']);
+
+  const ws4=XLSX.utils.aoa_to_sheet(ln);
+  ws4['!cols']=[{wch:14},{wch:14},{wch:24},{wch:18},{wch:12},{wch:14},{wch:14},{wch:18}];
+  XLSX.utils.book_append_sheet(wb,ws4,'Loans');
+
+  // ── SHEET 5: Assets ───────────────────────────────────────────────────────
+  const assetRows=Object.values(DB.assets)
+    .filter(a=>a.empName===emp.name)
+    .sort((a,b)=>a.issueDate>b.issueDate?1:-1);
+
+  const as=[['ASSET & EQUIPMENT HISTORY — '+emp.name],[''],
+    ['Issue Date','Category','Item','Serial/Batch','Condition','Status','Return Date','Notes']];
+  assetRows.forEach(a=>{
+    as.push([a.issueDate,a.category,a.item,a.serial,a.condition,a.status,a.returnDate,a.notes]);
+  });
+  if(assetRows.length===0) as.push(['No asset records found','','','','','','','']);
+
+  const ws5=XLSX.utils.aoa_to_sheet(as);
+  ws5['!cols']=[{wch:14},{wch:16},{wch:22},{wch:14},{wch:12},{wch:12},{wch:14},{wch:28}];
+  XLSX.utils.book_append_sheet(wb,ws5,'Assets');
+
+  // ── Download ──────────────────────────────────────────────────────────────
+  const fname=`Employee_Profile_${(emp.name||'').replace(/\s/g,'_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+  XLSX.writeFile(wb,fname);
+  logAudit('Download Employee Profile',emp.name,`Full profile report — ${salRows.length} salary records, ${leaveRows.length} leave records`);
+};
+
 window.runReport=function(type){
   const emps=Object.values(DB.employees);
   const now=new Date();
