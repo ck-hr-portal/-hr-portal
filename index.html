@@ -105,6 +105,14 @@ tr:hover td{background:#fafbfc;}
 .loan-bar{background:#e0e0e0;border-radius:4px;height:8px;overflow:hidden;margin-top:3px;}
 .loan-fill{background:#2563A8;height:100%;border-radius:4px;transition:width 0.3s;}
 @media(max-width:768px){.sidebar{display:none;}.main{margin-left:0;}.stats-row{grid-template-columns:1fr 1fr;}.form-grid{grid-template-columns:1fr;}}
+
+  .logo-wrap{display:flex;align-items:center;gap:3px;}
+  .logo-text{font-size:19px;font-weight:900;color:#C9A84C;letter-spacing:-1px;font-family:Arial,sans-serif;}
+  .logo-divider{width:1.5px;height:20px;background:#C9A84C;margin:0 5px;display:inline-block;}
+  .logo-sub{font-size:9px;color:#fff;line-height:1.3;font-weight:600;text-transform:lowercase;}
+  .logo-sep{width:1px;height:30px;background:rgba(255,255,255,0.25);margin:0 12px;display:inline-block;}
+  .portal-name{font-size:14px;font-weight:700;color:#fff;}
+  .portal-sub{font-size:10px;color:#7a9ab5;}
 </style>
 </head>
 <body>
@@ -126,19 +134,22 @@ tr:hover td{background:#fafbfc;}
 <div id="app">
   <div class="topbar">
         <div class="topbar-left">
-      <div style="display:flex;align-items:center;gap:3px;">
-        <div style="font-size:20px;font-weight:900;color:#C9A84C;letter-spacing:-1px;">ckc</div>
-        <div style="width:1.5px;height:22px;background:#C9A84C;margin:0 4px;"></div>
-        <div style="font-size:10px;color:#fff;line-height:1.2;font-weight:600;">building<br>contracting</div>
+      <div class="logo-wrap">
+        <span class="logo-text">ckc</span>
+        <span class="logo-divider"></span>
+        <span class="logo-sub">building<br>contracting</span>
       </div>
-      <div style="width:1px;height:32px;background:rgba(255,255,255,0.25);margin:0 12px;"></div>
-      <div style="display:flex;align-items:center;gap:3px;">
-        <div style="font-size:20px;font-weight:900;color:#C9A84C;letter-spacing:-1px;">ck</div>
-        <div style="width:1.5px;height:22px;background:#C9A84C;margin:0 4px;"></div>
-        <div style="font-size:10px;color:#fff;line-height:1.2;font-weight:600;">architecture<br>interiors</div>
+      <span class="logo-sep"></span>
+      <div class="logo-wrap">
+        <span class="logo-text">ck</span>
+        <span class="logo-divider"></span>
+        <span class="logo-sub">architecture<br>interiors</span>
       </div>
-      <div style="width:1px;height:32px;background:rgba(255,255,255,0.25);margin:0 12px;"></div>
-      <div><div style="font-size:14px;font-weight:700;color:#fff;">HR Portal v2</div><div style="font-size:10px;color:#7a9ab5;">CK Architecture &amp; CKC Building</div></div>
+      <span class="logo-sep"></span>
+      <div>
+        <div class="portal-name">HR Portal v2</div>
+        <div class="portal-sub">CK Architecture &amp; CKC Building</div>
+      </div>
       <span class="topbar-badge" id="adminBadge">ADMIN</span>
     </div>
     <div class="topbar-right">
