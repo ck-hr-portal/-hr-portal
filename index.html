@@ -5,146 +5,106 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CK HR Portal</title>
 <style>
-  *{margin:0;padding:0;box-sizing:border-box;}
-  body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f5;color:#1a1a2e;}
-  
-  /* LOGIN */
-  #loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#1C3557 0%,#2563A8 100%);}
-  .loginBox{background:#fff;border-radius:16px;padding:48px 40px;width:380px;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center;}
-  .loginBox h1{color:#1C3557;font-size:22px;margin-bottom:6px;}
-  .loginBox p{color:#666;font-size:13px;margin-bottom:28px;}
-  .loginBox input{width:100%;padding:12px 16px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:14px;transition:border-color 0.2s;}
-  .loginBox input:focus{outline:none;border-color:#2563A8;}
-  .loginBox button{width:100%;padding:13px;background:#1C3557;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;transition:background 0.2s;}
-  .loginBox button:hover{background:#2563A8;}
-  #loginError{color:#e74c3c;font-size:13px;margin-top:10px;display:none;}
-  .logo-initials{width:70px;height:70px;background:#1C3557;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;color:#C9A84C;font-size:22px;font-weight:700;}
-
-  /* APP SHELL */
-  #app{display:none;}
-  .topbar{background:#1C3557;color:#fff;padding:0 24px;height:58px;display:flex;align-items:center;justify-content:space-between;position:fixed;top:0;left:0;right:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.3);}
-  .topbar-left{display:flex;align-items:center;gap:14px;}
-  .topbar h2{font-size:17px;font-weight:600;letter-spacing:0.3px;}
-  .topbar-badge{background:#C9A84C;color:#1C3557;font-size:10px;font-weight:700;padding:3px 8px;border-radius:12px;}
-  .topbar-right{display:flex;align-items:center;gap:16px;}
-  .admin-name{font-size:13px;color:#C9A84C;font-weight:600;}
-  .sync-indicator{font-size:11px;color:#a0b4c8;}
-  .btn-logout{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;}
-  .btn-logout:hover{background:rgba(255,255,255,0.25);}
-
-  .layout{display:flex;margin-top:58px;min-height:calc(100vh - 58px);}
-  
-  /* SIDEBAR */
-  .sidebar{width:220px;background:#1C3557;min-height:calc(100vh - 58px);height:calc(100vh - 58px);position:fixed;top:58px;left:0;overflow-y:scroll;padding:16px 0;padding-bottom:40px;}
-  .nav-section{padding:8px 16px 4px;font-size:10px;color:#7a9ab5;font-weight:700;letter-spacing:1px;text-transform:uppercase;}
-  .nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;color:#b8cfe0;font-size:13px;transition:all 0.2s;border-left:3px solid transparent;}
-  .nav-item:hover{background:rgba(255,255,255,0.08);color:#fff;}
-  .nav-item.active{background:rgba(197,160,76,0.15);color:#C9A84C;border-left-color:#C9A84C;}
-  .nav-item .icon{font-size:15px;width:20px;text-align:center;}
-
-  /* MAIN CONTENT */
-  .main{margin-left:220px;padding:24px;flex:1;}
-  .page{display:none;}
-  .page.active{display:block;}
-  
-  /* CARDS */
-  .page-header{margin-bottom:20px;}
-  .page-header h2{font-size:20px;color:#1C3557;font-weight:700;}
-  .page-header p{color:#666;font-size:13px;margin-top:4px;}
-  
-  .card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:18px;}
-  .card-title{font-size:14px;font-weight:700;color:#1C3557;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
-  
-  /* STATS ROW */
-  .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
-  .stat-card{background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 2px 8px rgba(0,0,0,0.06);border-left:4px solid #2563A8;}
-  .stat-card.gold{border-left-color:#C9A84C;}
-  .stat-card.green{border-left-color:#1A7A6E;}
-  .stat-card.red{border-left-color:#e74c3c;}
-  .stat-num{font-size:28px;font-weight:700;color:#1C3557;}
-  .stat-label{font-size:12px;color:#888;margin-top:4px;}
-
-  /* FORMS */
-  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
-  .form-grid.three{grid-template-columns:1fr 1fr 1fr;}
-  .form-group{display:flex;flex-direction:column;gap:5px;}
-  .form-group label{font-size:12px;font-weight:600;color:#555;}
-  .form-group input,.form-group select,.form-group textarea{padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;font-family:inherit;transition:border-color 0.2s;}
-  .form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:#2563A8;}
-  .form-group textarea{resize:vertical;min-height:70px;}
-  .form-full{grid-column:1/-1;}
-  
-  .btn{padding:9px 18px;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;}
-  .btn-primary{background:#1C3557;color:#fff;}
-  .btn-primary:hover{background:#2563A8;}
-  .btn-gold{background:#C9A84C;color:#1C3557;}
-  .btn-gold:hover{background:#b8943d;}
-  .btn-danger{background:#e74c3c;color:#fff;}
-  .btn-danger:hover{background:#c0392b;}
-  .btn-sm{padding:6px 12px;font-size:12px;}
-  .btn-row{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
-
-  /* TABLES */
-  .table-wrap{overflow-x:auto;}
-  table{width:100%;border-collapse:collapse;font-size:13px;}
-  th{background:#f5f7fa;color:#1C3557;font-weight:700;padding:10px 12px;text-align:left;border-bottom:2px solid #e0e0e0;}
-  td{padding:9px 12px;border-bottom:1px solid #f0f0f0;vertical-align:middle;}
-  tr:hover td{background:#fafbfc;}
-  .badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;}
-  .badge-active{background:#e8f5e9;color:#1A7A6E;}
-  .badge-inactive{background:#fce4e4;color:#c0392b;}
-  .badge-pending{background:#fff3e0;color:#e67e22;}
-  .badge-approved{background:#e8f5e9;color:#1A7A6E;}
-  .badge-rejected{background:#fce4e4;color:#c0392b;}
-
-  /* SEARCH & FILTER */
-  .toolbar{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
-  .search-box{flex:1;min-width:200px;padding:9px 14px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;}
-  .search-box:focus{outline:none;border-color:#2563A8;}
-
-  /* ALERTS */
-  .alert{padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:12px;display:none;}
-  .alert-success{background:#e8f5e9;color:#1A7A6E;border:1px solid #a5d6a7;}
-  .alert-error{background:#fce4e4;color:#c0392b;border:1px solid #ef9a9a;}
-  .alert-info{background:#e3f2fd;color:#1565c0;border:1px solid #90caf9;}
-
-  /* EXPIRY COLORS */
-  .exp-red{color:#e74c3c;font-weight:700;}
-  .exp-amber{color:#e67e22;font-weight:600;}
-  .exp-green{color:#1A7A6E;}
-
-  /* MODAL */
-  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;}
-  .modal-overlay.open{display:flex;}
-  .modal{background:#fff;border-radius:14px;padding:28px;width:90%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);}
-  .modal-title{font-size:17px;font-weight:700;color:#1C3557;margin-bottom:18px;}
-  .modal-close{float:right;cursor:pointer;color:#999;font-size:20px;line-height:1;}
-  
-  /* TABS */
-  .tab-bar{display:flex;gap:4px;background:#f0f2f5;border-radius:9px;padding:4px;margin-bottom:18px;}
-  .tab-btn{padding:8px 16px;border:none;background:transparent;border-radius:7px;cursor:pointer;font-size:13px;color:#666;font-weight:500;transition:all 0.2s;}
-  .tab-btn.active{background:#fff;color:#1C3557;font-weight:700;box-shadow:0 2px 4px rgba(0,0,0,0.1);}
-
-  /* LEAVE CALENDAR */
-  .leave-type-tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:#e3f2fd;color:#1565c0;}
-
-  /* RESPONSIVE */
-  @media(max-width:768px){
-    .sidebar{display:none;}
-    .main{margin-left:0;}
-    .stats-row{grid-template-columns:1fr 1fr;}
-    .form-grid{grid-template-columns:1fr;}
-    .form-grid.three{grid-template-columns:1fr;}
-  }
-
-  .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px;}
-  @keyframes spin{to{transform:rotate(360deg);}}
-  
-  .empty-state{text-align:center;padding:40px 20px;color:#999;}
-  .empty-state .icon{font-size:40px;margin-bottom:10px;}
-  .empty-state p{font-size:14px;}
-
-  .section-divider{border:none;border-top:1px solid #f0f0f0;margin:16px 0;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f5;color:#1a1a2e;}
+#loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#1C3557 0%,#2563A8 100%);}
+.loginBox{background:#fff;border-radius:16px;padding:48px 40px;width:380px;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center;}
+.loginBox h1{color:#1C3557;font-size:22px;margin-bottom:6px;}
+.loginBox p{color:#666;font-size:13px;margin-bottom:28px;}
+.loginBox input{width:100%;padding:12px 16px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:14px;transition:border-color 0.2s;}
+.loginBox input:focus{outline:none;border-color:#2563A8;}
+.loginBox button{width:100%;padding:13px;background:#1C3557;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;}
+.loginBox button:hover{background:#2563A8;}
+#loginError{color:#e74c3c;font-size:13px;margin-top:10px;display:none;}
+.logo-i{width:70px;height:70px;background:#1C3557;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;color:#C9A84C;font-size:22px;font-weight:700;}
+#app{display:none;}
+.topbar{background:#1C3557;color:#fff;padding:0 24px;height:58px;display:flex;align-items:center;justify-content:space-between;position:fixed;top:0;left:0;right:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.3);}
+.topbar-left{display:flex;align-items:center;gap:14px;}
+.topbar-badge{background:#C9A84C;color:#1C3557;font-size:10px;font-weight:700;padding:3px 8px;border-radius:12px;}
+.topbar-right{display:flex;align-items:center;gap:16px;}
+.admin-name{font-size:13px;color:#C9A84C;font-weight:600;}
+.sync-ind{font-size:11px;color:#a0b4c8;}
+.btn-logout{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;}
+.layout{display:flex;margin-top:58px;min-height:calc(100vh - 58px);}
+.sidebar{width:225px;background:#1C3557;height:calc(100vh - 58px);position:fixed;top:58px;left:0;overflow-y:scroll;padding:12px 0 60px;}
+.sidebar::-webkit-scrollbar{width:4px;}
+.sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.2);border-radius:2px;}
+.nav-section{padding:10px 16px 3px;font-size:10px;color:#7a9ab5;font-weight:700;letter-spacing:1px;text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 20px;cursor:pointer;color:#b8cfe0;font-size:13px;transition:all 0.2s;border-left:3px solid transparent;}
+.nav-item:hover{background:rgba(255,255,255,0.08);color:#fff;}
+.nav-item.active{background:rgba(197,160,76,0.15);color:#C9A84C;border-left-color:#C9A84C;}
+.nav-item .icon{font-size:14px;width:18px;text-align:center;}
+.main{margin-left:225px;padding:24px;flex:1;}
+.page{display:none;}
+.page.active{display:block;}
+.page-header{margin-bottom:18px;}
+.page-header h2{font-size:20px;color:#1C3557;font-weight:700;}
+.page-header p{color:#666;font-size:13px;margin-top:3px;}
+.card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:16px;}
+.card-title{font-size:14px;font-weight:700;color:#1C3557;margin-bottom:14px;}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;}
+.stat-card{background:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 2px 8px rgba(0,0,0,0.06);border-left:4px solid #2563A8;}
+.stat-card.gold{border-left-color:#C9A84C;}
+.stat-card.green{border-left-color:#1A7A6E;}
+.stat-card.red{border-left-color:#e74c3c;}
+.stat-num{font-size:26px;font-weight:700;color:#1C3557;}
+.stat-label{font-size:12px;color:#888;margin-top:3px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.form-grid.three{grid-template-columns:1fr 1fr 1fr;}
+.form-group{display:flex;flex-direction:column;gap:4px;}
+.form-group label{font-size:12px;font-weight:600;color:#555;}
+.form-group input,.form-group select,.form-group textarea{padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;font-family:inherit;transition:border-color 0.2s;}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:#2563A8;}
+.form-group textarea{resize:vertical;min-height:65px;}
+.form-full{grid-column:1/-1;}
+.btn{padding:8px 16px;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;}
+.btn-primary{background:#1C3557;color:#fff;}
+.btn-primary:hover{background:#2563A8;}
+.btn-gold{background:#C9A84C;color:#1C3557;}
+.btn-teal{background:#1A7A6E;color:#fff;}
+.btn-danger{background:#e74c3c;color:#fff;}
+.btn-sm{padding:5px 10px;font-size:12px;}
+.btn-row{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;}
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{background:#f5f7fa;color:#1C3557;font-weight:700;padding:9px 11px;text-align:left;border-bottom:2px solid #e0e0e0;}
+td{padding:8px 11px;border-bottom:1px solid #f0f0f0;vertical-align:middle;}
+tr:hover td{background:#fafbfc;}
+.badge{display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:600;}
+.badge-active{background:#e8f5e9;color:#1A7A6E;}
+.badge-inactive{background:#fce4e4;color:#c0392b;}
+.badge-pending{background:#fff3e0;color:#e67e22;}
+.badge-approved{background:#e8f5e9;color:#1A7A6E;}
+.badge-rejected{background:#fce4e4;color:#c0392b;}
+.badge-closed{background:#f0f0f0;color:#888;}
+.toolbar{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center;}
+.search-box{flex:1;min-width:180px;padding:8px 13px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;}
+.search-box:focus{outline:none;border-color:#2563A8;}
+.alert{padding:9px 13px;border-radius:8px;font-size:13px;margin-bottom:10px;display:none;}
+.alert-success{background:#e8f5e9;color:#1A7A6E;border:1px solid #a5d6a7;}
+.alert-error{background:#fce4e4;color:#c0392b;border:1px solid #ef9a9a;}
+.exp-red{color:#e74c3c;font-weight:700;}
+.exp-amber{color:#e67e22;font-weight:600;}
+.exp-green{color:#1A7A6E;}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:#fff;border-radius:14px;padding:26px;width:90%;max-width:680px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);}
+.modal-title{font-size:16px;font-weight:700;color:#1C3557;margin-bottom:16px;}
+.modal-close{float:right;cursor:pointer;color:#999;font-size:20px;line-height:1;}
+.tab-bar{display:flex;gap:3px;background:#f0f2f5;border-radius:9px;padding:4px;margin-bottom:16px;flex-wrap:wrap;}
+.tab-btn{padding:7px 13px;border:none;background:transparent;border-radius:7px;cursor:pointer;font-size:12px;color:#666;font-weight:500;transition:all 0.2s;}
+.tab-btn.active{background:#fff;color:#1C3557;font-weight:700;box-shadow:0 2px 4px rgba(0,0,0,0.1);}
+.leave-tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:#e3f2fd;color:#1565c0;}
+.empty-state{text-align:center;padding:36px 20px;color:#999;}
+.empty-state .icon{font-size:36px;margin-bottom:8px;}
+.section-hdr{background:#1C3557;color:#fff;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:700;margin:14px 0 10px;}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;}
+.info-row{display:flex;gap:6px;padding:5px 0;border-bottom:1px solid #f5f5f5;}
+.info-label{color:#888;min-width:140px;font-size:12px;}
+.info-val{color:#1C3557;font-weight:600;font-size:12px;}
+.loan-bar{background:#e0e0e0;border-radius:4px;height:8px;overflow:hidden;margin-top:3px;}
+.loan-fill{background:#2563A8;height:100%;border-radius:4px;transition:width 0.3s;}
+@media(max-width:768px){.sidebar{display:none;}.main{margin-left:0;}.stats-row{grid-template-columns:1fr 1fr;}.form-grid{grid-template-columns:1fr;}}
 </style>
 </head>
 <body>
@@ -152,11 +112,11 @@
 <!-- LOGIN -->
 <div id="loginScreen">
   <div class="loginBox">
-    <div class="logo-initials">CK</div>
+    <div class="logo-i">CK</div>
     <h1>CK | HR Portal</h1>
-    <p>CK Architecture Interiors & CKC Building Contracting</p>
-    <input type="text" id="loginUser" placeholder="Admin Username" autocomplete="username">
-    <input type="password" id="loginPass" placeholder="Password" autocomplete="current-password">
+    <p>CK Architecture Interiors &amp; CKC Building Contracting</p>
+    <input type="text" id="loginUser" placeholder="Admin Username">
+    <input type="password" id="loginPass" placeholder="Password">
     <button onclick="doLogin()">Sign In</button>
     <div id="loginError">Invalid username or password.</div>
   </div>
@@ -164,104 +124,80 @@
 
 <!-- APP -->
 <div id="app">
-  <!-- TOPBAR -->
   <div class="topbar">
     <div class="topbar-left">
-      <div style="font-size:22px;font-weight:800;color:#C9A84C;">CK</div>
-      <div>
-        <div class="topbar h2" style="font-size:16px;font-weight:700;">HR Portal</div>
-        <div style="font-size:10px;color:#7a9ab5;">CK Architecture & CKC Building</div>
-      </div>
+      <div style="font-size:20px;font-weight:800;color:#C9A84C;">CK</div>
+      <div><div style="font-size:15px;font-weight:700;color:#fff;">HR Portal v2</div><div style="font-size:10px;color:#7a9ab5;">CK Architecture &amp; CKC Building</div></div>
       <span class="topbar-badge">ADMIN</span>
     </div>
     <div class="topbar-right">
       <span class="admin-name" id="adminNameDisplay"></span>
-      <span class="sync-indicator" id="syncStatus">● Connected</span>
+      <span class="sync-ind" id="syncStatus">● Connecting...</span>
       <button class="btn-logout" onclick="doLogout()">Sign Out</button>
     </div>
   </div>
 
   <div class="layout">
-    <!-- SIDEBAR -->
     <div class="sidebar">
       <div class="nav-section">Overview</div>
-      <div class="nav-item active" onclick="showPage('dashboard')"><span class="icon">📊</span> Dashboard</div>
-      
+      <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="icon">📊</span>Dashboard</div>
       <div class="nav-section">Workforce</div>
-      <div class="nav-item" onclick="showPage('employees')"><span class="icon">👥</span> Employee Records</div>
-      <div class="nav-item" onclick="showPage('leave')"><span class="icon">📅</span> Leave Register</div>
-      <div class="nav-item" onclick="showPage('salary')"><span class="icon">💰</span> Salary & Promotions</div>
-      
+      <div class="nav-item" onclick="showPage('employees',this)"><span class="icon">👥</span>Employee Records</div>
+      <div class="nav-item" onclick="showPage('leave',this)"><span class="icon">📅</span>Leave Register</div>
+      <div class="nav-item" onclick="showPage('salary',this)"><span class="icon">💰</span>Salary &amp; Promotions</div>
+      <div class="nav-section">Finance</div>
+      <div class="nav-item" onclick="showPage('loans',this)"><span class="icon">🏦</span>Employee Loans</div>
+      <div class="nav-section">Assets</div>
+      <div class="nav-item" onclick="showPage('assets',this)"><span class="icon">💼</span>Asset Register</div>
       <div class="nav-section">Compliance</div>
-      <div class="nav-item" onclick="showPage('expiry')"><span class="icon">⚠️</span> Expiry Alerts</div>
-      <div class="nav-item" onclick="showPage('holidays')"><span class="icon">🗓️</span> Public Holidays</div>
-      
+      <div class="nav-item" onclick="showPage('expiry',this)"><span class="icon">⚠️</span>Expiry Alerts</div>
+      <div class="nav-item" onclick="showPage('holidays',this)"><span class="icon">🗓️</span>Public Holidays</div>
       <div class="nav-section">Communications</div>
-      <div class="nav-item" onclick="showPage('announcements')"><span class="icon">📢</span> Announcements</div>
-      <div class="nav-item" onclick="showPage('birthdays')"><span class="icon">🎂</span> Birthdays</div>
-      
+      <div class="nav-item" onclick="showPage('announcements',this)"><span class="icon">📢</span>Announcements</div>
+      <div class="nav-item" onclick="showPage('birthdays',this)"><span class="icon">🎂</span>Birthdays</div>
       <div class="nav-section">Documents</div>
-      <div class="nav-item" onclick="showPage('policies')"><span class="icon">📋</span> HR Policies</div>
-      <div class="nav-item" onclick="showPage('docgen')"><span class="icon">📄</span> Doc Generator</div>
-      
+      <div class="nav-item" onclick="showPage('policies',this)"><span class="icon">📋</span>HR Policies</div>
+      <div class="nav-item" onclick="showPage('docgen',this)"><span class="icon">📄</span>Doc Generator</div>
       <div class="nav-section">Reports</div>
-      <div class="nav-item" onclick="showPage('reports')"><span class="icon">📈</span> Reports</div>
-      <div class="nav-item" onclick="showPage('auditlog')"><span class="icon">🔍</span> Audit Log</div>
+      <div class="nav-item" onclick="showPage('reports',this)"><span class="icon">📈</span>Reports &amp; Downloads</div>
+      <div class="nav-item" onclick="showPage('auditlog',this)"><span class="icon">🔍</span>Audit Log</div>
     </div>
 
-    <!-- MAIN -->
     <div class="main">
 
       <!-- DASHBOARD -->
       <div id="page-dashboard" class="page active">
-        <div class="page-header">
-          <h2>Dashboard</h2>
-          <p id="dashDate"></p>
-        </div>
+        <div class="page-header"><h2>Dashboard</h2><p id="dashDate"></p></div>
         <div class="stats-row">
-          <div class="stat-card"><div class="stat-num" id="stat-emp">—</div><div class="stat-label">Total Employees</div></div>
-          <div class="stat-card gold"><div class="stat-num" id="stat-leave">—</div><div class="stat-label">On Leave Today</div></div>
-          <div class="stat-card red"><div class="stat-num" id="stat-expiry">—</div><div class="stat-label">Expiring in 30 Days</div></div>
-          <div class="stat-card green"><div class="stat-num" id="stat-bday">—</div><div class="stat-label">Birthdays This Month</div></div>
+          <div class="stat-card"><div class="stat-num" id="s-emp">—</div><div class="stat-label">Total Employees</div></div>
+          <div class="stat-card gold"><div class="stat-num" id="s-leave">—</div><div class="stat-label">On Leave Today</div></div>
+          <div class="stat-card red"><div class="stat-num" id="s-exp">—</div><div class="stat-label">Expiring in 30 Days</div></div>
+          <div class="stat-card green"><div class="stat-num" id="s-bday">—</div><div class="stat-label">Birthdays This Month</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+          <div class="card"><div class="card-title">📢 Latest Announcements</div><div id="d-ann"><div class="empty-state"><p>No announcements</p></div></div></div>
+          <div class="card"><div class="card-title">⚠️ Upcoming Expiries (30 days)</div><div id="d-exp"><div class="empty-state"><p>None</p></div></div></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-          <div class="card">
-            <div class="card-title">📢 Latest Announcements</div>
-            <div id="dash-announcements"><div class="empty-state"><p>No announcements</p></div></div>
-          </div>
-          <div class="card">
-            <div class="card-title">⚠️ Upcoming Expiries</div>
-            <div id="dash-expiries"><div class="empty-state"><p>No expiries in 30 days</p></div></div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-title">🎂 Birthdays This Month</div>
-          <div id="dash-birthdays"><div class="empty-state"><p>No birthdays this month</p></div></div>
+          <div class="card"><div class="card-title">🎂 Birthdays This Month</div><div id="d-bday"><div class="empty-state"><p>None this month</p></div></div></div>
+          <div class="card"><div class="card-title">🏦 Active Loans</div><div id="d-loans"><div class="empty-state"><p>No active loans</p></div></div></div>
         </div>
       </div>
 
       <!-- EMPLOYEES -->
       <div id="page-employees" class="page">
-        <div class="page-header"><h2>Employee Records</h2><p>All staff across CK Architecture and CKC Building Contracting</p></div>
+        <div class="page-header"><h2>Employee Records</h2><p>All staff — CK Architecture Interiors &amp; CKC Building Contracting</p></div>
         <div class="alert alert-success" id="emp-alert"></div>
         <div class="card">
           <div class="toolbar">
-            <input class="search-box" type="text" id="empSearch" placeholder="🔍 Search by name, ID, department..." oninput="filterEmployees()">
-            <select id="empDeptFilter" onchange="filterEmployees()" style="padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;">
-              <option value="">All Departments</option>
-            </select>
-            <select id="empEntityFilter" onchange="filterEmployees()" style="padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;">
-              <option value="">All Entities</option>
-              <option>CK Architecture Interiors</option>
-              <option>CKC Building Contracting</option>
-            </select>
+            <input class="search-box" type="text" id="empSearch" placeholder="🔍 Search name, ID, department..." oninput="filterEmp()">
+            <select id="empDept" onchange="filterEmp()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="">All Depts</option></select>
+            <select id="empEntity" onchange="filterEmp()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="">All Entities</option><option>CK Architecture Interiors</option><option>CKC Building Contracting</option></select>
             <button class="btn btn-primary" onclick="openEmpModal()">+ Add Employee</button>
           </div>
           <div class="table-wrap">
-            <table id="empTable">
-              <thead><tr><th>Emp ID</th><th>Name</th><th>Department</th><th>Designation</th><th>Entity</th><th>Nationality</th><th>Status</th><th>Actions</th></tr></thead>
-              <tbody id="empBody"></tbody>
-            </table>
+            <table><thead><tr><th>Emp ID</th><th>Name</th><th>Department</th><th>Designation</th><th>Entity</th><th>Nationality</th><th>Gross Salary</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="empBody"></tbody></table>
           </div>
         </div>
       </div>
@@ -273,892 +209,1035 @@
         <div class="card">
           <div class="toolbar">
             <input class="search-box" type="text" id="leaveSearch" placeholder="🔍 Search employee..." oninput="filterLeave()">
-            <select id="leaveTypeFilter" onchange="filterLeave()" style="padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;">
-              <option value="">All Leave Types</option>
-              <option>Annual Leave</option><option>Sick Leave</option><option>Emergency Leave</option>
-              <option>Maternity Leave</option><option>Paternity Leave</option><option>Hajj Leave</option>
-              <option>Study Leave</option><option>Unpaid Leave</option><option>Compassionate Leave</option>
-              <option>Work From Home</option><option>Other</option>
+            <select id="leaveTypeF" onchange="filterLeave()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;">
+              <option value="">All Types</option><option>Annual Leave</option><option>Sick Leave</option><option>Emergency Leave</option><option>Maternity Leave</option><option>Paternity Leave</option><option>Hajj Leave</option><option>Study Leave</option><option>Unpaid Leave</option><option>Compassionate Leave</option><option>Work From Home</option><option>Other</option>
             </select>
-            <select id="leaveStatusFilter" onchange="filterLeave()" style="padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;">
-              <option value="">All Status</option><option>Approved</option><option>Pending</option><option>Rejected</option>
-            </select>
+            <select id="leaveStatusF" onchange="filterLeave()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="">All Status</option><option>Approved</option><option>Pending</option><option>Rejected</option></select>
             <button class="btn btn-primary" onclick="openLeaveModal()">+ Add Leave</button>
           </div>
           <div class="table-wrap">
-            <table>
-              <thead><tr><th>Employee</th><th>Leave Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th>Approved By</th><th>Actions</th></tr></thead>
-              <tbody id="leaveBody"></tbody>
-            </table>
+            <table><thead><tr><th>Employee</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th>Approved By</th><th>Actions</th></tr></thead>
+            <tbody id="leaveBody"></tbody></table>
           </div>
         </div>
       </div>
 
       <!-- SALARY -->
       <div id="page-salary" class="page">
-        <div class="page-header"><h2>Salary & Promotions</h2><p>Compensation history and grade changes</p></div>
-        <div class="alert alert-success" id="salary-alert"></div>
+        <div class="page-header"><h2>Salary &amp; Promotions</h2><p>All compensation changes and grade movements</p></div>
+        <div class="alert alert-success" id="sal-alert"></div>
         <div class="card">
           <div class="toolbar">
-            <input class="search-box" type="text" id="salarySearch" placeholder="🔍 Search employee..." oninput="filterSalary()">
-            <button class="btn btn-primary" onclick="openSalaryModal()">+ Add Record</button>
+            <input class="search-box" type="text" id="salSearch" placeholder="🔍 Search employee..." oninput="filterSal()">
+            <select id="salTypeF" onchange="filterSal()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="">All Types</option><option>Salary Increment</option><option>Promotion</option><option>Grade Change</option><option>Bonus</option><option>Allowance Change</option><option>Salary Reduction</option><option>Reinstatement</option></select>
+            <button class="btn btn-primary" onclick="openSalModal()">+ Add Record</button>
           </div>
           <div class="table-wrap">
-            <table>
-              <thead><tr><th>Employee</th><th>Type</th><th>Effective Date</th><th>Previous</th><th>New</th><th>Reason</th><th>Approved By</th><th>Actions</th></tr></thead>
-              <tbody id="salaryBody"></tbody>
-            </table>
+            <table><thead><tr><th>Employee</th><th>Type</th><th>Effective Date</th><th>Previous</th><th>New Amount</th><th>% Change</th><th>Reason</th><th>Approved By</th><th>Actions</th></tr></thead>
+            <tbody id="salBody"></tbody></table>
           </div>
         </div>
       </div>
 
-      <!-- EXPIRY ALERTS -->
-      <div id="page-expiry" class="page">
-        <div class="page-header"><h2>Expiry Alerts</h2><p>Passport, Visa, Emirates ID, Labour Card tracking</p></div>
+      <!-- LOANS -->
+      <div id="page-loans" class="page">
+        <div class="page-header"><h2>Employee Loans</h2><p>Loan approvals and WPS payroll recovery tracking</p></div>
+        <div class="alert alert-success" id="loan-alert"></div>
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-num" id="ls-total">—</div><div class="stat-label">Total Loans Issued</div></div>
+          <div class="stat-card red"><div class="stat-num" id="ls-outstanding">—</div><div class="stat-label">Outstanding (AED)</div></div>
+          <div class="stat-card gold"><div class="stat-num" id="ls-active">—</div><div class="stat-label">Active Loans</div></div>
+          <div class="stat-card green"><div class="stat-num" id="ls-closed">—</div><div class="stat-label">Fully Repaid</div></div>
+        </div>
         <div class="card">
           <div class="toolbar">
-            <input class="search-box" type="text" id="expirySearch" placeholder="🔍 Search employee..." oninput="filterExpiry()">
-            <select id="expiryDocFilter" onchange="filterExpiry()" style="padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;">
-              <option value="">All Documents</option><option>Passport</option><option>Visa</option><option>Emirates ID</option><option>Labour Card</option>
-            </select>
-            <select id="expiryRange" onchange="filterExpiry()" style="padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;">
-              <option value="30">Expiring in 30 days</option><option value="60">60 days</option><option value="90">90 days</option><option value="180">180 days</option><option value="9999">All</option>
-            </select>
+            <input class="search-box" type="text" id="loanSearch" placeholder="🔍 Search employee..." oninput="filterLoans()">
+            <select id="loanStatusF" onchange="filterLoans()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="">All Status</option><option>Active</option><option>Fully Repaid</option><option>Written Off</option></select>
+            <button class="btn btn-primary" onclick="openLoanModal()">+ New Loan</button>
           </div>
           <div class="table-wrap">
-            <table>
-              <thead><tr><th>Employee</th><th>Department</th><th>Document</th><th>Expiry Date</th><th>Days Left</th><th>Status</th></tr></thead>
-              <tbody id="expiryBody"></tbody>
-            </table>
+            <table><thead><tr><th>Employee</th><th>Loan Amount</th><th>Purpose</th><th>Date Approved</th><th>Monthly Deduction</th><th>Paid</th><th>Outstanding</th><th>Recovery %</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="loanBody"></tbody></table>
+          </div>
+        </div>
+        <!-- Repayment Log -->
+        <div class="card" id="repayCard" style="display:none;">
+          <div class="card-title">💳 Repayment Log — <span id="repayEmpName"></span></div>
+          <div class="toolbar"><button class="btn btn-teal btn-sm" onclick="openRepayModal()">+ Add Payment</button></div>
+          <div class="table-wrap">
+            <table><thead><tr><th>Month</th><th>Amount Deducted</th><th>Via WPS</th><th>Notes</th><th>Recorded By</th></tr></thead>
+            <tbody id="repayBody"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ASSETS -->
+      <div id="page-assets" class="page">
+        <div class="page-header"><h2>Asset &amp; Equipment Register</h2><p>IT assets, safety kit, uniforms, tools — issued per employee</p></div>
+        <div class="alert alert-success" id="asset-alert"></div>
+        <div class="card">
+          <div class="toolbar">
+            <input class="search-box" type="text" id="assetSearch" placeholder="🔍 Search employee or item..." oninput="filterAssets()">
+            <select id="assetCatF" onchange="filterAssets()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;">
+              <option value="">All Categories</option><option>IT Equipment</option><option>Safety Kit</option><option>Uniform</option><option>Tools</option><option>Access Card / Key</option><option>Vehicle</option><option>Other</option>
+            </select>
+            <select id="assetStatusF" onchange="filterAssets()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="">All Status</option><option>Issued</option><option>Returned</option><option>Lost</option><option>Damaged</option></select>
+            <button class="btn btn-primary" onclick="openAssetModal()">+ Issue Asset</button>
+          </div>
+          <div class="table-wrap">
+            <table><thead><tr><th>Employee</th><th>Category</th><th>Item</th><th>Serial / Batch</th><th>Issue Date</th><th>Condition</th><th>Status</th><th>Return / Replace Date</th><th>Notes</th><th>Actions</th></tr></thead>
+            <tbody id="assetBody"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- EXPIRY -->
+      <div id="page-expiry" class="page">
+        <div class="page-header"><h2>Expiry Alerts</h2><p>Passport, Visa, Emirates ID, Labour Card</p></div>
+        <div class="card">
+          <div class="toolbar">
+            <input class="search-box" type="text" id="expSearch" placeholder="🔍 Search employee..." oninput="renderExpiry()">
+            <select id="expDocF" onchange="renderExpiry()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="">All Documents</option><option>Passport</option><option>Visa</option><option>Emirates ID</option><option>Labour Card</option></select>
+            <select id="expRange" onchange="renderExpiry()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="30">30 Days</option><option value="60">60 Days</option><option value="90">90 Days</option><option value="180">180 Days</option><option value="9999">All</option></select>
+          </div>
+          <div class="table-wrap">
+            <table><thead><tr><th>Employee</th><th>Department</th><th>Entity</th><th>Document</th><th>Expiry Date</th><th>Days Left</th><th>Status</th></tr></thead>
+            <tbody id="expBody"></tbody></table>
           </div>
         </div>
       </div>
 
       <!-- HOLIDAYS -->
       <div id="page-holidays" class="page">
-        <div class="page-header"><h2>Public Holidays</h2><p>UAE public holidays and company-specific days off</p></div>
+        <div class="page-header"><h2>Public Holidays</h2></div>
         <div class="alert alert-success" id="hol-alert"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-          <div class="card">
-            <div class="card-title">+ Add Holiday</div>
+          <div class="card"><div class="card-title">+ Add Holiday</div>
             <div class="form-group"><label>Holiday Name</label><input type="text" id="holName" placeholder="e.g. Eid Al Fitr"></div>
             <div class="form-group" style="margin-top:10px;"><label>Date</label><input type="date" id="holDate"></div>
-            <div class="form-group" style="margin-top:10px;"><label>Type</label>
-              <select id="holType"><option>UAE Public Holiday</option><option>Company Day Off</option><option>Optional Holiday</option></select>
-            </div>
+            <div class="form-group" style="margin-top:10px;"><label>Type</label><select id="holType"><option>UAE Public Holiday</option><option>Company Day Off</option><option>Optional Holiday</option></select></div>
             <div class="btn-row"><button class="btn btn-primary" onclick="saveHoliday()">Save Holiday</button></div>
           </div>
-          <div class="card">
-            <div class="card-title">📅 Holiday List</div>
-            <div id="holList"></div>
-          </div>
+          <div class="card"><div class="card-title">📅 Holiday List</div><div id="holList"></div></div>
         </div>
       </div>
 
       <!-- ANNOUNCEMENTS -->
       <div id="page-announcements" class="page">
-        <div class="page-header"><h2>Announcements</h2><p>Company-wide communications</p></div>
+        <div class="page-header"><h2>Announcements</h2></div>
         <div class="alert alert-success" id="ann-alert"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-          <div class="card">
-            <div class="card-title">+ New Announcement</div>
-            <div class="form-group"><label>Title</label><input type="text" id="annTitle" placeholder="Announcement title"></div>
-            <div class="form-group" style="margin-top:10px;"><label>Message</label><textarea id="annMsg" placeholder="Type announcement here..."></textarea></div>
-            <div class="form-group" style="margin-top:10px;"><label>Category</label>
-              <select id="annCat"><option>General</option><option>HR Policy</option><option>Safety</option><option>Event</option><option>Urgent</option></select>
-            </div>
-            <div class="btn-row"><button class="btn btn-primary" onclick="saveAnnouncement()">Publish</button></div>
+          <div class="card"><div class="card-title">+ New Announcement</div>
+            <div class="form-group"><label>Title</label><input type="text" id="annTitle"></div>
+            <div class="form-group" style="margin-top:10px;"><label>Message</label><textarea id="annMsg"></textarea></div>
+            <div class="form-group" style="margin-top:10px;"><label>Category</label><select id="annCat"><option>General</option><option>HR Policy</option><option>Safety</option><option>Event</option><option>Urgent</option></select></div>
+            <div class="btn-row"><button class="btn btn-primary" onclick="saveAnn()">Publish</button></div>
           </div>
-          <div class="card">
-            <div class="card-title">📢 Published Announcements</div>
-            <div id="annList"></div>
-          </div>
+          <div class="card"><div class="card-title">📢 Published</div><div id="annList"></div></div>
         </div>
       </div>
 
       <!-- BIRTHDAYS -->
       <div id="page-birthdays" class="page">
-        <div class="page-header"><h2>Birthdays</h2><p>Auto-populated from employee records</p></div>
-        <div class="card">
-          <div class="card-title">🎂 Birthdays This Month</div>
-          <div id="bdayList"></div>
-        </div>
-        <div class="card">
-          <div class="card-title">📅 Upcoming Birthdays (Next 30 Days)</div>
-          <div id="bdayUpcoming"></div>
-        </div>
+        <div class="page-header"><h2>Birthdays</h2></div>
+        <div class="card"><div class="card-title">🎂 This Month</div><div id="bdayList"></div></div>
+        <div class="card"><div class="card-title">📅 Next 30 Days</div><div id="bdayUpcoming"></div></div>
       </div>
 
       <!-- POLICIES -->
       <div id="page-policies" class="page">
-        <div class="page-header"><h2>HR Policies</h2><p>Company HR policies and procedures</p></div>
+        <div class="page-header"><h2>HR Policies</h2></div>
         <div class="alert alert-success" id="pol-alert"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-          <div class="card">
-            <div class="card-title">+ Add Policy</div>
-            <div class="form-group"><label>Policy Name</label><input type="text" id="polName" placeholder="e.g. Leave Policy"></div>
-            <div class="form-group" style="margin-top:10px;"><label>Category</label>
-              <select id="polCat"><option>Leave & Attendance</option><option>Code of Conduct</option><option>Compensation</option><option>Health & Safety</option><option>Recruitment</option><option>General</option></select>
-            </div>
-            <div class="form-group" style="margin-top:10px;"><label>Policy Content / Summary</label><textarea id="polContent" placeholder="Paste policy content or summary..."></textarea></div>
+          <div class="card"><div class="card-title">+ Add Policy</div>
+            <div class="form-group"><label>Policy Name</label><input type="text" id="polName"></div>
+            <div class="form-group" style="margin-top:10px;"><label>Category</label><select id="polCat"><option>Leave &amp; Attendance</option><option>Code of Conduct</option><option>Compensation</option><option>Health &amp; Safety</option><option>Recruitment</option><option>General</option></select></div>
+            <div class="form-group" style="margin-top:10px;"><label>Content / Summary</label><textarea id="polContent"></textarea></div>
             <div class="form-group" style="margin-top:10px;"><label>Effective Date</label><input type="date" id="polDate"></div>
-            <div class="btn-row"><button class="btn btn-primary" onclick="savePolicy()">Save Policy</button></div>
+            <div class="btn-row"><button class="btn btn-primary" onclick="savePol()">Save Policy</button></div>
           </div>
-          <div class="card">
-            <div class="card-title">📋 Policy Library</div>
-            <div id="polList"></div>
-          </div>
+          <div class="card"><div class="card-title">📋 Policy Library</div><div id="polList"></div></div>
         </div>
       </div>
 
       <!-- DOC GENERATOR -->
       <div id="page-docgen" class="page">
-        <div class="page-header"><h2>Document Generator</h2><p>Generate HR letters and documents instantly</p></div>
+        <div class="page-header"><h2>Document Generator</h2></div>
         <div class="card">
           <div class="form-group"><label>Select Document Type</label>
-            <select id="docType" onchange="updateDocForm()" style="max-width:380px;">
-              <option value="">— Select —</option>
-              <option value="offer">Offer Letter</option>
-              <option value="employment">Employment Certificate</option>
-              <option value="salary">Salary Certificate</option>
-              <option value="experience">Experience Letter</option>
-              <option value="noc">NOC Letter</option>
-              <option value="warning">Warning Letter</option>
-              <option value="termination">Termination Letter</option>
-              <option value="promotion">Promotion Letter</option>
+            <select id="docType" onchange="updateDocForm()" style="max-width:360px;">
+              <option value="">— Select —</option><option value="offer">Offer Letter</option><option value="employment">Employment Certificate</option><option value="salary">Salary Certificate</option><option value="experience">Experience Letter</option><option value="noc">NOC Letter</option><option value="warning">Warning Letter</option><option value="termination">Termination Letter</option><option value="promotion">Promotion Letter</option>
             </select>
           </div>
         </div>
         <div class="card" id="docFormArea" style="display:none;">
           <div class="card-title" id="docFormTitle"></div>
           <div id="docFormFields"></div>
-          <div class="btn-row">
-            <button class="btn btn-primary" onclick="generateDoc()">Generate Document</button>
-          </div>
+          <div class="btn-row"><button class="btn btn-primary" onclick="generateDoc()">Generate Document</button></div>
         </div>
         <div class="card" id="docOutput" style="display:none;">
           <div class="card-title">Generated Document <button class="btn btn-sm btn-gold" onclick="printDoc()" style="float:right;">🖨️ Print</button></div>
-          <div id="docContent" style="padding:20px;border:1px solid #e0e0e0;border-radius:8px;background:#fafafa;line-height:1.8;font-size:13px;white-space:pre-wrap;"></div>
+          <div id="docContent" style="padding:18px;border:1px solid #e0e0e0;border-radius:8px;background:#fafafa;line-height:1.8;font-size:13px;white-space:pre-wrap;"></div>
         </div>
       </div>
 
       <!-- REPORTS -->
       <div id="page-reports" class="page">
-        <div class="page-header"><h2>Reports</h2><p>Workforce analytics and summaries</p></div>
+        <div class="page-header"><h2>Reports &amp; Downloads</h2><p>All reports export to Excel — formatted and ready to share</p></div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
-          <div class="card" style="cursor:pointer;" onclick="generateReport('headcount')">
-            <div class="card-title">👥 Headcount Report</div>
-            <p style="font-size:12px;color:#888;">Staff count by department, entity and nationality</p>
-          </div>
-          <div class="card" style="cursor:pointer;" onclick="generateReport('leave')">
-            <div class="card-title">📅 Leave Summary</div>
-            <p style="font-size:12px;color:#888;">Leave taken by type, department and employee</p>
-          </div>
-          <div class="card" style="cursor:pointer;" onclick="generateReport('expiry')">
-            <div class="card-title">⚠️ Document Expiry</div>
-            <p style="font-size:12px;color:#888;">All document expiries by urgency</p>
-          </div>
-          <div class="card" style="cursor:pointer;" onclick="generateReport('salary')">
-            <div class="card-title">💰 Salary Changes</div>
-            <p style="font-size:12px;color:#888;">All salary increments and promotions</p>
-          </div>
-          <div class="card" style="cursor:pointer;" onclick="generateReport('nationality')">
-            <div class="card-title">🌍 Nationality Mix</div>
-            <p style="font-size:12px;color:#888;">Workforce breakdown by nationality</p>
-          </div>
-          <div class="card" style="cursor:pointer;" onclick="generateReport('audit')">
-            <div class="card-title">🔍 Audit Summary</div>
-            <p style="font-size:12px;color:#888;">Admin activity in last 30 days</p>
-          </div>
-        </div>
-        <div class="card" id="reportOutput" style="display:none;margin-top:16px;">
-          <div class="card-title" id="reportTitle"></div>
-          <div id="reportContent"></div>
+          <div class="card" style="cursor:pointer;border-top:3px solid #1C3557;" onclick="runReport('headcount')"><div class="card-title">👥 Headcount Report</div><p style="font-size:12px;color:#888;">By dept, entity, nationality, grade</p><div class="btn-row"><button class="btn btn-sm btn-primary">📥 Download Excel</button></div></div>
+          <div class="card" style="cursor:pointer;border-top:3px solid #C9A84C;" onclick="runReport('gratuity')"><div class="card-title">💰 Gratuity Report</div><p style="font-size:12px;color:#888;">EOSB per UAE law — active &amp; leavers</p><div class="btn-row"><button class="btn btn-sm btn-gold">📥 Download Excel</button></div></div>
+          <div class="card" style="cursor:pointer;border-top:3px solid #e74c3c;" onclick="runReport('expiry')"><div class="card-title">⚠️ Document Expiry</div><p style="font-size:12px;color:#888;">All expiries by urgency</p><div class="btn-row"><button class="btn btn-sm btn-danger">📥 Download Excel</button></div></div>
+          <div class="card" style="cursor:pointer;border-top:3px solid #1A7A6E;" onclick="runReport('leavers')"><div class="card-title">🚪 Leavers Report</div><p style="font-size:12px;color:#888;">Exits with turnover % by dept</p><div class="btn-row"><button class="btn btn-sm btn-teal">📥 Download Excel</button></div></div>
+          <div class="card" style="cursor:pointer;border-top:3px solid #2563A8;" onclick="runReport('newhires')"><div class="card-title">🆕 New Hires Report</div><p style="font-size:12px;color:#888;">Joiners by period and department</p><div class="btn-row"><button class="btn btn-sm btn-primary">📥 Download Excel</button></div></div>
+          <div class="card" style="cursor:pointer;border-top:3px solid #8e44ad;" onclick="runReport('leave')"><div class="card-title">📅 Leave Summary</div><p style="font-size:12px;color:#888;">Leave by type, dept, employee</p><div class="btn-row"><button class="btn btn-sm" style="background:#8e44ad;color:#fff;">📥 Download Excel</button></div></div>
+          <div class="card" style="cursor:pointer;border-top:3px solid #e67e22;" onclick="runReport('loans')"><div class="card-title">🏦 Loan Report</div><p style="font-size:12px;color:#888;">All loans — outstanding balances</p><div class="btn-row"><button class="btn btn-sm" style="background:#e67e22;color:#fff;">📥 Download Excel</button></div></div>
+          <div class="card" style="cursor:pointer;border-top:3px solid #27ae60;" onclick="runReport('assets')"><div class="card-title">💼 Asset Register</div><p style="font-size:12px;color:#888;">All issued items per employee</p><div class="btn-row"><button class="btn btn-sm" style="background:#27ae60;color:#fff;">📥 Download Excel</button></div></div>
+          <div class="card" style="cursor:pointer;border-top:3px solid #1C3557;" onclick="runReport('salary')"><div class="card-title">💹 Salary Changes</div><p style="font-size:12px;color:#888;">All increments and promotions</p><div class="btn-row"><button class="btn btn-sm btn-primary">📥 Download Excel</button></div></div>
         </div>
       </div>
 
       <!-- AUDIT LOG -->
       <div id="page-auditlog" class="page">
-        <div class="page-header"><h2>Audit Log</h2><p>All admin actions — who did what and when</p></div>
+        <div class="page-header"><h2>Audit Log</h2><p>Every admin action — who did what and when</p></div>
         <div class="card">
+          <div class="toolbar">
+            <select id="auditAdminF" onchange="renderAudit()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="">All Admins</option><option>Dev Mandrekar</option><option>Darleendy</option><option>Kashif</option></select>
+          </div>
           <div class="table-wrap">
-            <table>
-              <thead><tr><th>Date & Time</th><th>Admin</th><th>Action</th><th>Details</th></tr></thead>
-              <tbody id="auditBody"></tbody>
-            </table>
+            <table><thead><tr><th>Date &amp; Time</th><th>Admin</th><th>Action</th><th>Record Changed</th><th>Detail</th></tr></thead>
+            <tbody id="auditBody"></tbody></table>
           </div>
         </div>
       </div>
 
-    </div><!-- /main -->
-  </div><!-- /layout -->
-</div><!-- /app -->
+    </div>
+  </div>
+</div>
 
 <!-- MODALS -->
 <div class="modal-overlay" id="empModal">
   <div class="modal">
     <div class="modal-title"><span id="empModalTitle">Add Employee</span><span class="modal-close" onclick="closeModal('empModal')">✕</span></div>
-    <div class="form-grid">
-      <div class="form-group"><label>Employee ID *</label><input type="text" id="eId" placeholder="EMP001"></div>
-      <div class="form-group"><label>Full Name *</label><input type="text" id="eName" placeholder="First Last"></div>
-      <div class="form-group"><label>Department *</label><input type="text" id="eDept" placeholder="e.g. Architecture"></div>
-      <div class="form-group"><label>Designation *</label><input type="text" id="eDesig" placeholder="e.g. Senior Architect"></div>
-      <div class="form-group"><label>Entity *</label>
-        <select id="eEntity"><option>CK Architecture Interiors</option><option>CKC Building Contracting</option></select>
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="empTab('basic',this)">Personal &amp; Job</button>
+      <button class="tab-btn" onclick="empTab('docs',this)">Documents &amp; Expiry</button>
+      <button class="tab-btn" onclick="empTab('salary',this)">Salary</button>
+      <button class="tab-btn" onclick="empTab('family',this)">Family / Dependents</button>
+      <button class="tab-btn" onclick="empTab('links',this)">Doc Links</button>
+      <button class="tab-btn" onclick="empTab('exit',this)">Exit Details</button>
+    </div>
+    <!-- Basic -->
+    <div id="etab-basic">
+      <div class="form-grid">
+        <div class="form-group"><label>Employee ID</label><input type="text" id="eId"></div>
+        <div class="form-group"><label>Full Name *</label><input type="text" id="eName"></div>
+        <div class="form-group"><label>Department *</label><input type="text" id="eDept"></div>
+        <div class="form-group"><label>Designation *</label><input type="text" id="eDesig"></div>
+        <div class="form-group"><label>Entity *</label><select id="eEntity"><option>CK Architecture Interiors</option><option>CKC Building Contracting</option></select></div>
+        <div class="form-group"><label>Nationality</label><input type="text" id="eNat"></div>
+        <div class="form-group"><label>Gender</label><select id="eGender"><option></option><option>Male</option><option>Female</option></select></div>
+        <div class="form-group"><label>Date of Birth</label><input type="date" id="eDob"></div>
+        <div class="form-group"><label>Date of Joining</label><input type="date" id="eJoin"></div>
+        <div class="form-group"><label>Contract Type</label><select id="eContract"><option>Permanent</option><option>Limited</option><option>Unlimited</option><option>Freelance</option></select></div>
+        <div class="form-group"><label>Grade</label><select id="eGrade"><option>White Collar</option><option>Labour</option></select></div>
+        <div class="form-group"><label>Project / Site</label><input type="text" id="eSite"></div>
+        <div class="form-group"><label>Mobile</label><input type="text" id="eMobile"></div>
+        <div class="form-group"><label>Company Email</label><input type="email" id="eEmail"></div>
+        <div class="form-group"><label>Reporting Manager</label><input type="text" id="eManager"></div>
+        <div class="form-group"><label>Status</label><select id="eStatus"><option>Active</option><option>Inactive</option><option>On Probation</option><option>Unpaid Leave</option></select></div>
+        <div class="form-group form-full"><label>Remarks</label><textarea id="eRemarks"></textarea></div>
       </div>
-      <div class="form-group"><label>Nationality</label><input type="text" id="eNat" placeholder="e.g. Indian"></div>
-      <div class="form-group"><label>Join Date</label><input type="date" id="eJoin"></div>
-      <div class="form-group"><label>Contract Type</label>
-        <select id="eContract"><option>Limited</option><option>Unlimited</option><option>Freelance</option></select>
+    </div>
+    <!-- Docs -->
+    <div id="etab-docs" style="display:none;">
+      <div class="form-grid">
+        <div class="form-group"><label>Passport No.</label><input type="text" id="ePassport"></div>
+        <div class="form-group"><label>Passport Expiry</label><input type="date" id="ePassExp"></div>
+        <div class="form-group"><label>Visa No.</label><input type="text" id="eVisa"></div>
+        <div class="form-group"><label>Visa Expiry</label><input type="date" id="eVisaExp"></div>
+        <div class="form-group"><label>Emirates ID No.</label><input type="text" id="eEid"></div>
+        <div class="form-group"><label>Emirates ID Expiry</label><input type="date" id="eEidExp"></div>
+        <div class="form-group"><label>Labour Card No.</label><input type="text" id="eLab"></div>
+        <div class="form-group"><label>Labour Card Expiry</label><input type="date" id="eLabExp"></div>
+        <div class="form-group form-full"><label>Medical Insurance</label><input type="text" id="eMed"></div>
       </div>
-      <div class="form-group"><label>Mobile</label><input type="text" id="eMobile" placeholder="+971 50 000 0000"></div>
-      <div class="form-group"><label>Email</label><input type="email" id="eEmail" placeholder="email@company.com"></div>
-      <div class="form-group"><label>Passport No.</label><input type="text" id="ePassport"></div>
-      <div class="form-group"><label>Passport Expiry</label><input type="date" id="ePassExp"></div>
-      <div class="form-group"><label>Visa Expiry</label><input type="date" id="eVisaExp"></div>
-      <div class="form-group"><label>Emirates ID Expiry</label><input type="date" id="eEidExp"></div>
-      <div class="form-group"><label>Labour Card Expiry</label><input type="date" id="eLabExp"></div>
-      <div class="form-group"><label>Status</label>
-        <select id="eStatus"><option>Active</option><option>Inactive</option><option>On Probation</option></select>
+    </div>
+    <!-- Salary -->
+    <div id="etab-salary" style="display:none;">
+      <div class="form-grid">
+        <div class="form-group"><label>Basic Salary (AED)</label><input type="number" id="eBasic"></div>
+        <div class="form-group"><label>Gross Salary (AED)</label><input type="number" id="eGross"></div>
+        <div class="form-group"><label>Housing Allowance</label><input type="number" id="eHouse"></div>
+        <div class="form-group"><label>Transport Allowance</label><input type="number" id="eTransport"></div>
+        <div class="form-group"><label>Other Allowances</label><input type="number" id="eOther"></div>
+        <div class="form-group"><label>Bank Name</label><input type="text" id="eBank"></div>
+        <div class="form-group form-full"><label>IBAN / WPS</label><input type="text" id="eIban"></div>
+        <div class="form-group"><label>Annual Leave Entitlement</label><input type="number" id="eLeaveEnt"></div>
+        <div class="form-group"><label>Annual Leave Balance</label><input type="number" id="eLeaveBal"></div>
+        <div class="form-group"><label>Gratuity (AED)</label><input type="number" id="eGrat"></div>
+      </div>
+    </div>
+    <!-- Family -->
+    <div id="etab-family" style="display:none;">
+      <p style="font-size:12px;color:#888;margin-bottom:12px;">Add family members covered under company medical insurance</p>
+      <div id="familyList"></div>
+      <button class="btn btn-sm btn-teal" onclick="addFamilyRow()" style="margin-top:10px;">+ Add Dependent</button>
+    </div>
+    <!-- Links -->
+    <div id="etab-links" style="display:none;">
+      <p style="font-size:12px;color:#888;margin-bottom:12px;">Paste Google Drive / server links to employee documents</p>
+      <div class="form-grid">
+        <div class="form-group"><label>Passport Copy Link</label><input type="url" id="lPassport" placeholder="https://drive.google.com/..."></div>
+        <div class="form-group"><label>Visa Copy Link</label><input type="url" id="lVisa" placeholder="https://drive.google.com/..."></div>
+        <div class="form-group"><label>Emirates ID Copy Link</label><input type="url" id="lEid" placeholder="https://drive.google.com/..."></div>
+        <div class="form-group"><label>Labour Card Copy Link</label><input type="url" id="lLab" placeholder="https://drive.google.com/..."></div>
+        <div class="form-group"><label>Offer Letter Link</label><input type="url" id="lOffer" placeholder="https://drive.google.com/..."></div>
+        <div class="form-group"><label>Employment Contract Link</label><input type="url" id="lContract" placeholder="https://drive.google.com/..."></div>
+        <div class="form-group"><label>Educational Cert Link</label><input type="url" id="lEdu" placeholder="https://drive.google.com/..."></div>
+        <div class="form-group"><label>Other Document Link</label><input type="url" id="lOther" placeholder="https://drive.google.com/..."></div>
+      </div>
+    </div>
+    <!-- Exit -->
+    <div id="etab-exit" style="display:none;">
+      <div class="form-grid">
+        <div class="form-group"><label>Last Working Day</label><input type="date" id="eExitDate"></div>
+        <div class="form-group"><label>Exit Type</label><select id="eExitType"><option></option><option>Resignation</option><option>Termination</option><option>End of Contract</option><option>Retirement</option><option>Absconding</option></select></div>
+        <div class="form-group"><label>Notice Period Served</label><select id="eNotice"><option></option><option>Full Notice Served</option><option>Partial Notice</option><option>No Notice</option></select></div>
+        <div class="form-group"><label>Exit Interview Done</label><select id="eExitInt"><option></option><option>Yes</option><option>No</option></select></div>
+        <div class="form-group"><label>Final Settlement Status</label><select id="eSettle"><option></option><option>Pending</option><option>In Progress</option><option>Completed</option></select></div>
+        <div class="form-group"><label>Eligible for Rehire</label><select id="eRehire"><option></option><option>Yes</option><option>No</option><option>Conditional</option></select></div>
+        <div class="form-group form-full"><label>Reason for Leaving</label><textarea id="eExitReason"></textarea></div>
+        <div class="form-group"><label>IT Clearance</label><select id="clIT"><option></option><option>Done</option><option>Pending</option></select></div>
+        <div class="form-group"><label>Access Card Returned</label><select id="clAccess"><option></option><option>Done</option><option>Pending</option><option>N/A</option></select></div>
+        <div class="form-group"><label>Uniform Returned</label><select id="clUniform"><option></option><option>Done</option><option>Pending</option><option>N/A</option></select></div>
+        <div class="form-group"><label>Assets Returned</label><select id="clAssets"><option></option><option>Done</option><option>Pending</option><option>N/A</option></select></div>
       </div>
     </div>
     <input type="hidden" id="eEditKey">
     <div class="btn-row">
-      <button class="btn btn-primary" onclick="saveEmployee()">Save Employee</button>
+      <button class="btn btn-primary" onclick="saveEmp()">Save Employee</button>
       <button class="btn" onclick="closeModal('empModal')" style="background:#f0f0f0;">Cancel</button>
     </div>
   </div>
 </div>
 
+<!-- LEAVE MODAL -->
 <div class="modal-overlay" id="leaveModal">
   <div class="modal">
-    <div class="modal-title">Add Leave Record <span class="modal-close" onclick="closeModal('leaveModal')">✕</span></div>
+    <div class="modal-title">Leave Record <span class="modal-close" onclick="closeModal('leaveModal')">✕</span></div>
     <div class="form-grid">
-      <div class="form-group form-full"><label>Employee Name *</label><input type="text" id="lvEmp" placeholder="Employee name"></div>
-      <div class="form-group"><label>Leave Type *</label>
-        <select id="lvType">
-          <option>Annual Leave</option><option>Sick Leave</option><option>Emergency Leave</option>
-          <option>Maternity Leave</option><option>Paternity Leave</option><option>Hajj Leave</option>
-          <option>Study Leave</option><option>Unpaid Leave</option><option>Compassionate Leave</option>
-          <option>Work From Home</option><option>Other</option>
-        </select>
-      </div>
-      <div class="form-group"><label>Status</label>
-        <select id="lvStatus"><option>Approved</option><option>Pending</option><option>Rejected</option></select>
-      </div>
-      <div class="form-group"><label>From Date *</label><input type="date" id="lvFrom"></div>
-      <div class="form-group"><label>To Date *</label><input type="date" id="lvTo"></div>
-      <div class="form-group"><label>Approved By</label><input type="text" id="lvApproved" placeholder="Manager name"></div>
-      <div class="form-group form-full"><label>Notes</label><textarea id="lvNotes" placeholder="Optional notes..."></textarea></div>
+      <div class="form-group form-full"><label>Employee Name *</label><input type="text" id="lvEmp"></div>
+      <div class="form-group"><label>Leave Type *</label><select id="lvType"><option>Annual Leave</option><option>Sick Leave</option><option>Emergency Leave</option><option>Maternity Leave</option><option>Paternity Leave</option><option>Hajj Leave</option><option>Study Leave</option><option>Unpaid Leave</option><option>Compassionate Leave</option><option>Work From Home</option><option>Other</option></select></div>
+      <div class="form-group"><label>Status</label><select id="lvStatus"><option>Approved</option><option>Pending</option><option>Rejected</option></select></div>
+      <div class="form-group"><label>From *</label><input type="date" id="lvFrom"></div>
+      <div class="form-group"><label>To *</label><input type="date" id="lvTo"></div>
+      <div class="form-group"><label>Approved By</label><input type="text" id="lvApproved"></div>
+      <div class="form-group form-full"><label>Notes</label><textarea id="lvNotes"></textarea></div>
     </div>
-    <input type="hidden" id="lvEditKey">
-    <div class="btn-row">
-      <button class="btn btn-primary" onclick="saveLeave()">Save Leave</button>
-      <button class="btn" onclick="closeModal('leaveModal')" style="background:#f0f0f0;">Cancel</button>
-    </div>
+    <input type="hidden" id="lvKey">
+    <div class="btn-row"><button class="btn btn-primary" onclick="saveLeave()">Save</button><button class="btn" onclick="closeModal('leaveModal')" style="background:#f0f0f0;">Cancel</button></div>
   </div>
 </div>
 
-<div class="modal-overlay" id="salaryModal">
+<!-- SALARY MODAL -->
+<div class="modal-overlay" id="salModal">
   <div class="modal">
-    <div class="modal-title">Add Salary / Promotion Record <span class="modal-close" onclick="closeModal('salaryModal')">✕</span></div>
+    <div class="modal-title">Salary / Promotion Record <span class="modal-close" onclick="closeModal('salModal')">✕</span></div>
     <div class="form-grid">
-      <div class="form-group form-full"><label>Employee Name *</label><input type="text" id="slEmp" placeholder="Employee name"></div>
-      <div class="form-group"><label>Record Type *</label>
-        <select id="slType"><option>Salary Increment</option><option>Promotion</option><option>Grade Change</option><option>Bonus</option><option>Allowance Change</option></select>
-      </div>
+      <div class="form-group form-full"><label>Employee Name *</label><input type="text" id="slEmp"></div>
+      <div class="form-group"><label>Record Type *</label><select id="slType"><option>Salary Increment</option><option>Promotion</option><option>Grade Change</option><option>Bonus</option><option>Allowance Change</option><option>Salary Reduction</option><option>Reinstatement</option></select></div>
       <div class="form-group"><label>Effective Date</label><input type="date" id="slDate"></div>
-      <div class="form-group"><label>Previous Amount/Grade</label><input type="text" id="slPrev" placeholder="e.g. AED 8,000 or Grade 3"></div>
-      <div class="form-group"><label>New Amount/Grade</label><input type="text" id="slNew" placeholder="e.g. AED 9,000 or Grade 4"></div>
-      <div class="form-group"><label>Approved By</label><input type="text" id="slApproved" placeholder="Manager / Director"></div>
-      <div class="form-group form-full"><label>Reason / Notes</label><textarea id="slReason" placeholder="Reason for change..."></textarea></div>
+      <div class="form-group"><label>Previous Amount / Grade</label><input type="text" id="slPrev"></div>
+      <div class="form-group"><label>New Amount / Grade</label><input type="text" id="slNew"></div>
+      <div class="form-group"><label>Approved By</label><input type="text" id="slApproved"></div>
+      <div class="form-group form-full"><label>Reason</label><textarea id="slReason"></textarea></div>
     </div>
-    <input type="hidden" id="slEditKey">
-    <div class="btn-row">
-      <button class="btn btn-primary" onclick="saveSalary()">Save Record</button>
-      <button class="btn" onclick="closeModal('salaryModal')" style="background:#f0f0f0;">Cancel</button>
-    </div>
+    <input type="hidden" id="slKey">
+    <div class="btn-row"><button class="btn btn-primary" onclick="saveSal()">Save</button><button class="btn" onclick="closeModal('salModal')" style="background:#f0f0f0;">Cancel</button></div>
   </div>
 </div>
 
-<!-- FIREBASE SDK -->
+<!-- LOAN MODAL -->
+<div class="modal-overlay" id="loanModal">
+  <div class="modal">
+    <div class="modal-title">New Employee Loan <span class="modal-close" onclick="closeModal('loanModal')">✕</span></div>
+    <div class="form-grid">
+      <div class="form-group form-full"><label>Employee Name *</label><input type="text" id="loEmp"></div>
+      <div class="form-group"><label>Loan Amount (AED) *</label><input type="number" id="loAmt"></div>
+      <div class="form-group"><label>Date Approved</label><input type="date" id="loDate"></div>
+      <div class="form-group"><label>Monthly Deduction (AED)</label><input type="number" id="loDeduct"></div>
+      <div class="form-group"><label>No. of Instalments</label><input type="number" id="loInst"></div>
+      <div class="form-group"><label>Approved By</label><input type="text" id="loApproved"></div>
+      <div class="form-group form-full"><label>Purpose</label><input type="text" id="loPurpose" placeholder="e.g. Medical emergency, Travel, Personal"></div>
+      <div class="form-group form-full"><label>Notes</label><textarea id="loNotes"></textarea></div>
+    </div>
+    <input type="hidden" id="loKey">
+    <div class="btn-row"><button class="btn btn-primary" onclick="saveLoan()">Save Loan</button><button class="btn" onclick="closeModal('loanModal')" style="background:#f0f0f0;">Cancel</button></div>
+  </div>
+</div>
+
+<!-- REPAYMENT MODAL -->
+<div class="modal-overlay" id="repayModal">
+  <div class="modal">
+    <div class="modal-title">Add Repayment Entry <span class="modal-close" onclick="closeModal('repayModal')">✕</span></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Month / Period</label><input type="month" id="rpMonth"></div>
+      <div class="form-group"><label>Amount Deducted (AED)</label><input type="number" id="rpAmt"></div>
+      <div class="form-group"><label>Via WPS?</label><select id="rpWps"><option>Yes</option><option>No</option></select></div>
+      <div class="form-group form-full"><label>Notes</label><input type="text" id="rpNotes"></div>
+    </div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="saveRepay()">Save Payment</button><button class="btn" onclick="closeModal('repayModal')" style="background:#f0f0f0;">Cancel</button></div>
+  </div>
+</div>
+
+<!-- ASSET MODAL -->
+<div class="modal-overlay" id="assetModal">
+  <div class="modal">
+    <div class="modal-title">Issue Asset / Equipment <span class="modal-close" onclick="closeModal('assetModal')">✕</span></div>
+    <div class="form-grid">
+      <div class="form-group form-full"><label>Employee Name *</label><input type="text" id="asEmp"></div>
+      <div class="form-group"><label>Category *</label><select id="asCat"><option>IT Equipment</option><option>Safety Kit</option><option>Uniform</option><option>Tools</option><option>Access Card / Key</option><option>Vehicle</option><option>Other</option></select></div>
+      <div class="form-group"><label>Item Name *</label><input type="text" id="asItem" placeholder="e.g. Laptop, Safety Helmet, Uniform Shirt"></div>
+      <div class="form-group"><label>Serial / Batch No.</label><input type="text" id="asSerial"></div>
+      <div class="form-group"><label>Issue Date</label><input type="date" id="asDate"></div>
+      <div class="form-group"><label>Condition at Issue</label><select id="asCond"><option>New</option><option>Good</option><option>Fair</option></select></div>
+      <div class="form-group"><label>Status</label><select id="asStatus"><option>Issued</option><option>Returned</option><option>Lost</option><option>Damaged</option></select></div>
+      <div class="form-group"><label>Return / Replace Date</label><input type="date" id="asReturn"></div>
+      <div class="form-group form-full"><label>Notes</label><textarea id="asNotes" placeholder="e.g. Safety shoes worn out — replacement issued"></textarea></div>
+    </div>
+    <input type="hidden" id="asKey">
+    <div class="btn-row"><button class="btn btn-primary" onclick="saveAsset()">Save</button><button class="btn" onclick="closeModal('assetModal')" style="background:#f0f0f0;">Cancel</button></div>
+  </div>
+</div>
+
+<!-- SheetJS for Excel export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, push, get, remove, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyA_NToPyXvchX3XrApN937DpDcWOoJ7LTY",
-  authDomain: "ck-hr-project.firebaseapp.com",
-  databaseURL: "https://ck-hr-project-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "ck-hr-project",
-  storageBucket: "ck-hr-project.firebasestorage.app",
-  messagingSenderId: "552309455585",
-  appId: "1:552309455585:web:8e8ee62306cece974c15a0"
+const FC = {
+  apiKey:"AIzaSyA_NToPyXvchX3XrApN937DpDcWOoJ7LTY",
+  authDomain:"ck-hr-project.firebaseapp.com",
+  databaseURL:"https://ck-hr-project-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId:"ck-hr-project",
+  storageBucket:"ck-hr-project.firebasestorage.app",
+  messagingSenderId:"552309455585",
+  appId:"1:552309455585:web:8e8ee62306cece974c15a0"
 };
-
-const app = initializeApp(firebaseConfig);
+const app = initializeApp(FC);
 const db = getDatabase(app);
 
-// ADMINS
-const ADMINS = {
-  'dev': {pass:'CKAdmin2025', name:'Dev Mandrekar'},
-  'darleendy': {pass:'CKAdmin2025', name:'Darleendy'},
-  'kashif': {pass:'CKAdmin2025', name:'Kashif'}
-};
+const ADMINS = {dev:{pass:'CKAdmin2025',name:'Dev Mandrekar'},darleendy:{pass:'CKAdmin2025',name:'Darleendy'},kashif:{pass:'CKAdmin2025',name:'Kashif'}};
+let currentAdmin='', adminName='';
+let DB={employees:{},leave:{},salary:{},loans:{},repayments:{},assets:{},holidays:{},announcements:{},policies:{},audit:{}};
+let activeLoanKey=null;
 
-let currentAdmin = '';
-let allEmployees = {};
-let allLeave = {};
-let allSalary = {};
-let allHolidays = {};
-let allAnnouncements = {};
-let allPolicies = {};
-let allAudit = {};
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+function v(id){const e=document.getElementById(id);return e?e.value.trim():'';}
+function sv(id,val){const e=document.getElementById(id);if(e)e.value=val||'';}
+function showAlert(id,msg,type='success'){const e=document.getElementById(id);if(!e)return;e.className='alert alert-'+type;e.textContent=msg;e.style.display='block';setTimeout(()=>e.style.display='none',3500);}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function fmt(d){if(!d)return'—';try{return new Date(d).toLocaleDateString('en-AE',{day:'2-digit',month:'short',year:'numeric'});}catch{return d;}}
+function daysLeft(d){if(!d)return null;return Math.ceil((new Date(d)-new Date())/86400000);}
+function expClass(days){return days<0?'exp-red':days<=30?'exp-red':days<=60?'exp-amber':'exp-green';}
 
-// Make functions global
-window.doLogin = function() {
-  const u = document.getElementById('loginUser').value.trim().toLowerCase();
-  const p = document.getElementById('loginPass').value.trim();
-  if(ADMINS[u] && ADMINS[u].pass === p) {
-    currentAdmin = u;
-    document.getElementById('adminNameDisplay').textContent = ADMINS[u].name;
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    document.getElementById('loginError').style.display = 'none';
-    initRealtime();
-    document.getElementById('dashDate').textContent = new Date().toLocaleDateString('en-AE',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+async function logAudit(action,record,detail=''){
+  await push(ref(db,'audit'),{admin:adminName,action,record,detail,timestamp:new Date().toISOString()});
+}
+
+// ── LOGIN ─────────────────────────────────────────────────────────────────────
+window.doLogin=function(){
+  const u=v('loginUser').toLowerCase(), p=v('loginPass');
+  if(ADMINS[u]&&ADMINS[u].pass===p){
+    currentAdmin=u; adminName=ADMINS[u].name;
+    document.getElementById('adminNameDisplay').textContent=adminName;
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('app').style.display='block';
+    document.getElementById('dashDate').textContent=new Date().toLocaleDateString('en-AE',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+    document.getElementById('loginError').style.display='none';
+    initListeners();
   } else {
-    document.getElementById('loginError').style.display = 'block';
+    document.getElementById('loginError').style.display='block';
   }
 };
-
-window.doLogout = function() {
-  currentAdmin = '';
-  document.getElementById('loginScreen').style.display = 'flex';
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('loginUser').value='';
-  document.getElementById('loginPass').value='';
+window.doLogout=function(){
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('app').style.display='none';
+  sv('loginUser',''); sv('loginPass','');
 };
 
-function initRealtime() {
-  // Real-time listeners for all data
-  onValue(ref(db,'employees'), snap => {
-    allEmployees = snap.val() || {};
-    renderEmployees(); updateDashboard();
+function initListeners(){
+  const tables=['employees','leave','salary','loans','repayments','assets','holidays','announcements','policies','audit'];
+  tables.forEach(t=>{
+    onValue(ref(db,t),snap=>{
+      DB[t]=snap.val()||{};
+      if(t==='employees'){renderEmp();updateDash();}
+      if(t==='leave'){renderLeave();updateDash();}
+      if(t==='salary')renderSal();
+      if(t==='loans'){renderLoans();updateDash();updateLoanStats();}
+      if(t==='repayments'&&activeLoanKey)renderRepay(activeLoanKey);
+      if(t==='assets')renderAssets();
+      if(t==='holidays')renderHolidays();
+      if(t==='announcements'){renderAnn();updateDash();}
+      if(t==='policies')renderPolicies();
+      if(t==='audit')renderAudit();
+    });
   });
-  onValue(ref(db,'leave'), snap => {
-    allLeave = snap.val() || {};
-    renderLeave(); updateDashboard();
-  });
-  onValue(ref(db,'salary'), snap => {
-    allSalary = snap.val() || {};
-    renderSalary();
-  });
-  onValue(ref(db,'holidays'), snap => {
-    allHolidays = snap.val() || {};
-    renderHolidays();
-  });
-  onValue(ref(db,'announcements'), snap => {
-    allAnnouncements = snap.val() || {};
-    renderAnnouncements(); updateDashboard();
-  });
-  onValue(ref(db,'policies'), snap => {
-    allPolicies = snap.val() || {};
-    renderPolicies();
-  });
-  onValue(ref(db,'audit'), snap => {
-    allAudit = snap.val() || {};
-    renderAudit();
-  });
-  document.getElementById('syncStatus').textContent = '● Live';
-  document.getElementById('syncStatus').style.color = '#4caf50';
+  document.getElementById('syncStatus').textContent='● Live';
+  document.getElementById('syncStatus').style.color='#4caf50';
 }
 
-function logAudit(action, details) {
-  push(ref(db,'audit'), {
-    admin: ADMINS[currentAdmin].name,
-    action, details,
-    timestamp: new Date().toISOString()
-  });
-}
-
-// ── NAVIGATION ───────────────────────────────────────────────────────────────
-window.showPage = function(page) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+// ── NAVIGATION ────────────────────────────────────────────────────────────────
+window.showPage=function(page,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
-  event.currentTarget.classList.add('active');
-  if(page==='expiry') renderExpiry();
-  if(page==='birthdays') renderBirthdays();
-  if(page==='reports') document.getElementById('reportOutput').style.display='none';
+  if(el)el.classList.add('active');
+  if(page==='expiry')renderExpiry();
+  if(page==='birthdays')renderBirthdays();
 };
 
-// ── DASHBOARD ────────────────────────────────────────────────────────────────
-function updateDashboard() {
-  const emps = Object.values(allEmployees);
-  document.getElementById('stat-emp').textContent = emps.length;
-  
-  const today = new Date().toISOString().split('T')[0];
-  const onLeave = Object.values(allLeave).filter(l => l.status==='Approved' && l.from<=today && l.to>=today).length;
-  document.getElementById('stat-leave').textContent = onLeave;
-  
-  const now = new Date();
-  const in30 = new Date(now); in30.setDate(in30.getDate()+30);
-  let expCount = 0;
-  emps.forEach(e => {
-    ['passExp','visaExp','eidExp','labExp'].forEach(f => {
-      if(e[f]) { const d=new Date(e[f]); if(d>=now && d<=in30) expCount++; }
-    });
-  });
-  document.getElementById('stat-expiry').textContent = expCount;
-  
-  const thisMonth = now.getMonth();
-  const bdayCount = emps.filter(e => e.dob && new Date(e.dob).getMonth()===thisMonth).length;
-  document.getElementById('stat-bday').textContent = bdayCount;
-  
+// ── DASHBOARD ─────────────────────────────────────────────────────────────────
+function updateDash(){
+  const emps=Object.values(DB.employees);
+  document.getElementById('s-emp').textContent=emps.length;
+  const today=new Date().toISOString().split('T')[0];
+  const onLeave=Object.values(DB.leave).filter(l=>l.status==='Approved'&&l.from<=today&&l.to>=today).length;
+  document.getElementById('s-leave').textContent=onLeave;
+  const now=new Date(),in30=new Date();in30.setDate(in30.getDate()+30);
+  let expC=0;
+  emps.forEach(e=>['passExp','visaExp','eidExp','labExp'].forEach(f=>{if(e[f]){const d=new Date(e[f]);if(d>=now&&d<=in30)expC++;}}));
+  document.getElementById('s-exp').textContent=expC;
+  const m=now.getMonth();
+  document.getElementById('s-bday').textContent=emps.filter(e=>e.dob&&new Date(e.dob).getMonth()===m).length;
   // Announcements
-  const anns = Object.values(allAnnouncements).sort((a,b)=>b.ts-a.ts).slice(0,3);
-  const annDiv = document.getElementById('dash-announcements');
-  annDiv.innerHTML = anns.length ? anns.map(a=>`<div style="padding:8px 0;border-bottom:1px solid #f0f0f0;"><strong style="font-size:13px;">${a.title}</strong><br><span style="font-size:12px;color:#888;">${a.category} · ${new Date(a.ts).toLocaleDateString()}</span></div>`).join('') : '<div class="empty-state"><p>No announcements</p></div>';
-  
+  const anns=Object.values(DB.announcements).sort((a,b)=>b.ts-a.ts).slice(0,3);
+  document.getElementById('d-ann').innerHTML=anns.length?anns.map(a=>`<div style="padding:7px 0;border-bottom:1px solid #f0f0f0;"><strong style="font-size:13px;">${esc(a.title)}</strong><br><span style="font-size:11px;color:#888;">${esc(a.category)} · ${new Date(a.ts).toLocaleDateString()}</span></div>`).join(''):'<div class="empty-state"><p>No announcements</p></div>';
   // Expiries
-  const expList = [];
-  emps.forEach(e => {
-    ['passExp','visaExp','eidExp','labExp'].forEach((f,i) => {
-      const labels=['Passport','Visa','Emirates ID','Labour Card'];
-      if(e[f]) { const d=new Date(e[f]); const days=Math.ceil((d-now)/(86400000));
-        if(days>=0 && days<=30) expList.push({name:e.name,doc:labels[i],days}); }
-    });
-  });
-  const expDiv = document.getElementById('dash-expiries');
-  expDiv.innerHTML = expList.length ? expList.sort((a,b)=>a.days-b.days).slice(0,5).map(x=>`<div style="padding:7px 0;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;"><span style="font-size:13px;">${x.name} — ${x.doc}</span><span class="${x.days<=7?'exp-red':x.days<=14?'exp-amber':'exp-green'}" style="font-size:12px;">${x.days}d</span></div>`).join('') : '<div class="empty-state"><p>No expiries in 30 days</p></div>';
-  
+  const expList=[];
+  emps.forEach(e=>[{f:'passExp',l:'Passport'},{f:'visaExp',l:'Visa'},{f:'eidExp',l:'Emirates ID'},{f:'labExp',l:'Labour Card'}].forEach(({f,l})=>{
+    if(e[f]){const days=daysLeft(e[f]);if(days!==null&&days<=30)expList.push({name:e.name,doc:l,days});}
+  }));
+  document.getElementById('d-exp').innerHTML=expList.length?expList.sort((a,b)=>a.days-b.days).slice(0,5).map(x=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;"><span style="font-size:13px;">${esc(x.name)} — ${x.doc}</span><span class="${expClass(x.days)}" style="font-size:12px;">${x.days<0?'EXPIRED':x.days+'d'}</span></div>`).join(''):'<div class="empty-state"><p>None in 30 days</p></div>';
   // Birthdays
-  const bdayEmps = emps.filter(e => e.dob && new Date(e.dob).getMonth()===thisMonth);
-  const bdDiv = document.getElementById('dash-birthdays');
-  bdDiv.innerHTML = bdayEmps.length ? bdayEmps.map(e=>`<span style="display:inline-block;background:#fff3e0;color:#e67e22;padding:5px 14px;border-radius:20px;margin:4px;font-size:13px;">🎂 ${e.name} (${new Date(e.dob).getDate()} ${now.toLocaleString('default',{month:'short'})})</span>`).join('') : '<div class="empty-state"><p>No birthdays this month</p></div>';
+  const bdEmps=emps.filter(e=>e.dob&&new Date(e.dob).getMonth()===m);
+  document.getElementById('d-bday').innerHTML=bdEmps.length?bdEmps.map(e=>`<span style="display:inline-block;background:#fff3e0;color:#e67e22;padding:4px 12px;border-radius:16px;margin:3px;font-size:12px;">🎂 ${esc(e.name)} (${new Date(e.dob).getDate()} ${now.toLocaleString('default',{month:'short'})})</span>`).join(''):'<div class="empty-state"><p>None this month</p></div>';
+  // Active loans
+  const activeLoans=Object.entries(DB.loans).filter(([k,l])=>l.status==='Active');
+  document.getElementById('d-loans').innerHTML=activeLoans.length?activeLoans.slice(0,4).map(([k,l])=>{
+    const paid=Object.values(DB.repayments).filter(r=>r.loanKey===k).reduce((s,r)=>s+parseFloat(r.amt||0),0);
+    const outstanding=parseFloat(l.amount||0)-paid;
+    const pct=l.amount?Math.min(100,Math.round(paid/l.amount*100)):0;
+    return`<div style="padding:7px 0;border-bottom:1px solid #f0f0f0;"><div style="display:flex;justify-content:space-between;"><strong style="font-size:13px;">${esc(l.empName)}</strong><span style="font-size:12px;color:#e74c3c;">AED ${outstanding.toLocaleString()}</span></div><div class="loan-bar"><div class="loan-fill" style="width:${pct}%"></div></div></div>`;
+  }).join(''):'<div class="empty-state"><p>No active loans</p></div>';
 }
 
-// ── EMPLOYEES ────────────────────────────────────────────────────────────────
-function renderEmployees(data) {
-  const rows = data || Object.entries(allEmployees);
-  const depts = [...new Set(Object.values(allEmployees).map(e=>e.dept).filter(Boolean))];
-  const df = document.getElementById('empDeptFilter');
-  const cur = df.value;
-  df.innerHTML = '<option value="">All Departments</option>' + depts.map(d=>`<option${d===cur?' selected':''}>${d}</option>`).join('');
-  
-  const tbody = document.getElementById('empBody');
-  if(!rows.length){tbody.innerHTML='<tr><td colspan="8"><div class="empty-state"><div class="icon">👥</div><p>No employees yet. Add your first employee.</p></div></td></tr>';return;}
-  tbody.innerHTML = rows.map(([k,e])=>`<tr>
-    <td><strong>${e.empId||''}</strong></td>
-    <td>${e.name||''}</td><td>${e.dept||''}</td><td>${e.desig||''}</td>
-    <td style="font-size:12px;">${e.entity||''}</td><td>${e.nationality||''}</td>
-    <td><span class="badge badge-${(e.status||'active').toLowerCase().replace(' ','-')}">${e.status||'Active'}</span></td>
+// ── EMPLOYEES ─────────────────────────────────────────────────────────────────
+function renderEmp(data){
+  const rows=data||Object.entries(DB.employees);
+  const depts=[...new Set(Object.values(DB.employees).map(e=>e.dept).filter(Boolean))];
+  const df=document.getElementById('empDept');const cur=df.value;
+  df.innerHTML='<option value="">All Depts</option>'+depts.map(d=>`<option${d===cur?' selected':''}>${esc(d)}</option>`).join('');
+  const tbody=document.getElementById('empBody');
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="9"><div class="empty-state"><div class="icon">👥</div><p>No employees yet.</p></div></td></tr>';return;}
+  tbody.innerHTML=rows.map(([k,e])=>`<tr>
+    <td><strong>${esc(e.empId||'')}</strong></td>
+    <td>${esc(e.name||'')}</td><td>${esc(e.dept||'')}</td><td>${esc(e.desig||'')}</td>
+    <td style="font-size:11px;">${esc(e.entity||'')}</td><td>${esc(e.nationality||'')}</td>
+    <td>AED ${parseFloat(e.grossSalary||e.gross||0).toLocaleString()}</td>
+    <td><span class="badge badge-${(e.status||'active').toLowerCase().replace(/\s/g,'-')}">${esc(e.status||'Active')}</span></td>
     <td>
-      <button class="btn btn-sm btn-primary" onclick="editEmployee('${k}')">Edit</button>
-      <button class="btn btn-sm btn-danger" onclick="deleteEmployee('${k}')">Del</button>
+      <button class="btn btn-sm btn-primary" onclick="editEmp('${k}')">Edit</button>
+      <button class="btn btn-sm btn-danger" onclick="delEmp('${k}')">Del</button>
     </td>
   </tr>`).join('');
 }
-
-window.filterEmployees = function() {
-  const q = document.getElementById('empSearch').value.toLowerCase();
-  const dept = document.getElementById('empDeptFilter').value;
-  const entity = document.getElementById('empEntityFilter').value;
-  const filtered = Object.entries(allEmployees).filter(([k,e])=> {
-    const match = !q || [e.name,e.empId,e.dept,e.desig,e.nationality].some(v=>v&&v.toLowerCase().includes(q));
-    const deptMatch = !dept || e.dept===dept;
-    const entityMatch = !entity || e.entity===entity;
-    return match && deptMatch && entityMatch;
-  });
-  renderEmployees(filtered);
+window.filterEmp=function(){
+  const q=v('empSearch').toLowerCase(),dept=document.getElementById('empDept').value,entity=document.getElementById('empEntity').value;
+  renderEmp(Object.entries(DB.employees).filter(([k,e])=>
+    (!q||[e.name,e.empId,e.dept,e.desig,e.nationality].some(x=>x&&x.toLowerCase().includes(q)))&&
+    (!dept||e.dept===dept)&&(!entity||e.entity===entity)));
 };
 
-window.openEmpModal = function() {
+window.empTab=function(tab,el){
+  ['basic','docs','salary','family','links','exit'].forEach(t=>document.getElementById('etab-'+t).style.display=t===tab?'block':'none');
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  if(el)el.classList.add('active');
+};
+
+let familyRows=[];
+window.addFamilyRow=function(){
+  familyRows.push({name:'',relation:'',dob:'',eid:'',insPolicy:''});
+  renderFamilyRows();
+};
+function renderFamilyRows(){
+  document.getElementById('familyList').innerHTML=familyRows.map((f,i)=>`
+    <div style="border:1px solid #e0e0e0;border-radius:8px;padding:12px;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><strong style="font-size:12px;">Dependent ${i+1}</strong><button class="btn btn-sm btn-danger" onclick="removeFamilyRow(${i})">Remove</button></div>
+      <div class="form-grid">
+        <div class="form-group"><label>Full Name</label><input type="text" value="${esc(f.name)}" oninput="familyRows[${i}].name=this.value"></div>
+        <div class="form-group"><label>Relationship</label><select onchange="familyRows[${i}].relation=this.value"><option>Spouse</option><option>Child</option><option>Parent</option><option>Sibling</option></select></div>
+        <div class="form-group"><label>Date of Birth</label><input type="date" value="${f.dob}" oninput="familyRows[${i}].dob=this.value"></div>
+        <div class="form-group"><label>Emirates ID</label><input type="text" value="${esc(f.eid)}" oninput="familyRows[${i}].eid=this.value"></div>
+        <div class="form-group form-full"><label>Insurance Policy / Notes</label><input type="text" value="${esc(f.insPolicy)}" oninput="familyRows[${i}].insPolicy=this.value"></div>
+      </div>
+    </div>`).join('');
+}
+window.removeFamilyRow=function(i){familyRows.splice(i,1);renderFamilyRows();};
+
+window.openEmpModal=function(){
   document.getElementById('empModalTitle').textContent='Add Employee';
-  ['eId','eName','eDept','eDesig','eNat','eMobile','eEmail','ePassport','eJoin','ePassExp','eVisaExp','eEidExp','eLabExp'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['eId','eName','eDept','eDesig','eNat','eMobile','eEmail','eManager','eRemarks',
+   'ePassport','eVisa','eEid','eLab','eMed','eBasic','eGross','eHouse','eTransport','eOther','eBank','eIban','eLeaveEnt','eLeaveBal','eGrat',
+   'lPassport','lVisa','lEid','lLab','lOffer','lContract','lEdu','lOther',
+   'eExitReason'].forEach(id=>sv(id,''));
+  ['eJoin','eDob','ePassExp','eVisaExp','eEidExp','eLabExp','eExitDate'].forEach(id=>sv(id,''));
+  sv('eStatus','Active'); sv('eEntity','CK Architecture Interiors'); sv('eContract','Permanent'); sv('eGrade','White Collar');
+  sv('eExitType',''); sv('eNotice',''); sv('eExitInt',''); sv('eSettle',''); sv('eRehire','');
+  sv('clIT',''); sv('clAccess',''); sv('clUniform',''); sv('clAssets','');
   document.getElementById('eEditKey').value='';
-  document.getElementById('eEntity').value='CK Architecture Interiors';
-  document.getElementById('eStatus').value='Active';
+  familyRows=[];renderFamilyRows();
+  empTab('basic',document.querySelector('.tab-btn'));
+  document.querySelector('.tab-btn').classList.add('active');
   document.getElementById('empModal').classList.add('open');
 };
 
-window.editEmployee = function(key) {
-  const e = allEmployees[key];
+window.editEmp=function(key){
+  const e=DB.employees[key];
   document.getElementById('empModalTitle').textContent='Edit Employee';
-  document.getElementById('eId').value=e.empId||'';
-  document.getElementById('eName').value=e.name||'';
-  document.getElementById('eDept').value=e.dept||'';
-  document.getElementById('eDesig').value=e.desig||'';
-  document.getElementById('eEntity').value=e.entity||'CK Architecture Interiors';
-  document.getElementById('eNat').value=e.nationality||'';
-  document.getElementById('eJoin').value=e.join||'';
-  document.getElementById('eContract').value=e.contract||'Limited';
-  document.getElementById('eMobile').value=e.mobile||'';
-  document.getElementById('eEmail').value=e.email||'';
-  document.getElementById('ePassport').value=e.passport||'';
-  document.getElementById('ePassExp').value=e.passExp||'';
-  document.getElementById('eVisaExp').value=e.visaExp||'';
-  document.getElementById('eEidExp').value=e.eidExp||'';
-  document.getElementById('eLabExp').value=e.labExp||'';
-  document.getElementById('eStatus').value=e.status||'Active';
+  sv('eId',e.empId);sv('eName',e.name);sv('eDept',e.dept);sv('eDesig',e.desig);
+  sv('eEntity',e.entity);sv('eNat',e.nationality);sv('eGender',e.gender);sv('eDob',e.dob);
+  sv('eJoin',e.join);sv('eContract',e.contract);sv('eGrade',e.grade);sv('eSite',e.site);
+  sv('eMobile',e.mobile);sv('eEmail',e.email);sv('eManager',e.manager);sv('eStatus',e.status);sv('eRemarks',e.remarks);
+  sv('ePassport',e.passport);sv('eVisa',e.visa);sv('eEid',e.eid);sv('eLab',e.lab);
+  sv('ePassExp',e.passExp);sv('eVisaExp',e.visaExp);sv('eEidExp',e.eidExp);sv('eLabExp',e.labExp);sv('eMed',e.medInsurance);
+  sv('eBasic',e.basicSalary);sv('eGross',e.grossSalary);sv('eHouse',e.house);sv('eTransport',e.transport);sv('eOther',e.otherAllowances);
+  sv('eBank',e.bank);sv('eIban',e.iban);sv('eLeaveEnt',e.annualLeaveEnt);sv('eLeaveBal',e.annualLeaveBalance);sv('eGrat',e.gratuity);
+  sv('lPassport',e.lPassport);sv('lVisa',e.lVisa);sv('lEid',e.lEid);sv('lLab',e.lLab);
+  sv('lOffer',e.lOffer);sv('lContract',e.lContract);sv('lEdu',e.lEdu);sv('lOther',e.lOther);
+  sv('eExitDate',e.exitDate);sv('eExitType',e.exitType);sv('eNotice',e.notice);sv('eExitInt',e.exitInt);
+  sv('eSettle',e.settle);sv('eRehire',e.rehire);sv('eExitReason',e.exitReason);
+  sv('clIT',e.clIT);sv('clAccess',e.clAccess);sv('clUniform',e.clUniform);sv('clAssets',e.clAssets);
+  familyRows=e.family||[];renderFamilyRows();
   document.getElementById('eEditKey').value=key;
+  empTab('basic',document.querySelector('.tab-btn'));
   document.getElementById('empModal').classList.add('open');
 };
 
-window.saveEmployee = function() {
-  const data = {
-    empId:v('eId'), name:v('eName'), dept:v('eDept'), desig:v('eDesig'),
-    entity:v('eEntity'), nationality:v('eNat'), join:v('eJoin'),
-    contract:v('eContract'), mobile:v('eMobile'), email:v('eEmail'),
-    passport:v('ePassport'), passExp:v('ePassExp'), visaExp:v('eVisaExp'),
-    eidExp:v('eEidExp'), labExp:v('eLabExp'), status:v('eStatus')
+window.saveEmp=function(){
+  const data={
+    empId:v('eId'),name:v('eName'),dept:v('eDept'),desig:v('eDesig'),entity:v('eEntity'),
+    nationality:v('eNat'),gender:v('eGender'),dob:v('eDob'),join:v('eJoin'),
+    contract:v('eContract'),grade:v('eGrade'),site:v('eSite'),mobile:v('eMobile'),
+    email:v('eEmail'),manager:v('eManager'),status:v('eStatus'),remarks:v('eRemarks'),
+    passport:v('ePassport'),visa:v('eVisa'),eid:v('eEid'),lab:v('eLab'),
+    passExp:v('ePassExp'),visaExp:v('eVisaExp'),eidExp:v('eEidExp'),labExp:v('eLabExp'),medInsurance:v('eMed'),
+    basicSalary:v('eBasic'),grossSalary:v('eGross'),house:v('eHouse'),transport:v('eTransport'),
+    otherAllowances:v('eOther'),bank:v('eBank'),iban:v('eIban'),
+    annualLeaveEnt:v('eLeaveEnt'),annualLeaveBalance:v('eLeaveBal'),gratuity:v('eGrat'),
+    lPassport:v('lPassport'),lVisa:v('lVisa'),lEid:v('lEid'),lLab:v('lLab'),
+    lOffer:v('lOffer'),lContract:v('lContract'),lEdu:v('lEdu'),lOther:v('lOther'),
+    exitDate:v('eExitDate'),exitType:v('eExitType'),notice:v('eNotice'),exitInt:v('eExitInt'),
+    settle:v('eSettle'),rehire:v('eRehire'),exitReason:v('eExitReason'),
+    clIT:v('clIT'),clAccess:v('clAccess'),clUniform:v('clUniform'),clAssets:v('clAssets'),
+    family:familyRows
   };
-  if(!data.name){alert('Employee name is required');return;}
-  const key = document.getElementById('eEditKey').value;
-  const dbRef = key ? ref(db,'employees/'+key) : push(ref(db,'employees'));
-  set(key ? ref(db,'employees/'+key) : dbRef, data).then(()=>{
-    logAudit(key?'Edit Employee':'Add Employee', data.name+' ('+data.empId+')');
-    closeModal('empModal');
-    showAlert('emp-alert','Employee saved successfully!');
+  if(!data.name){alert('Employee name required');return;}
+  const key=document.getElementById('eEditKey').value;
+  const op=key?set(ref(db,'employees/'+key),data):set(push(ref(db,'employees')),data);
+  op.then(()=>{
+    logAudit(key?'Edit Employee':'Add Employee',data.name,`ID:${data.empId} Dept:${data.dept}`);
+    closeModal('empModal');showAlert('emp-alert',`Employee ${key?'updated':'added'} successfully!`);
   });
 };
-
-window.deleteEmployee = function(key) {
-  if(!confirm('Delete this employee?')) return;
-  const name = allEmployees[key]?.name || key;
-  remove(ref(db,'employees/'+key)).then(()=>{
-    logAudit('Delete Employee', name);
-    showAlert('emp-alert','Employee deleted.');
-  });
+window.delEmp=function(key){
+  if(!confirm('Delete this employee?'))return;
+  const name=DB.employees[key]?.name||key;
+  remove(ref(db,'employees/'+key)).then(()=>{logAudit('Delete Employee',name,'');showAlert('emp-alert','Employee deleted.');});
 };
 
-// ── LEAVE ────────────────────────────────────────────────────────────────────
-function renderLeave(data) {
-  const rows = data || Object.entries(allLeave).sort((a,b)=>b[1].ts-a[1].ts);
-  const tbody = document.getElementById('leaveBody');
-  if(!rows.length){tbody.innerHTML='<tr><td colspan="8"><div class="empty-state"><div class="icon">📅</div><p>No leave records yet.</p></div></td></tr>';return;}
-  tbody.innerHTML = rows.map(([k,l])=>{
-    const days = l.from&&l.to ? Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1 : '—';
+// ── LEAVE ─────────────────────────────────────────────────────────────────────
+function renderLeave(data){
+  const rows=data||Object.entries(DB.leave).sort((a,b)=>b[1].ts-a[1].ts);
+  const tbody=document.getElementById('leaveBody');
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="8"><div class="empty-state"><div class="icon">📅</div><p>No leave records.</p></div></td></tr>';return;}
+  tbody.innerHTML=rows.map(([k,l])=>{
+    const days=l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:'—';
+    return`<tr><td><strong>${esc(l.empName||'')}</strong></td><td><span class="leave-tag">${esc(l.type||'')}</span></td>
+    <td>${fmt(l.from)}</td><td>${fmt(l.to)}</td><td>${days}</td>
+    <td><span class="badge badge-${(l.status||'pending').toLowerCase()}">${esc(l.status||'')}</span></td>
+    <td>${esc(l.approvedBy||'—')}</td>
+    <td><button class="btn btn-sm btn-primary" onclick="editLeave('${k}')">Edit</button>
+    <button class="btn btn-sm btn-danger" onclick="delLeave('${k}')">Del</button></td></tr>`;
+  }).join('');
+}
+window.filterLeave=function(){
+  const q=v('leaveSearch').toLowerCase(),type=document.getElementById('leaveTypeF').value,status=document.getElementById('leaveStatusF').value;
+  renderLeave(Object.entries(DB.leave).filter(([k,l])=>(!q||l.empName?.toLowerCase().includes(q))&&(!type||l.type===type)&&(!status||l.status===status)));
+};
+window.openLeaveModal=function(){['lvEmp','lvFrom','lvTo','lvApproved','lvNotes'].forEach(id=>sv(id,''));sv('lvKey','');sv('lvType','Annual Leave');sv('lvStatus','Approved');document.getElementById('leaveModal').classList.add('open');};
+window.editLeave=function(key){const l=DB.leave[key];sv('lvEmp',l.empName);sv('lvType',l.type);sv('lvStatus',l.status);sv('lvFrom',l.from);sv('lvTo',l.to);sv('lvApproved',l.approvedBy);sv('lvNotes',l.notes);sv('lvKey',key);document.getElementById('leaveModal').classList.add('open');};
+window.saveLeave=function(){
+  const data={empName:v('lvEmp'),type:v('lvType'),status:v('lvStatus'),from:v('lvFrom'),to:v('lvTo'),approvedBy:v('lvApproved'),notes:v('lvNotes'),ts:Date.now()};
+  if(!data.empName){alert('Employee name required');return;}
+  const key=v('lvKey');const op=key?set(ref(db,'leave/'+key),data):set(push(ref(db,'leave')),data);
+  op.then(()=>{logAudit(key?'Edit Leave':'Add Leave',data.empName,data.type+' '+data.from+' to '+data.to);closeModal('leaveModal');showAlert('leave-alert','Leave saved!');});
+};
+window.delLeave=function(key){if(!confirm('Delete?'))return;remove(ref(db,'leave/'+key)).then(()=>showAlert('leave-alert','Deleted.'));};
+
+// ── SALARY ────────────────────────────────────────────────────────────────────
+function renderSal(data){
+  const rows=data||Object.entries(DB.salary).sort((a,b)=>b[1].ts-a[1].ts);
+  const tbody=document.getElementById('salBody');
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="9"><div class="empty-state"><div class="icon">💰</div><p>No records.</p></div></td></tr>';return;}
+  tbody.innerHTML=rows.map(([k,s])=>{
+    const prev=parseFloat(s.prev)||0,nw=parseFloat(s.newVal)||0;
+    const pct=prev?((nw-prev)/prev*100).toFixed(1):'—';
+    const pctColor=nw>=prev?'color:#1A7A6E':'color:#e74c3c';
+    return`<tr><td><strong>${esc(s.empName||'')}</strong></td><td>${esc(s.type||'')}</td>
+    <td>${fmt(s.date)}</td><td>AED ${esc(s.prev||'')}</td><td>AED ${esc(s.newVal||'')}</td>
+    <td style="${pctColor};font-weight:700;">${pct!=='—'?pct+'%':'—'}</td>
+    <td style="font-size:11px;">${esc(s.reason||'')}</td><td>${esc(s.approvedBy||'')}</td>
+    <td><button class="btn btn-sm btn-primary" onclick="editSal('${k}')">Edit</button>
+    <button class="btn btn-sm btn-danger" onclick="delSal('${k}')">Del</button></td></tr>`;
+  }).join('');
+}
+window.filterSal=function(){const q=v('salSearch').toLowerCase(),type=document.getElementById('salTypeF').value;renderSal(Object.entries(DB.salary).filter(([k,s])=>(!q||s.empName?.toLowerCase().includes(q))&&(!type||s.type===type)));};
+window.openSalModal=function(){['slEmp','slDate','slPrev','slNew','slApproved','slReason'].forEach(id=>sv(id,''));sv('slKey','');sv('slType','Salary Increment');document.getElementById('salModal').classList.add('open');};
+window.editSal=function(key){const s=DB.salary[key];sv('slEmp',s.empName);sv('slType',s.type);sv('slDate',s.date);sv('slPrev',s.prev);sv('slNew',s.newVal);sv('slApproved',s.approvedBy);sv('slReason',s.reason);sv('slKey',key);document.getElementById('salModal').classList.add('open');};
+window.saveSal=function(){
+  const data={empName:v('slEmp'),type:v('slType'),date:v('slDate'),prev:v('slPrev'),newVal:v('slNew'),approvedBy:v('slApproved'),reason:v('slReason'),ts:Date.now()};
+  if(!data.empName){alert('Employee name required');return;}
+  const key=v('slKey');const op=key?set(ref(db,'salary/'+key),data):set(push(ref(db,'salary')),data);
+  op.then(()=>{logAudit(key?'Edit Salary':'Add Salary Record',data.empName,`${data.type}: ${data.prev} → ${data.newVal}`);closeModal('salModal');showAlert('sal-alert','Record saved!');});
+};
+window.delSal=function(key){if(!confirm('Delete?'))return;remove(ref(db,'salary/'+key)).then(()=>showAlert('sal-alert','Deleted.'));};
+
+// ── LOANS ─────────────────────────────────────────────────────────────────────
+function updateLoanStats(){
+  const loans=Object.entries(DB.loans);
+  document.getElementById('ls-total').textContent=loans.length;
+  const active=loans.filter(([k,l])=>l.status==='Active');
+  const closed=loans.filter(([k,l])=>l.status==='Fully Repaid');
+  document.getElementById('ls-active').textContent=active.length;
+  document.getElementById('ls-closed').textContent=closed.length;
+  let outstanding=0;
+  active.forEach(([k,l])=>{
+    const paid=Object.values(DB.repayments).filter(r=>r.loanKey===k).reduce((s,r)=>s+parseFloat(r.amt||0),0);
+    outstanding+=parseFloat(l.amount||0)-paid;
+  });
+  document.getElementById('ls-outstanding').textContent='AED '+Math.round(outstanding).toLocaleString();
+}
+
+function renderLoans(data){
+  const rows=data||Object.entries(DB.loans).sort((a,b)=>b[1].ts-a[1].ts);
+  const tbody=document.getElementById('loanBody');
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="10"><div class="empty-state"><div class="icon">🏦</div><p>No loans recorded.</p></div></td></tr>';return;}
+  tbody.innerHTML=rows.map(([k,l])=>{
+    const paid=Object.values(DB.repayments).filter(r=>r.loanKey===k).reduce((s,r)=>s+parseFloat(r.amt||0),0);
+    const outstanding=Math.max(0,parseFloat(l.amount||0)-paid);
+    const pct=l.amount?Math.min(100,Math.round(paid/l.amount*100)):0;
     return`<tr>
-      <td><strong>${l.empName||''}</strong></td>
-      <td><span class="leave-type-tag">${l.type||''}</span></td>
-      <td>${l.from||''}</td><td>${l.to||''}</td><td>${days}</td>
-      <td><span class="badge badge-${(l.status||'pending').toLowerCase()}">${l.status||'Pending'}</span></td>
-      <td>${l.approvedBy||'—'}</td>
+      <td><strong>${esc(l.empName||'')}</strong></td>
+      <td>AED ${parseFloat(l.amount||0).toLocaleString()}</td>
+      <td style="font-size:11px;">${esc(l.purpose||'')}</td>
+      <td>${fmt(l.dateApproved)}</td>
+      <td>AED ${parseFloat(l.monthlyDeduct||0).toLocaleString()}</td>
+      <td>AED ${paid.toLocaleString()}</td>
+      <td style="color:#e74c3c;font-weight:700;">AED ${outstanding.toLocaleString()}</td>
+      <td><div style="display:flex;align-items:center;gap:6px;"><div class="loan-bar" style="width:80px;"><div class="loan-fill" style="width:${pct}%"></div></div><span style="font-size:11px;">${pct}%</span></div></td>
+      <td><span class="badge badge-${l.status==='Active'?'pending':l.status==='Fully Repaid'?'approved':'inactive'}">${esc(l.status||'')}</span></td>
       <td>
-        <button class="btn btn-sm btn-primary" onclick="editLeave('${k}')">Edit</button>
-        <button class="btn btn-sm btn-danger" onclick="deleteLeave('${k}')">Del</button>
+        <button class="btn btn-sm btn-teal" onclick="showRepay('${k}','${esc(l.empName||'')}')">Payments</button>
+        <button class="btn btn-sm btn-primary" onclick="editLoan('${k}')">Edit</button>
+        <button class="btn btn-sm btn-danger" onclick="delLoan('${k}')">Del</button>
       </td>
     </tr>`;
   }).join('');
 }
+window.filterLoans=function(){const q=v('loanSearch').toLowerCase(),status=document.getElementById('loanStatusF').value;renderLoans(Object.entries(DB.loans).filter(([k,l])=>(!q||l.empName?.toLowerCase().includes(q))&&(!status||l.status===status)));};
+window.openLoanModal=function(){['loEmp','loAmt','loDate','loDeduct','loInst','loApproved','loPurpose','loNotes'].forEach(id=>sv(id,''));sv('loKey','');document.getElementById('loanModal').classList.add('open');};
+window.editLoan=function(key){const l=DB.loans[key];sv('loEmp',l.empName);sv('loAmt',l.amount);sv('loDate',l.dateApproved);sv('loDeduct',l.monthlyDeduct);sv('loInst',l.instalments);sv('loApproved',l.approvedBy);sv('loPurpose',l.purpose);sv('loNotes',l.notes);sv('loKey',key);document.getElementById('loanModal').classList.add('open');};
+window.saveLoan=function(){
+  const data={empName:v('loEmp'),amount:v('loAmt'),dateApproved:v('loDate'),monthlyDeduct:v('loDeduct'),instalments:v('loInst'),approvedBy:v('loApproved'),purpose:v('loPurpose'),notes:v('loNotes'),status:'Active',ts:Date.now()};
+  if(!data.empName||!data.amount){alert('Employee name and amount required');return;}
+  const key=v('loKey');const op=key?set(ref(db,'loans/'+key),data):set(push(ref(db,'loans')),data);
+  op.then(()=>{logAudit(key?'Edit Loan':'New Loan',data.empName,`AED ${data.amount} — ${data.purpose}`);closeModal('loanModal');showAlert('loan-alert','Loan saved!');});
+};
+window.delLoan=function(key){if(!confirm('Delete loan record?'))return;remove(ref(db,'loans/'+key)).then(()=>showAlert('loan-alert','Deleted.'));};
 
-window.filterLeave = function() {
-  const q = document.getElementById('leaveSearch').value.toLowerCase();
-  const type = document.getElementById('leaveTypeFilter').value;
-  const status = document.getElementById('leaveStatusFilter').value;
-  const filtered = Object.entries(allLeave).filter(([k,l])=>{
-    return (!q||l.empName?.toLowerCase().includes(q)) && (!type||l.type===type) && (!status||l.status===status);
+window.showRepay=function(loanKey,empName){
+  activeLoanKey=loanKey;
+  document.getElementById('repayEmpName').textContent=empName;
+  document.getElementById('repayCard').style.display='block';
+  renderRepay(loanKey);
+  document.getElementById('repayCard').scrollIntoView({behavior:'smooth'});
+};
+function renderRepay(loanKey){
+  const rows=Object.entries(DB.repayments).filter(([k,r])=>r.loanKey===loanKey).sort((a,b)=>b[1].ts-a[1].ts);
+  const tbody=document.getElementById('repayBody');
+  tbody.innerHTML=rows.length?rows.map(([k,r])=>`<tr><td>${r.month||''}</td><td>AED ${parseFloat(r.amt||0).toLocaleString()}</td><td>${r.wps||''}</td><td>${esc(r.notes||'')}</td><td style="font-size:11px;">${esc(r.by||'')}</td></tr>`).join(''):'<tr><td colspan="5" style="text-align:center;color:#999;padding:16px;">No payments recorded yet</td></tr>';
+  // Check if fully paid
+  const loan=DB.loans[loanKey];
+  if(loan){
+    const totalPaid=Object.values(DB.repayments).filter(r=>r.loanKey===loanKey).reduce((s,r)=>s+parseFloat(r.amt||0),0);
+    if(totalPaid>=parseFloat(loan.amount||0)&&loan.status==='Active'){
+      set(ref(db,'loans/'+loanKey+'/status'),'Fully Repaid');
+    }
+  }
+}
+window.openRepayModal=function(){sv('rpMonth','');sv('rpAmt','');sv('rpNotes','');sv('rpWps','Yes');document.getElementById('repayModal').classList.add('open');};
+window.saveRepay=function(){
+  if(!activeLoanKey){alert('No loan selected');return;}
+  const data={loanKey:activeLoanKey,month:v('rpMonth'),amt:v('rpAmt'),wps:v('rpWps'),notes:v('rpNotes'),by:adminName,ts:Date.now()};
+  set(push(ref(db,'repayments')),data).then(()=>{
+    const loan=DB.loans[activeLoanKey];
+    logAudit('Loan Repayment',loan?.empName||'',`AED ${data.amt} — ${data.month}`);
+    closeModal('repayModal');showAlert('loan-alert','Payment recorded!');
   });
-  renderLeave(filtered);
 };
 
-window.openLeaveModal = function() {
-  ['lvEmp','lvFrom','lvTo','lvApproved','lvNotes'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('lvEditKey').value='';
-  document.getElementById('lvType').value='Annual Leave';
-  document.getElementById('lvStatus').value='Approved';
-  document.getElementById('leaveModal').classList.add('open');
-};
-
-window.editLeave = function(key) {
-  const l = allLeave[key];
-  document.getElementById('lvEmp').value=l.empName||'';
-  document.getElementById('lvType').value=l.type||'Annual Leave';
-  document.getElementById('lvStatus').value=l.status||'Approved';
-  document.getElementById('lvFrom').value=l.from||'';
-  document.getElementById('lvTo').value=l.to||'';
-  document.getElementById('lvApproved').value=l.approvedBy||'';
-  document.getElementById('lvNotes').value=l.notes||'';
-  document.getElementById('lvEditKey').value=key;
-  document.getElementById('leaveModal').classList.add('open');
-};
-
-window.saveLeave = function() {
-  const data = {empName:v('lvEmp'),type:v('lvType'),status:v('lvStatus'),from:v('lvFrom'),to:v('lvTo'),approvedBy:v('lvApproved'),notes:v('lvNotes'),ts:Date.now()};
-  if(!data.empName){alert('Employee name required');return;}
-  const key = document.getElementById('lvEditKey').value;
-  const op = key ? set(ref(db,'leave/'+key),data) : set(push(ref(db,'leave')),data);
-  op.then(()=>{logAudit(key?'Edit Leave':'Add Leave',data.empName+' — '+data.type);closeModal('leaveModal');showAlert('leave-alert','Leave record saved!');});
-};
-
-window.deleteLeave = function(key) {
-  if(!confirm('Delete this leave record?')) return;
-  remove(ref(db,'leave/'+key)).then(()=>{ logAudit('Delete Leave',key); showAlert('leave-alert','Leave record deleted.'); });
-};
-
-// ── SALARY ───────────────────────────────────────────────────────────────────
-function renderSalary(data) {
-  const rows = data || Object.entries(allSalary).sort((a,b)=>b[1].ts-a[1].ts);
-  const tbody = document.getElementById('salaryBody');
-  if(!rows.length){tbody.innerHTML='<tr><td colspan="8"><div class="empty-state"><div class="icon">💰</div><p>No records yet.</p></div></td></tr>';return;}
-  tbody.innerHTML = rows.map(([k,s])=>`<tr>
-    <td><strong>${s.empName||''}</strong></td><td>${s.type||''}</td>
-    <td>${s.date||''}</td><td>${s.prev||''}</td><td>${s.newVal||''}</td>
-    <td style="font-size:12px;">${s.reason||''}</td><td>${s.approvedBy||''}</td>
-    <td>
-      <button class="btn btn-sm btn-primary" onclick="editSalary('${k}')">Edit</button>
-      <button class="btn btn-sm btn-danger" onclick="deleteSalary('${k}')">Del</button>
-    </td>
+// ── ASSETS ────────────────────────────────────────────────────────────────────
+function renderAssets(data){
+  const rows=data||Object.entries(DB.assets).sort((a,b)=>b[1].ts-a[1].ts);
+  const tbody=document.getElementById('assetBody');
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="10"><div class="empty-state"><div class="icon">💼</div><p>No assets recorded.</p></div></td></tr>';return;}
+  tbody.innerHTML=rows.map(([k,a])=>`<tr>
+    <td><strong>${esc(a.empName||'')}</strong></td>
+    <td><span class="badge badge-pending">${esc(a.category||'')}</span></td>
+    <td>${esc(a.item||'')}</td><td style="font-size:11px;">${esc(a.serial||'')}</td>
+    <td>${fmt(a.issueDate)}</td><td>${esc(a.condition||'')}</td>
+    <td><span class="badge badge-${a.status==='Issued'?'active':a.status==='Returned'?'approved':'inactive'}">${esc(a.status||'')}</span></td>
+    <td>${fmt(a.returnDate)}</td>
+    <td style="font-size:11px;">${esc(a.notes||'')}</td>
+    <td><button class="btn btn-sm btn-primary" onclick="editAsset('${k}')">Edit</button>
+    <button class="btn btn-sm btn-danger" onclick="delAsset('${k}')">Del</button></td>
   </tr>`).join('');
 }
-
-window.filterSalary = function() {
-  const q = document.getElementById('salarySearch').value.toLowerCase();
-  const filtered = Object.entries(allSalary).filter(([k,s])=>!q||s.empName?.toLowerCase().includes(q));
-  renderSalary(filtered);
+window.filterAssets=function(){const q=v('assetSearch').toLowerCase(),cat=document.getElementById('assetCatF').value,status=document.getElementById('assetStatusF').value;renderAssets(Object.entries(DB.assets).filter(([k,a])=>(!q||[a.empName,a.item,a.serial].some(x=>x?.toLowerCase().includes(q)))&&(!cat||a.category===cat)&&(!status||a.status===status)));};
+window.openAssetModal=function(){['asEmp','asItem','asSerial','asDate','asReturn','asNotes'].forEach(id=>sv(id,''));sv('asKey','');sv('asCat','IT Equipment');sv('asCond','New');sv('asStatus','Issued');document.getElementById('assetModal').classList.add('open');};
+window.editAsset=function(key){const a=DB.assets[key];sv('asEmp',a.empName);sv('asCat',a.category);sv('asItem',a.item);sv('asSerial',a.serial);sv('asDate',a.issueDate);sv('asCond',a.condition);sv('asStatus',a.status);sv('asReturn',a.returnDate);sv('asNotes',a.notes);sv('asKey',key);document.getElementById('assetModal').classList.add('open');};
+window.saveAsset=function(){
+  const data={empName:v('asEmp'),category:v('asCat'),item:v('asItem'),serial:v('asSerial'),issueDate:v('asDate'),condition:v('asCond'),status:v('asStatus'),returnDate:v('asReturn'),notes:v('asNotes'),by:adminName,ts:Date.now()};
+  if(!data.empName||!data.item){alert('Employee name and item required');return;}
+  const key=v('asKey');const op=key?set(ref(db,'assets/'+key),data):set(push(ref(db,'assets')),data);
+  op.then(()=>{logAudit(key?'Edit Asset':'Issue Asset',data.empName,`${data.item} (${data.category})`);closeModal('assetModal');showAlert('asset-alert','Asset saved!');});
 };
+window.delAsset=function(key){if(!confirm('Delete?'))return;remove(ref(db,'assets/'+key)).then(()=>showAlert('asset-alert','Deleted.'));};
 
-window.openSalaryModal = function() {
-  ['slEmp','slDate','slPrev','slNew','slApproved','slReason'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('slEditKey').value='';
-  document.getElementById('salaryModal').classList.add('open');
-};
-
-window.editSalary = function(key) {
-  const s = allSalary[key];
-  document.getElementById('slEmp').value=s.empName||'';
-  document.getElementById('slType').value=s.type||'Salary Increment';
-  document.getElementById('slDate').value=s.date||'';
-  document.getElementById('slPrev').value=s.prev||'';
-  document.getElementById('slNew').value=s.newVal||'';
-  document.getElementById('slApproved').value=s.approvedBy||'';
-  document.getElementById('slReason').value=s.reason||'';
-  document.getElementById('slEditKey').value=key;
-  document.getElementById('salaryModal').classList.add('open');
-};
-
-window.saveSalary = function() {
-  const data={empName:v('slEmp'),type:v('slType'),date:v('slDate'),prev:v('slPrev'),newVal:v('slNew'),approvedBy:v('slApproved'),reason:v('slReason'),ts:Date.now()};
-  if(!data.empName){alert('Employee name required');return;}
-  const key=document.getElementById('slEditKey').value;
-  const op=key?set(ref(db,'salary/'+key),data):set(push(ref(db,'salary')),data);
-  op.then(()=>{logAudit(key?'Edit Salary':'Add Salary',data.empName+' — '+data.type);closeModal('salaryModal');showAlert('salary-alert','Record saved!');});
-};
-
-window.deleteSalary=function(key){
-  if(!confirm('Delete?'))return;
-  remove(ref(db,'salary/'+key)).then(()=>showAlert('salary-alert','Deleted.'));
-};
-
-// ── EXPIRY ALERTS ─────────────────────────────────────────────────────────────
-function renderExpiry() {
-  const days = parseInt(document.getElementById('expiryRange')?.value || 30);
-  const q = document.getElementById('expirySearch')?.value.toLowerCase() || '';
-  const docFilter = document.getElementById('expiryDocFilter')?.value || '';
-  const now = new Date(); const future = new Date(); future.setDate(future.getDate()+days);
-  const rows = [];
-  Object.values(allEmployees).forEach(e => {
-    const docs = [{f:'passExp',l:'Passport'},{f:'visaExp',l:'Visa'},{f:'eidExp',l:'Emirates ID'},{f:'labExp',l:'Labour Card'}];
-    docs.forEach(({f,l}) => {
-      if(!e[f]) return;
-      if(docFilter && l!==docFilter) return;
-      if(q && !e.name?.toLowerCase().includes(q)) return;
-      const d=new Date(e[f]); const daysLeft=Math.ceil((d-now)/86400000);
-      if(daysLeft<=days) rows.push({name:e.name,dept:e.dept,doc:l,date:e[f],daysLeft});
+// ── EXPIRY ────────────────────────────────────────────────────────────────────
+function renderExpiry(){
+  const days=parseInt(document.getElementById('expRange')?.value||30);
+  const q=v('expSearch').toLowerCase();
+  const docF=document.getElementById('expDocF')?.value||'';
+  const now=new Date();
+  const rows=[];
+  Object.values(DB.employees).forEach(e=>{
+    [{f:'passExp',l:'Passport'},{f:'visaExp',l:'Visa'},{f:'eidExp',l:'Emirates ID'},{f:'labExp',l:'Labour Card'}].forEach(({f,l})=>{
+      if(!e[f])return;
+      if(docF&&l!==docF)return;
+      if(q&&!e.name?.toLowerCase().includes(q))return;
+      const dl=daysLeft(e[f]);
+      if(dl!==null&&dl<=days)rows.push({name:e.name,dept:e.dept,entity:e.entity,doc:l,date:e[f],days:dl});
     });
   });
-  rows.sort((a,b)=>a.daysLeft-b.daysLeft);
-  const tbody = document.getElementById('expiryBody');
-  if(!rows.length){tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><p>No expiries in this period.</p></div></td></tr>';return;}
+  rows.sort((a,b)=>a.days-b.days);
+  const tbody=document.getElementById('expBody');
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><p>No expiries in this period.</p></div></td></tr>';return;}
   tbody.innerHTML=rows.map(r=>`<tr>
-    <td><strong>${r.name}</strong></td><td>${r.dept||''}</td><td>${r.doc}</td><td>${r.date}</td>
-    <td class="${r.daysLeft<0?'exp-red':r.daysLeft<=30?'exp-red':r.daysLeft<=60?'exp-amber':'exp-green'}">${r.daysLeft<0?'EXPIRED':''+r.daysLeft+' days'}</td>
-    <td><span class="badge ${r.daysLeft<0?'badge-inactive':r.daysLeft<=30?'badge-pending':'badge-active'}">${r.daysLeft<0?'Expired':r.daysLeft<=30?'Urgent':'OK'}</span></td>
+    <td><strong>${esc(r.name)}</strong></td><td>${esc(r.dept||'')}</td><td style="font-size:11px;">${esc(r.entity||'')}</td>
+    <td>${esc(r.doc)}</td><td>${fmt(r.date)}</td>
+    <td class="${expClass(r.days)}">${r.days<0?'EXPIRED':r.days+' days'}</td>
+    <td><span class="badge badge-${r.days<0?'inactive':r.days<=30?'pending':'approved'}">${r.days<0?'Expired':r.days<=30?'Urgent':'OK'}</span></td>
   </tr>`).join('');
 }
-window.filterExpiry=renderExpiry;
+window.renderExpiry=renderExpiry;
 
-// ── HOLIDAYS ─────────────────────────────────────────────────────────────────
-window.saveHoliday = function() {
+// ── HOLIDAYS ──────────────────────────────────────────────────────────────────
+window.saveHoliday=function(){
   const data={name:v('holName'),date:v('holDate'),type:v('holType'),ts:Date.now()};
   if(!data.name||!data.date){alert('Name and date required');return;}
-  set(push(ref(db,'holidays')),data).then(()=>{logAudit('Add Holiday',data.name);showAlert('hol-alert','Holiday saved!');document.getElementById('holName').value='';document.getElementById('holDate').value='';});
+  set(push(ref(db,'holidays')),data).then(()=>{logAudit('Add Holiday',data.name,data.date);showAlert('hol-alert','Holiday saved!');sv('holName','');sv('holDate','');});
 };
 function renderHolidays(){
-  const list=Object.entries(allHolidays).sort((a,b)=>a[1].date>b[1].date?1:-1);
-  document.getElementById('holList').innerHTML=list.length?list.map(([k,h])=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;">
-    <div><strong style="font-size:13px;">${h.name}</strong><br><span style="font-size:11px;color:#888;">${h.date} · ${h.type}</span></div>
-    <button class="btn btn-sm btn-danger" onclick="deleteHoliday('${k}')">✕</button>
-  </div>`).join(''):'<div class="empty-state"><p>No holidays added yet.</p></div>';
+  const list=Object.entries(DB.holidays).sort((a,b)=>a[1].date>b[1].date?1:-1);
+  document.getElementById('holList').innerHTML=list.length?list.map(([k,h])=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f0f0f0;">
+    <div><strong style="font-size:13px;">${esc(h.name)}</strong><br><span style="font-size:11px;color:#888;">${h.date} · ${esc(h.type)}</span></div>
+    <button class="btn btn-sm btn-danger" onclick="remove(ref(window._db,'holidays/${k}'))">✕</button>
+  </div>`).join(''):'<div class="empty-state"><p>No holidays added.</p></div>';
+  window._db=db;
 }
-window.deleteHoliday=function(key){remove(ref(db,'holidays/'+key)).then(()=>logAudit('Delete Holiday',key));};
 
 // ── ANNOUNCEMENTS ─────────────────────────────────────────────────────────────
-window.saveAnnouncement=function(){
-  const data={title:v('annTitle'),message:v('annMsg'),category:v('annCat'),ts:Date.now(),by:ADMINS[currentAdmin].name};
+window.saveAnn=function(){
+  const data={title:v('annTitle'),message:v('annMsg'),category:v('annCat'),by:adminName,ts:Date.now()};
   if(!data.title){alert('Title required');return;}
-  set(push(ref(db,'announcements')),data).then(()=>{logAudit('Publish Announcement',data.title);showAlert('ann-alert','Published!');document.getElementById('annTitle').value='';document.getElementById('annMsg').value='';});
+  set(push(ref(db,'announcements')),data).then(()=>{logAudit('Publish Announcement',data.title,data.category);showAlert('ann-alert','Published!');sv('annTitle','');sv('annMsg','');});
 };
-function renderAnnouncements(){
-  const list=Object.entries(allAnnouncements).sort((a,b)=>b[1].ts-a[1].ts);
-  document.getElementById('annList').innerHTML=list.length?list.map(([k,a])=>`<div style="padding:10px 0;border-bottom:1px solid #f0f0f0;">
-    <div style="display:flex;justify-content:space-between;"><strong style="font-size:13px;">${a.title}</strong><button class="btn btn-sm btn-danger" onclick="deleteAnn('${k}')">✕</button></div>
-    <p style="font-size:12px;color:#555;margin:4px 0;">${a.message||''}</p>
-    <span style="font-size:11px;color:#888;">${a.category} · ${a.by} · ${new Date(a.ts).toLocaleDateString()}</span>
-  </div>`).join(''):'<div class="empty-state"><p>No announcements yet.</p></div>';
+function renderAnn(){
+  const list=Object.entries(DB.announcements).sort((a,b)=>b[1].ts-a[1].ts);
+  document.getElementById('annList').innerHTML=list.length?list.map(([k,a])=>`<div style="padding:9px 0;border-bottom:1px solid #f0f0f0;">
+    <div style="display:flex;justify-content:space-between;"><strong style="font-size:13px;">${esc(a.title)}</strong><button class="btn btn-sm btn-danger" onclick="remove(ref(window._db,'announcements/${k}'));logAudit('Delete Announcement','${esc(a.title)}','')">✕</button></div>
+    <p style="font-size:12px;color:#555;margin:3px 0;">${esc(a.message||'')}</p>
+    <span style="font-size:11px;color:#888;">${esc(a.category)} · ${esc(a.by)} · ${new Date(a.ts).toLocaleDateString()}</span>
+  </div>`).join(''):'<div class="empty-state"><p>No announcements.</p></div>';
+  window._db=db; window.logAudit=logAudit;
 }
-window.deleteAnn=function(key){if(!confirm('Delete?'))return;remove(ref(db,'announcements/'+key)).then(()=>logAudit('Delete Announcement',key));};
 
 // ── BIRTHDAYS ─────────────────────────────────────────────────────────────────
 function renderBirthdays(){
-  const now=new Date();const emps=Object.values(allEmployees);
-  const thisMonth=emps.filter(e=>e.dob&&new Date(e.dob).getMonth()===now.getMonth());
+  const now=new Date(),emps=Object.values(DB.employees);
+  const m=now.getMonth();
+  const thisMonth=emps.filter(e=>e.dob&&new Date(e.dob).getMonth()===m);
   const next30=new Date();next30.setDate(next30.getDate()+30);
-  const upcoming=emps.filter(e=>{
-    if(!e.dob)return false;
-    const bd=new Date(e.dob);const thisYear=new Date(now.getFullYear(),bd.getMonth(),bd.getDate());
-    return thisYear>now&&thisYear<=next30;
-  });
-  document.getElementById('bdayList').innerHTML=thisMonth.length?thisMonth.map(e=>`<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #f0f0f0;">
-    <span style="font-size:24px;">🎂</span><div><strong>${e.name}</strong><br><span style="font-size:12px;color:#888;">${e.dept||''} · ${new Date(e.dob).toLocaleDateString('en-AE',{day:'numeric',month:'long'})}</span></div>
-  </div>`).join(''):'<div class="empty-state"><p>No birthdays this month.</p></div>';
-  document.getElementById('bdayUpcoming').innerHTML=upcoming.length?upcoming.map(e=>`<div style="padding:8px 0;border-bottom:1px solid #f0f0f0;"><strong>${e.name}</strong> · ${new Date(e.dob).toLocaleDateString('en-AE',{day:'numeric',month:'long'})}</div>`).join(''):'<div class="empty-state"><p>No upcoming birthdays in next 30 days.</p></div>';
+  const upcoming=emps.filter(e=>{if(!e.dob)return false;const bd=new Date(e.dob);const ty=new Date(now.getFullYear(),bd.getMonth(),bd.getDate());return ty>now&&ty<=next30;});
+  document.getElementById('bdayList').innerHTML=thisMonth.length?thisMonth.map(e=>`<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #f0f0f0;"><span style="font-size:22px;">🎂</span><div><strong>${esc(e.name)}</strong><br><span style="font-size:12px;color:#888;">${esc(e.dept||'')} · ${new Date(e.dob).toLocaleDateString('en-AE',{day:'numeric',month:'long'})}</span></div></div>`).join(''):'<div class="empty-state"><p>None this month.</p></div>';
+  document.getElementById('bdayUpcoming').innerHTML=upcoming.length?upcoming.map(e=>`<div style="padding:7px 0;border-bottom:1px solid #f0f0f0;"><strong>${esc(e.name)}</strong> · ${new Date(e.dob).toLocaleDateString('en-AE',{day:'numeric',month:'long'})}</div>`).join(''):'<div class="empty-state"><p>None in next 30 days.</p></div>';
 }
 
-// ── POLICIES ─────────────────────────────────────────────────────────────────
-window.savePolicy=function(){
+// ── POLICIES ──────────────────────────────────────────────────────────────────
+window.savePol=function(){
   const data={name:v('polName'),category:v('polCat'),content:v('polContent'),date:v('polDate'),ts:Date.now()};
   if(!data.name){alert('Policy name required');return;}
-  set(push(ref(db,'policies')),data).then(()=>{logAudit('Add Policy',data.name);showAlert('pol-alert','Policy saved!');document.getElementById('polName').value='';document.getElementById('polContent').value='';});
+  set(push(ref(db,'policies')),data).then(()=>{logAudit('Add Policy',data.name,data.category);showAlert('pol-alert','Saved!');sv('polName','');sv('polContent','');});
 };
 function renderPolicies(){
-  const list=Object.entries(allPolicies).sort((a,b)=>b[1].ts-a[1].ts);
-  document.getElementById('polList').innerHTML=list.length?list.map(([k,p])=>`<div style="padding:10px 0;border-bottom:1px solid #f0f0f0;">
-    <div style="display:flex;justify-content:space-between;"><strong style="font-size:13px;">${p.name}</strong><button class="btn btn-sm btn-danger" onclick="deletePol('${k}')">✕</button></div>
-    <span style="font-size:11px;color:#888;">${p.category} · Effective: ${p.date||'—'}</span>
-  </div>`).join(''):'<div class="empty-state"><p>No policies added yet.</p></div>';
+  const list=Object.entries(DB.policies).sort((a,b)=>b[1].ts-a[1].ts);
+  document.getElementById('polList').innerHTML=list.length?list.map(([k,p])=>`<div style="padding:9px 0;border-bottom:1px solid #f0f0f0;">
+    <div style="display:flex;justify-content:space-between;"><strong style="font-size:13px;">${esc(p.name)}</strong><button class="btn btn-sm btn-danger" onclick="remove(ref(window._db,'policies/${k}'))">✕</button></div>
+    <span style="font-size:11px;color:#888;">${esc(p.category)} · Effective: ${p.date||'—'}</span>
+  </div>`).join(''):'<div class="empty-state"><p>No policies yet.</p></div>';
+  window._db=db;
 }
-window.deletePol=function(key){if(!confirm('Delete?'))return;remove(ref(db,'policies/'+key)).then(()=>logAudit('Delete Policy',key));};
 
-// ── DOC GENERATOR ────────────────────────────────────────────────────────────
-const docTemplates = {
-  offer:{title:'Offer Letter',fields:['Candidate Name','Designation','Department','Start Date','Basic Salary (AED)','Entity']},
-  employment:{title:'Employment Certificate',fields:['Employee Name','Employee ID','Designation','Department','Join Date','Entity']},
-  salary:{title:'Salary Certificate',fields:['Employee Name','Employee ID','Designation','Basic Salary (AED)','Total Salary (AED)','Entity']},
-  experience:{title:'Experience Letter',fields:['Employee Name','Employee ID','Designation','Join Date','Last Working Day','Entity']},
-  noc:{title:'NOC Letter',fields:['Employee Name','Employee ID','Purpose of NOC','Entity']},
-  warning:{title:'Warning Letter',fields:['Employee Name','Employee ID','Infraction Description','Warning Level','Entity']},
-  termination:{title:'Termination Letter',fields:['Employee Name','Employee ID','Termination Date','Notice Period','Reason','Entity']},
-  promotion:{title:'Promotion Letter',fields:['Employee Name','Employee ID','Old Designation','New Designation','Effective Date','New Salary (AED)','Entity']},
-};
-
+// ── DOC GENERATOR ─────────────────────────────────────────────────────────────
+const docT={offer:{title:'Offer Letter',fields:['Candidate Name','Designation','Department','Start Date','Basic Salary (AED)','Entity']},employment:{title:'Employment Certificate',fields:['Employee Name','Employee ID','Designation','Department','Join Date','Entity']},salary:{title:'Salary Certificate',fields:['Employee Name','Employee ID','Designation','Basic Salary (AED)','Total Salary (AED)','Entity']},experience:{title:'Experience Letter',fields:['Employee Name','Employee ID','Designation','Join Date','Last Working Day','Entity']},noc:{title:'NOC Letter',fields:['Employee Name','Employee ID','Purpose of NOC','Entity']},warning:{title:'Warning Letter',fields:['Employee Name','Employee ID','Infraction Description','Warning Level','Entity']},termination:{title:'Termination Letter',fields:['Employee Name','Employee ID','Termination Date','Notice Period','Reason','Entity']},promotion:{title:'Promotion Letter',fields:['Employee Name','Employee ID','Old Designation','New Designation','Effective Date','New Salary (AED)','Entity']}};
 window.updateDocForm=function(){
-  const type=v('docType');
-  if(!type){document.getElementById('docFormArea').style.display='none';return;}
-  const t=docTemplates[type];
-  document.getElementById('docFormTitle').textContent=t.title;
+  const type=v('docType');if(!type){document.getElementById('docFormArea').style.display='none';return;}
+  const t=docT[type];document.getElementById('docFormTitle').textContent=t.title;
   document.getElementById('docFormFields').innerHTML='<div class="form-grid">'+t.fields.map(f=>`<div class="form-group"><label>${f}</label><input type="text" id="df_${f.replace(/\W/g,'_')}" placeholder="${f}"></div>`).join('')+'</div>';
-  document.getElementById('docFormArea').style.display='block';
-  document.getElementById('docOutput').style.display='none';
+  document.getElementById('docFormArea').style.display='block';document.getElementById('docOutput').style.display='none';
 };
-
 window.generateDoc=function(){
-  const type=v('docType');const t=docTemplates[type];
-  const vals={};t.fields.forEach(f=>{vals[f]=document.getElementById('df_'+f.replace(/\W/g,'_'))?.value||'___';});
+  const type=v('docType');const t=docT[type];const vals={};
+  t.fields.forEach(f=>{vals[f]=document.getElementById('df_'+f.replace(/\W/g,'_'))?.value||'___';});
   const today=new Date().toLocaleDateString('en-AE',{day:'numeric',month:'long',year:'numeric'});
   const entity=vals['Entity']||'CK Architecture Interiors LLC';
-  let doc=`${entity}\nDubai, United Arab Emirates\n\nDate: ${today}\n\nRef: HR/${type.toUpperCase()}/${Math.floor(Math.random()*9000)+1000}\n\n`;
-  if(type==='offer') doc+=`OFFER OF EMPLOYMENT\n\nDear ${vals['Candidate Name']},\n\nWe are pleased to offer you the position of ${vals['Designation']} in the ${vals['Department']} department at ${entity}.\n\nStart Date: ${vals['Start Date']}\nBasic Salary: AED ${vals['Basic Salary (AED)']} per month\n\nThis offer is subject to successful completion of document verification and medical fitness.\n\nPlease confirm your acceptance by signing below.\n\nYours sincerely,\n\nDev Mandrekar\nHR Director\n${entity}`;
-  else if(type==='employment') doc+=`TO WHOM IT MAY CONCERN\n\nThis is to certify that ${vals['Employee Name']} (ID: ${vals['Employee ID']}) is employed with ${entity} as ${vals['Designation']} in the ${vals['Department']} department since ${vals['Join Date']}.\n\nThis certificate is issued on request of the employee for whatever purpose it may serve.\n\nYours sincerely,\n\nDev Mandrekar\nHR Director\n${entity}`;
-  else if(type==='salary') doc+=`SALARY CERTIFICATE\n\nThis is to certify that ${vals['Employee Name']} (ID: ${vals['Employee ID']}) is employed with ${entity} as ${vals['Designation']}.\n\nBasic Salary: AED ${vals['Basic Salary (AED)']} per month\nTotal Monthly Salary: AED ${vals['Total Salary (AED)']} per month\n\nThis certificate is issued on request of the employee.\n\nYours sincerely,\n\nDev Mandrekar\nHR Director\n${entity}`;
-  else if(type==='experience') doc+=`EXPERIENCE LETTER\n\nThis is to certify that ${vals['Employee Name']} (ID: ${vals['Employee ID']}) worked with ${entity} as ${vals['Designation']} from ${vals['Join Date']} to ${vals['Last Working Day']}.\n\nDuring their tenure, ${vals['Employee Name']} demonstrated professionalism and dedication. We wish them success in their future endeavours.\n\nYours sincerely,\n\nDev Mandrekar\nHR Director\n${entity}`;
-  else if(type==='noc') doc+=`NO OBJECTION CERTIFICATE\n\nThis is to certify that ${entity} has no objection to ${vals['Employee Name']} (ID: ${vals['Employee ID']}) for the purpose of: ${vals['Purpose of NOC']}.\n\nThis certificate is issued in good faith.\n\nYours sincerely,\n\nDev Mandrekar\nHR Director\n${entity}`;
-  else if(type==='warning') doc+=`WARNING LETTER\n\nDear ${vals['Employee Name']} (ID: ${vals['Employee ID']}),\n\nThis letter serves as a formal ${vals['Warning Level']} warning regarding the following:\n\n${vals['Infraction Description']}\n\nYou are advised to immediately rectify your conduct. Failure to do so may result in further disciplinary action including termination.\n\nEmployee Acknowledgement: _________________ Date: _________\n\nYours sincerely,\n\nDev Mandrekar\nHR Director\n${entity}`;
-  else if(type==='termination') doc+=`TERMINATION LETTER\n\nDear ${vals['Employee Name']} (ID: ${vals['Employee ID']}),\n\nWe regret to inform you that your employment with ${entity} is terminated effective ${vals['Termination Date']}.\n\nNotice Period: ${vals['Notice Period']}\nReason: ${vals['Reason']}\n\nPlease ensure handover of all company property and documents.\n\nYours sincerely,\n\nDev Mandrekar\nHR Director\n${entity}`;
-  else if(type==='promotion') doc+=`PROMOTION LETTER\n\nDear ${vals['Employee Name']} (ID: ${vals['Employee ID']}),\n\nWe are pleased to inform you of your promotion from ${vals['Old Designation']} to ${vals['New Designation']}, effective ${vals['Effective Date']}.\n\nNew Salary: AED ${vals['New Salary (AED)']} per month\n\nWe congratulate you on this achievement and look forward to your continued contribution.\n\nYours sincerely,\n\nDev Mandrekar\nHR Director\n${entity}`;
-  
+  let doc=`${entity}\nDubai, United Arab Emirates\n\nDate: ${today}\nRef: HR/${type.toUpperCase()}/${Math.floor(Math.random()*9000)+1000}\n\n`;
+  const n=vals['Employee Name']||vals['Candidate Name']||'___';const id=vals['Employee ID']||'';
+  if(type==='offer')doc+=`OFFER OF EMPLOYMENT\n\nDear ${n},\n\nWe are pleased to offer you the position of ${vals['Designation']} in the ${vals['Department']} department.\n\nStart Date: ${vals['Start Date']}\nBasic Salary: AED ${vals['Basic Salary (AED)']} per month\n\nThis offer is conditional upon successful document verification.\n\nYours sincerely,\n\nDev Mandrekar\nHR Director\n${entity}`;
+  else if(type==='employment')doc+=`TO WHOM IT MAY CONCERN\n\nThis certifies that ${n} (ID: ${id}) is employed as ${vals['Designation']} in the ${vals['Department']} department since ${vals['Join Date']}.\n\nIssued on request for whatever purpose it may serve.\n\nYours sincerely,\n\nDev Mandrekar\nHR Director\n${entity}`;
+  else if(type==='salary')doc+=`SALARY CERTIFICATE\n\nThis certifies that ${n} (ID: ${id}) is employed as ${vals['Designation']}.\n\nBasic Salary: AED ${vals['Basic Salary (AED)']} per month\nTotal Monthly Salary: AED ${vals['Total Salary (AED)']} per month\n\nYours sincerely,\n\nDev Mandrekar\nHR Director\n${entity}`;
+  else if(type==='experience')doc+=`EXPERIENCE LETTER\n\nThis certifies that ${n} (ID: ${id}) worked as ${vals['Designation']} from ${vals['Join Date']} to ${vals['Last Working Day']}.\n\nWe wish them every success in their future career.\n\nYours sincerely,\n\nDev Mandrekar\nHR Director\n${entity}`;
+  else if(type==='noc')doc+=`NO OBJECTION CERTIFICATE\n\n${entity} has no objection to ${n} (ID: ${id}) for: ${vals['Purpose of NOC']}.\n\nYours sincerely,\n\nDev Mandrekar\nHR Director\n${entity}`;
+  else if(type==='warning')doc+=`WARNING LETTER\n\nDear ${n} (ID: ${id}),\n\nThis is a formal ${vals['Warning Level']} warning regarding:\n\n${vals['Infraction Description']}\n\nFurther misconduct may result in disciplinary action including termination.\n\nEmployee Signature: _________________ Date: _________\n\nYours sincerely,\n\nDev Mandrekar\nHR Director\n${entity}`;
+  else if(type==='termination')doc+=`TERMINATION LETTER\n\nDear ${n} (ID: ${id}),\n\nYour employment is terminated effective ${vals['Termination Date']}.\nNotice Period: ${vals['Notice Period']}\nReason: ${vals['Reason']}\n\nPlease hand over all company property and documents.\n\nYours sincerely,\n\nDev Mandrekar\nHR Director\n${entity}`;
+  else if(type==='promotion')doc+=`PROMOTION LETTER\n\nDear ${n} (ID: ${id}),\n\nYou are promoted from ${vals['Old Designation']} to ${vals['New Designation']} effective ${vals['Effective Date']}.\nNew Salary: AED ${vals['New Salary (AED)']} per month.\n\nCongratulations.\n\nYours sincerely,\n\nDev Mandrekar\nHR Director\n${entity}`;
   document.getElementById('docContent').textContent=doc;
   document.getElementById('docOutput').style.display='block';
-  logAudit('Generate Document',t.title+' for '+(vals['Employee Name']||vals['Candidate Name']||'N/A'));
+  logAudit('Generate Document',t.title,n);
 };
+window.printDoc=function(){const w=window.open('','_blank');w.document.write(`<html><body><pre style="font-family:Arial;font-size:13px;line-height:1.8;padding:40px;">${document.getElementById('docContent').textContent}</pre></body></html>`);w.print();};
 
-window.printDoc=function(){
-  const content=document.getElementById('docContent').textContent;
-  const w=window.open('','_blank');
-  w.document.write(`<html><body><pre style="font-family:Arial;font-size:13px;line-height:1.8;padding:40px;">${content}</pre></body></html>`);
-  w.print();
-};
+// ── REPORTS & EXCEL DOWNLOADS ─────────────────────────────────────────────────
+window.runReport=function(type){
+  const emps=Object.values(DB.employees);
+  const now=new Date();
+  let ws_data=[], filename='', sheetname='';
 
-// ── REPORTS ──────────────────────────────────────────────────────────────────
-window.generateReport=function(type){
-  const emps=Object.values(allEmployees);
-  const leaves=Object.values(allLeave);
-  let title='',html='';
   if(type==='headcount'){
-    title='Headcount Report';
-    const byDept={};const byEntity={};const byNat={};
+    filename='CK_Headcount_Report';sheetname='Headcount';
+    ws_data=[['Employee ID','Full Name','Department','Designation','Entity','Nationality','Gender','Grade','Employment Type','Join Date','Status','Basic Salary (AED)','Gross Salary (AED)','Site / Project']];
+    emps.filter(e=>e.status==='Active'||!e.status).forEach(e=>ws_data.push([e.empId,e.name,e.dept,e.desig,e.entity,e.nationality,e.gender,e.grade,e.contract,e.join,e.status||'Active',e.basicSalary,e.grossSalary,e.site]));
+  } else if(type==='gratuity'){
+    filename='CK_Gratuity_Report';sheetname='Gratuity';
+    ws_data=[['Employee ID','Full Name','Department','Entity','Join Date','Years of Service','Gratuity Basis (AED/day)','Calculated EOSB (AED)','Status']];
     emps.forEach(e=>{
-      byDept[e.dept||'Unknown']=(byDept[e.dept||'Unknown']||0)+1;
-      byEntity[e.entity||'Unknown']=(byEntity[e.entity||'Unknown']||0)+1;
-      byNat[e.nationality||'Unknown']=(byNat[e.nationality||'Unknown']||0)+1;
+      if(!e.join)return;
+      const years=(now-new Date(e.join))/(365.25*86400000);
+      const basic=parseFloat(e.basicSalary||0);
+      const dailyRate=basic*12/365;
+      let eosb=0;
+      if(years<=5)eosb=dailyRate*21*years;
+      else eosb=dailyRate*21*5+dailyRate*30*(years-5);
+      ws_data.push([e.empId,e.name,e.dept,e.entity,e.join,years.toFixed(2),dailyRate.toFixed(2),eosb.toFixed(2),e.status||'Active']);
     });
-    html=`<p><strong>Total Employees: ${emps.length}</strong></p><hr style="margin:12px 0">
-    <h4 style="margin-bottom:8px;">By Entity</h4>${Object.entries(byEntity).map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f0f0;"><span>${k}</span><strong>${v}</strong></div>`).join('')}
-    <h4 style="margin:12px 0 8px;">By Department</h4>${Object.entries(byDept).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f0f0;"><span>${k}</span><strong>${v}</strong></div>`).join('')}`;
-  } else if(type==='leave'){
-    title='Leave Summary';
-    const byType={};leaves.forEach(l=>{byType[l.type||'Other']=(byType[l.type||'Other']||0)+1;});
-    html=`<p><strong>Total Leave Records: ${leaves.length}</strong></p><hr style="margin:12px 0"><h4 style="margin-bottom:8px;">By Leave Type</h4>${Object.entries(byType).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f0f0;"><span>${k}</span><strong>${v}</strong></div>`).join('')}`;
-  } else if(type==='nationality'){
-    title='Nationality Mix';
-    const byNat={};emps.forEach(e=>{byNat[e.nationality||'Unknown']=(byNat[e.nationality||'Unknown']||0)+1;});
-    html=Object.entries(byNat).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;"><span>${k}</span><div><strong>${v}</strong> <span style="color:#888;font-size:12px;">(${Math.round(v/emps.length*100)}%)</span></div></div>`).join('');
   } else if(type==='expiry'){
-    title='Document Expiry Report';
-    const now=new Date();const rows=[];
-    emps.forEach(e=>[{f:'passExp',l:'Passport'},{f:'visaExp',l:'Visa'},{f:'eidExp',l:'Emirates ID'},{f:'labExp',l:'Labour Card'}].forEach(({f,l})=>{
-      if(e[f]){const d=new Date(e[f]);const days=Math.ceil((d-now)/86400000);if(days<=90)rows.push({name:e.name,doc:l,days,date:e[f]});}
-    }));
-    rows.sort((a,b)=>a.days-b.days);
-    html=rows.length?rows.map(r=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;"><span>${r.name} — ${r.doc}</span><span class="${r.days<0?'exp-red':r.days<=30?'exp-red':r.days<=60?'exp-amber':'exp-green'}">${r.days<0?'EXPIRED':r.days+' days'}</span></div>`).join(''):'<p style="color:#888;">No expiries in next 90 days.</p>';
+    filename='CK_Document_Expiry_Report';sheetname='Expiry';
+    ws_data=[['Employee ID','Full Name','Department','Entity','Document','Expiry Date','Days Left','Status']];
+    emps.forEach(e=>{
+      [{f:'passExp',l:'Passport'},{f:'visaExp',l:'Visa'},{f:'eidExp',l:'Emirates ID'},{f:'labExp',l:'Labour Card'}].forEach(({f,l})=>{
+        if(!e[f])return;
+        const dl=daysLeft(e[f]);
+        ws_data.push([e.empId,e.name,e.dept,e.entity,l,e[f],dl,dl<0?'EXPIRED':dl<=30?'Urgent':dl<=60?'Warning':'OK']);
+      });
+    });
+    ws_data.sort((a,b)=>(a[6]||0)-(b[6]||0));
+  } else if(type==='leavers'){
+    filename='CK_Leavers_Turnover_Report';sheetname='Leavers';
+    ws_data=[['Employee ID','Full Name','Department','Entity','Join Date','Last Working Day','Exit Type','Reason','Rehire Eligible']];
+    emps.filter(e=>e.exitDate||e.status==='Inactive').forEach(e=>ws_data.push([e.empId,e.name,e.dept,e.entity,e.join,e.exitDate,e.exitType,e.exitReason,e.rehire]));
+    ws_data.push([]);ws_data.push(['TURNOVER ANALYSIS']);
+    const active=emps.filter(e=>e.status==='Active'||!e.status).length;
+    const leavers=emps.filter(e=>e.exitDate||e.status==='Inactive').length;
+    ws_data.push(['Total Headcount',emps.length]);ws_data.push(['Active',active]);ws_data.push(['Leavers',leavers]);ws_data.push(['Turnover %',emps.length?(leavers/emps.length*100).toFixed(1)+'%':'—']);
+  } else if(type==='newhires'){
+    filename='CK_New_Hires_Report';sheetname='New Hires';
+    ws_data=[['Employee ID','Full Name','Department','Designation','Entity','Nationality','Join Date','Grade']];
+    emps.filter(e=>e.join).sort((a,b)=>b.join>a.join?1:-1).forEach(e=>ws_data.push([e.empId,e.name,e.dept,e.desig,e.entity,e.nationality,e.join,e.grade]));
+  } else if(type==='leave'){
+    filename='CK_Leave_Summary_Report';sheetname='Leave';
+    ws_data=[['Employee','Leave Type','From','To','Days','Status','Approved By','Notes']];
+    Object.values(DB.leave).forEach(l=>{const d=l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:'';ws_data.push([l.empName,l.type,l.from,l.to,d,l.status,l.approvedBy,l.notes]);});
+  } else if(type==='loans'){
+    filename='CK_Loan_Report';sheetname='Loans';
+    ws_data=[['Employee','Loan Amount (AED)','Purpose','Date Approved','Monthly Deduction','Total Paid','Outstanding','Recovery %','Status','Approved By']];
+    Object.entries(DB.loans).forEach(([k,l])=>{
+      const paid=Object.values(DB.repayments).filter(r=>r.loanKey===k).reduce((s,r)=>s+parseFloat(r.amt||0),0);
+      const outstanding=Math.max(0,parseFloat(l.amount||0)-paid);
+      const pct=l.amount?Math.round(paid/l.amount*100):0;
+      ws_data.push([l.empName,l.amount,l.purpose,l.dateApproved,l.monthlyDeduct,paid.toFixed(2),outstanding.toFixed(2),pct+'%',l.status,l.approvedBy]);
+    });
+  } else if(type==='assets'){
+    filename='CK_Asset_Register_Report';sheetname='Assets';
+    ws_data=[['Employee','Category','Item','Serial/Batch','Issue Date','Condition','Status','Return Date','Notes','Issued By']];
+    Object.values(DB.assets).forEach(a=>ws_data.push([a.empName,a.category,a.item,a.serial,a.issueDate,a.condition,a.status,a.returnDate,a.notes,a.by]));
   } else if(type==='salary'){
-    title='Salary & Promotion History';
-    const sal=Object.values(allSalary).sort((a,b)=>b.ts-a.ts);
-    html=sal.length?sal.map(s=>`<div style="padding:8px 0;border-bottom:1px solid #f0f0f0;"><strong>${s.empName}</strong> — ${s.type}<br><span style="font-size:12px;color:#888;">${s.prev} → ${s.newVal} · ${s.date} · Approved by ${s.approvedBy}</span></div>`).join(''):'<p style="color:#888;">No records.</p>';
-  } else if(type==='audit'){
-    title='Audit Log — Last 30 Days';
-    const cutoff=Date.now()-30*86400000;
-    const logs=Object.values(allAudit).filter(a=>new Date(a.timestamp).getTime()>cutoff).sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
-    html=logs.length?logs.map(a=>`<div style="padding:7px 0;border-bottom:1px solid #f0f0f0;"><strong>${a.admin}</strong>: ${a.action}<br><span style="font-size:12px;color:#888;">${a.details} · ${new Date(a.timestamp).toLocaleString()}</span></div>`).join(''):'<p style="color:#888;">No activity in last 30 days.</p>';
+    filename='CK_Salary_Changes_Report';sheetname='Salary Changes';
+    ws_data=[['Employee','Type','Effective Date','Previous (AED)','New Amount (AED)','Reason','Approved By']];
+    Object.values(DB.salary).sort((a,b)=>b.ts-a.ts).forEach(s=>ws_data.push([s.empName,s.type,s.date,s.prev,s.newVal,s.reason,s.approvedBy]));
   }
-  document.getElementById('reportTitle').textContent=title;
-  document.getElementById('reportContent').innerHTML=html;
-  document.getElementById('reportOutput').style.display='block';
+
+  // Build and download Excel
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(ws_data);
+  // Style header row width
+  if(ws_data[0])ws['!cols']=ws_data[0].map(()=>({wch:20}));
+  XLSX.utils.book_append_sheet(wb,ws,sheetname);
+  XLSX.writeFile(wb,`${filename}_${new Date().toISOString().split('T')[0]}.xlsx`);
+  logAudit('Download Report',filename,'Excel export');
 };
 
-// ── AUDIT ────────────────────────────────────────────────────────────────────
+// ── AUDIT LOG ─────────────────────────────────────────────────────────────────
 function renderAudit(){
-  const rows=Object.values(allAudit).sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).slice(0,50);
+  const adminF=document.getElementById('auditAdminF')?.value||'';
+  const rows=Object.values(DB.audit).filter(a=>!adminF||a.admin===adminF).sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).slice(0,100);
   document.getElementById('auditBody').innerHTML=rows.length?rows.map(a=>`<tr>
-    <td style="font-size:12px;">${new Date(a.timestamp).toLocaleString()}</td>
-    <td><strong>${a.admin}</strong></td><td>${a.action}</td><td style="font-size:12px;color:#555;">${a.details}</td>
-  </tr>`).join(''):'<tr><td colspan="4"><div class="empty-state"><p>No audit records yet.</p></div></td></tr>';
+    <td style="font-size:11px;">${new Date(a.timestamp).toLocaleString()}</td>
+    <td><strong style="color:#2563A8;">${esc(a.admin)}</strong></td>
+    <td>${esc(a.action)}</td>
+    <td>${esc(a.record||'')}</td>
+    <td style="font-size:11px;color:#666;">${esc(a.detail||'')}</td>
+  </tr>`).join(''):'<tr><td colspan="5"><div class="empty-state"><p>No audit records yet.</p></div></td></tr>';
 }
+window.renderAudit=renderAudit;
 
-// ── UTILITIES ─────────────────────────────────────────────────────────────────
+// ── MODALS ────────────────────────────────────────────────────────────────────
 window.closeModal=function(id){document.getElementById(id).classList.remove('open');};
-window.openLeaveModal=window.openLeaveModal;
-window.openSalaryModal=window.openSalaryModal;
-
-function v(id){const el=document.getElementById(id);return el?el.value.trim():'';}
-function showAlert(id,msg){const el=document.getElementById(id);if(!el)return;el.textContent=msg;el.style.display='block';setTimeout(()=>el.style.display='none',3000);}
-
-// Close modals on overlay click
 document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
-
-// Enter key on login
 document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 </script>
 </body>
