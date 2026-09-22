@@ -801,11 +801,17 @@ function updateDash(){
   const nationalities=new Set(emps.map(e=>e.nationality).filter(Boolean)).size;
   const activeLoansCount=Object.values(DB.loans).filter(l=>l.status==='Active').length;
   const totalAssets=Object.values(DB.assets).filter(a=>a.status==='Issued').length;
+  const maleCount=emps.filter(e=>(e.gender||'').toLowerCase()==='male').length;
+  const femaleCount=emps.filter(e=>(e.gender||'').toLowerCase()==='female').length;
+  const uaeCount=emps.filter(e=>(e.nationality||'').toLowerCase().includes('emirati')||(e.nationality||'').toLowerCase().includes('uae')||(e.nationality||'').toLowerCase()==='united arab emirates').length;
   document.getElementById('d-stats').innerHTML=`
     ${Object.entries(byEntity).map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:13px;"><span style="color:#666;">${esc(k)}</span><strong>${v} staff</strong></div>`).join('')}
-    <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:13px;"><span style="color:#666;">Nationalities</span><strong>${nationalities}</strong></div>
-    <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:13px;"><span style="color:#666;">Active Loans</span><strong>${activeLoansCount}</strong></div>
-    <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;"><span style="color:#666;">Assets Issued</span><strong>${totalAssets}</strong></div>`;
+    <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:13px;"><span style="color:#666;">👨 Male</span><strong>${maleCount}</strong></div>
+    <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:13px;"><span style="color:#666;">👩 Female</span><strong>${femaleCount}</strong></div>
+    <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:13px;"><span style="color:#666;">🇦🇪 UAE Nationals</span><strong>${uaeCount}</strong></div>
+    <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:13px;"><span style="color:#666;">🌍 Nationalities</span><strong>${nationalities}</strong></div>
+    <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:13px;"><span style="color:#666;">🏦 Active Loans</span><strong>${activeLoansCount}</strong></div>
+    <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;"><span style="color:#666;">💼 Assets Issued</span><strong>${totalAssets}</strong></div>`;
   // Active loans
   const activeLoans=Object.entries(DB.loans).filter(([k,l])=>l.status==='Active');
   document.getElementById('d-loans').innerHTML=activeLoans.length?activeLoans.slice(0,4).map(([k,l])=>{
