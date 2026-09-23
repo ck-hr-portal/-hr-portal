@@ -845,6 +845,26 @@ tr:hover td{background:#fafbfc;}
   </div>
 </div>
 
+<!-- LEAVE SUMMARY MODAL -->
+<div class="modal-overlay" id="leaveSummaryModal">
+  <div class="modal" style="max-width:750px;">
+    <div class="modal-title">
+      📅 Leave Summary — <span id="lsEmpName"></span>
+      <span class="modal-close" onclick="closeModal('leaveSummaryModal')">✕</span>
+    </div>
+    <!-- Summary cards -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;" id="lsSummaryCards"></div>
+    <!-- Leave history table -->
+    <div class="card-title" style="margin-bottom:8px;">Leave History</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th>Notes</th></tr></thead>
+        <tbody id="lsHistBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <!-- SheetJS for Excel export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
@@ -1216,22 +1236,43 @@ window.delEmp=function(key){
 
 // ── LEAVE ─────────────────────────────────────────────────────────────────────
 function renderLeave(data){
-  const rows=data||Object.entries(DB.leave).sort((a,b)=>b[1].ts-a[1].ts);
+  const rows=data||Object.entries(DB.leave).sort((a,b)=>(b[1].empName||'').localeCompare(a[1].empName||''));
   const tbody=document.getElementById('leaveBody');
   if(!rows.length){tbody.innerHTML='<tr><td colspan="8"><div class="empty-state"><div class="icon">📅</div><p>No leave records.</p></div></td></tr>';return;}
-  tbody.innerHTML=rows.map(([k,l])=>{
-    const days=l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:'—';
-    return`<tr><td><strong>${esc(l.empName||'')}</strong></td><td><span class="leave-tag">${esc(l.type||'')}</span></td>
-    <td>${fmt(l.from)}</td><td>${fmt(l.to)}</td><td>${days}</td>
-    <td><span class="badge badge-${(l.status||'pending').toLowerCase()}">${esc(l.status||'')}</span></td>
-    <td>${esc(l.approvedBy||'—')}</td>
-    <td><button class="btn btn-sm btn-primary" onclick="editLeave('${k}')">Edit</button>
-    <button class="btn btn-sm btn-danger" onclick="delLeave('${k}')">Del</button></td></tr>`;
-  }).join('');
+
+  // Group by employee
+  const grouped={};
+  rows.forEach(([k,l])=>{
+    const name=l.empName||'Unknown';
+    if(!grouped[name]) grouped[name]=[];
+    grouped[name].push([k,l]);
+  });
+
+  let html2='';
+  Object.entries(grouped).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([empName,empRows])=>{
+    const totalDays=empRows.reduce((s,[k,l])=>{
+      return s+(l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:0);
+    },0);
+    const types=[...new Set(empRows.map(([k,l])=>l.type))];
+    
+    // Employee summary row - clickable
+    html2+=`<tr style="background:#f0f4ff;cursor:pointer;" onclick="openLeaveSummary('${esc(empName)}')">
+      <td colspan="5">
+        <strong style="color:#1C3557;">${esc(empName)}</strong>
+        <span style="font-size:11px;color:#888;margin-left:10px;">${empRows.length} records · ${totalDays} days total</span>
+        <span style="font-size:11px;color:#2563A8;margin-left:8px;">${types.slice(0,3).map(t=>`<span class="leave-tag" style="font-size:10px;">${esc(t)}</span>`).join(' ')}</span>
+      </td>
+      <td colspan="3" style="text-align:right;">
+        <button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="event.stopPropagation();openLeaveSummary('${esc(empName)}')">📋 View All</button>
+      </td>
+    </tr>`;
+  });
+  tbody.innerHTML=html2;
 }
 window.filterLeave=function(){
   const q=v('leaveSearch').toLowerCase(),type=document.getElementById('leaveTypeF').value,status=document.getElementById('leaveStatusF').value;
-  renderLeave(Object.entries(DB.leave).filter(([k,l])=>(!q||l.empName?.toLowerCase().includes(q))&&(!type||l.type===type)&&(!status||l.status===status)));
+  const filtered=Object.entries(DB.leave).filter(([k,l])=>(!q||l.empName?.toLowerCase().includes(q))&&(!type||l.type===type)&&(!status||l.status===status));
+  renderLeave(filtered);
 };
 window.openLeaveModal=function(){
   ['lvEmp','lvEmpKey','lvFrom','lvTo','lvApproved','lvNotes'].forEach(id=>sv(id,''));
@@ -2558,6 +2599,68 @@ window.renderAudit=renderAudit;
 
 // ── MODALS ────────────────────────────────────────────────────────────────────
 window.closeModal=function(id){document.getElementById(id).classList.remove('open');};
+
+window.openLeaveSummary=function(empName){
+  document.getElementById('lsEmpName').textContent=empName;
+  
+  // Get all leave for this employee
+  const empLeave=Object.values(DB.leave)
+    .filter(l=>l.empName===empName)
+    .sort((a,b)=>a.from>b.from?1:-1);
+  
+  // Calculate summary by type
+  const summary={};
+  empLeave.forEach(l=>{
+    const type=l.type||'Other';
+    if(!summary[type]) summary[type]={count:0,days:0};
+    summary[type].count++;
+    const days=l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:0;
+    summary[type].days+=days;
+  });
+  
+  // Color map for leave types
+  const colors={
+    'Annual Leave':'#2563A8',
+    'Sick Leave':'#e74c3c',
+    'Work From Home':'#8e44ad',
+    'Emergency Leave':'#e67e22',
+    'Maternity Leave':'#e91e8c',
+    'Paternity Leave':'#1A7A6E',
+    'Unpaid Leave':'#888',
+    'Other':'#555'
+  };
+  
+  // Render summary cards
+  document.getElementById('lsSummaryCards').innerHTML=
+    Object.entries(summary).map(([type,data])=>`
+      <div style="background:#f5f7fa;border-radius:8px;padding:12px;border-left:3px solid ${colors[type]||'#1C3557'};">
+        <div style="font-size:18px;font-weight:700;color:#1C3557;">${data.days}</div>
+        <div style="font-size:10px;color:#888;">days</div>
+        <div style="font-size:11px;font-weight:600;color:#555;margin-top:3px;">${type}</div>
+        <div style="font-size:10px;color:#aaa;">${data.count} record${data.count>1?'s':''}</div>
+      </div>`).join('')+
+    (Object.keys(summary).length===0?'<div style="color:#888;font-size:13px;">No leave records found.</div>':'');
+  
+  // Render history table
+  const tbody=document.getElementById('lsHistBody');
+  if(!empLeave.length){
+    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:#999;padding:20px;">No leave records</td></tr>';
+  } else {
+    tbody.innerHTML=empLeave.map(l=>{
+      const days=l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:'—';
+      return`<tr>
+        <td><span class="leave-tag">${esc(l.type||'')}</span></td>
+        <td style="font-size:12px;">${l.from?new Date(l.from).toLocaleDateString('en-AE',{day:'2-digit',month:'short',year:'numeric'}):''}</td>
+        <td style="font-size:12px;">${l.to?new Date(l.to).toLocaleDateString('en-AE',{day:'2-digit',month:'short',year:'numeric'}):''}</td>
+        <td>${days}</td>
+        <td><span class="badge badge-${(l.status||'approved').toLowerCase()}">${esc(l.status||'')}</span></td>
+        <td style="font-size:11px;color:#666;">${esc(l.notes||'—')}</td>
+      </tr>`;
+    }).join('');
+  }
+  
+  document.getElementById('leaveSummaryModal').classList.add('open');
+};
 window.openDocLink=function(inputId){
   const url=document.getElementById(inputId)?.value?.trim();
   if(!url){alert('No link saved for this document yet.');return;}
