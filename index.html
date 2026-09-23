@@ -164,6 +164,7 @@ tr:hover td{background:#fafbfc;}
       <div class="nav-section">Assets</div>
       <div class="nav-item" onclick="showPage('assets',this)"><span class="icon">💼</span>Asset Register</div>
       <div class="nav-item" onclick="showPage('flight',this)"><span class="icon">✈️</span>Flight Allowance</div>
+      <div class="nav-item" onclick="showPage('leavers',this)"><span class="icon">🚪</span>Leavers & Gratuity</div>
       <div class="nav-section">Compliance</div>
       <div class="nav-item" onclick="showPage('expiry',this)"><span class="icon">⚠️</span>Expiry Alerts</div>
       <div class="nav-item" onclick="showPage('holidays',this)"><span class="icon">🗓️</span>Public Holidays</div>
@@ -346,6 +347,40 @@ tr:hover td{background:#fafbfc;}
             <table>
               <thead><tr><th>Employee</th><th>Year</th><th>Amount (AED)</th><th>Paid Date</th><th>Payroll Ref</th><th>Paid By</th></tr></thead>
               <tbody id="flightHistBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- LEAVERS & GRATUITY -->
+      <div id="page-leavers" class="page">
+        <div class="page-header"><h2>🚪 Leavers & Gratuity Register</h2><p>Separate register for ex-staff — January 2025 onwards. Active employees not affected.</p></div>
+        <div class="alert alert-success" id="leavers-alert"></div>
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-num" id="lv-total">—</div><div class="stat-label">Total Leavers</div></div>
+          <div class="stat-card gold"><div class="stat-num" id="lv-gratuity">—</div><div class="stat-label">Total Gratuity Paid (AED)</div></div>
+          <div class="stat-card green"><div class="stat-num" id="lv-paid">—</div><div class="stat-label">With Gratuity Paid</div></div>
+          <div class="stat-card"><div class="stat-num" id="lv-zero">—</div><div class="stat-label">Zero Gratuity (&lt;1yr)</div></div>
+        </div>
+        <div class="card">
+          <div class="toolbar">
+            <input class="search-box" type="text" id="leaverSearch" placeholder="🔍 Search by name..." oninput="renderLeavers()">
+            <select id="leaverYearF" onchange="renderLeavers()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;">
+              <option value="">All Years</option>
+              <option>2025</option><option>2026</option>
+            </select>
+            <select id="leaverGratF" onchange="renderLeavers()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;">
+              <option value="">All</option>
+              <option value="paid">With Gratuity</option>
+              <option value="zero">Zero Gratuity</option>
+            </select>
+            <button class="btn btn-primary" onclick="openLeaverModal()">+ Add Leaver</button>
+            <button class="btn btn-gold" onclick="runReport('leavers')">📥 Download Excel</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Name</th><th>Join Date</th><th>Last Working Day</th><th>Service (Yrs)</th><th>Exit Type</th><th>Gratuity Paid (AED)</th><th>Settlement</th><th>Actions</th></tr></thead>
+              <tbody id="leaversBody"></tbody>
             </table>
           </div>
         </div>
@@ -729,6 +764,41 @@ tr:hover td{background:#fafbfc;}
   </div>
 </div>
 
+<!-- LEAVER MODAL -->
+<div class="modal-overlay" id="leaverModal">
+  <div class="modal">
+    <div class="modal-title"><span id="leaverModalTitle">Add Leaver Record</span><span class="modal-close" onclick="closeModal('leaverModal')">✕</span></div>
+    <div class="form-grid">
+      <div class="form-group form-full"><label>Full Name *</label><input type="text" id="lvName" placeholder="Employee full name"></div>
+      <div class="form-group"><label>Employee ID</label><input type="text" id="lvId"></div>
+      <div class="form-group"><label>Department</label><input type="text" id="lvDept"></div>
+      <div class="form-group"><label>Designation</label><input type="text" id="lvDesig"></div>
+      <div class="form-group"><label>Entity</label>
+        <select id="lvEntity"><option>CK Architecture Interiors</option><option>CKC Building Contracting</option></select>
+      </div>
+      <div class="form-group"><label>Nationality</label><input type="text" id="lvNation"></div>
+      <div class="form-group"><label>Join Date *</label><input type="date" id="lvJoin"></div>
+      <div class="form-group"><label>Last Working Day *</label><input type="date" id="lvEnd"></div>
+      <div class="form-group"><label>Exit Type</label>
+        <select id="lvExitType"><option>Resignation</option><option>Termination</option><option>End of Contract</option><option>Retirement</option><option>Absconding</option><option>Mutual Agreement</option></select>
+      </div>
+      <div class="form-group"><label>Gratuity Paid (AED)</label><input type="number" id="lvGrat" placeholder="0.00"></div>
+      <div class="form-group"><label>Settlement Status</label>
+        <select id="lvSettle"><option>Completed</option><option>Pending</option><option>In Progress</option></select>
+      </div>
+      <div class="form-group"><label>Eligible for Rehire</label>
+        <select id="lvRehire"><option>Yes</option><option>No</option><option>Conditional</option></select>
+      </div>
+      <div class="form-group form-full"><label>Reason / Notes</label><textarea id="lvReason"></textarea></div>
+    </div>
+    <input type="hidden" id="lvEditKey">
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="saveLeaver()">Save Leaver Record</button>
+      <button class="btn" onclick="closeModal('leaverModal')" style="background:#f0f0f0;">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- SheetJS for Excel export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -750,7 +820,7 @@ const db = getDatabase(app);
 
 const ADMINS = {dev:{pass:'CKAdmin2025',name:'Dev Mandrekar',role:'admin'},darleendy:{pass:'CKAdmin2025',name:'Darleendy',role:'admin'},kashif:{pass:'CKAdmin2025',name:'Kashif',role:'admin'},cem:{pass:'CKCem2026',name:'Cem Kapancioglu',role:'ceo'}};
 let currentAdmin='', adminName='';
-let DB={employees:{},leave:{},salary:{},loans:{},repayments:{},assets:{},holidays:{},announcements:{},policies:{},audit:{},flightAllowance:{}};
+let DB={employees:{},leave:{},salary:{},loans:{},repayments:{},assets:{},holidays:{},announcements:{},policies:{},audit:{},flightAllowance:{},leavers:{}};
 let activeLoanKey=null;
 
 // ── HELPERS ──────────────────────────────────────────────────────────────────
@@ -851,7 +921,7 @@ function parseEmpSelect(val){
 
 const ref_db=(path)=>ref(db,path);
 function initListeners(){
-  const tables=['employees','leave','salary','loans','repayments','assets','holidays','announcements','policies','audit','flightAllowance'];
+  const tables=['employees','leave','salary','loans','repayments','assets','holidays','announcements','policies','audit','flightAllowance','leavers'];
   tables.forEach(t=>{
     onValue(ref(db,t),snap=>{
       DB[t]=snap.val()||{};
@@ -870,6 +940,7 @@ function initListeners(){
       if(t==='policies')renderPolicies();
       if(t==='audit')renderAudit();
       if(t==='flightAllowance'){renderFlight();updateFlightStats();}
+      if(t==='leavers')renderLeavers();
     });
   });
   document.getElementById('syncStatus').textContent='● Live';
@@ -884,6 +955,7 @@ window.showPage=function(page,el){
   if(el)el.classList.add('active');
   if(page==='expiry')renderExpiry();
   if(page==='flight'){renderFlight();updateFlightStats();}
+  if(page==='leavers')renderLeavers();
   if(page==='birthdays')renderBirthdays();
   if(page==='reports'){
     document.getElementById('reportOutput').style.display='none';
@@ -1479,6 +1551,92 @@ window.saveFlightPayment=function(){
     closeModal('flightPayModal');
     showAlert('flight-alert',`✈️ AED 1,500 flight allowance recorded for ${empName}`);
     renderFlight();updateFlightStats();
+  });
+};
+
+// ── LEAVERS & GRATUITY ───────────────────────────────────────────────────────
+window.renderLeavers=function(){
+  const q=v('leaverSearch').toLowerCase();
+  const yearF=document.getElementById('leaverYearF')?.value||'';
+  const gratF=document.getElementById('leaverGratF')?.value||'';
+  let rows=Object.entries(DB.leavers).sort((a,b)=>b[1].endDate>a[1].endDate?1:-1);
+  if(q) rows=rows.filter(([k,l])=>l.name?.toLowerCase().includes(q));
+  if(yearF) rows=rows.filter(([k,l])=>l.endDate?.startsWith(yearF));
+  if(gratF==='paid') rows=rows.filter(([k,l])=>parseFloat(l.gratuity||0)>0);
+  if(gratF==='zero') rows=rows.filter(([k,l])=>parseFloat(l.gratuity||0)===0);
+
+  // Stats
+  const all=Object.values(DB.leavers);
+  document.getElementById('lv-total').textContent=all.length;
+  const totalGrat=all.reduce((s,l)=>s+parseFloat(l.gratuity||0),0);
+  document.getElementById('lv-gratuity').textContent='AED '+Math.round(totalGrat).toLocaleString();
+  document.getElementById('lv-paid').textContent=all.filter(l=>parseFloat(l.gratuity||0)>0).length;
+  document.getElementById('lv-zero').textContent=all.filter(l=>parseFloat(l.gratuity||0)===0).length;
+
+  const tbody=document.getElementById('leaversBody');
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="8"><div class="empty-state"><div class="icon">🚪</div><p>No leaver records yet.</p></div></td></tr>';return;}
+
+  tbody.innerHTML=rows.map(([k,l])=>{
+    const yrs=l.joinDate&&l.endDate?((new Date(l.endDate)-new Date(l.joinDate))/(365.25*86400000)).toFixed(1):'—';
+    const grat=parseFloat(l.gratuity||0);
+    return`<tr>
+      <td><strong>${esc(l.name||'')}</strong>${l.empId?'<br><span style="font-size:11px;color:#888;">'+esc(l.empId)+'</span>':''}</td>
+      <td style="font-size:12px;">${l.joinDate||'—'}</td>
+      <td style="font-size:12px;">${l.endDate||'—'}</td>
+      <td style="font-size:12px;">${yrs} yrs</td>
+      <td style="font-size:12px;">${esc(l.exitType||'—')}</td>
+      <td style="font-weight:700;color:${grat>0?'#1A7A6E':'#888'};">AED ${grat.toLocaleString('en-AE',{minimumFractionDigits:2})}</td>
+      <td><span class="badge badge-${l.settle==='Completed'?'approved':l.settle==='Pending'?'inactive':'pending'}">${esc(l.settle||'—')}</span></td>
+      <td>
+        <button class="btn btn-sm btn-primary" onclick="editLeaver('${k}')">Edit</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteLeaver('${k}')">Del</button>
+      </td>
+    </tr>`;
+  }).join('');
+};
+
+window.openLeaverModal=function(){
+  document.getElementById('leaverModalTitle').textContent='Add Leaver Record';
+  ['lvName','lvId','lvDept','lvDesig','lvNation','lvJoin','lvEnd','lvGrat','lvReason'].forEach(id=>sv(id,''));
+  sv('lvEditKey','');sv('lvExitType','Resignation');sv('lvSettle','Completed');sv('lvRehire','No');
+  document.getElementById('leaverModal').classList.add('open');
+};
+
+window.editLeaver=function(key){
+  const l=DB.leavers[key];
+  document.getElementById('leaverModalTitle').textContent='Edit Leaver Record';
+  sv('lvName',l.name);sv('lvId',l.empId);sv('lvDept',l.dept);sv('lvDesig',l.desig);
+  sv('lvEntity',l.entity);sv('lvNation',l.nationality);sv('lvJoin',l.joinDate);
+  sv('lvEnd',l.endDate);sv('lvExitType',l.exitType);sv('lvGrat',l.gratuity);
+  sv('lvSettle',l.settle);sv('lvRehire',l.rehire);sv('lvReason',l.reason);
+  sv('lvEditKey',key);
+  document.getElementById('leaverModal').classList.add('open');
+};
+
+window.saveLeaver=function(){
+  const data={
+    name:v('lvName'),empId:v('lvId'),dept:v('lvDept'),desig:v('lvDesig'),
+    entity:v('lvEntity'),nationality:v('lvNation'),joinDate:v('lvJoin'),
+    endDate:v('lvEnd'),exitType:v('lvExitType'),gratuity:v('lvGrat')||'0',
+    settle:v('lvSettle'),rehire:v('lvRehire'),reason:v('lvReason'),
+    addedBy:adminName,ts:Date.now()
+  };
+  if(!data.name){alert('Name required');return;}
+  const key=v('lvEditKey');
+  const op=key?set(ref(db,'leavers/'+key),data):set(push(ref(db,'leavers')),data);
+  op.then(()=>{
+    logAudit(key?'Edit Leaver':'Add Leaver',data.name,`Gratuity: AED ${data.gratuity} | Left: ${data.endDate}`);
+    closeModal('leaverModal');
+    showAlert('leavers-alert',`Leaver record saved for ${data.name}`);
+  });
+};
+
+window.deleteLeaver=function(key){
+  if(!confirm('Delete this leaver record?'))return;
+  const name=DB.leavers[key]?.name||key;
+  remove(ref(db,'leavers/'+key)).then(()=>{
+    logAudit('Delete Leaver',name,'');
+    showAlert('leavers-alert','Record deleted.');
   });
 };
 
@@ -2141,6 +2299,25 @@ window.runReport=function(type){
     ws_data.push(['Employee','Year','Amount (AED)','Paid Date','Payroll Ref','Paid By']);
     Object.values(DB.flightAllowance).sort((a,b)=>b.paidDate>a.paidDate?1:-1)
       .forEach(p=>ws_data.push([p.empName,p.year,1500,p.paidDate,p.ref,p.paidBy]));
+  } else if(type==='leavers'){
+    filename='CK_Leavers_Gratuity_Register';sheetname='Leavers';
+    const allLeavers=Object.values(DB.leavers).sort((a,b)=>b.endDate>a.endDate?1:-1);
+    const totalGrat=allLeavers.reduce((s,l)=>s+parseFloat(l.gratuity||0),0);
+    ws_data=[
+      companyHdr,
+      ['LEAVERS & GRATUITY REGISTER — Generated: '+today],[''],
+      ['Name','Emp ID','Department','Designation','Entity','Nationality','Join Date','Last Working Day','Years of Service','Exit Type','Gratuity Paid (AED)','Settlement','Rehire Eligible','Notes']
+    ];
+    allLeavers.forEach(l=>{
+      const yrs=l.joinDate&&l.endDate?((new Date(l.endDate)-new Date(l.joinDate))/(365.25*86400000)).toFixed(1):'';
+      ws_data.push([l.name,l.empId,l.dept,l.desig,l.entity,l.nationality,l.joinDate,l.endDate,yrs,l.exitType,parseFloat(l.gratuity||0),l.settle,l.rehire,l.reason]);
+    });
+    ws_data.push(['']);
+    ws_data.push(['SUMMARY']);
+    ws_data.push(['Total Leavers',allLeavers.length]);
+    ws_data.push(['Total Gratuity Paid (AED)',totalGrat.toFixed(2)]);
+    ws_data.push(['With Gratuity',allLeavers.filter(l=>parseFloat(l.gratuity||0)>0).length]);
+    ws_data.push(['Zero Gratuity (<1yr service)',allLeavers.filter(l=>parseFloat(l.gratuity||0)===0).length]);
   } else if(type==='salary'){
     filename='CK_Salary_Changes_Report';sheetname='Salary Changes';
     ws_data=[
