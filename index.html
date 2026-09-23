@@ -638,16 +638,16 @@ tr:hover td{background:#fafbfc;}
     </div>
     <!-- Links -->
     <div id="etab-links" style="display:none;">
-      <p style="font-size:12px;color:#888;margin-bottom:12px;">Paste Google Drive / server links to employee documents</p>
+      <p style="font-size:12px;color:#888;margin-bottom:12px;">Paste Google Drive / server links to employee documents. Click the 🔗 button to open any saved link.</p>
       <div class="form-grid">
-        <div class="form-group"><label>Passport Copy Link</label><input type="url" id="lPassport" placeholder="https://drive.google.com/..."></div>
-        <div class="form-group"><label>Visa Copy Link</label><input type="url" id="lVisa" placeholder="https://drive.google.com/..."></div>
-        <div class="form-group"><label>Emirates ID Copy Link</label><input type="url" id="lEid" placeholder="https://drive.google.com/..."></div>
-        <div class="form-group"><label>Labour Card Copy Link</label><input type="url" id="lLab" placeholder="https://drive.google.com/..."></div>
-        <div class="form-group"><label>Offer Letter Link</label><input type="url" id="lOffer" placeholder="https://drive.google.com/..."></div>
-        <div class="form-group"><label>Employment Contract Link</label><input type="url" id="lContract" placeholder="https://drive.google.com/..."></div>
-        <div class="form-group"><label>Educational Cert Link</label><input type="url" id="lEdu" placeholder="https://drive.google.com/..."></div>
-        <div class="form-group"><label>Other Document Link</label><input type="url" id="lOther" placeholder="https://drive.google.com/..."></div>
+        <div class="form-group"><label>Passport Copy Link</label><div style="display:flex;gap:6px;"><input type="url" id="lPassport" placeholder="https://drive.google.com/..." style="flex:1;"><button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;white-space:nowrap;" onclick="openDocLink('lPassport')">🔗 Open</button></div></div>
+        <div class="form-group"><label>Visa Copy Link</label><div style="display:flex;gap:6px;"><input type="url" id="lVisa" placeholder="https://drive.google.com/..." style="flex:1;"><button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;white-space:nowrap;" onclick="openDocLink('lVisa')">🔗 Open</button></div></div>
+        <div class="form-group"><label>Emirates ID Copy Link</label><div style="display:flex;gap:6px;"><input type="url" id="lEid" placeholder="https://drive.google.com/..." style="flex:1;"><button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;white-space:nowrap;" onclick="openDocLink('lEid')">🔗 Open</button></div></div>
+        <div class="form-group"><label>Labour Card Copy Link</label><div style="display:flex;gap:6px;"><input type="url" id="lLab" placeholder="https://drive.google.com/..." style="flex:1;"><button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;white-space:nowrap;" onclick="openDocLink('lLab')">🔗 Open</button></div></div>
+        <div class="form-group"><label>Offer Letter Link</label><div style="display:flex;gap:6px;"><input type="url" id="lOffer" placeholder="https://drive.google.com/..." style="flex:1;"><button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;white-space:nowrap;" onclick="openDocLink('lOffer')">🔗 Open</button></div></div>
+        <div class="form-group"><label>Employment Contract Link</label><div style="display:flex;gap:6px;"><input type="url" id="lContract" placeholder="https://drive.google.com/..." style="flex:1;"><button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;white-space:nowrap;" onclick="openDocLink('lContract')">🔗 Open</button></div></div>
+        <div class="form-group"><label>Educational Cert Link</label><div style="display:flex;gap:6px;"><input type="url" id="lEdu" placeholder="https://drive.google.com/..." style="flex:1;"><button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;white-space:nowrap;" onclick="openDocLink('lEdu')">🔗 Open</button></div></div>
+        <div class="form-group"><label>Other Document Link</label><div style="display:flex;gap:6px;"><input type="url" id="lOther" placeholder="https://drive.google.com/..." style="flex:1;"><button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;white-space:nowrap;" onclick="openDocLink('lOther')">🔗 Open</button></div></div>
       </div>
     </div>
     <!-- Exit -->
@@ -2558,6 +2558,11 @@ window.renderAudit=renderAudit;
 
 // ── MODALS ────────────────────────────────────────────────────────────────────
 window.closeModal=function(id){document.getElementById(id).classList.remove('open');};
+window.openDocLink=function(inputId){
+  const url=document.getElementById(inputId)?.value?.trim();
+  if(!url){alert('No link saved for this document yet.');return;}
+  window.open(url,'_blank');
+};
 document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
 document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 </script>
