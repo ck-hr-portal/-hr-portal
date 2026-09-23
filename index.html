@@ -157,6 +157,7 @@ tr:hover td{background:#fafbfc;}
       <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="icon">📊</span>Dashboard</div>
       <div class="nav-section">Workforce</div>
       <div class="nav-item" onclick="showPage('employees',this)"><span class="icon">👥</span>Employee Records</div>
+      <div class="nav-item" onclick="showPage('uaenationals',this)"><span class="icon">🇦🇪</span>UAE Nationals</div>
       <div class="nav-item" onclick="showPage('leave',this)"><span class="icon">📅</span>Leave Register</div>
       <div class="nav-item" onclick="showPage('salary',this)"><span class="icon">💰</span>Salary &amp; Promotions</div>
       <div class="nav-section">Finance</div>
@@ -190,6 +191,14 @@ tr:hover td{background:#fafbfc;}
           <div class="stat-card red"><div class="stat-num" id="s-exp">—</div><div class="stat-label">Expiring in 30 Days</div></div>
           <div class="stat-card green"><div class="stat-num" id="s-bday">—</div><div class="stat-label">Birthdays This Month</div></div>
         </div>
+        <!-- DEPARTMENT CHART -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title">📊 Department Headcount & Cost</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:center;">
+            <div style="position:relative;height:280px;"><canvas id="deptChart"></canvas></div>
+            <div id="deptCostTable" style="font-size:12px;"></div>
+          </div>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
           <div class="card"><div class="card-title">📢 Latest Announcements</div><div id="d-ann"><div class="empty-state"><p>No announcements</p></div></div></div>
           <div class="card"><div class="card-title">⚠️ Upcoming Expiries (30 days)</div><div id="d-exp"><div class="empty-state"><p>None</p></div></div></div>
@@ -218,6 +227,43 @@ tr:hover td{background:#fafbfc;}
           <div class="table-wrap">
             <table><thead><tr><th>Emp ID</th><th>Name</th><th>Department</th><th>Designation</th><th>Entity</th><th>Nationality</th><th>Gross Salary</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody id="empBody"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- UAE NATIONALS -->
+      <div id="page-uaenationals" class="page">
+        <div class="page-header"><h2>🇦🇪 UAE National Employees</h2><p>Emirati staff — separate salary arrangements, GPSSA pension, Emiratisation compliance</p></div>
+        <div class="stats-row">
+          <div class="stat-card" style="border-left-color:#00732F;"><div class="stat-num" id="uae-total">—</div><div class="stat-label">Total UAE Nationals</div></div>
+          <div class="stat-card" style="border-left-color:#00732F;"><div class="stat-num" id="uae-ck">—</div><div class="stat-label">CK Architecture</div></div>
+          <div class="stat-card" style="border-left-color:#00732F;"><div class="stat-num" id="uae-ckc">—</div><div class="stat-label">CKC Building</div></div>
+          <div class="stat-card gold"><div class="stat-num" id="uae-cost">—</div><div class="stat-label">Total Gross Salary (AED)</div></div>
+        </div>
+        <div class="card" style="background:#f0fff4;border:1px solid #c3e6cb;">
+          <div class="card-title" style="color:#00732F;">📋 UAE National Employment Rules</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;color:#2d6a4f;">
+            <div>✅ <strong>GPSSA Pension:</strong> 5% employee + 12.5% employer contribution</div>
+            <div>✅ <strong>Annual Leave:</strong> 30 calendar days (enhanced entitlement)</div>
+            <div>✅ <strong>Emiratisation Quota:</strong> Must meet MOHRE targets</div>
+            <div>✅ <strong>Gratuity:</strong> Not applicable (covered by GPSSA)</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="toolbar">
+            <input class="search-box" type="text" id="uaeSearch" placeholder="🔍 Search UAE national staff..." oninput="renderUAE()">
+            <select id="uaeEntityF" onchange="renderUAE()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;">
+              <option value="">Both Entities</option>
+              <option>CK Architecture Interiors</option>
+              <option>CKC Building Contracting</option>
+            </select>
+            <button class="btn btn-gold" onclick="runReport('uaenationals')">📥 Download Excel</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Emp ID</th><th>Name</th><th>Department</th><th>Designation</th><th>Entity</th><th>Grade</th><th>Basic Salary (AED)</th><th>Gross Salary (AED)</th><th>Status</th></tr></thead>
+              <tbody id="uaeBody"></tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -447,7 +493,7 @@ tr:hover td{background:#fafbfc;}
           <div class="card"><div class="card-title">+ Add Policy</div>
             <div class="form-group"><label>Policy Name</label><input type="text" id="polName"></div>
             <div class="form-group" style="margin-top:10px;"><label>Category</label><select id="polCat"><option>Leave &amp; Attendance</option><option>Code of Conduct</option><option>Compensation</option><option>Health &amp; Safety</option><option>Recruitment</option><option>General</option></select></div>
-            <div class="form-group" style="margin-top:10px;"><label>Content / Summary</label><textarea id="polContent"></textarea></div>
+            <div class="form-group" style="margin-top:10px;"><label>Policy Content</label><textarea id="polContent" style="min-height:180px;" placeholder="Paste the full policy text here. It will be stored and displayed in the portal with formatting preserved."></textarea></div>
             <div class="form-group" style="margin-top:10px;"><label>Effective Date</label><input type="date" id="polDate"></div>
             <div class="btn-row"><button class="btn btn-primary" onclick="savePol()">Save Policy</button></div>
           </div>
@@ -801,6 +847,7 @@ tr:hover td{background:#fafbfc;}
 
 <!-- SheetJS for Excel export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -956,6 +1003,7 @@ window.showPage=function(page,el){
   if(page==='expiry')renderExpiry();
   if(page==='flight'){renderFlight();updateFlightStats();}
   if(page==='leavers')renderLeavers();
+  if(page==='uaenationals')renderUAE();
   if(page==='birthdays')renderBirthdays();
   if(page==='reports'){
     document.getElementById('reportOutput').style.display='none';
@@ -1007,6 +1055,8 @@ function updateDash(){
       }
     }
   } catch(e){}
+  // Department chart
+  try{renderDeptChart();}catch(e){}
   // Anniversaries
   const anni=getAnniversaries();
   const medalColor={5:'#C9A84C',10:'#2563A8',15:'#1A7A6E',20:'#8e44ad',25:'#e74c3c'};
@@ -1052,8 +1102,8 @@ function renderEmp(data){
     <td><strong>${esc(e.empId||'')}</strong></td>
     <td>${esc(e.name||'')}</td><td>${esc(e.dept||'')}</td><td>${esc(e.desig||'')}</td>
     <td style="font-size:11px;">${esc(e.entity||'')}</td><td>${esc(e.nationality||'')}</td>
-    <td>AED ${parseFloat(e.grossSalary||e.gross||0).toLocaleString()}</td>
-    <td><span class="badge badge-${(e.status||'active').toLowerCase().replace(/\s/g,'-')}">${esc(e.status||'Active')}</span></td>
+    <td>AED ${parseFloat(e.grossSalary||e.gross||0).toLocaleString('en-AE',{minimumFractionDigits:0})}</td>
+    <td><span class="badge badge-${(e.status||'active').toLowerCase().split(' ').join('-')}">${esc(e.status||'Active')}</span></td>
     <td>
       <button class="btn btn-sm btn-primary" onclick="editEmp('${k}')">Edit</button>
       <button class="btn btn-sm btn-danger" onclick="delEmp('${k}')">Del</button>
@@ -1270,7 +1320,7 @@ function updateLoanStats(){
     const paid=Object.values(DB.repayments).filter(r=>r.loanKey===k).reduce((s,r)=>s+parseFloat(r.amt||0),0);
     outstanding+=parseFloat(l.amount||0)-paid;
   });
-  document.getElementById('ls-outstanding').textContent='AED '+Math.round(outstanding).toLocaleString();
+  document.getElementById('ls-outstanding').textContent='AED '+Math.round(outstanding).toLocaleString('en-AE');
 }
 
 function renderLoans(data){
@@ -1640,6 +1690,102 @@ window.deleteLeaver=function(key){
   });
 };
 
+// ── UAE NATIONALS ─────────────────────────────────────────────────────────────
+window.renderUAE=function(){
+  const q=v('uaeSearch').toLowerCase();
+  const entityF=document.getElementById('uaeEntityF')?.value||'';
+  const emps=Object.values(DB.employees).filter(e=>{
+    const nat=(e.nationality||'').toLowerCase();
+    const isUAE=nat.includes('emirati')||nat.includes('uae')||nat==='united arab emirates'||nat.includes('u.a.e');
+    return isUAE;
+  });
+  // Stats
+  const ck=emps.filter(e=>e.entity&&e.entity.includes('Architecture'));
+  const ckc=emps.filter(e=>e.entity&&e.entity.includes('Building'));
+  const totalCost=emps.reduce((s,e)=>s+parseFloat(e.grossSalary||0),0);
+  document.getElementById('uae-total').textContent=emps.length;
+  document.getElementById('uae-ck').textContent=ck.length;
+  document.getElementById('uae-ckc').textContent=ckc.length;
+  document.getElementById('uae-cost').textContent='AED '+totalCost.toLocaleString('en-AE',{minimumFractionDigits:0});
+
+  let filtered=emps;
+  if(q) filtered=filtered.filter(e=>e.name?.toLowerCase().includes(q)||e.dept?.toLowerCase().includes(q));
+  if(entityF) filtered=filtered.filter(e=>e.entity===entityF);
+
+  const tbody=document.getElementById('uaeBody');
+  if(!filtered.length){
+    tbody.innerHTML='<tr><td colspan="9"><div class="empty-state"><div class="icon">🇦🇪</div><p>No UAE National employees found. Make sure nationality is set to "Emirati" in employee records.</p></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML=filtered.map(e=>`<tr>
+    <td><strong>${esc(e.empId||'—')}</strong></td>
+    <td>${esc(e.name||'')}</td>
+    <td>${esc(e.dept||'')}</td>
+    <td>${esc(e.desig||'')}</td>
+    <td style="font-size:11px;">${esc(e.entity||'')}</td>
+    <td>${esc(e.grade||'')}</td>
+    <td>AED ${parseFloat(e.basicSalary||0).toLocaleString('en-AE',{minimumFractionDigits:0})}</td>
+    <td>AED ${parseFloat(e.grossSalary||0).toLocaleString('en-AE',{minimumFractionDigits:0})}</td>
+    <td><span class="badge badge-${(e.status||'active').toLowerCase().split(' ').join('-')}">${esc(e.status||'Active')}</span></td>
+  </tr>`).join('');
+};
+
+// ── DEPARTMENT CHART ──────────────────────────────────────────────────────────
+let deptChartInstance=null;
+function renderDeptChart(){
+  const emps=Object.values(DB.employees);
+  if(!emps.length) return;
+  const deptMap={};
+  emps.forEach(e=>{
+    const dept=e.dept||'Unknown';
+    if(!deptMap[dept]) deptMap[dept]={wc:0,lab:0,cost:0};
+    const isLabour=(e.grade||'').toLowerCase().includes('labour')||(e.grade||'').toLowerCase().includes('blue');
+    if(isLabour) deptMap[dept].lab++;
+    else deptMap[dept].wc++;
+    deptMap[dept].cost+=parseFloat(e.grossSalary||0);
+  });
+
+  const sorted=Object.entries(deptMap).sort((a,b)=>b[1].cost-a[1].cost).slice(0,10);
+  const labels=sorted.map(([k])=>k.length>14?k.substring(0,14)+'…':k);
+  const wcData=sorted.map(([k,v])=>v.wc);
+  const labData=sorted.map(([k,v])=>v.lab);
+  const totalCost=sorted.reduce((s,[k,v])=>s+v.cost,0);
+
+  const ctx=document.getElementById('deptChart');
+  if(!ctx) return;
+  if(deptChartInstance) deptChartInstance.destroy();
+  deptChartInstance=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {label:'White Collar',data:wcData,backgroundColor:'#1C3557',borderRadius:3},
+        {label:'Labour',data:labData,backgroundColor:'#C9A84C',borderRadius:3}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:12}}},
+      scales:{
+        x:{stacked:true,ticks:{font:{size:9}}},
+        y:{stacked:true,ticks:{stepSize:1,font:{size:9}}}
+      }
+    }
+  });
+
+  // Cost table
+  const allCost=Object.values(deptMap).reduce((s,v)=>s+v.cost,0);
+  document.getElementById('deptCostTable').innerHTML=
+    '<strong style="font-size:11px;color:#1C3557;">Top Departments by Cost</strong>'+
+    sorted.map(([k,v])=>{
+      const pct=allCost?((v.cost/allCost)*100).toFixed(1):0;
+      return`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #f0f0f0;">
+        <span style="font-size:11px;color:#555;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(k)}</span>
+        <span style="font-size:11px;"><strong>${v.wc+v.lab}</strong> staff · AED ${Math.round(v.cost).toLocaleString('en-AE')} <span style="color:#888;">(${pct}%)</span></span>
+      </div>`;
+    }).join('');
+}
+
 function renderExpiry(){
   const days=parseInt(document.getElementById('expRange')?.value||30);
   const q=v('expSearch').toLowerCase();
@@ -1710,6 +1856,10 @@ function renderBirthdays(){
 }
 
 // ── POLICIES ──────────────────────────────────────────────────────────────────
+window.togglePolicy=function(id){
+  const el=document.getElementById(id);
+  if(el) el.style.display=el.style.display==='none'?'block':'none';
+};
 window.savePol=function(){
   const data={name:v('polName'),category:v('polCat'),content:v('polContent'),date:v('polDate'),ts:Date.now()};
   if(!data.name){alert('Policy name required');return;}
@@ -1717,9 +1867,18 @@ window.savePol=function(){
 };
 function renderPolicies(){
   const list=Object.entries(DB.policies).sort((a,b)=>b[1].ts-a[1].ts);
-  document.getElementById('polList').innerHTML=list.length?list.map(([k,p])=>`<div style="padding:9px 0;border-bottom:1px solid #f0f0f0;">
-    <div style="display:flex;justify-content:space-between;"><strong style="font-size:13px;">${esc(p.name)}</strong><button class="btn btn-sm btn-danger" onclick="remove(ref(window._db,'policies/${k}'))">✕</button></div>
-    <span style="font-size:11px;color:#888;">${esc(p.category)} · Effective: ${p.date||'—'}</span>
+  document.getElementById('polList').innerHTML=list.length?list.map(([k,p])=>`<div style="border:1px solid #e0e0e0;border-radius:8px;margin-bottom:10px;overflow:hidden;">
+    <div style="background:#f5f7fa;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <strong style="font-size:13px;color:#1C3557;">${esc(p.name)}</strong>
+        <span style="font-size:11px;color:#888;margin-left:10px;">${esc(p.category)} · Effective: ${p.date||'—'}</span>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="togglePolicy('pol_${k}')">View</button>
+        <button class="btn btn-sm btn-danger" onclick="remove(ref(window._db,'policies/${k}'))">✕</button>
+      </div>
+    </div>
+    <div id="pol_${k}" style="display:none;padding:14px;font-size:12px;line-height:1.8;white-space:pre-wrap;color:#333;background:#fff;border-top:1px solid #e0e0e0;max-height:300px;overflow-y:auto;">${esc(p.content||'No content added.')}</div>
   </div>`).join(''):'<div class="empty-state"><p>No policies yet.</p></div>';
   window._db=db;
 }
@@ -2318,6 +2477,26 @@ window.runReport=function(type){
     ws_data.push(['Total Gratuity Paid (AED)',totalGrat.toFixed(2)]);
     ws_data.push(['With Gratuity',allLeavers.filter(l=>parseFloat(l.gratuity||0)>0).length]);
     ws_data.push(['Zero Gratuity (<1yr service)',allLeavers.filter(l=>parseFloat(l.gratuity||0)===0).length]);
+  } else if(type==='uaenationals'){
+    filename='CK_UAE_Nationals_Report';sheetname='UAE Nationals';
+    const uaeEmps=Object.values(DB.employees).filter(e=>{
+      const nat=(e.nationality||'').toLowerCase();
+      return nat.includes('emirati')||nat.includes('uae')||nat==='united arab emirates';
+    });
+    const totalGross=uaeEmps.reduce((s,e)=>s+parseFloat(e.grossSalary||0),0);
+    ws_data=[
+      companyHdr,
+      ['UAE NATIONAL EMPLOYEES REPORT — Generated: '+today],
+      ['GPSSA Pension: 5% Employee + 12.5% Employer | Annual Leave: 30 Days | Gratuity: Not Applicable'],[''],
+      ['Emp ID','Full Name','Department','Designation','Entity','Grade','Join Date','Basic Salary (AED)','Gross Salary (AED)','Status']
+    ];
+    uaeEmps.forEach(e=>ws_data.push([e.empId,e.name,e.dept,e.desig,e.entity,e.grade,e.join,e.basicSalary,e.grossSalary,e.status||'Active']));
+    ws_data.push(['']);
+    ws_data.push(['SUMMARY']);
+    ws_data.push(['Total UAE Nationals',uaeEmps.length]);
+    ws_data.push(['CK Architecture',uaeEmps.filter(e=>e.entity&&e.entity.includes('Architecture')).length]);
+    ws_data.push(['CKC Building',uaeEmps.filter(e=>e.entity&&e.entity.includes('Building')).length]);
+    ws_data.push(['Total Gross Salary (AED)',totalGross.toFixed(2)]);
   } else if(type==='salary'){
     filename='CK_Salary_Changes_Report';sheetname='Salary Changes';
     ws_data=[
