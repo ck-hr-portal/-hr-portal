@@ -1630,7 +1630,7 @@ window.runProfilePDF=async function(){
       doc.text(String(s.type||'').substring(0,20),margin+20,y+4);
       doc.text(String(s.prev||''),margin+65,y+4);
       doc.text(String(s.newVal||''),margin+100,y+4);
-      doc.setTextColor(nw>=prev?26,122,110:192,57,43);
+      if(nw>=prev){doc.setTextColor(26,122,110);}else{doc.setTextColor(192,57,43);}
       doc.text(pct,margin+130,y+4);
       doc.setTextColor(28,53,87);
       doc.text(String(s.approvedBy||'').substring(0,20),margin+153,y+4);
