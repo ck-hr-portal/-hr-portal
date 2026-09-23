@@ -1251,6 +1251,7 @@ function renderLeave(data){
   let html2='';
   Object.entries(grouped).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([empName,empRows])=>{
     const totalDays=empRows.reduce((s,[k,l])=>{
+      if(l.days) return s+parseFloat(l.days);
       return s+(l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:0);
     },0);
     const types=[...new Set(empRows.map(([k,l])=>l.type))];
@@ -2060,7 +2061,7 @@ window.runProfileReport=function(){
   const lv=[['LEAVE HISTORY — '+emp.name],[''],
     ['From','To','Days','Leave Type','Status','Approved By','Notes']];
   leaveRows.forEach(l=>{
-    const days=l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:'—';
+    const days=l.days?parseFloat(l.days):(l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:'—');
     lv.push([l.from,l.to,days,l.type,l.status,l.approvedBy,l.notes]);
   });
   if(leaveRows.length===0) lv.push(['No leave records found','','','','','','']);
@@ -2268,7 +2269,7 @@ window.runProfilePDF=async function(){
       checkPage(8);
       if(i%2===0)doc.setFillColor(235,243,251);else doc.setFillColor(255,255,255);
       doc.rect(margin,y,contentW,6,'F');
-      const days=l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:'—';
+      const days=l.days?parseFloat(l.days):(l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:'—');
       doc.setTextColor(28,53,87);doc.setFontSize(7.5);doc.setFont('helvetica','normal');
       doc.text(String(l.from||''),margin+1,y+4);doc.text(String(l.to||''),margin+25,y+4);
       doc.text(String(days),margin+50,y+4);doc.text(String(l.type||'').substring(0,28),margin+63,y+4);
@@ -2614,8 +2615,8 @@ window.openLeaveSummary=function(empName){
     const type=l.type||'Other';
     if(!summary[type]) summary[type]={count:0,days:0};
     summary[type].count++;
-    const days=l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:0;
-    summary[type].days+=days;
+    const daysVal=l.days?parseFloat(l.days):(l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:0);
+    summary[type].days+=daysVal;
   });
   
   // Color map for leave types
@@ -2647,7 +2648,7 @@ window.openLeaveSummary=function(empName){
     tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:#999;padding:20px;">No leave records</td></tr>';
   } else {
     tbody.innerHTML=empLeave.map(l=>{
-      const days=l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:'—';
+      const days=l.days?parseFloat(l.days):(l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:'—');
       return`<tr>
         <td><span class="leave-tag">${esc(l.type||'')}</span></td>
         <td style="font-size:12px;">${l.from?new Date(l.from).toLocaleDateString('en-AE',{day:'2-digit',month:'short',year:'numeric'}):''}</td>
