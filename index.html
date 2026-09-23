@@ -163,6 +163,7 @@ tr:hover td{background:#fafbfc;}
       <div class="nav-item" onclick="showPage('loans',this)"><span class="icon">🏦</span>Employee Loans</div>
       <div class="nav-section">Assets</div>
       <div class="nav-item" onclick="showPage('assets',this)"><span class="icon">💼</span>Asset Register</div>
+      <div class="nav-item" onclick="showPage('flight',this)"><span class="icon">✈️</span>Flight Allowance</div>
       <div class="nav-section">Compliance</div>
       <div class="nav-item" onclick="showPage('expiry',this)"><span class="icon">⚠️</span>Expiry Alerts</div>
       <div class="nav-item" onclick="showPage('holidays',this)"><span class="icon">🗓️</span>Public Holidays</div>
@@ -305,6 +306,47 @@ tr:hover td{background:#fafbfc;}
           <div class="table-wrap">
             <table><thead><tr><th>Employee</th><th>Category</th><th>Item</th><th>Serial / Batch</th><th>Issue Date</th><th>Condition</th><th>Status</th><th>Return / Replace Date</th><th>Notes</th><th>Actions</th></tr></thead>
             <tbody id="assetBody"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- FLIGHT ALLOWANCE -->
+      <div id="page-flight" class="page">
+        <div class="page-header"><h2>✈️ Flight Allowance</h2><p>AED 1,500 annual allowance — paid on completion of each year of service</p></div>
+        <div class="alert alert-success" id="flight-alert"></div>
+        <div class="stats-row">
+          <div class="stat-card gold"><div class="stat-num" id="fa-due">—</div><div class="stat-label">Due This Month</div></div>
+          <div class="stat-card red"><div class="stat-num" id="fa-overdue">—</div><div class="stat-label">Overdue (Not Paid)</div></div>
+          <div class="stat-card green"><div class="stat-num" id="fa-paid-yr">—</div><div class="stat-label">Paid This Year</div></div>
+          <div class="stat-card"><div class="stat-num" id="fa-upcoming">—</div><div class="stat-label">Due in Next 60 Days</div></div>
+        </div>
+        <div class="card">
+          <div class="toolbar">
+            <input class="search-box" type="text" id="flightSearch" placeholder="🔍 Search employee..." oninput="renderFlight()">
+            <select id="flightStatusF" onchange="renderFlight()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;">
+              <option value="">All</option>
+              <option value="due">Due This Month</option>
+              <option value="overdue">Overdue</option>
+              <option value="upcoming">Upcoming 60 Days</option>
+              <option value="paid">Paid This Cycle</option>
+            </select>
+            <button class="btn btn-gold" onclick="runReport('flight')">📥 Download Excel</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Employee</th><th>Department</th><th>Entity</th><th>Join Date</th><th>Years</th><th>Next Due Date</th><th>Days Until Due</th><th>Current Cycle Status</th><th>Last Paid</th><th>Action</th></tr></thead>
+              <tbody id="flightBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <!-- Payment History -->
+        <div class="card">
+          <div class="card-title">📋 Payment History Log</div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Employee</th><th>Year</th><th>Amount (AED)</th><th>Paid Date</th><th>Payroll Ref</th><th>Paid By</th></tr></thead>
+              <tbody id="flightHistBody"></tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -664,6 +706,29 @@ tr:hover td{background:#fafbfc;}
   </div>
 </div>
 
+<!-- FLIGHT ALLOWANCE PAY MODAL -->
+<div class="modal-overlay" id="flightPayModal">
+  <div class="modal">
+    <div class="modal-title">✈️ Record Flight Allowance Payment <span class="modal-close" onclick="closeModal('flightPayModal')">✕</span></div>
+    <div style="background:#e8f5e9;padding:12px;border-radius:8px;margin-bottom:14px;">
+      <strong id="fpEmpDisplay" style="font-size:14px;color:#1C3557;"></strong><br>
+      <span style="font-size:12px;color:#555;">AED 1,500 annual flight allowance</span>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label>Payment Date</label><input type="date" id="fpDate"></div>
+      <div class="form-group"><label>Payroll Reference</label><input type="text" id="fpRef" placeholder="e.g. OCT-2026-WPS"></div>
+      <div class="form-group form-full"><label>Notes</label><input type="text" id="fpNotes" placeholder="Optional notes"></div>
+    </div>
+    <input type="hidden" id="fpEmpKey">
+    <input type="hidden" id="fpEmpName">
+    <input type="hidden" id="fpYear">
+    <div class="btn-row">
+      <button class="btn btn-gold" onclick="saveFlightPayment()">✅ Confirm Payment — AED 1,500</button>
+      <button class="btn" onclick="closeModal('flightPayModal')" style="background:#f0f0f0;">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- SheetJS for Excel export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -685,7 +750,7 @@ const db = getDatabase(app);
 
 const ADMINS = {dev:{pass:'CKAdmin2025',name:'Dev Mandrekar',role:'admin'},darleendy:{pass:'CKAdmin2025',name:'Darleendy',role:'admin'},kashif:{pass:'CKAdmin2025',name:'Kashif',role:'admin'},cem:{pass:'CKCem2026',name:'Cem Kapancioglu',role:'ceo'}};
 let currentAdmin='', adminName='';
-let DB={employees:{},leave:{},salary:{},loans:{},repayments:{},assets:{},holidays:{},announcements:{},policies:{},audit:{}};
+let DB={employees:{},leave:{},salary:{},loans:{},repayments:{},assets:{},holidays:{},announcements:{},policies:{},audit:{},flightAllowance:{}};
 let activeLoanKey=null;
 
 // ── HELPERS ──────────────────────────────────────────────────────────────────
@@ -784,8 +849,9 @@ function parseEmpSelect(val){
   return {key: parts[0]||'', empId: parts[1]||'', name: parts[2]||''};
 }
 
+const ref_db=(path)=>ref(db,path);
 function initListeners(){
-  const tables=['employees','leave','salary','loans','repayments','assets','holidays','announcements','policies','audit'];
+  const tables=['employees','leave','salary','loans','repayments','assets','holidays','announcements','policies','audit','flightAllowance'];
   tables.forEach(t=>{
     onValue(ref(db,t),snap=>{
       DB[t]=snap.val()||{};
@@ -803,6 +869,7 @@ function initListeners(){
       if(t==='announcements'){renderAnn();updateDash();}
       if(t==='policies')renderPolicies();
       if(t==='audit')renderAudit();
+      if(t==='flightAllowance'){renderFlight();updateFlightStats();}
     });
   });
   document.getElementById('syncStatus').textContent='● Live';
@@ -816,6 +883,7 @@ window.showPage=function(page,el){
   document.getElementById('page-'+page).classList.add('active');
   if(el)el.classList.add('active');
   if(page==='expiry')renderExpiry();
+  if(page==='flight'){renderFlight();updateFlightStats();}
   if(page==='birthdays')renderBirthdays();
   if(page==='reports'){
     document.getElementById('reportOutput').style.display='none';
@@ -848,6 +916,25 @@ function updateDash(){
   // Birthdays
   const bdEmps=emps.filter(e=>e.dob&&new Date(e.dob).getMonth()===m);
   document.getElementById('d-bday').innerHTML=bdEmps.length?bdEmps.map(e=>`<span style="display:inline-block;background:#fff3e0;color:#e67e22;padding:4px 12px;border-radius:16px;margin:3px;font-size:12px;">🎂 ${esc(e.name)} (${new Date(e.dob).getDate()} ${now.toLocaleString('default',{month:'short'})})</span>`).join(''):'<div class="empty-state"><p>None this month</p></div>';
+  // Flight allowances due this month
+  try{
+    const flightData=getFlightData();
+    const now2=new Date();
+    const flightDue=flightData.filter(d=>!d.currentCyclePaid&&(d.daysUntilDue<=30));
+    if(flightDue.length>0){
+      // Add to expiry section or show in announcements area
+      const existingExp=document.getElementById('d-exp').innerHTML;
+      if(!existingExp.includes('Flight Allowance')){
+        flightDue.slice(0,2).forEach(d=>{
+          document.getElementById('d-exp').innerHTML+=
+            `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;">
+            <span style="font-size:13px;">✈️ ${esc(d.name)} — Flight Allow.</span>
+            <span class="${d.daysUntilDue<0?'exp-red':'exp-amber'}" style="font-size:12px;">${d.daysUntilDue<0?'Overdue':d.daysUntilDue+'d'}</span>
+            </div>`;
+        });
+      }
+    }
+  } catch(e){}
   // Anniversaries
   const anni=getAnniversaries();
   const medalColor={5:'#C9A84C',10:'#2563A8',15:'#1A7A6E',20:'#8e44ad',25:'#e74c3c'};
@@ -1229,6 +1316,172 @@ window.saveAsset=function(){
 window.delAsset=function(key){if(!confirm('Delete?'))return;remove(ref(db,'assets/'+key)).then(()=>showAlert('asset-alert','Deleted.'));};
 
 // ── EXPIRY ────────────────────────────────────────────────────────────────────
+// ── FLIGHT ALLOWANCE ──────────────────────────────────────────────────────
+function getFlightData(){
+  const now=new Date();
+  const emps=Object.values(DB.employees).filter(e=>e.join&&e.name);
+  const result=[];
+
+  emps.forEach(e=>{
+    const join=new Date(e.join);
+    const yearsService=(now-join)/(365.25*86400000);
+    if(yearsService<1) return; // Not yet eligible
+
+    // Calculate next anniversary due date
+    const currentYear=now.getFullYear();
+    // Find which anniversary year we're tracking
+    let dueDate=new Date(join);
+    dueDate.setFullYear(currentYear);
+    if(dueDate<now) dueDate.setFullYear(currentYear+1);
+
+    // Find last payment for this employee
+    const payments=Object.values(DB.flightAllowance)
+      .filter(p=>p.empName===e.name)
+      .sort((a,b)=>b.paidDate>a.paidDate?1:-1);
+    const lastPayment=payments[0]||null;
+    const lastPaidDate=lastPayment?new Date(lastPayment.paidDate):null;
+
+    // Check if current cycle already paid
+    // Current cycle = the anniversary that fell in the last 12 months
+    const lastAnniversary=new Date(join);
+    lastAnniversary.setFullYear(dueDate.getFullYear()-1);
+    const currentCyclePaid=lastPaidDate&&lastPaidDate>=lastAnniversary;
+
+    const daysUntilDue=Math.ceil((dueDate-now)/86400000);
+
+    result.push({
+      empId: e.empId||'',
+      name: e.name,
+      dept: e.dept||'',
+      entity: e.entity||'',
+      join: e.join,
+      years: yearsService.toFixed(1),
+      dueDate: dueDate.toISOString().split('T')[0],
+      daysUntilDue,
+      currentCyclePaid,
+      lastPayment: lastPayment||null,
+      lastPaidDate: lastPaidDate?lastPaidDate.toISOString().split('T')[0]:'Never'
+    });
+  });
+
+  return result.sort((a,b)=>a.daysUntilDue-b.daysUntilDue);
+}
+
+function updateFlightStats(){
+  const data=getFlightData();
+  const now=new Date();
+  const thisYear=now.getFullYear();
+  const thisMonth=now.getMonth();
+
+  const dueThisMonth=data.filter(d=>!d.currentCyclePaid&&new Date(d.dueDate).getMonth()===thisMonth&&new Date(d.dueDate).getFullYear()===thisYear);
+  const overdue=data.filter(d=>!d.currentCyclePaid&&d.daysUntilDue<0);
+  const upcoming=data.filter(d=>!d.currentCyclePaid&&d.daysUntilDue>=0&&d.daysUntilDue<=60);
+  const paidThisYear=Object.values(DB.flightAllowance).filter(p=>{
+    const d=new Date(p.paidDate||p.ts);
+    return d.getFullYear()===thisYear;
+  });
+
+  document.getElementById('fa-due').textContent=dueThisMonth.length;
+  document.getElementById('fa-overdue').textContent=overdue.length;
+  document.getElementById('fa-paid-yr').textContent=paidThisYear.length;
+  document.getElementById('fa-upcoming').textContent=upcoming.filter(d=>d.daysUntilDue>=0).length;
+}
+
+window.renderFlight=function(){
+  const data=getFlightData();
+  const q=v('flightSearch').toLowerCase();
+  const statusF=document.getElementById('flightStatusF')?.value||'';
+  const now=new Date();
+  const thisMonth=now.getMonth();
+  const thisYear=now.getFullYear();
+
+  let filtered=data;
+  if(q) filtered=filtered.filter(d=>d.name.toLowerCase().includes(q)||d.dept.toLowerCase().includes(q));
+  if(statusF==='due') filtered=filtered.filter(d=>!d.currentCyclePaid&&new Date(d.dueDate).getMonth()===thisMonth&&new Date(d.dueDate).getFullYear()===thisYear);
+  else if(statusF==='overdue') filtered=filtered.filter(d=>!d.currentCyclePaid&&d.daysUntilDue<0);
+  else if(statusF==='upcoming') filtered=filtered.filter(d=>!d.currentCyclePaid&&d.daysUntilDue>=0&&d.daysUntilDue<=60);
+  else if(statusF==='paid') filtered=filtered.filter(d=>d.currentCyclePaid);
+
+  const tbody=document.getElementById('flightBody');
+  if(!filtered.length){tbody.innerHTML='<tr><td colspan="10"><div class="empty-state"><p>No records match.</p></div></td></tr>';return;}
+
+  tbody.innerHTML=filtered.map(d=>{
+    const isPaid=d.currentCyclePaid;
+    const isOverdue=!isPaid&&d.daysUntilDue<0;
+    const isDueThisMonth=!isPaid&&new Date(d.dueDate).getMonth()===thisMonth&&new Date(d.dueDate).getFullYear()===thisYear;
+    const isUpcoming=!isPaid&&d.daysUntilDue>=0&&d.daysUntilDue<=60;
+
+    let statusBadge='';
+    if(isPaid) statusBadge='<span class="badge badge-approved">✓ Paid</span>';
+    else if(isOverdue) statusBadge='<span class="badge badge-inactive">⚠ Overdue</span>';
+    else if(isDueThisMonth) statusBadge='<span class="badge badge-pending">📅 Due This Month</span>';
+    else if(isUpcoming) statusBadge='<span class="badge" style="background:#e3f2fd;color:#1565c0;">⏰ Upcoming</span>';
+    else statusBadge='<span class="badge" style="background:#f5f5f5;color:#888;">Scheduled</span>';
+
+    const daysDisplay=isOverdue?`<span class="exp-red">${Math.abs(d.daysUntilDue)}d overdue</span>`:
+      d.daysUntilDue===0?'<span class="exp-red">Today</span>':
+      `${d.daysUntilDue}d`;
+
+    const actionBtn=isPaid?'<span style="color:#888;font-size:12px;">—</span>':
+      `<button class="btn btn-sm btn-gold" onclick="openFlightPay('${esc(d.name)}','${d.dueDate}')">Mark Paid</button>`;
+
+    return`<tr>
+      <td><strong>${esc(d.name)}</strong></td>
+      <td style="font-size:12px;">${esc(d.dept)}</td>
+      <td style="font-size:11px;">${esc(d.entity)}</td>
+      <td style="font-size:12px;">${d.join}</td>
+      <td style="font-size:12px;">${d.years} yrs</td>
+      <td style="font-size:12px;">${d.dueDate}</td>
+      <td style="font-size:12px;">${daysDisplay}</td>
+      <td>${statusBadge}</td>
+      <td style="font-size:11px;color:#888;">${d.lastPaidDate}</td>
+      <td>${actionBtn}</td>
+    </tr>`;
+  }).join('');
+
+  // Payment history
+  const hist=Object.values(DB.flightAllowance).sort((a,b)=>b.paidDate>a.paidDate?1:-1);
+  const hbody=document.getElementById('flightHistBody');
+  hbody.innerHTML=hist.length?hist.map(p=>`<tr>
+    <td><strong>${esc(p.empName)}</strong></td>
+    <td>${p.year||'—'}</td>
+    <td style="color:#1A7A6E;font-weight:700;">AED 1,500</td>
+    <td>${p.paidDate||'—'}</td>
+    <td style="font-size:12px;">${esc(p.ref||'—')}</td>
+    <td style="font-size:12px;">${esc(p.paidBy||'—')}</td>
+  </tr>`).join(''):'<tr><td colspan="6"><div class="empty-state"><p>No payments recorded yet.</p></div></td></tr>';
+};
+
+window.openFlightPay=function(empName, dueDate){
+  const now=new Date();
+  const year=new Date(dueDate).getFullYear();
+  document.getElementById('fpEmpDisplay').textContent=empName+' — Due: '+dueDate;
+  document.getElementById('fpEmpName').value=empName;
+  document.getElementById('fpYear').value=year;
+  document.getElementById('fpDate').value=now.toISOString().split('T')[0];
+  sv('fpRef','');sv('fpNotes','');
+  document.getElementById('flightPayModal').classList.add('open');
+};
+
+window.saveFlightPayment=function(){
+  const empName=v('fpEmpName');
+  const year=v('fpYear');
+  const paidDate=v('fpDate');
+  const payRef=v('fpRef');
+  const notes=v('fpNotes');
+  if(!paidDate){alert('Please enter payment date');return;}
+  const data={
+    empName, year, amount:1500, paidDate,
+    ref:payRef, notes, paidBy:adminName, ts:Date.now()
+  };
+  set(push(ref_db('flightAllowance')),data).then(()=>{
+    logAudit('Flight Allowance Paid',empName,`AED 1,500 — Year ${year} — Ref: ${payRef}`);
+    closeModal('flightPayModal');
+    showAlert('flight-alert',`✈️ AED 1,500 flight allowance recorded for ${empName}`);
+    renderFlight();updateFlightStats();
+  });
+};
+
 function renderExpiry(){
   const days=parseInt(document.getElementById('expRange')?.value||30);
   const q=v('expSearch').toLowerCase();
@@ -1869,6 +2122,25 @@ window.runReport=function(type){
     ws_data.push(['SUMMARY BY CATEGORY']);
     const byCat={};Object.values(DB.assets).forEach(a=>{byCat[a.category||'Other']=(byCat[a.category||'Other']||0)+1;});
     Object.entries(byCat).forEach(([k,v])=>ws_data.push([k,v+' items']));
+  } else if(type==='flight'){
+    filename='CK_Flight_Allowance_Report';sheetname='Flight Allowance';
+    const flightData=getFlightData();
+    ws_data=[
+      companyHdr,
+      ['FLIGHT ALLOWANCE REPORT — Generated: '+today],
+      ['Annual Entitlement: AED 1,500 per employee per year of service'],[''],
+      ['Employee','Department','Entity','Join Date','Years of Service','Next Due Date','Days Until Due','Current Cycle','Last Paid Date']
+    ];
+    flightData.forEach(d=>{
+      ws_data.push([d.name,d.dept,d.entity,d.join,d.years+'yrs',d.dueDate,
+        d.daysUntilDue<0?'OVERDUE':d.daysUntilDue+'d',
+        d.currentCyclePaid?'PAID':'PENDING',d.lastPaidDate]);
+    });
+    ws_data.push(['']);
+    ws_data.push(['PAYMENT HISTORY']);
+    ws_data.push(['Employee','Year','Amount (AED)','Paid Date','Payroll Ref','Paid By']);
+    Object.values(DB.flightAllowance).sort((a,b)=>b.paidDate>a.paidDate?1:-1)
+      .forEach(p=>ws_data.push([p.empName,p.year,1500,p.paidDate,p.ref,p.paidBy]));
   } else if(type==='salary'){
     filename='CK_Salary_Changes_Report';sheetname='Salary Changes';
     ws_data=[
