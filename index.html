@@ -419,7 +419,8 @@ tr:hover td{background:#fafbfc;}
               <select id="profileEmpSel" onclick="if(this.options.length<=1)buildEmpDropdown('profileEmpSel')" style="flex:1;min-width:280px;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;">
                 <option value="">— Select Employee —</option>
               </select>
-              <button class="btn btn-gold" onclick="if(document.getElementById('profileEmpSel').options.length<=1){buildEmpDropdown('profileEmpSel');}setTimeout(runProfileReport,100);">📥 Download Employee Profile</button>
+              <button class="btn btn-gold" onclick="if(document.getElementById('profileEmpSel').options.length<=1){buildEmpDropdown('profileEmpSel');}setTimeout(runProfileReport,100);">📥 Excel</button>
+              <button class="btn btn-primary" onclick="if(document.getElementById('profileEmpSel').options.length<=1){buildEmpDropdown('profileEmpSel');}setTimeout(runProfilePDF,100);">📄 PDF</button>
             </div>
           </div>
         </div>
@@ -665,6 +666,7 @@ tr:hover td{background:#fafbfc;}
 
 <!-- SheetJS for Excel export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -1497,79 +1499,408 @@ window.runProfileReport=function(){
   logAudit('Download Employee Profile',emp.name,`Full profile report — ${salRows.length} salary records, ${leaveRows.length} leave records`);
 };
 
+
+window.runProfilePDF=function(){
+  const val=document.getElementById('profileEmpSel').value;
+  if(!val){alert('Please select an employee first');return;}
+  const parts=val.split('|');
+  const empKey=parts[0];
+  const emp=DB.employees[empKey];
+  if(!emp){alert('Employee not found');return;}
+
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const today=new Date().toLocaleDateString('en-AE',{day:'2-digit',month:'long',year:'numeric'});
+  const pageW=210;const margin=15;const contentW=pageW-margin*2;
+  let y=15;
+
+  // ── Header bar ────────────────────────────────────────────────────────────
+  doc.setFillColor(28,53,87); // NAVY
+  doc.rect(0,0,210,28,'F');
+  doc.setTextColor(201,168,76); // GOLD
+  doc.setFontSize(14);doc.setFont('helvetica','bold');
+  doc.text('CKC Building Contracting  |  CK Architecture Interiors',margin,10);
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(11);doc.setFont('helvetica','bold');
+  doc.text('EMPLOYEE PROFILE REPORT',margin,18);
+  doc.setFontSize(8);doc.setFont('helvetica','normal');
+  doc.text('Generated: '+today+'   |   Confidential — HR Use Only',margin,24);
+  y=36;
+
+  // ── Employee name banner ───────────────────────────────────────────────────
+  doc.setFillColor(37,99,168); // BLUE
+  doc.rect(margin,y,contentW,10,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(12);doc.setFont('helvetica','bold');
+  doc.text((emp.name||'').toUpperCase()+'   |   '+(emp.desig||'')+'   |   '+(emp.dept||''),margin+3,y+7);
+  y+=16;
+
+  // ── Helper functions ───────────────────────────────────────────────────────
+  function sectionHdr(title){
+    doc.setFillColor(235,243,251);
+    doc.rect(margin,y,contentW,7,'F');
+    doc.setDrawColor(28,53,87);doc.setLineWidth(0.5);
+    doc.rect(margin,y,contentW,7,'S');
+    doc.setTextColor(28,53,87);doc.setFontSize(9);doc.setFont('helvetica','bold');
+    doc.text(title,margin+2,y+5);
+    y+=9;
+  }
+
+  function row2col(label,val,label2,val2){
+    doc.setFontSize(8);
+    doc.setFont('helvetica','bold');doc.setTextColor(100,100,120);
+    doc.text(label+':',margin,y+4);
+    doc.setFont('helvetica','normal');doc.setTextColor(28,53,87);
+    doc.text(String(val||'—').substring(0,38),margin+35,y+4);
+    if(label2){
+      doc.setFont('helvetica','bold');doc.setTextColor(100,100,120);
+      doc.text(label2+':',margin+100,y+4);
+      doc.setFont('helvetica','normal');doc.setTextColor(28,53,87);
+      doc.text(String(val2||'—').substring(0,30),margin+135,y+4);
+    }
+    doc.setDrawColor(220,220,220);doc.setLineWidth(0.2);
+    doc.line(margin,y+6,margin+contentW,y+6);
+    y+=7;
+    if(y>270){doc.addPage();y=15;}
+  }
+
+  function checkPage(needed=20){if(y+needed>275){doc.addPage();y=15;}}
+
+  // ── Section 1: Personal & Employment ─────────────────────────────────────
+  sectionHdr('1.  PERSONAL & EMPLOYMENT DETAILS');
+  const yrs=emp.join?((new Date()-new Date(emp.join))/(365.25*86400000)).toFixed(1):'—';
+  row2col('Employee ID',emp.empId,'Entity',emp.entity);
+  row2col('Full Name',emp.name,'Status',emp.status||'Active');
+  row2col('Designation',emp.desig,'Department',emp.dept);
+  row2col('Nationality',emp.nationality,'Gender',emp.gender);
+  row2col('Date of Birth',emp.dob,'Join Date',emp.join);
+  row2col('Years of Service',yrs+' years','Contract',emp.contract);
+  row2col('Grade',emp.grade,'Site / Project',emp.site);
+  row2col('Reporting Manager',emp.manager,'Mobile',emp.mobile);
+  row2col('Company Email',emp.email,'','');
+  y+=3;
+
+  // ── Section 2: Compensation ───────────────────────────────────────────────
+  checkPage(50);
+  sectionHdr('2.  CURRENT COMPENSATION');
+  row2col('Basic Salary (AED)',emp.basicSalary,'Gross Salary (AED)',emp.grossSalary);
+  row2col('Housing Allowance',emp.house,'Transport Allowance',emp.transport);
+  row2col('Other Allowances',emp.otherAllowances,'Bank',emp.bank);
+  row2col('Annual Leave Entitlement',emp.annualLeaveEnt,'Leave Balance',emp.annualLeaveBalance);
+  y+=3;
+
+  // ── Section 3: Documents ─────────────────────────────────────────────────
+  checkPage(50);
+  sectionHdr('3.  DOCUMENT STATUS');
+  row2col('Passport No.',emp.passport,'Passport Expiry',emp.passExp);
+  row2col('Visa No.',emp.visa,'Visa Expiry',emp.visaExp);
+  row2col('Emirates ID',emp.eid,'EID Expiry',emp.eidExp);
+  row2col('Labour Card',emp.lab,'Labour Card Expiry',emp.labExp);
+  row2col('Medical Insurance',emp.medInsurance,'','');
+  y+=3;
+
+  // ── Section 4: Salary History ─────────────────────────────────────────────
+  const salRows=Object.values(DB.salary).filter(s=>s.empId===empKey||s.empName===emp.name).sort((a,b)=>a.date>b.date?1:-1);
+  checkPage(30);
+  sectionHdr('4.  SALARY & COMPENSATION HISTORY  ('+salRows.length+' records)');
+  if(salRows.length){
+    // Table header
+    doc.setFillColor(28,53,87);doc.rect(margin,y,contentW,6,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(7.5);doc.setFont('helvetica','bold');
+    doc.text('Date',margin+1,y+4);doc.text('Type',margin+20,y+4);
+    doc.text('Previous (AED)',margin+65,y+4);doc.text('New (AED)',margin+100,y+4);
+    doc.text('Change %',margin+130,y+4);doc.text('Approved By',margin+153,y+4);
+    y+=7;
+    salRows.forEach((s,i)=>{
+      checkPage(8);
+      if(i%2===0)doc.setFillColor(235,243,251);else doc.setFillColor(255,255,255);
+      doc.rect(margin,y,contentW,6,'F');
+      doc.setTextColor(28,53,87);doc.setFontSize(7.5);doc.setFont('helvetica','normal');
+      const prev=parseFloat(s.prev)||0,nw=parseFloat(s.newVal)||0;
+      const pct=prev?((nw-prev)/prev*100).toFixed(1)+'%':'—';
+      doc.text(String(s.date||''),margin+1,y+4);
+      doc.text(String(s.type||'').substring(0,20),margin+20,y+4);
+      doc.text(String(s.prev||''),margin+65,y+4);
+      doc.text(String(s.newVal||''),margin+100,y+4);
+      doc.setTextColor(nw>=prev?26,122,110:192,57,43);
+      doc.text(pct,margin+130,y+4);
+      doc.setTextColor(28,53,87);
+      doc.text(String(s.approvedBy||'').substring(0,20),margin+153,y+4);
+      y+=6;
+    });
+  } else {
+    doc.setTextColor(150,150,150);doc.setFontSize(8);doc.setFont('helvetica','italic');
+    doc.text('No salary records on file',margin+2,y+4);y+=8;
+  }
+  y+=4;
+
+  // ── Section 5: Leave Summary ──────────────────────────────────────────────
+  const leaveRows=Object.values(DB.leave).filter(l=>l.empName===emp.name).sort((a,b)=>a.from>b.from?1:-1);
+  checkPage(30);
+  sectionHdr('5.  LEAVE HISTORY  ('+leaveRows.length+' records)');
+  if(leaveRows.length){
+    doc.setFillColor(28,53,87);doc.rect(margin,y,contentW,6,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(7.5);doc.setFont('helvetica','bold');
+    doc.text('From',margin+1,y+4);doc.text('To',margin+25,y+4);
+    doc.text('Days',margin+50,y+4);doc.text('Type',margin+63,y+4);
+    doc.text('Status',margin+120,y+4);doc.text('Approved By',margin+148,y+4);
+    y+=7;
+    leaveRows.forEach((l,i)=>{
+      checkPage(8);
+      if(i%2===0)doc.setFillColor(235,243,251);else doc.setFillColor(255,255,255);
+      doc.rect(margin,y,contentW,6,'F');
+      const days=l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:'—';
+      doc.setTextColor(28,53,87);doc.setFontSize(7.5);doc.setFont('helvetica','normal');
+      doc.text(String(l.from||''),margin+1,y+4);doc.text(String(l.to||''),margin+25,y+4);
+      doc.text(String(days),margin+50,y+4);doc.text(String(l.type||'').substring(0,28),margin+63,y+4);
+      doc.text(String(l.status||''),margin+120,y+4);doc.text(String(l.approvedBy||'').substring(0,18),margin+148,y+4);
+      y+=6;
+    });
+  } else {
+    doc.setTextColor(150,150,150);doc.setFontSize(8);doc.setFont('helvetica','italic');
+    doc.text('No leave records on file',margin+2,y+4);y+=8;
+  }
+  y+=4;
+
+  // ── Section 6: Loans ─────────────────────────────────────────────────────
+  const loanRows=Object.entries(DB.loans).filter(([k,l])=>l.empName===emp.name);
+  checkPage(25);
+  sectionHdr('6.  LOAN HISTORY  ('+loanRows.length+' records)');
+  if(loanRows.length){
+    loanRows.forEach(([k,l],i)=>{
+      checkPage(20);
+      const paid=Object.values(DB.repayments).filter(r=>r.loanKey===k).reduce((s,r)=>s+parseFloat(r.amt||0),0);
+      const outstanding=Math.max(0,parseFloat(l.amount||0)-paid);
+      row2col('Loan Amount','AED '+parseFloat(l.amount).toLocaleString(),'Date Approved',l.dateApproved);
+      row2col('Purpose',l.purpose,'Monthly Deduction','AED '+parseFloat(l.monthlyDeduct||0).toLocaleString());
+      row2col('Total Paid','AED '+paid.toFixed(2),'Outstanding','AED '+outstanding.toFixed(2));
+      row2col('Status',l.status,'Approved By',l.approvedBy);
+      y+=2;
+    });
+  } else {
+    doc.setTextColor(150,150,150);doc.setFontSize(8);doc.setFont('helvetica','italic');
+    doc.text('No loan records on file',margin+2,y+4);y+=8;
+  }
+  y+=4;
+
+  // ── Section 7: Assets ─────────────────────────────────────────────────────
+  const assetRows=Object.values(DB.assets).filter(a=>a.empName===emp.name);
+  checkPage(25);
+  sectionHdr('7.  ASSETS & EQUIPMENT ISSUED  ('+assetRows.length+' items)');
+  if(assetRows.length){
+    doc.setFillColor(28,53,87);doc.rect(margin,y,contentW,6,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(7.5);doc.setFont('helvetica','bold');
+    doc.text('Issue Date',margin+1,y+4);doc.text('Category',margin+25,y+4);
+    doc.text('Item',margin+60,y+4);doc.text('Serial',margin+110,y+4);
+    doc.text('Status',margin+145,y+4);doc.text('Return Date',margin+165,y+4);
+    y+=7;
+    assetRows.forEach((a,i)=>{
+      checkPage(8);
+      if(i%2===0)doc.setFillColor(235,243,251);else doc.setFillColor(255,255,255);
+      doc.rect(margin,y,contentW,6,'F');
+      doc.setTextColor(28,53,87);doc.setFontSize(7.5);doc.setFont('helvetica','normal');
+      doc.text(String(a.issueDate||''),margin+1,y+4);
+      doc.text(String(a.category||'').substring(0,16),margin+25,y+4);
+      doc.text(String(a.item||'').substring(0,22),margin+60,y+4);
+      doc.text(String(a.serial||'').substring(0,14),margin+110,y+4);
+      doc.text(String(a.status||''),margin+145,y+4);
+      doc.text(String(a.returnDate||'—'),margin+165,y+4);
+      y+=6;
+    });
+  } else {
+    doc.setTextColor(150,150,150);doc.setFontSize(8);doc.setFont('helvetica','italic');
+    doc.text('No assets on record',margin+2,y+4);y+=8;
+  }
+
+  // ── Footer on all pages ────────────────────────────────────────────────────
+  const totalPages=doc.internal.getNumberOfPages();
+  for(let p=1;p<=totalPages;p++){
+    doc.setPage(p);
+    doc.setFillColor(28,53,87);doc.rect(0,285,210,12,'F');
+    doc.setTextColor(201,168,76);doc.setFontSize(7);doc.setFont('helvetica','normal');
+    doc.text('CK Architecture Interiors LLC  |  CKC Building Contracting LLC  |  Dubai, UAE',margin,291);
+    doc.setTextColor(180,180,180);
+    doc.text('Page '+p+' of '+totalPages+'  |  Confidential — HR Use Only',170,291,'right');
+  }
+
+  // ── Save ──────────────────────────────────────────────────────────────────
+  const fname='Employee_Profile_'+(emp.name||'').replace(/\s+/g,'_')+'_'+new Date().toISOString().split('T')[0]+'.pdf';
+  doc.save(fname);
+  logAudit('Download PDF Profile',emp.name,'Full profile PDF generated');
+};
+
 window.runReport=function(type){
   const emps=Object.values(DB.employees);
   const now=new Date();
   let ws_data=[], filename='', sheetname='';
+  const today=now.toLocaleDateString('en-AE',{day:'2-digit',month:'long',year:'numeric'});
+  const companyHdr=['CK ARCHITECTURE INTERIORS LLC  |  CKC BUILDING CONTRACTING LLC','','','','','','','','',''];
 
   if(type==='headcount'){
     filename='CK_Headcount_Report';sheetname='Headcount';
-    ws_data=[['Employee ID','Full Name','Department','Designation','Entity','Nationality','Gender','Grade','Employment Type','Join Date','Status','Basic Salary (AED)','Gross Salary (AED)','Site / Project']];
+    ws_data=[
+      companyHdr,
+      ['HEADCOUNT REPORT — Generated: '+today],[''],
+      ['Employee ID','Full Name','Department','Designation','Entity','Nationality','Gender','Grade','Employment Type','Join Date','Status','Basic Salary (AED)','Gross Salary (AED)','Site / Project']
+    ];
     emps.filter(e=>e.status==='Active'||!e.status).forEach(e=>ws_data.push([e.empId,e.name,e.dept,e.desig,e.entity,e.nationality,e.gender,e.grade,e.contract,e.join,e.status||'Active',e.basicSalary,e.grossSalary,e.site]));
+    ws_data.push(['']);
+    ws_data.push(['SUMMARY']);
+    const byDept={};emps.forEach(e=>{byDept[e.dept||'Unknown']=(byDept[e.dept||'Unknown']||0)+1;});
+    ws_data.push(['Total Active',emps.filter(e=>e.status==='Active'||!e.status).length]);
+    Object.entries(byDept).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>ws_data.push([k,v]));
   } else if(type==='gratuity'){
     filename='CK_Gratuity_Report';sheetname='Gratuity';
-    ws_data=[['Employee ID','Full Name','Department','Entity','Join Date','Years of Service','Gratuity Basis (AED/day)','Calculated EOSB (AED)','Status']];
+    ws_data=[
+      companyHdr,
+      ['GRATUITY / END OF SERVICE REPORT — Generated: '+today],
+      ['(Calculated per UAE Federal Decree-Law No. 33/2021)'],[''],
+      ['Employee ID','Full Name','Department','Entity','Join Date','Years of Service','Daily Rate (AED)','Calculated EOSB (AED)','Status']
+    ];
+    let totalEOSB=0;
     emps.forEach(e=>{
       if(!e.join)return;
       const years=(now-new Date(e.join))/(365.25*86400000);
       const basic=parseFloat(e.basicSalary||0);
       const dailyRate=basic*12/365;
       let eosb=0;
-      if(years<=5)eosb=dailyRate*21*years;
+      if(years<1)eosb=0;
+      else if(years<=5)eosb=dailyRate*21*years;
       else eosb=dailyRate*21*5+dailyRate*30*(years-5);
+      totalEOSB+=eosb;
       ws_data.push([e.empId,e.name,e.dept,e.entity,e.join,years.toFixed(2),dailyRate.toFixed(2),eosb.toFixed(2),e.status||'Active']);
     });
+    ws_data.push(['']);
+    ws_data.push(['TOTAL ESTIMATED LIABILITY (AED)','','','','','','',totalEOSB.toFixed(2)]);
   } else if(type==='expiry'){
     filename='CK_Document_Expiry_Report';sheetname='Expiry';
-    ws_data=[['Employee ID','Full Name','Department','Entity','Document','Expiry Date','Days Left','Status']];
+    ws_data=[
+      companyHdr,
+      ['DOCUMENT EXPIRY REPORT — Generated: '+today],[''],
+      ['Employee ID','Full Name','Department','Entity','Document','Expiry Date','Days Left','Status']
+    ];
+    const rows=[];
     emps.forEach(e=>{
       [{f:'passExp',l:'Passport'},{f:'visaExp',l:'Visa'},{f:'eidExp',l:'Emirates ID'},{f:'labExp',l:'Labour Card'}].forEach(({f,l})=>{
         if(!e[f])return;
         const dl=daysLeft(e[f]);
-        ws_data.push([e.empId,e.name,e.dept,e.entity,l,e[f],dl,dl<0?'EXPIRED':dl<=30?'Urgent':dl<=60?'Warning':'OK']);
+        rows.push([e.empId,e.name,e.dept,e.entity,l,e[f],dl,dl<0?'EXPIRED':dl<=30?'URGENT':dl<=60?'WARNING':'OK']);
       });
     });
-    ws_data.sort((a,b)=>(a[6]||0)-(b[6]||0));
+    rows.sort((a,b)=>(a[6]||0)-(b[6]||0));
+    rows.forEach(r=>ws_data.push(r));
+    ws_data.push(['']);
+    ws_data.push(['SUMMARY']);
+    ws_data.push(['Expired',rows.filter(r=>r[6]<0).length]);
+    ws_data.push(['Expiring in 30 days',rows.filter(r=>r[6]>=0&&r[6]<=30).length]);
+    ws_data.push(['Expiring in 31-60 days',rows.filter(r=>r[6]>30&&r[6]<=60).length]);
   } else if(type==='leavers'){
     filename='CK_Leavers_Turnover_Report';sheetname='Leavers';
-    ws_data=[['Employee ID','Full Name','Department','Entity','Join Date','Last Working Day','Exit Type','Reason','Rehire Eligible']];
-    emps.filter(e=>e.exitDate||e.status==='Inactive').forEach(e=>ws_data.push([e.empId,e.name,e.dept,e.entity,e.join,e.exitDate,e.exitType,e.exitReason,e.rehire]));
-    ws_data.push([]);ws_data.push(['TURNOVER ANALYSIS']);
-    const active=emps.filter(e=>e.status==='Active'||!e.status).length;
-    const leavers=emps.filter(e=>e.exitDate||e.status==='Inactive').length;
-    ws_data.push(['Total Headcount',emps.length]);ws_data.push(['Active',active]);ws_data.push(['Leavers',leavers]);ws_data.push(['Turnover %',emps.length?(leavers/emps.length*100).toFixed(1)+'%':'—']);
+    ws_data=[
+      companyHdr,
+      ['LEAVERS & TURNOVER REPORT — Generated: '+today],[''],
+      ['Employee ID','Full Name','Department','Entity','Join Date','Last Working Day','Exit Type','Reason','Rehire Eligible']
+    ];
+    const leavers=emps.filter(e=>e.exitDate||e.status==='Inactive');
+    leavers.forEach(e=>ws_data.push([e.empId,e.name,e.dept,e.entity,e.join,e.exitDate,e.exitType,e.exitReason,e.rehire]));
+    ws_data.push(['']);
+    ws_data.push(['TURNOVER ANALYSIS']);
+    ws_data.push(['Total Headcount',emps.length]);
+    ws_data.push(['Active',emps.filter(e=>e.status==='Active'||!e.status).length]);
+    ws_data.push(['Leavers',leavers.length]);
+    ws_data.push(['Turnover %',emps.length?(leavers.length/emps.length*100).toFixed(1)+'%':'—']);
   } else if(type==='newhires'){
     filename='CK_New_Hires_Report';sheetname='New Hires';
-    ws_data=[['Employee ID','Full Name','Department','Designation','Entity','Nationality','Join Date','Grade']];
-    emps.filter(e=>e.join).sort((a,b)=>b.join>a.join?1:-1).forEach(e=>ws_data.push([e.empId,e.name,e.dept,e.desig,e.entity,e.nationality,e.join,e.grade]));
+    ws_data=[
+      companyHdr,
+      ['NEW HIRES REPORT — Generated: '+today],[''],
+      ['Employee ID','Full Name','Department','Designation','Entity','Nationality','Join Date','Grade','Contract Type']
+    ];
+    emps.filter(e=>e.join).sort((a,b)=>b.join>a.join?1:-1).forEach(e=>ws_data.push([e.empId,e.name,e.dept,e.desig,e.entity,e.nationality,e.join,e.grade,e.contract]));
   } else if(type==='leave'){
     filename='CK_Leave_Summary_Report';sheetname='Leave';
-    ws_data=[['Employee','Leave Type','From','To','Days','Status','Approved By','Notes']];
-    Object.values(DB.leave).forEach(l=>{const d=l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:'';ws_data.push([l.empName,l.type,l.from,l.to,d,l.status,l.approvedBy,l.notes]);});
+    ws_data=[
+      companyHdr,
+      ['LEAVE SUMMARY REPORT — Generated: '+today],[''],
+      ['Employee','Leave Type','From','To','Days','Status','Approved By','Notes']
+    ];
+    Object.values(DB.leave).sort((a,b)=>a.from>b.from?1:-1).forEach(l=>{
+      const d=l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:'';
+      ws_data.push([l.empName,l.type,l.from,l.to,d,l.status,l.approvedBy,l.notes]);
+    });
+    ws_data.push(['']);
+    ws_data.push(['SUMMARY BY TYPE']);
+    const byType={};Object.values(DB.leave).forEach(l=>{byType[l.type||'Other']=(byType[l.type||'Other']||0)+1;});
+    Object.entries(byType).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>ws_data.push([k,v+' records']));
   } else if(type==='loans'){
     filename='CK_Loan_Report';sheetname='Loans';
-    ws_data=[['Employee','Loan Amount (AED)','Purpose','Date Approved','Monthly Deduction','Total Paid','Outstanding','Recovery %','Status','Approved By']];
+    ws_data=[
+      companyHdr,
+      ['EMPLOYEE LOAN REPORT — Generated: '+today],[''],
+      ['Employee','Loan Amount (AED)','Purpose','Date Approved','Monthly Deduction','Total Paid','Outstanding','Recovery %','Status','Approved By']
+    ];
+    let totalLoan=0,totalOutstanding=0;
     Object.entries(DB.loans).forEach(([k,l])=>{
       const paid=Object.values(DB.repayments).filter(r=>r.loanKey===k).reduce((s,r)=>s+parseFloat(r.amt||0),0);
       const outstanding=Math.max(0,parseFloat(l.amount||0)-paid);
       const pct=l.amount?Math.round(paid/l.amount*100):0;
+      totalLoan+=parseFloat(l.amount||0);totalOutstanding+=outstanding;
       ws_data.push([l.empName,l.amount,l.purpose,l.dateApproved,l.monthlyDeduct,paid.toFixed(2),outstanding.toFixed(2),pct+'%',l.status,l.approvedBy]);
     });
+    ws_data.push(['']);
+    ws_data.push(['TOTALS','AED '+totalLoan.toLocaleString(),'','','','','AED '+totalOutstanding.toLocaleString()]);
   } else if(type==='assets'){
     filename='CK_Asset_Register_Report';sheetname='Assets';
-    ws_data=[['Employee','Category','Item','Serial/Batch','Issue Date','Condition','Status','Return Date','Notes','Issued By']];
+    ws_data=[
+      companyHdr,
+      ['ASSET & EQUIPMENT REGISTER — Generated: '+today],[''],
+      ['Employee','Category','Item','Serial/Batch','Issue Date','Condition','Status','Return Date','Notes','Issued By']
+    ];
     Object.values(DB.assets).forEach(a=>ws_data.push([a.empName,a.category,a.item,a.serial,a.issueDate,a.condition,a.status,a.returnDate,a.notes,a.by]));
+    ws_data.push(['']);
+    ws_data.push(['SUMMARY BY CATEGORY']);
+    const byCat={};Object.values(DB.assets).forEach(a=>{byCat[a.category||'Other']=(byCat[a.category||'Other']||0)+1;});
+    Object.entries(byCat).forEach(([k,v])=>ws_data.push([k,v+' items']));
   } else if(type==='salary'){
     filename='CK_Salary_Changes_Report';sheetname='Salary Changes';
-    ws_data=[['Employee','Type','Effective Date','Previous (AED)','New Amount (AED)','Reason','Approved By']];
-    Object.values(DB.salary).sort((a,b)=>b.ts-a.ts).forEach(s=>ws_data.push([s.empName,s.type,s.date,s.prev,s.newVal,s.reason,s.approvedBy]));
+    ws_data=[
+      companyHdr,
+      ['SALARY & PROMOTION HISTORY — Generated: '+today],[''],
+      ['Employee','Type','Effective Date','Previous (AED)','New Amount (AED)','% Change','Reason','Approved By']
+    ];
+    Object.values(DB.salary).sort((a,b)=>b.ts-a.ts).forEach(s=>{
+      const prev=parseFloat(s.prev)||0,nw=parseFloat(s.newVal)||0;
+      const pct=prev?((nw-prev)/prev*100).toFixed(1)+'%':'—';
+      ws_data.push([s.empName,s.type,s.date,s.prev,s.newVal,pct,s.reason,s.approvedBy]);
+    });
   }
 
-  // Build and download Excel
+  // ── Build professional Excel ──────────────────────────────────────────────
   const wb=XLSX.utils.book_new();
   const ws=XLSX.utils.aoa_to_sheet(ws_data);
-  // Style header row width
-  if(ws_data[0])ws['!cols']=ws_data[0].map(()=>({wch:20}));
+
+  // Column widths
+  if(ws_data[3])ws['!cols']=ws_data[3].map(()=>({wch:22}));
+
+  // Style rows
+  const range=XLSX.utils.decode_range(ws['!ref']||'A1');
+  for(let R=range.s.r;R<=range.e.r;R++){
+    for(let C=range.s.c;C<=range.e.c;C++){
+      const cellAddr=XLSX.utils.encode_cell({r:R,c:C});
+      if(!ws[cellAddr])continue;
+      ws[cellAddr].s={};
+      // Row 1 = company header
+      if(R===0){ws[cellAddr].s={font:{bold:true,sz:11,color:{rgb:'1C3557'}},alignment:{horizontal:'left'}};}
+      // Row 2 = report title
+      if(R===1){ws[cellAddr].s={font:{bold:true,sz:13,color:{rgb:'1C3557'}}};}
+      // Row 4 = column headers (index 3)
+      if(R===3){ws[cellAddr].s={font:{bold:true,sz:10,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'1C3557'}},alignment:{horizontal:'center',wrapText:true},border:{bottom:{style:'medium',color:{rgb:'C9A84C'}}}};}
+      // Data rows alternating
+      if(R>3&&R%2===0){ws[cellAddr].s={fill:{fgColor:{rgb:'EBF3FB'}},font:{sz:9}};}
+      if(R>3&&R%2!==0){ws[cellAddr].s={fill:{fgColor:{rgb:'FFFFFF'}},font:{sz:9}};}
+    }
+  }
+
   XLSX.utils.book_append_sheet(wb,ws,sheetname);
   XLSX.writeFile(wb,`${filename}_${new Date().toISOString().split('T')[0]}.xlsx`);
   logAudit('Download Report',filename,'Excel export');
