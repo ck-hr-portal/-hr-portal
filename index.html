@@ -527,7 +527,18 @@ tr:hover td{background:#fafbfc;}
         <div class="page-header"><h2>Reports &amp; Downloads</h2><p>All reports export to Excel — formatted and ready to share</p></div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
           <div class="card" style="cursor:pointer;border-top:3px solid #1C3557;" onclick="runReport('headcount')"><div class="card-title">👥 Headcount Report</div><p style="font-size:12px;color:#888;">By dept, entity, nationality, grade</p><div class="btn-row"><button class="btn btn-sm btn-primary">📥 Download Excel</button></div></div>
-          <div class="card" style="cursor:pointer;border-top:3px solid #C9A84C;" onclick="runReport('gratuity')"><div class="card-title">💰 Gratuity Report</div><p style="font-size:12px;color:#888;">EOSB per UAE law — active &amp; leavers</p><div class="btn-row"><button class="btn btn-sm btn-gold">📥 Download Excel</button></div></div>
+          <div class="card" style="border-top:3px solid #C9A84C;">
+            <div class="card-title">💰 Gratuity / EOSB Report</div>
+            <p style="font-size:12px;color:#888;margin-bottom:10px;">Live calculation as of today — per UAE Federal Decree-Law No. 33/2021. 21 days/yr (first 5 yrs), 30 days/yr (after).</p>
+            <div class="btn-row" style="flex-wrap:wrap;gap:6px;">
+              <button class="btn btn-sm btn-gold" onclick="runReport('gratuity')">📥 All Companies Excel</button>
+              <button class="btn btn-sm" style="background:#1C3557;color:#fff;" onclick="runReport('gratuity_ck')">📥 CK Architecture Excel</button>
+              <button class="btn btn-sm" style="background:#1A7A6E;color:#fff;" onclick="runReport('gratuity_ckc')">📥 CKC Building Excel</button>
+              <button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="runGratuityPDF('all')">📄 PDF (All)</button>
+              <button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="runGratuityPDF('ck')">📄 PDF (CK)</button>
+              <button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="runGratuityPDF('ckc')">📄 PDF (CKC)</button>
+            </div>
+          </div>
           <div class="card" style="cursor:pointer;border-top:3px solid #e74c3c;" onclick="runReport('expiry')"><div class="card-title">⚠️ Document Expiry</div><p style="font-size:12px;color:#888;">All expiries by urgency</p><div class="btn-row"><button class="btn btn-sm btn-danger">📥 Download Excel</button></div></div>
           <div class="card" style="cursor:pointer;border-top:3px solid #1A7A6E;" onclick="runReport('leavers')"><div class="card-title">🚪 Leavers Report</div><p style="font-size:12px;color:#888;">Exits with turnover % by dept</p><div class="btn-row"><button class="btn btn-sm btn-teal">📥 Download Excel</button></div></div>
           <div class="card" style="cursor:pointer;border-top:3px solid #2563A8;" onclick="runReport('newhires')"><div class="card-title">🆕 New Hires Report</div><p style="font-size:12px;color:#888;">Joiners by period and department</p><div class="btn-row"><button class="btn btn-sm btn-primary">📥 Download Excel</button></div></div>
@@ -2520,6 +2531,155 @@ window.runProfilePDF=async function(){
   logAudit('Download PDF Profile',emp.name,'Full profile PDF generated');
 };
 
+window.runGratuityPDF=async function(entity){
+  // Load jsPDF dynamically
+  if(!window.jspdf){
+    await new Promise((resolve,reject)=>{
+      const s=document.createElement('script');
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      s.onload=resolve;s.onerror=reject;
+      document.head.appendChild(s);
+    });
+  }
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const now=new Date();
+  const today=now.toLocaleDateString('en-AE',{day:'2-digit',month:'long',year:'numeric'});
+  const pageW=297;const margin=12;const contentW=pageW-margin*2;
+  
+  let emps=Object.values(DB.employees).filter(e=>e.join&&(e.status==='Active'||!e.status));
+  let entityLabel='CK ARCHITECTURE INTERIORS LLC  |  CKC BUILDING CONTRACTING LLC';
+  let filename='Gratuity_EOSB_Report_All';
+  if(entity==='ck'){emps=emps.filter(e=>e.entity&&e.entity.includes('Architecture'));entityLabel='CK ARCHITECTURE INTERIORS LLC';filename='Gratuity_EOSB_Report_CK_Architecture';}
+  if(entity==='ckc'){emps=emps.filter(e=>e.entity&&e.entity.includes('Building'));entityLabel='CKC BUILDING CONTRACTING LLC';filename='Gratuity_EOSB_Report_CKC_Building';}
+  
+  // Calculate gratuity
+  const rows=[];
+  let totalEOSB=0,ckEOSB=0,ckcEOSB=0,ckCount=0,ckcCount=0;
+  emps.forEach(e=>{
+    if(!e.join)return;
+    const years=(now-new Date(e.join))/(365.25*86400000);
+    if(years<1)return;
+    const basic=parseFloat(e.basicSalary||0);
+    const dailyRate=basic*12/365;
+    let eosb=years<=5?(dailyRate*21*years):(dailyRate*21*5+dailyRate*30*(years-5));
+    totalEOSB+=eosb;
+    if(e.entity&&e.entity.includes('Architecture')){ckEOSB+=eosb;ckCount++;}
+    else{ckcEOSB+=eosb;ckcCount++;}
+    rows.push({empId:e.empId||'',name:e.name||'',dept:e.dept||'',entity:e.entity||'',join:e.join,years:years.toFixed(1),basic:basic,eosb:eosb});
+  });
+  rows.sort((a,b)=>b.eosb-a.eosb);
+  
+  let y=0;let pageNum=1;
+  
+  function addHeader(){
+    // Navy header
+    doc.setFillColor(28,53,87);doc.rect(0,0,297,22,'F');
+    doc.setTextColor(201,168,76);doc.setFontSize(13);doc.setFont('helvetica','bold');
+    doc.text(entityLabel,margin,9);
+    doc.setTextColor(255,255,255);doc.setFontSize(10);doc.setFont('helvetica','normal');
+    doc.text('END OF SERVICE GRATUITY (EOSB) REPORT',margin,16);
+    doc.text('Calculated: '+today+'   |   UAE Federal Decree-Law No. 33/2021',margin+120,16);
+    y=28;
+  }
+  
+  function addFooter(page,total){
+    doc.setFillColor(28,53,87);doc.rect(0,196,297,10,'F');
+    doc.setTextColor(201,168,76);doc.setFontSize(7);doc.setFont('helvetica','normal');
+    doc.text('CK Architecture Interiors LLC  |  CKC Building Contracting LLC  |  Dubai, UAE  |  Confidential — For Management Use Only',margin,202);
+    doc.setTextColor(255,255,255);
+    doc.text('Page '+page+'  |  Total EOSB Liability: AED '+total.toLocaleString('en-AE',{minimumFractionDigits:2}),260,202,'right');
+  }
+  
+  addHeader();
+  
+  // Column headers
+  const cols=[
+    {x:margin,w:18,label:'Emp ID'},
+    {x:margin+18,w:40,label:'Full Name'},
+    {x:margin+58,w:30,label:'Department'},
+    {x:margin+88,w:45,label:'Entity'},
+    {x:margin+133,w:22,label:'Join Date'},
+    {x:margin+155,w:16,label:'Years'},
+    {x:margin+171,w:28,label:'Basic (AED)'},
+    {x:margin+199,w:30,label:'EOSB (AED)'},
+  ];
+  
+  doc.setFillColor(28,53,87);doc.rect(margin,y,contentW,7,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(7.5);doc.setFont('helvetica','bold');
+  cols.forEach(c=>doc.text(c.label,c.x+1,y+5));
+  y+=8;
+  
+  rows.forEach((r,i)=>{
+    if(y>185){
+      addFooter(pageNum,totalEOSB);
+      doc.addPage();pageNum++;
+      addHeader();
+      doc.setFillColor(28,53,87);doc.rect(margin,y,contentW,7,'F');
+      doc.setTextColor(255,255,255);doc.setFontSize(7.5);doc.setFont('helvetica','bold');
+      cols.forEach(c=>doc.text(c.label,c.x+1,y+5));
+      y+=8;
+    }
+    if(i%2===0)doc.setFillColor(235,243,251);else doc.setFillColor(255,255,255);
+    doc.rect(margin,y,contentW,6,'F');
+    doc.setTextColor(28,53,87);doc.setFontSize(7);doc.setFont('helvetica','normal');
+    doc.text(String(r.empId).substring(0,10),cols[0].x+1,y+4);
+    doc.text(String(r.name).substring(0,22),cols[1].x+1,y+4);
+    doc.text(String(r.dept).substring(0,16),cols[2].x+1,y+4);
+    const entShort=r.entity.includes('Architecture')?'CK Architecture':'CKC Building';
+    doc.text(entShort,cols[3].x+1,y+4);
+    doc.text(String(r.join),cols[4].x+1,y+4);
+    doc.text(String(r.years)+' yrs',cols[5].x+1,y+4);
+    doc.text('AED '+r.basic.toLocaleString('en-AE',{minimumFractionDigits:0}),cols[6].x+1,y+4);
+    doc.setFont('helvetica','bold');
+    doc.text('AED '+r.eosb.toFixed(2),cols[7].x+1,y+4);
+    doc.setFont('helvetica','normal');
+    y+=6;
+  });
+  
+  // Summary section
+  y+=4;
+  if(y>175){doc.addPage();pageNum++;addHeader();y=28;}
+  doc.setFillColor(28,53,87);doc.rect(margin,y,contentW,7,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(8);doc.setFont('helvetica','bold');
+  doc.text('SUMMARY',margin+2,y+5);y+=9;
+  
+  const summRows=[];
+  if(entity!=='ckc')summRows.push({label:'CK Architecture Interiors LLC',count:ckCount,eosb:ckEOSB});
+  if(entity!=='ck')summRows.push({label:'CKC Building Contracting LLC',count:ckcCount,eosb:ckcEOSB});
+  summRows.push({label:'TOTAL EOSB LIABILITY',count:ckCount+ckcCount,eosb:totalEOSB,bold:true});
+  
+  summRows.forEach((s,i)=>{
+    if(s.bold)doc.setFillColor(201,168,76);else if(i%2===0)doc.setFillColor(235,243,251);else doc.setFillColor(255,255,255);
+    doc.rect(margin,y,contentW,8,'F');
+    doc.setTextColor(s.bold?28:28,s.bold?53:53,s.bold?87:87);
+    doc.setFontSize(8);doc.setFont('helvetica',s.bold?'bold':'normal');
+    doc.text(s.label,margin+2,y+5);
+    doc.text(s.count+' employees',margin+120,y+5);
+    doc.text('AED '+s.eosb.toLocaleString('en-AE',{minimumFractionDigits:2}),margin+195,y+5);
+    y+=9;
+  });
+  
+  // Signature section
+  y+=8;
+  if(y>170){doc.addPage();pageNum++;addHeader();y=28;}
+  doc.setDrawColor(200,200,200);doc.setLineWidth(0.3);
+  doc.line(margin,y+15,margin+70,y+15);
+  doc.line(margin+90,y+15,margin+160,y+15);
+  doc.line(margin+180,y+15,margin+250,y+15);
+  doc.setTextColor(100,100,100);doc.setFontSize(7);doc.setFont('helvetica','normal');
+  doc.text('Prepared by: HR Director',margin,y+19);
+  doc.text('Date: _______________',margin+20,y+23);
+  doc.text('Reviewed by: CFO',margin+90,y+19);
+  doc.text('Date: _______________',margin+110,y+23);
+  doc.text('Approved by: CEO / Management',margin+180,y+19);
+  doc.text('Date: _______________',margin+200,y+23);
+  
+  addFooter(pageNum,totalEOSB);
+  doc.save(filename+'_'+now.toISOString().split('T')[0]+'.pdf');
+  logAudit('Download Gratuity PDF',entityLabel,'EOSB report — '+rows.length+' employees — AED '+totalEOSB.toFixed(2));
+};
+
 window.runReport=function(type){
   const emps=Object.values(DB.employees);
   const now=new Date();
@@ -2540,29 +2700,43 @@ window.runReport=function(type){
     const byDept={};emps.forEach(e=>{byDept[e.dept||'Unknown']=(byDept[e.dept||'Unknown']||0)+1;});
     ws_data.push(['Total Active',emps.filter(e=>e.status==='Active'||!e.status).length]);
     Object.entries(byDept).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>ws_data.push([k,v]));
-  } else if(type==='gratuity'){
-    filename='CK_Gratuity_Report';sheetname='Gratuity';
+  } else if(type==='gratuity'||type==='gratuity_ck'||type==='gratuity_ckc'){
+    // Filter by entity if needed
+    let gratEmps=emps;
+    let entityLabel='ALL ENTITIES';
+    if(type==='gratuity_ck'){gratEmps=emps.filter(e=>e.entity&&e.entity.includes('Architecture'));entityLabel='CK ARCHITECTURE INTERIORS LLC';}
+    if(type==='gratuity_ckc'){gratEmps=emps.filter(e=>e.entity&&e.entity.includes('Building'));entityLabel='CKC BUILDING CONTRACTING LLC';}
+    filename='CK_Gratuity_EOSB_Report'+(type==='gratuity_ck'?'_CK_Architecture':type==='gratuity_ckc'?'_CKC_Building':'');
+    sheetname='Gratuity EOSB';
     ws_data=[
-      companyHdr,
-      ['GRATUITY / END OF SERVICE REPORT — Generated: '+today],
-      ['(Calculated per UAE Federal Decree-Law No. 33/2021)'],[''],
-      ['Employee ID','Full Name','Department','Entity','Join Date','Years of Service','Daily Rate (AED)','Calculated EOSB (AED)','Status']
+      ['CK ARCHITECTURE INTERIORS LLC  |  CKC BUILDING CONTRACTING LLC','','','','','','',''],
+      ['END OF SERVICE GRATUITY (EOSB) REPORT — '+entityLabel],
+      ['Calculated as of: '+today+'   |   Per UAE Federal Decree-Law No. 33/2021'],
+      ['Formula: 21 days basic/year (first 5 years) + 30 days basic/year (after 5 years) | Minimum 1 year service'],
+      [''],
+      ['Emp ID','Full Name','Department','Designation','Entity','Join Date','Years of Service','Basic Salary (AED)','Daily Rate (AED)','EOSB (AED)','Status']
     ];
-    let totalEOSB=0;
-    emps.forEach(e=>{
-      if(!e.join)return;
+    let totalEOSB=0,totalBasic=0;
+    const ckTotal={eosb:0,count:0};const ckcTotal={eosb:0,count:0};
+    gratEmps.filter(e=>e.join&&(e.status==='Active'||!e.status)).forEach(e=>{
       const years=(now-new Date(e.join))/(365.25*86400000);
+      if(years<1)return;
       const basic=parseFloat(e.basicSalary||0);
       const dailyRate=basic*12/365;
       let eosb=0;
-      if(years<1)eosb=0;
-      else if(years<=5)eosb=dailyRate*21*years;
-      else eosb=dailyRate*21*5+dailyRate*30*(years-5);
-      totalEOSB+=eosb;
-      ws_data.push([e.empId,e.name,e.dept,e.entity,e.join,years.toFixed(2),dailyRate.toFixed(2),eosb.toFixed(2),e.status||'Active']);
+      if(years<=5)eosb=dailyRate*21*years;
+      else eosb=(dailyRate*21*5)+(dailyRate*30*(years-5));
+      totalEOSB+=eosb;totalBasic+=basic;
+      if(e.entity&&e.entity.includes('Architecture')){ckTotal.eosb+=eosb;ckTotal.count++;}
+      else{ckcTotal.eosb+=eosb;ckcTotal.count++;}
+      ws_data.push([e.empId,e.name,e.dept,e.desig,e.entity,e.join,years.toFixed(2),basic.toLocaleString('en-AE',{minimumFractionDigits:2}),dailyRate.toFixed(2),eosb.toFixed(2),e.status||'Active']);
     });
     ws_data.push(['']);
-    ws_data.push(['TOTAL ESTIMATED LIABILITY (AED)','','','','','','',totalEOSB.toFixed(2)]);
+    ws_data.push(['SUMMARY']);
+    if(type!=='gratuity_ckc')ws_data.push(['CK Architecture Interiors — Staff',ckTotal.count,'','','','','','EOSB Liability','',ckTotal.eosb.toFixed(2)]);
+    if(type!=='gratuity_ck')ws_data.push(['CKC Building Contracting — Staff',ckcTotal.count,'','','','','','EOSB Liability','',ckcTotal.eosb.toFixed(2)]);
+    ws_data.push(['TOTAL EOSB LIABILITY (AED)','','','','','','','','',totalEOSB.toFixed(2)]);
+    ws_data.push(['Report generated by HR Portal on '+today]);
   } else if(type==='expiry'){
     filename='CK_Document_Expiry_Report';sheetname='Expiry';
     ws_data=[
