@@ -817,8 +817,7 @@ tr:hover td{background:#fafbfc;}
     </div>
     <input type="hidden" id="fpEmpKey">
     <input type="hidden" id="fpEmpName">
-    <div style="background:#fff3cd;padding:6px 10px;border-radius:6px;font-size:12px;color:#856404;margin-bottom:8px;">📅 Payment Year: <strong id="fpYearDisplay"></strong> — edit if different</div>
-        <input type="hidden" id="fpYear">
+    <input type="hidden" id="fpYear">
     <div class="btn-row">
       <button class="btn btn-gold" onclick="saveFlightPayment()">✅ Confirm Payment — AED 1,500</button>
       <button class="btn" onclick="closeModal('flightPayModal')" style="background:#f0f0f0;">Cancel</button>
@@ -1743,12 +1742,9 @@ window.renderFlight=function(){
 window.openFlightPay=function(empName, dueDate){
   document.getElementById('fpEmpKey').value='';
   const now=new Date();
-  // Use current year for payment, not the due date year
-  const currentYear=now.getFullYear();
-  document.getElementById('fpEmpDisplay').textContent=empName+' — Due: '+dueDate+' | Paying for: '+currentYear;
+  document.getElementById('fpEmpDisplay').textContent=empName+' — Next Due: '+dueDate;
   document.getElementById('fpEmpName').value=empName;
-  document.getElementById('fpYear').value=currentYear;
-  const yd=document.getElementById('fpYearDisplay');if(yd)yd.textContent=currentYear;
+  document.getElementById('fpYear').value=now.getFullYear();
   document.getElementById('fpDate').value=now.toISOString().split('T')[0];
   sv('fpRef','');sv('fpNotes','');
   document.getElementById('flightPayModal').classList.add('open');
@@ -1762,7 +1758,6 @@ window.editFlightPayment=function(key){
   sv('fpDate',p.paidDate||'');sv('fpRef',p.ref||p.payRef||'');sv('fpNotes',p.notes||'');
   // Store key for edit mode
   document.getElementById('fpEmpKey').value='EDIT:'+key;
-  const yd2=document.getElementById('fpYearDisplay');if(yd2)yd2.textContent=p.year||'';
   document.getElementById('flightPayModal').classList.add('open');
 };
 
@@ -1778,11 +1773,12 @@ window.deleteFlightPayment=function(key){
 
 window.saveFlightPayment=function(){
   const empName=v('fpEmpName');
-  const year=v('fpYear');
   const paidDate=v('fpDate');
   const payRef=v('fpRef');
   const notes=v('fpNotes');
   if(!paidDate){alert('Please enter payment date');return;}
+  // Year is always derived from the actual payment date - not from due date
+  const year=String(new Date(paidDate).getFullYear());
   const data={
     empName, year, amount:1500, paidDate,
     ref:payRef, notes, paidBy:adminName, ts:Date.now()
