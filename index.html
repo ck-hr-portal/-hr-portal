@@ -391,7 +391,7 @@ tr:hover td{background:#fafbfc;}
           <div class="card-title">📋 Payment History Log</div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Employee</th><th>Year</th><th>Amount (AED)</th><th>Paid Date</th><th>Payroll Ref</th><th>Paid By</th></tr></thead>
+              <thead><tr><th>Employee</th><th>Year</th><th>Amount (AED)</th><th>Paid Date</th><th>Payroll Ref</th><th>Paid By</th><th>Actions</th></tr></thead>
               <tbody id="flightHistBody"></tbody>
             </table>
           </div>
@@ -1724,19 +1724,22 @@ window.renderFlight=function(){
   }).join('');
 
   // Payment history
-  const hist=Object.values(DB.flightAllowance).sort((a,b)=>b.paidDate>a.paidDate?1:-1);
+  const hist=Object.entries(DB.flightAllowance).sort((a,b)=>b[1].paidDate>a[1].paidDate?1:-1);
   const hbody=document.getElementById('flightHistBody');
-  hbody.innerHTML=hist.length?hist.map(p=>`<tr>
+  hbody.innerHTML=hist.length?hist.map(([k,p])=>`<tr>
     <td><strong>${esc(p.empName)}</strong></td>
     <td>${p.year||'—'}</td>
-    <td style="color:#1A7A6E;font-weight:700;">AED 1,500</td>
+    <td style="color:#1A7A6E;font-weight:700;">AED ${parseFloat(p.amount||1500).toLocaleString('en-AE')}</td>
     <td>${p.paidDate||'—'}</td>
-    <td style="font-size:12px;">${esc(p.ref||'—')}</td>
+    <td style="font-size:12px;">${esc(p.ref||p.payRef||'—')}</td>
     <td style="font-size:12px;">${esc(p.paidBy||'—')}</td>
-  </tr>`).join(''):'<tr><td colspan="6"><div class="empty-state"><p>No payments recorded yet.</p></div></td></tr>';
+    <td><button class="btn btn-sm btn-primary" onclick="editFlightPayment('${k}')">Edit</button>
+    <button class="btn btn-sm btn-danger" onclick="deleteFlightPayment('${k}')">Del</button></td>
+  </tr>`).join(''):'<tr><td colspan="7"><div class="empty-state"><p>No payments recorded yet.</p></div></td></tr>';
 };
 
 window.openFlightPay=function(empName, dueDate){
+  document.getElementById('fpEmpKey').value='';
   const now=new Date();
   const year=new Date(dueDate).getFullYear();
   document.getElementById('fpEmpDisplay').textContent=empName+' — Due: '+dueDate;
@@ -1745,6 +1748,27 @@ window.openFlightPay=function(empName, dueDate){
   document.getElementById('fpDate').value=now.toISOString().split('T')[0];
   sv('fpRef','');sv('fpNotes','');
   document.getElementById('flightPayModal').classList.add('open');
+};
+
+window.editFlightPayment=function(key){
+  const p=DB.flightAllowance[key];
+  if(!p)return;
+  document.getElementById('fpEmpDisplay').textContent=p.empName+' — Year: '+p.year;
+  sv('fpEmpName',p.empName);sv('fpYear',p.year||'');
+  sv('fpDate',p.paidDate||'');sv('fpRef',p.ref||p.payRef||'');sv('fpNotes',p.notes||'');
+  // Store key for edit mode
+  document.getElementById('fpEmpKey').value='EDIT:'+key;
+  document.getElementById('flightPayModal').classList.add('open');
+};
+
+window.deleteFlightPayment=function(key){
+  if(!confirm('Delete this flight allowance payment record?'))return;
+  const name=DB.flightAllowance[key]?.empName||'';
+  remove(ref(db,'flightAllowance/'+key)).then(()=>{
+    logAudit('Delete Flight Allowance',name,'Payment record deleted');
+    renderFlight();updateFlightStats();
+    showAlert('flight-alert','Payment record deleted.');
+  });
 };
 
 window.saveFlightPayment=function(){
@@ -1758,12 +1782,24 @@ window.saveFlightPayment=function(){
     empName, year, amount:1500, paidDate,
     ref:payRef, notes, paidBy:adminName, ts:Date.now()
   };
-  set(push(ref_db('flightAllowance')),data).then(()=>{
-    logAudit('Flight Allowance Paid',empName,`AED 1,500 — Year ${year} — Ref: ${payRef}`);
-    closeModal('flightPayModal');
-    showAlert('flight-alert',`✈️ AED 1,500 flight allowance recorded for ${empName}`);
-    renderFlight();updateFlightStats();
-  });
+  // Check if edit mode
+  const empKeyVal=v('fpEmpKey');
+  if(empKeyVal&&empKeyVal.startsWith('EDIT:')){
+    const editKey=empKeyVal.replace('EDIT:','');
+    set(ref(db,'flightAllowance/'+editKey),data).then(()=>{
+      logAudit('Edit Flight Allowance',empName,`Year ${year} — Ref: ${payRef}`);
+      closeModal('flightPayModal');
+      showAlert('flight-alert',`✈️ Flight allowance record updated for ${empName}`);
+      renderFlight();updateFlightStats();
+    });
+  } else {
+    set(push(ref_db('flightAllowance')),data).then(()=>{
+      logAudit('Flight Allowance Paid',empName,`AED 1,500 — Year ${year} — Ref: ${payRef}`);
+      closeModal('flightPayModal');
+      showAlert('flight-alert',`✈️ AED 1,500 flight allowance recorded for ${empName}`);
+      renderFlight();updateFlightStats();
+    });
+  }
 };
 
 // ── LEAVERS & GRATUITY ───────────────────────────────────────────────────────
