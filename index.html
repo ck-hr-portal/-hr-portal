@@ -1118,7 +1118,7 @@ function initListeners(){
       if(t==='leave'){renderLeave();updateDash();}
       if(t==='salary')renderSal();
       if(t==='loans'){renderLoans();updateDash();updateLoanStats();}
-      if(t==='repayments'&&activeLoanKey)renderRepay(activeLoanKey);
+      if(t==='repayments'){renderLoans();updateLoanStats();updateDash();if(activeLoanKey)renderRepay(activeLoanKey);}
       if(t==='assets')renderAssets();
       if(t==='holidays')renderHolidays();
       if(t==='announcements'){renderAnn();updateDash();}
