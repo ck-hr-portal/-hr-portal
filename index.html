@@ -1495,12 +1495,9 @@ function renderLoans(data){
     const outstanding=Math.max(0,parseFloat(l.amount||0)-paid);
     const pct=l.amount?Math.min(100,Math.round(paid/l.amount*100)):0;
     let status=l.status||'';
-    if(parseFloat(l.amount||0)>0&&paid>=parseFloat(l.amount||0)&&status!=='Fully Repaid'){
+    if(parseFloat(l.amount||0)>0&&paid>0&&paid>=parseFloat(l.amount||0)&&status!=='Fully Repaid'){
       status='Fully Repaid';
       set(ref(db,'loans/'+k+'/status'),'Fully Repaid');
-    } else if(status==='Fully Repaid'&&paid<parseFloat(l.amount||0)){
-      status='Active';
-      set(ref(db,'loans/'+k+'/status'),'Active');
     }
     return`<tr>
       <td><strong>${esc(l.empName||'')}</strong></td>
