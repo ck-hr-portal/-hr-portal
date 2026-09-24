@@ -612,7 +612,8 @@ tr:hover td{background:#fafbfc;}
         <div class="form-group"><label>Emirates ID Expiry</label><input type="date" id="eEidExp"></div>
         <div class="form-group"><label>Labour Card No.</label><input type="text" id="eLab"></div>
         <div class="form-group"><label>Labour Card Expiry</label><input type="date" id="eLabExp"></div>
-        <div class="form-group form-full"><label>Medical Insurance</label><input type="text" id="eMed"></div>
+        <div class="form-group form-full"><label>Medical Insurance Policy</label><input type="text" id="eMed" placeholder="e.g. Yes - Policy AE/2026/G/30852 (Category A), valid to 09-Mar-2027" style="background:#f0fff4;border-color:#a5d6a7;font-size:12px;"></div>
+        <div class="form-group form-full"><label>Dependents Count (Medical)</label><input type="text" id="eDepCount" placeholder="0" style="max-width:120px;"></div>
       </div>
     </div>
     <!-- Salary -->
@@ -632,6 +633,9 @@ tr:hover td{background:#fafbfc;}
     </div>
     <!-- Family -->
     <div id="etab-family" style="display:none;">
+      <div id="famInsuranceBanner" style="display:none;background:#e8f5e9;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#1A7A6E;">
+        🏥 <strong id="famDepCount"></strong> dependent(s) covered under company medical insurance. Add their details below.
+      </div>
       <p style="font-size:12px;color:#888;margin-bottom:12px;">Add family members covered under company medical insurance</p>
       <div id="familyList"></div>
       <button class="btn btn-sm btn-teal" onclick="addFamilyRow()" style="margin-top:10px;">+ Add Dependent</button>
@@ -1269,7 +1273,7 @@ window.removeFamilyRow=function(i){familyRows.splice(i,1);renderFamilyRows();};
 
 window.openEmpModal=function(){
   document.getElementById('empModalTitle').textContent='Add Employee';
-  ['eId','eName','eDept','eDesig','eNat','eMobile','eEmail','eManager','eRemarks',
+  ['eId','eName','eDept','eDesig','eNat','eMobile','eEmail','eManager','eRemarks','eDepCount',
    'ePassport','eVisa','eEid','eLab','eMed','eBasic','eGross','eHouse','eTransport','eOther','eBank','eIban','eLeaveEnt','eLeaveBal','eGrat',
    'lPassport','lVisa','lEid','lLab','lOffer','lContract','lEdu','lOther',
    'eExitReason'].forEach(id=>sv(id,''));
@@ -1292,7 +1296,7 @@ window.editEmp=function(key){
   sv('eJoin',e.join);sv('eContract',e.contract);sv('eGrade',e.grade);sv('eSite',e.site);
   sv('eMobile',e.mobile);sv('eEmail',e.email);sv('eManager',e.manager);sv('eStatus',e.status);sv('eRemarks',e.remarks);
   sv('ePassport',e.passport);sv('eVisa',e.visa);sv('eEid',e.eid);sv('eLab',e.lab);
-  sv('ePassExp',e.passExp);sv('eVisaExp',e.visaExp);sv('eEidExp',e.eidExp);sv('eLabExp',e.labExp);sv('eMed',e.medInsurance);
+  sv('ePassExp',e.passExp);sv('eVisaExp',e.visaExp);sv('eEidExp',e.eidExp);sv('eLabExp',e.labExp);sv('eMed',e.medInsurance);sv('eDepCount',e.dependentsCount||'0');
   sv('eBasic',e.basicSalary);sv('eGross',e.grossSalary);sv('eHouse',e.house);sv('eTransport',e.transport);sv('eOther',e.otherAllowances);
   sv('eBank',e.bank);sv('eIban',e.iban);sv('eLeaveEnt',e.annualLeaveEnt);sv('eLeaveBal',e.annualLeaveBalance);sv('eGrat',e.gratuity);
   sv('lPassport',e.lPassport);sv('lVisa',e.lVisa);sv('lEid',e.lEid);sv('lLab',e.lLab);
@@ -1314,6 +1318,7 @@ window.saveEmp=function(){
     email:v('eEmail'),manager:v('eManager'),status:v('eStatus'),remarks:v('eRemarks'),
     passport:v('ePassport'),visa:v('eVisa'),eid:v('eEid'),lab:v('eLab'),
     passExp:v('ePassExp'),visaExp:v('eVisaExp'),eidExp:v('eEidExp'),labExp:v('eLabExp'),medInsurance:v('eMed'),
+    dependentsCount:v('eDepCount'),
     basicSalary:v('eBasic'),grossSalary:v('eGross'),house:v('eHouse'),transport:v('eTransport'),
     otherAllowances:v('eOther'),bank:v('eBank'),iban:v('eIban'),
     annualLeaveEnt:v('eLeaveEnt'),annualLeaveBalance:v('eLeaveBal'),gratuity:v('eGrat'),
