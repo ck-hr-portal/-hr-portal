@@ -1494,6 +1494,14 @@ function renderLoans(data){
     const paid=Object.values(DB.repayments).filter(r=>r.loanKey===k).reduce((s,r)=>s+parseFloat(r.amt||0),0);
     const outstanding=Math.max(0,parseFloat(l.amount||0)-paid);
     const pct=l.amount?Math.min(100,Math.round(paid/l.amount*100)):0;
+    let status=l.status||'';
+    if(parseFloat(l.amount||0)>0&&paid>=parseFloat(l.amount||0)&&status!=='Fully Repaid'){
+      status='Fully Repaid';
+      set(ref(db,'loans/'+k+'/status'),'Fully Repaid');
+    } else if(status==='Fully Repaid'&&paid<parseFloat(l.amount||0)){
+      status='Active';
+      set(ref(db,'loans/'+k+'/status'),'Active');
+    }
     return`<tr>
       <td><strong>${esc(l.empName||'')}</strong></td>
       <td>AED ${parseFloat(l.amount||0).toLocaleString()}</td>
@@ -1503,7 +1511,7 @@ function renderLoans(data){
       <td>AED ${paid.toLocaleString()}</td>
       <td style="color:#e74c3c;font-weight:700;">AED ${outstanding.toLocaleString()}</td>
       <td><div style="display:flex;align-items:center;gap:6px;"><div class="loan-bar" style="width:80px;"><div class="loan-fill" style="width:${pct}%"></div></div><span style="font-size:11px;">${pct}%</span></div></td>
-      <td><span class="badge badge-${l.status==='Active'?'pending':l.status==='Fully Repaid'?'approved':'inactive'}">${esc(l.status||'')}</span></td>
+      <td><span class="badge badge-${status==='Active'?'pending':status==='Fully Repaid'?'approved':'inactive'}">${esc(status)}</span></td>
       <td>
         <button class="btn btn-sm btn-teal" onclick="showRepay('${k}','${esc(l.empName||'')}')">Payments</button>
         <button class="btn btn-sm btn-primary" onclick="editLoan('${k}')">Edit</button>
