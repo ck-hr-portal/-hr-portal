@@ -196,7 +196,7 @@ tr:hover td{background:#fafbfc;}
           <div class="card-title">📊 Department Headcount & Cost</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:center;">
             <div style="position:relative;height:280px;"><canvas id="deptChart"></canvas></div>
-            <div id="deptCostTable" style="font-size:12px;"></div>
+            <div id="deptCostTable" style="font-size:12px;max-height:280px;overflow-y:auto;"></div>
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
@@ -1948,7 +1948,7 @@ function renderDeptChart(){
     deptMap[dept].cost+=parseFloat(e.grossSalary||0);
   });
 
-  const sorted=Object.entries(deptMap).sort((a,b)=>b[1].cost-a[1].cost).slice(0,10);
+  const sorted=Object.entries(deptMap).sort((a,b)=>b[1].cost-a[1].cost);
   const labels=sorted.map(([k])=>k.length>14?k.substring(0,14)+'…':k);
   const wcData=sorted.map(([k,v])=>v.wc);
   const labData=sorted.map(([k,v])=>v.lab);
