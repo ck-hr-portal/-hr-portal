@@ -847,20 +847,123 @@ tr:hover td{background:#fafbfc;}
 
 <!-- LEAVE SUMMARY MODAL -->
 <div class="modal-overlay" id="leaveSummaryModal">
-  <div class="modal" style="max-width:750px;">
+  <div class="modal" style="max-width:820px;">
     <div class="modal-title">
       📅 Leave Summary — <span id="lsEmpName"></span>
       <span class="modal-close" onclick="closeModal('leaveSummaryModal')">✕</span>
     </div>
-    <!-- Summary cards -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;" id="lsSummaryCards"></div>
-    <!-- Leave history table -->
-    <div class="card-title" style="margin-bottom:8px;">Leave History</div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th>Notes</th></tr></thead>
-        <tbody id="lsHistBody"></tbody>
-      </table>
+    
+    <!-- Balance bar -->
+    <div style="background:#f0f4ff;border-radius:10px;padding:14px 18px;margin-bottom:14px;display:flex;gap:20px;align-items:center;flex-wrap:wrap;">
+      <div style="text-align:center;"><div style="font-size:22px;font-weight:700;color:#1C3557;" id="lsEntitled">—</div><div style="font-size:11px;color:#888;">Entitled</div></div>
+      <div style="font-size:18px;color:#ccc;">−</div>
+      <div style="text-align:center;"><div style="font-size:22px;font-weight:700;color:#e74c3c;" id="lsUsed">—</div><div style="font-size:11px;color:#888;">Used (AL+WFH)</div></div>
+      <div style="font-size:18px;color:#ccc;">=</div>
+      <div style="text-align:center;"><div style="font-size:22px;font-weight:700;color:#1A7A6E;" id="lsBalance">—</div><div style="font-size:11px;color:#888;">Balance</div></div>
+      <div style="flex:1;min-width:120px;">
+        <div style="background:#e0e0e0;border-radius:6px;height:8px;overflow:hidden;">
+          <div id="lsBalBar" style="background:#1A7A6E;height:100%;border-radius:6px;transition:width 0.3s;"></div>
+        </div>
+      </div>
+      <div style="text-align:center;"><div style="font-size:22px;font-weight:700;color:#e67e22;" id="lsSickUsed">—</div><div style="font-size:11px;color:#888;">Sick Leave Used</div></div>
+      <div style="text-align:center;"><div style="font-size:22px;font-weight:700;color:#8e44ad;" id="lsWFHUsed">—</div><div style="font-size:11px;color:#888;">WFH Days</div></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tab-bar" style="margin-bottom:12px;">
+      <button class="tab-btn active" onclick="lsTab('history',this)">📋 Leave History</button>
+      <button class="tab-btn" onclick="lsTab('adjust',this)">⚖️ Adjustments</button>
+      <button class="tab-btn" onclick="lsTab('addleave',this)">+ Add Leave</button>
+    </div>
+
+    <!-- Leave History tab -->
+    <div id="lstab-history">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th>Notes</th><th>Edit</th></tr></thead>
+          <tbody id="lsHistBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Adjustments tab -->
+    <div id="lstab-adjust" style="display:none;">
+      <p style="font-size:12px;color:#888;margin-bottom:12px;">Add carry-over, encashment, or management-approved adjustments. These update the balance directly.</p>
+      <div class="form-grid">
+        <div class="form-group"><label>Year</label>
+          <select id="adjYear"><option>2026</option><option>2025</option><option>2024</option></select>
+        </div>
+        <div class="form-group"><label>Adjustment Type</label>
+          <select id="adjType">
+            <option>Carry Over from Previous Year</option>
+            <option>Management Approval — Extra Days</option>
+            <option>Business Needs — Days Deducted</option>
+            <option>Leave Encashment</option>
+            <option>Correction / Data Fix</option>
+            <option>Unpaid Leave</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Days (+ add, - deduct)</label>
+          <input type="number" id="adjDays" placeholder="e.g. 5 or -3" step="0.5">
+        </div>
+        <div class="form-group"><label>Effective Date</label>
+          <input type="date" id="adjDate">
+        </div>
+        <div class="form-group form-full"><label>Notes / Reason</label>
+          <textarea id="adjNotes" style="min-height:55px;" placeholder="e.g. Carry over approved by Cem — 5 days from 2025"></textarea>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-gold" onclick="saveAdjustment()">Save Adjustment</button>
+      </div>
+      <!-- Existing adjustments -->
+      <div style="margin-top:14px;" id="adjList"></div>
+    </div>
+
+    <!-- Add Leave tab -->
+    <div id="lstab-addleave" style="display:none;">
+      <div class="form-grid">
+        <div class="form-group"><label>Leave Type</label>
+          <select id="alsType"><option>Annual Leave</option><option>Sick Leave</option><option>Work From Home</option><option>Emergency Leave</option><option>Maternity Leave</option><option>Paternity Leave</option><option>Hajj Leave</option><option>Unpaid Leave</option><option>Compassionate Leave</option><option>Other</option></select>
+        </div>
+        <div class="form-group"><label>Status</label>
+          <select id="alsStatus"><option>Approved</option><option>Pending</option><option>Rejected</option></select>
+        </div>
+        <div class="form-group"><label>From</label><input type="date" id="alsFrom"></div>
+        <div class="form-group"><label>To</label><input type="date" id="alsTo"></div>
+        <div class="form-group"><label>Days (override if needed)</label><input type="number" id="alsDays" step="0.5" placeholder="Leave blank to auto-calculate"></div>
+        <div class="form-group"><label>Approved By</label><input type="text" id="alsApproved"></div>
+        <div class="form-group form-full"><label>Notes</label><textarea id="alsNotes" style="min-height:50px;"></textarea></div>
+      </div>
+      <div class="btn-row"><button class="btn btn-primary" onclick="saveLeaveFromSummary()">Save Leave Record</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT LEAVE RECORD MODAL -->
+<div class="modal-overlay" id="editLeaveModal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-title">Edit Leave Record <span class="modal-close" onclick="closeModal('editLeaveModal')">✕</span></div>
+    <div class="form-grid">
+      <div class="form-group form-full"><label>Employee</label><input type="text" id="elEmp" readonly style="background:#f5f5f5;"></div>
+      <div class="form-group"><label>Leave Type</label>
+        <select id="elType"><option>Annual Leave</option><option>Sick Leave</option><option>Work From Home</option><option>Emergency Leave</option><option>Maternity Leave</option><option>Paternity Leave</option><option>Hajj Leave</option><option>Unpaid Leave</option><option>Compassionate Leave</option><option>Other</option></select>
+      </div>
+      <div class="form-group"><label>Status</label>
+        <select id="elStatus"><option>Approved</option><option>Pending</option><option>Rejected</option></select>
+      </div>
+      <div class="form-group"><label>From</label><input type="date" id="elFrom"></div>
+      <div class="form-group"><label>To</label><input type="date" id="elTo"></div>
+      <div class="form-group"><label>Days</label><input type="number" id="elDays" step="0.5"></div>
+      <div class="form-group"><label>Approved By</label><input type="text" id="elApproved"></div>
+      <div class="form-group form-full"><label>Notes</label><textarea id="elNotes" style="min-height:55px;"></textarea></div>
+    </div>
+    <input type="hidden" id="elKey">
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="saveEditedLeave()">Save Changes</button>
+      <button class="btn btn-danger" onclick="deleteLeaveFromEdit()">Delete Record</button>
+      <button class="btn" onclick="closeModal('editLeaveModal')" style="background:#f0f0f0;">Cancel</button>
     </div>
   </div>
 </div>
@@ -887,7 +990,7 @@ const db = getDatabase(app);
 
 const ADMINS = {dev:{pass:'CKAdmin2025',name:'Dev Mandrekar',role:'admin'},darleendy:{pass:'CKAdmin2025',name:'Darleendy',role:'admin'},kashif:{pass:'CKAdmin2025',name:'Kashif',role:'admin'},cem:{pass:'CKCem2026',name:'Cem Kapancioglu',role:'ceo'}};
 let currentAdmin='', adminName='';
-let DB={employees:{},leave:{},salary:{},loans:{},repayments:{},assets:{},holidays:{},announcements:{},policies:{},audit:{},flightAllowance:{},leavers:{}};
+let DB={employees:{},leave:{},salary:{},loans:{},repayments:{},assets:{},holidays:{},announcements:{},policies:{},audit:{},flightAllowance:{},leavers:{},leaveAdjustments:{}};
 let activeLoanKey=null;
 
 // ── HELPERS ──────────────────────────────────────────────────────────────────
@@ -988,7 +1091,7 @@ function parseEmpSelect(val){
 
 const ref_db=(path)=>ref(db,path);
 function initListeners(){
-  const tables=['employees','leave','salary','loans','repayments','assets','holidays','announcements','policies','audit','flightAllowance','leavers'];
+  const tables=['employees','leave','salary','loans','repayments','assets','holidays','announcements','policies','audit','flightAllowance','leavers','leaveAdjustments'];
   tables.forEach(t=>{
     onValue(ref(db,t),snap=>{
       DB[t]=snap.val()||{};
@@ -1008,6 +1111,7 @@ function initListeners(){
       if(t==='audit')renderAudit();
       if(t==='flightAllowance'){renderFlight();updateFlightStats();}
       if(t==='leavers')renderLeavers();
+      if(t==='leaveAdjustments'){}// handled via refreshLeaveSummary
     });
   });
   document.getElementById('syncStatus').textContent='● Live';
@@ -1828,6 +1932,68 @@ function renderDeptChart(){
     }).join('');
 }
 
+
+window.openEditLeave=function(key){
+  const l=DB.leave[key];
+  if(!l){alert('Record not found');return;}
+  sv('elEmp',l.empName);sv('elType',l.type||'Annual Leave');sv('elStatus',l.status||'Approved');
+  sv('elFrom',l.from);sv('elTo',l.to);sv('elDays',l.days||'');
+  sv('elApproved',l.approvedBy||'');sv('elNotes',l.notes||'');sv('elKey',key);
+  document.getElementById('editLeaveModal').classList.add('open');
+};
+window.saveEditedLeave=function(){
+  const key=v('elKey');if(!key)return;
+  const data={empName:v('elEmp'),type:v('elType'),status:v('elStatus'),from:v('elFrom'),to:v('elTo'),days:v('elDays'),approvedBy:v('elApproved'),notes:v('elNotes'),ts:DB.leave[key]?.ts||Date.now()};
+  set(ref(db,'leave/'+key),data).then(()=>{
+    logAudit('Edit Leave',data.empName,`${data.type} ${data.from} ${data.days}d`);
+    closeModal('editLeaveModal');
+    refreshLeaveSummary(window._currentLSSEmp);
+  });
+};
+window.deleteLeaveFromEdit=function(){
+  const key=v('elKey');if(!confirm('Delete this leave record?'))return;
+  const name=DB.leave[key]?.empName||'';
+  remove(ref(db,'leave/'+key)).then(()=>{logAudit('Delete Leave',name,'');closeModal('editLeaveModal');refreshLeaveSummary(window._currentLSSEmp);});
+};
+window.saveLeaveFromSummary=function(){
+  const empName=window._currentLSSEmp;if(!empName)return;
+  const fromDate=v('alsFrom'),toDate=v('alsTo');
+  const explicitDays=v('alsDays');
+  let days=explicitDays;
+  if(!days&&fromDate&&toDate) days=String(Math.ceil((new Date(toDate)-new Date(fromDate))/86400000)+1);
+  if(!days) days='1';
+  const data={empName,type:v('alsType'),status:v('alsStatus'),from:fromDate,to:toDate,days,approvedBy:v('alsApproved'),notes:v('alsNotes'),ts:Date.now()};
+  if(!fromDate){alert('From date required');return;}
+  set(push(ref(db,'leave')),data).then(()=>{
+    logAudit('Add Leave',empName,`${data.type} ${data.from} ${data.days}d`);
+    ['alsFrom','alsTo','alsDays','alsApproved','alsNotes'].forEach(id=>sv(id,''));
+    refreshLeaveSummary(empName);
+    lsTab('history',document.querySelector('#leaveSummaryModal .tab-btn'));
+  });
+};
+window.saveAdjustment=function(){
+  const empName=window._currentLSSEmp;if(!empName)return;
+  const days=v('adjDays');if(!days){alert('Enter number of days');return;}
+  const data={empName,year:v('adjYear'),type:v('adjType'),days,date:v('adjDate'),notes:v('adjNotes'),by:adminName,ts:Date.now()};
+  set(push(ref(db,'leaveAdjustments')),data).then(()=>{
+    logAudit('Leave Adjustment',empName,`${data.type}: ${days}d (${data.year})`);
+    sv('adjDays','');sv('adjNotes','');sv('adjDate','');
+    renderAdjustments(empName);refreshLeaveSummary(empName);
+  });
+};
+function renderAdjustments(empName){
+  const adjs=Object.entries(DB.leaveAdjustments||{}).filter(([k,a])=>a.empName===empName).sort((a,b)=>b[1].ts-a[1].ts);
+  const el=document.getElementById('adjList');if(!el)return;
+  el.innerHTML=adjs.length?
+    '<div style="font-size:12px;font-weight:700;color:#1C3557;margin-bottom:6px;">Existing Adjustments:</div>'+
+    adjs.map(([k,a])=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f0f0f0;">
+      <div><span style="font-weight:600;color:${parseFloat(a.days||0)>0?'#1A7A6E':'#e74c3c'}">${parseFloat(a.days||0)>0?'+':''}${a.days}d</span> — ${esc(a.type)} (${a.year})<br><span style="font-size:11px;color:#888;">${esc(a.notes||'')} · ${esc(a.by||'')}</span></div>
+      <button class="btn btn-sm btn-danger" onclick="(async()=>{await remove(ref(window._db,'leaveAdjustments/${k}'));renderAdjustments('${esc(empName)}');refreshLeaveSummary('${esc(empName)}');})()">✕</button>
+    </div>`).join('')
+    :'<div style="font-size:12px;color:#888;">No adjustments yet.</div>';
+  window._db=db;
+}
+
 function renderExpiry(){
   const days=parseInt(document.getElementById('expRange')?.value||30);
   const q=v('expSearch').toLowerCase();
@@ -2601,66 +2767,65 @@ window.renderAudit=renderAudit;
 // ── MODALS ────────────────────────────────────────────────────────────────────
 window.closeModal=function(id){document.getElementById(id).classList.remove('open');};
 
+window._currentLSSEmp='';
+window.lsTab=function(tab,el){
+  ['history','adjust','addleave'].forEach(t=>{const el2=document.getElementById('lstab-'+t);if(el2)el2.style.display=t===tab?'block':'none';});
+  document.querySelectorAll('#leaveSummaryModal .tab-btn').forEach(b=>b.classList.remove('active'));
+  if(el)el.classList.add('active');
+  if(tab==='adjust')renderAdjustments(window._currentLSSEmp);
+};
+
 window.openLeaveSummary=function(empName){
+  window._currentLSSEmp=empName;
   document.getElementById('lsEmpName').textContent=empName;
-  
-  // Get all leave for this employee
+  const firstTab=document.querySelector('#leaveSummaryModal .tab-btn');
+  lsTab('history',firstTab);
+  refreshLeaveSummary(empName);
+  document.getElementById('leaveSummaryModal').classList.add('open');
+};
+
+function refreshLeaveSummary(empName){
   const empLeave=Object.values(DB.leave)
     .filter(l=>l.empName===empName)
     .sort((a,b)=>a.from>b.from?1:-1);
-  
-  // Calculate summary by type
-  const summary={};
+  const emp=Object.values(DB.employees).find(e=>e.name===empName);
+  const entitled=parseFloat(emp?.annualLeaveEnt||30);
+  let alDays=0,slDays=0,wfhDays=0;
   empLeave.forEach(l=>{
-    const type=l.type||'Other';
-    if(!summary[type]) summary[type]={count:0,days:0};
-    summary[type].count++;
-    const daysVal=l.days?parseFloat(l.days):(l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:0);
-    summary[type].days+=daysVal;
+    const d=l.days?parseFloat(l.days):(l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:0);
+    if(l.type==='Annual Leave'||l.type==='Emergency Leave'||l.type==='Hajj Leave'||l.type==='Compassionate Leave'||l.type==='Maternity Leave'||l.type==='Paternity Leave') alDays+=d;
+    else if(l.type==='Sick Leave') slDays+=d;
+    else if(l.type==='Work From Home') wfhDays+=d;
   });
-  
-  // Color map for leave types
-  const colors={
-    'Annual Leave':'#2563A8',
-    'Sick Leave':'#e74c3c',
-    'Work From Home':'#8e44ad',
-    'Emergency Leave':'#e67e22',
-    'Maternity Leave':'#e91e8c',
-    'Paternity Leave':'#1A7A6E',
-    'Unpaid Leave':'#888',
-    'Other':'#555'
-  };
-  
-  // Render summary cards
-  document.getElementById('lsSummaryCards').innerHTML=
-    Object.entries(summary).map(([type,data])=>`
-      <div style="background:#f5f7fa;border-radius:8px;padding:12px;border-left:3px solid ${colors[type]||'#1C3557'};">
-        <div style="font-size:18px;font-weight:700;color:#1C3557;">${data.days}</div>
-        <div style="font-size:10px;color:#888;">days</div>
-        <div style="font-size:11px;font-weight:600;color:#555;margin-top:3px;">${type}</div>
-        <div style="font-size:10px;color:#aaa;">${data.count} record${data.count>1?'s':''}</div>
-      </div>`).join('')+
-    (Object.keys(summary).length===0?'<div style="color:#888;font-size:13px;">No leave records found.</div>':'');
-  
-  // Render history table
+  const adjs=Object.values(DB.leaveAdjustments||{}).filter(a=>a.empName===empName&&a.year===String(new Date().getFullYear()));
+  const adjTotal=adjs.reduce((s,a)=>s+parseFloat(a.days||0),0);
+  const totalUsed=alDays+wfhDays;
+  const balance=entitled+adjTotal-totalUsed;
+  const pct=entitled>0?Math.min(100,Math.max(0,(balance/(entitled+adjTotal))*100)):0;
+  document.getElementById('lsEntitled').textContent=(entitled+adjTotal);
+  document.getElementById('lsUsed').textContent=totalUsed.toFixed(1);
+  document.getElementById('lsBalance').textContent=balance.toFixed(1);
+  document.getElementById('lsBalBar').style.width=pct+'%';
+  document.getElementById('lsBalBar').style.background=balance<5?'#e74c3c':balance<10?'#e67e22':'#1A7A6E';
+  document.getElementById('lsSickUsed').textContent=slDays.toFixed(1);
+  document.getElementById('lsWFHUsed').textContent=wfhDays.toFixed(1);
+  const colors={'Annual Leave':'#2563A8','Sick Leave':'#e74c3c','Work From Home':'#8e44ad','Emergency Leave':'#e67e22','Hajj Leave':'#1A7A6E','Compassionate Leave':'#8e44ad','Maternity Leave':'#e91e8c','Paternity Leave':'#1A7A6E','Unpaid Leave':'#888','Other':'#555'};
   const tbody=document.getElementById('lsHistBody');
-  if(!empLeave.length){
-    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:#999;padding:20px;">No leave records</td></tr>';
-  } else {
-    tbody.innerHTML=empLeave.map(l=>{
-      const days=l.days?parseFloat(l.days):(l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:'—');
-      return`<tr>
-        <td><span class="leave-tag">${esc(l.type||'')}</span></td>
-        <td style="font-size:12px;">${l.from?new Date(l.from).toLocaleDateString('en-AE',{day:'2-digit',month:'short',year:'numeric'}):''}</td>
-        <td style="font-size:12px;">${l.to?new Date(l.to).toLocaleDateString('en-AE',{day:'2-digit',month:'short',year:'numeric'}):''}</td>
-        <td>${days}</td>
-        <td><span class="badge badge-${(l.status||'approved').toLowerCase()}">${esc(l.status||'')}</span></td>
-        <td style="font-size:11px;color:#666;">${esc(l.notes||'—')}</td>
-      </tr>`;
-    }).join('');
-  }
-  
-  document.getElementById('leaveSummaryModal').classList.add('open');
+  if(!empLeave.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#999;padding:16px;">No records</td></tr>';return;}
+  tbody.innerHTML=empLeave.map(l=>{
+    const d=l.days?parseFloat(l.days):(l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:'—');
+    const color=colors[l.type]||'#1C3557';
+    const key=Object.entries(DB.leave).find(([k,v])=>v===l)?.[0]||'';
+    return`<tr>
+      <td><span style="background:${color}18;color:${color};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">${esc(l.type||'')}</span></td>
+      <td style="font-size:12px;">${l.from?new Date(l.from).toLocaleDateString('en-AE',{day:'2-digit',month:'short',year:'numeric'}):''}</td>
+      <td style="font-size:12px;">${l.to?new Date(l.to).toLocaleDateString('en-AE',{day:'2-digit',month:'short',year:'numeric'}):''}</td>
+      <td style="font-weight:600;">${d}</td>
+      <td><span class="badge badge-${(l.status||'approved').toLowerCase()}">${esc(l.status||'')}</span></td>
+      <td style="font-size:11px;color:#666;max-width:150px;">${esc(l.notes||'—')}</td>
+      <td>${key?`<button class="btn btn-sm btn-primary" onclick="openEditLeave('${key}')">Edit</button>`:'—'}</td>
+    </tr>`;
+  }).join('');
 };
 window.openDocLink=function(inputId){
   const url=document.getElementById(inputId)?.value?.trim();
