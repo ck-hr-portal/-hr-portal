@@ -817,7 +817,8 @@ tr:hover td{background:#fafbfc;}
     </div>
     <input type="hidden" id="fpEmpKey">
     <input type="hidden" id="fpEmpName">
-    <input type="hidden" id="fpYear">
+    <div style="background:#fff3cd;padding:6px 10px;border-radius:6px;font-size:12px;color:#856404;margin-bottom:8px;">📅 Payment Year: <strong id="fpYearDisplay"></strong> — edit if different</div>
+        <input type="hidden" id="fpYear">
     <div class="btn-row">
       <button class="btn btn-gold" onclick="saveFlightPayment()">✅ Confirm Payment — AED 1,500</button>
       <button class="btn" onclick="closeModal('flightPayModal')" style="background:#f0f0f0;">Cancel</button>
@@ -1211,11 +1212,12 @@ function updateDash(){
   const maleCount=emps.filter(e=>(e.gender||'').toLowerCase()==='male').length;
   const femaleCount=emps.filter(e=>(e.gender||'').toLowerCase()==='female').length;
   const uaeCount=emps.filter(e=>(e.nationality||'').toLowerCase().includes('emirati')||(e.nationality||'').toLowerCase().includes('uae')||(e.nationality||'').toLowerCase()==='united arab emirates').length;
+  const nonUAECount=emps.length-uaeCount;
   document.getElementById('d-stats').innerHTML=`
     ${Object.entries(byEntity).map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:13px;"><span style="color:#666;">${esc(k)}</span><strong>${v} staff</strong></div>`).join('')}
+    <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:13px;background:#f0f8ff;border-radius:4px;padding:6px 4px;"><span style="color:#1C3557;font-weight:600;">👥 Staff + 🇦🇪 Emiratis</span><strong style="color:#1C3557;">${nonUAECount} + ${uaeCount} = ${emps.length}</strong></div>
     <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:13px;"><span style="color:#666;">👨 Male</span><strong>${maleCount}</strong></div>
     <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:13px;"><span style="color:#666;">👩 Female</span><strong>${femaleCount}</strong></div>
-    <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:13px;"><span style="color:#666;">🇦🇪 UAE Nationals</span><strong>${uaeCount}</strong></div>
     <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:13px;"><span style="color:#666;">🌍 Nationalities</span><strong>${nationalities}</strong></div>
     <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:13px;"><span style="color:#666;">🏦 Active Loans</span><strong>${activeLoansCount}</strong></div>
     <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;"><span style="color:#666;">💼 Assets Issued</span><strong>${totalAssets}</strong></div>`;
@@ -1741,10 +1743,12 @@ window.renderFlight=function(){
 window.openFlightPay=function(empName, dueDate){
   document.getElementById('fpEmpKey').value='';
   const now=new Date();
-  const year=new Date(dueDate).getFullYear();
-  document.getElementById('fpEmpDisplay').textContent=empName+' — Due: '+dueDate;
+  // Use current year for payment, not the due date year
+  const currentYear=now.getFullYear();
+  document.getElementById('fpEmpDisplay').textContent=empName+' — Due: '+dueDate+' | Paying for: '+currentYear;
   document.getElementById('fpEmpName').value=empName;
-  document.getElementById('fpYear').value=year;
+  document.getElementById('fpYear').value=currentYear;
+  const yd=document.getElementById('fpYearDisplay');if(yd)yd.textContent=currentYear;
   document.getElementById('fpDate').value=now.toISOString().split('T')[0];
   sv('fpRef','');sv('fpNotes','');
   document.getElementById('flightPayModal').classList.add('open');
@@ -1758,6 +1762,7 @@ window.editFlightPayment=function(key){
   sv('fpDate',p.paidDate||'');sv('fpRef',p.ref||p.payRef||'');sv('fpNotes',p.notes||'');
   // Store key for edit mode
   document.getElementById('fpEmpKey').value='EDIT:'+key;
+  const yd2=document.getElementById('fpYearDisplay');if(yd2)yd2.textContent=p.year||'';
   document.getElementById('flightPayModal').classList.add('open');
 };
 
