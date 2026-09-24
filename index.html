@@ -1620,10 +1620,12 @@ function getFlightData(){
     if(dueDate<now) dueDate.setFullYear(currentYear+1);
 
     // Find last payment for this employee
-    const payments=Object.values(DB.flightAllowance)
-      .filter(p=>p.empName===e.name)
-      .sort((a,b)=>b.paidDate>a.paidDate?1:-1);
-    const lastPayment=payments[0]||null;
+    const paymentEntries=Object.entries(DB.flightAllowance)
+      .filter(([k,p])=>p.empName===e.name)
+      .sort((a,b)=>b[1].paidDate>a[1].paidDate?1:-1);
+    const lastPaymentEntry=paymentEntries[0]||null;
+    const lastPayment=lastPaymentEntry?lastPaymentEntry[1]:null;
+    const lastPaymentKey=lastPaymentEntry?lastPaymentEntry[0]:null;
     const lastPaidDate=lastPayment?new Date(lastPayment.paidDate):null;
 
     // Check if current cycle already paid
@@ -1645,6 +1647,7 @@ function getFlightData(){
       daysUntilDue,
       currentCyclePaid,
       lastPayment: lastPayment||null,
+      lastPaymentKey: lastPaymentKey||null,
       lastPaidDate: lastPaidDate?lastPaidDate.toISOString().split('T')[0]:'Never'
     });
   });
@@ -1707,7 +1710,8 @@ window.renderFlight=function(){
       d.daysUntilDue===0?'<span class="exp-red">Today</span>':
       `${d.daysUntilDue}d`;
 
-    const actionBtn=isPaid?'<span style="color:#888;font-size:12px;">—</span>':
+    const actionBtn=isPaid?
+      (d.lastPaymentKey?`<button class="btn btn-sm btn-primary" onclick="editFlightPayment('${d.lastPaymentKey}')">Edit</button>`:'<span style="color:#888;font-size:12px;">—</span>'):
       `<button class="btn btn-sm btn-gold" onclick="openFlightPay('${esc(d.name)}','${d.dueDate}')">Mark Paid</button>`;
 
     return`<tr>
