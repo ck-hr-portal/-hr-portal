@@ -656,7 +656,8 @@ tr:hover td{background:#fafbfc;}
         <div class="form-group form-full"><label>IBAN / WPS</label><input type="text" id="eIban"></div>
         <div class="form-group"><label>Annual Leave Entitlement</label><input type="number" id="eLeaveEnt"></div>
         <div class="form-group"><label>Annual Leave Balance</label><input type="number" id="eLeaveBal"></div>
-        <div class="form-group"><label>Gratuity (AED)</label><input type="number" id="eGrat"></div>
+        <div class="form-group"><label>Gratuity (AED) — manual note / final settlement</label><input type="number" id="eGrat"></div>
+        <div class="form-group"><label>Live Accrued Gratuity (auto-calculated as of today)</label><div id="eGratLive" style="padding:10px 12px;background:#f0f7f5;border:1px solid #d3e8e3;border-radius:6px;font-weight:700;color:#1A7A6E;">—</div></div>
       </div>
     </div>
     <!-- Family -->
@@ -1030,6 +1031,17 @@ function v(id){const e=document.getElementById(id);return e?e.value.trim():'';}
 function sv(id,val){const e=document.getElementById(id);if(e)e.value=val||'';}
 function showAlert(id,msg,type='success'){const e=document.getElementById(id);if(!e)return;e.className='alert alert-'+type;e.textContent=msg;e.style.display='block';setTimeout(()=>e.style.display='none',3500);}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+// Single shared gratuity/EOSB formula — used by the Salary tab live figure, the Reports Excel, and the PDF.
+// Any future change to UAE gratuity rules only needs to happen here.
+function calcEOSB(e){
+  if(!e||!e.join)return null;
+  const years=(new Date()-new Date(e.join))/(365.25*86400000);
+  if(years<1)return{years,eosb:0};
+  const basic=parseFloat(e.basicSalary||0);
+  const dailyRate=basic*12/365;
+  const eosb=years<=5?(dailyRate*21*years):(dailyRate*21*5+dailyRate*30*(years-5));
+  return{years,eosb};
+}
 function fmt(d){if(!d)return'—';try{return new Date(d).toLocaleDateString('en-AE',{day:'2-digit',month:'short',year:'numeric'});}catch{return d;}}
 function daysLeft(d){if(!d)return null;return Math.ceil((new Date(d)-new Date())/86400000);}
 function expClass(days){return days<0?'exp-red':days<=30?'exp-red':days<=60?'exp-amber':'exp-green';}
@@ -1336,6 +1348,12 @@ window.editEmp=function(key){
   sv('ePassExp',e.passExp);sv('eVisaExp',e.visaExp);sv('eEidExp',e.eidExp);sv('eLabExp',e.labExp);sv('eMed',e.medInsurance);sv('eDepCount',e.dependentsCount||'0');
   sv('eBasic',e.basicSalary);sv('eGross',e.grossSalary);sv('eHouse',e.house);sv('eTransport',e.transport);sv('eOther',e.otherAllowances);
   sv('eBank',e.bank);sv('eIban',e.iban);sv('eLeaveEnt',e.annualLeaveEnt);sv('eLeaveBal',e.annualLeaveBalance);sv('eGrat',e.gratuity);
+  const eosbResult=calcEOSB(e);
+  const eGratLiveEl=document.getElementById('eGratLive');
+  if(!e.join)eGratLiveEl.innerHTML='<span style="color:#e74c3c;">— Join Date missing, cannot calculate</span>';
+  else if(!e.basicSalary)eGratLiveEl.innerHTML='<span style="color:#e74c3c;">— Basic Salary missing, cannot calculate</span>';
+  else if(eosbResult.years<1)eGratLiveEl.textContent='AED 0 (under 1 year of service)';
+  else eGratLiveEl.textContent='AED '+eosbResult.eosb.toLocaleString('en-AE',{minimumFractionDigits:2})+' ('+eosbResult.years.toFixed(1)+' yrs service)';
   sv('lPassport',e.lPassport);sv('lVisa',e.lVisa);sv('lEid',e.lEid);sv('lLab',e.lLab);
   sv('lOffer',e.lOffer);sv('lContract',e.lContract);sv('lEdu',e.lEdu);sv('lOther',e.lOther);
   sv('eExitDate',e.exitDate);sv('eExitType',e.exitType);sv('eNotice',e.notice);sv('eExitInt',e.exitInt);
@@ -2666,16 +2684,14 @@ window.runGratuityPDF=async function(entity){
   const rows=[];
   let totalEOSB=0,ckEOSB=0,ckcEOSB=0,ckCount=0,ckcCount=0;
   emps.forEach(e=>{
-    if(!e.join)return;
-    const years=(now-new Date(e.join))/(365.25*86400000);
-    if(years<1)return;
+    const result=calcEOSB(e);
+    if(!result||result.years<1)return;
+    const eosb=result.eosb;
     const basic=parseFloat(e.basicSalary||0);
-    const dailyRate=basic*12/365;
-    let eosb=years<=5?(dailyRate*21*years):(dailyRate*21*5+dailyRate*30*(years-5));
     totalEOSB+=eosb;
     if(e.entity&&e.entity.includes('Architecture')){ckEOSB+=eosb;ckCount++;}
     else{ckcEOSB+=eosb;ckcCount++;}
-    rows.push({empId:e.empId||'',name:e.name||'',dept:e.dept||'',entity:e.entity||'',join:e.join,years:years.toFixed(1),basic:basic,eosb:eosb});
+    rows.push({empId:e.empId||'',name:e.name||'',dept:e.dept||'',entity:e.entity||'',join:e.join,years:result.years.toFixed(1),basic:basic,eosb:eosb});
   });
   rows.sort((a,b)=>b.eosb-a.eosb);
   
@@ -2940,13 +2956,11 @@ window.runReport=function(type){
     let totalEOSB=0,totalBasic=0;
     const ckTotal={eosb:0,count:0};const ckcTotal={eosb:0,count:0};
     gratEmps.filter(e=>e.join&&(e.status==='Active'||!e.status)).forEach(e=>{
-      const years=(now-new Date(e.join))/(365.25*86400000);
-      if(years<1)return;
+      const result=calcEOSB(e);
+      if(!result||result.years<1)return;
+      const years=result.years,eosb=result.eosb;
       const basic=parseFloat(e.basicSalary||0);
       const dailyRate=basic*12/365;
-      let eosb=0;
-      if(years<=5)eosb=dailyRate*21*years;
-      else eosb=(dailyRate*21*5)+(dailyRate*30*(years-5));
       totalEOSB+=eosb;totalBasic+=basic;
       if(e.entity&&e.entity.includes('Architecture')){ckTotal.eosb+=eosb;ckTotal.count++;}
       else{ckcTotal.eosb+=eosb;ckcTotal.count++;}
