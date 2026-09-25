@@ -1207,6 +1207,9 @@ window.showPage=function(page,el){
     document.getElementById('reportOutput').style.display='none';
     setTimeout(()=>buildEmpDropdown('profileEmpSel'),100);
   }
+  if(page==='docgen'){
+    setTimeout(()=>buildEmpDropdown('docEmpSel'),100);
+  }
 };
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
