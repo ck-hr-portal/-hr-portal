@@ -2281,6 +2281,7 @@ const docT={
   offer_labour:{title:'Offer Letter — Labour Category',refCode:'OFFR-L',purpose:false,numbered:true,requiresAck:true,
     ackText:'I have read, fully understand and agree with the Terms & Conditions of this Offer of Employment.',
     extra:[
+      {id:'signEntity',label:'Signing Entity (On Behalf Of)',type:'select',options:['CK Architecture Interiors LLC','CKC Building Contracting LLC']},
       {id:'reportTo',label:'Reporting To',type:'text',auto:'manager'},
       {id:'commenceDate',label:'Commencement Date (leave blank for "To be discussed")',type:'date',auto:'join'},
       {id:'employmentStatus',label:'Contract Term',type:'select',options:['Limited','Unlimited']},
@@ -2291,6 +2292,7 @@ const docT={
   offer_whitecollar:{title:'Offer Letter / Employment Contract — White Collar',refCode:'OFFR-W',purpose:false,numbered:true,requiresAck:true,
     ackText:'I have read, fully understand and agree with the Terms & Conditions of the Contract of Employment.',
     extra:[
+      {id:'signEntity',label:'Signing Entity (On Behalf Of)',type:'select',options:['CK Architecture Interiors LLC','CKC Building Contracting LLC']},
       {id:'reportTo',label:'Reporting To',type:'text',auto:'manager'},
       {id:'commenceDate',label:'Commencement Date / Date of Joining',type:'date',auto:'join'},
       {id:'employmentStatus',label:'Contract Term',type:'select',options:['Limited','Unlimited']},
@@ -2377,6 +2379,8 @@ window.updateDocForm=function(){
     else html+=`<div class="form-group"><label>${f.label}</label><input type="${f.type}" id="df_${f.id}" value="${esc(autoVal)}"></div>`;
   });
   document.getElementById('docFormFields').innerHTML=html;
+  const signEntitySel=document.getElementById('df_signEntity');
+  if(signEntitySel)signEntitySel.value=entityFullName(c.emp);
   document.getElementById('docComments').value='';
   document.getElementById('docFormArea').style.display='block';
 };
@@ -2439,7 +2443,7 @@ function composeDocParagraphs(type,emp,vals,comments){
 function composeOfferClauses(type,emp,vals){
   const name=emp.name||'—',desig=emp.desig||'—',nationality=emp.nationality||'—';
   const passport=emp.passport||'—',passExp=fmt(emp.passExp);
-  const entityFull=entityFullName(emp);
+  const entityFull=vals.signEntity||entityFullName(emp);
   const reportTo=vals.reportTo||emp.manager||'—';
   const commenceDate=vals.commenceDate?fmt(vals.commenceDate):'To be discussed';
   const employmentStatus=vals.employmentStatus||'Limited';
@@ -2525,7 +2529,7 @@ function previewOfferDoc(type,t,c,vals,comments,refNo){
           <div class="clause-body" data-idx="${i}" contenteditable="true" style="flex:1;white-space:pre-wrap;line-height:1.7;outline:none;border:1px dashed #ddd;padding:2px 6px;border-radius:3px;">${esc(cl.body)}</div>
         </div>`).join('')}
         </div>
-        <div style="margin-top:30px;">On behalf of <strong>${esc(entityFullName(c.emp))}</strong></div>
+        <div style="margin-top:30px;">On behalf of <strong>${esc(vals.signEntity||entityFullName(c.emp))}</strong></div>
         <div style="margin-top:18px;">Signed: ______________________&nbsp;&nbsp;&nbsp;&nbsp;Date: ${today}</div>
         <div style="font-weight:700;margin-top:6px;">${esc(adminSignName)}</div>
         <div>${esc(adminTitle)}</div>
@@ -2736,7 +2740,7 @@ window.finalizeOfferDoc=async function(){
   const pageW=210,margin=18,contentW=pageW-margin*2;
   const now=new Date();
   const today=now.toLocaleDateString('en-AE',{day:'2-digit',month:'long',year:'numeric'});
-  const entityFull=entityFullName(emp);
+  const entityFull=currentDocMeta.vals.signEntity||entityFullName(emp);
 
   function drawLetterhead(){
     let ly=16;
@@ -2746,6 +2750,7 @@ window.finalizeOfferDoc=async function(){
     doc.text('Office 608, The Onyx Tower 2 Greens,',pageW-margin-18,20,{align:'right'});
     doc.text('P.O. Box: 27138, Dubai, UAE',pageW-margin-18,24,{align:'right'});
     doc.setDrawColor(28,53,87);doc.setLineWidth(0.8);doc.line(margin,30,pageW-margin,30);
+    doc.setFont('helvetica','normal');doc.setFontSize(10.5);doc.setTextColor(30,30,30);
     return 40;
   }
   const [ckLogo,ckcLogo]=await Promise.all([loadImageAsDataURL('ck_logo.png'),loadImageAsDataURL('ckc_logo.png')]);
@@ -2773,13 +2778,15 @@ window.finalizeOfferDoc=async function(){
     const headingLines=doc.splitTextToSize(headingText,labelW-3);
     doc.setTextColor(30,30,30);
     headingLines.forEach((hl,i)=>doc.text(hl,margin,y+i*5));
-    doc.setFont('helvetica','normal');
+    doc.setFont('helvetica','normal');doc.setFontSize(10);
     const bodyLines=doc.splitTextToSize(cl.body,contentW-labelW);
+    let by=y;
     bodyLines.forEach((line,i)=>{
-      if(y+i*5.3>265){doc.addPage();drawLogos();y=drawLetterhead();}
-      doc.text(line,margin+labelW,y+i*5.3);
+      if(by>265){doc.addPage();drawLogos();y=drawLetterhead();by=y;doc.setFont('helvetica','normal');doc.setFontSize(10);}
+      doc.text(line,margin+labelW,by);
+      by+=5.3;
     });
-    y+=Math.max(headingLines.length*5,bodyLines.length*5.3)+6;
+    y=Math.max(y+headingLines.length*5,by)+6;
   });
 
   if(y>230){doc.addPage();drawLogos();y=drawLetterhead();}
