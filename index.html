@@ -520,22 +520,51 @@ tr:hover td{background:#fafbfc;}
 
       <!-- DOC GENERATOR -->
       <div id="page-docgen" class="page">
-        <div class="page-header"><h2>Document Generator</h2></div>
+        <div class="page-header"><h2>📄 Document Generator</h2><p>Generate professional HR letters and certificates directly from employee records.</p></div>
+
         <div class="card">
-          <div class="form-group"><label>Select Document Type</label>
-            <select id="docType" onchange="updateDocForm()" style="max-width:360px;">
-              <option value="">— Select —</option><option value="offer">Offer Letter</option><option value="employment">Employment Certificate</option><option value="salary">Salary Certificate</option><option value="experience">Experience Letter</option><option value="noc">NOC Letter</option><option value="warning">Warning Letter</option><option value="termination">Termination Letter</option><option value="promotion">Promotion Letter</option>
-            </select>
+          <div class="form-grid">
+            <div class="form-group"><label>Select Employee</label>
+              <select id="docEmpSel" onclick="if(this.options.length<=1)buildEmpDropdown('docEmpSel')" onchange="onDocEmpChange()">
+                <option value="">— Select Employee —</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Select Document Type</label>
+              <select id="docType" onchange="updateDocForm()">
+                <option value="">— Select —</option>
+                <option value="salary">Salary Certificate</option>
+                <option value="experience">Experience Certificate</option>
+                <option value="noc">NOC Letter</option>
+                <option value="warning">Warning Letter</option>
+                <option value="termination">Termination Letter</option>
+                <option value="promotion">Promotion Letter</option>
+                <option value="employment">Employment Certificate</option>
+                <option value="offer">Offer Letter (generic — official template pending)</option>
+              </select>
+            </div>
+          </div>
+          <div id="docRecentWrap" style="display:none;margin-top:6px;">
+            <div style="font-size:12px;color:#888;margin-bottom:6px;">📋 Recent documents issued for this employee:</div>
+            <div id="docRecentTable" style="font-size:12px;"></div>
           </div>
         </div>
+
         <div class="card" id="docFormArea" style="display:none;">
           <div class="card-title" id="docFormTitle"></div>
-          <div id="docFormFields"></div>
-          <div class="btn-row"><button class="btn btn-primary" onclick="generateDoc()">Generate Document</button></div>
+          <div id="docFormFields" class="form-grid"></div>
+          <div class="form-group"><label>HR Comments / Special Instructions</label>
+            <textarea id="docComments" rows="3" placeholder="e.g. &quot;Prepare NOC for driving licence purpose.&quot;  /  &quot;Warning for repeated late attendance despite previous counselling.&quot;  /  &quot;Termination with 30 days' notice.&quot;" style="width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;font-family:inherit;"></textarea>
+            <p style="font-size:11px;color:#888;margin-top:4px;">This note will be inserted into the document body — use it for anything the standard wording doesn't already cover.</p>
+          </div>
+          <div class="btn-row"><button class="btn btn-primary" onclick="previewDoc()">👁️ Preview Document</button></div>
         </div>
-        <div class="card" id="docOutput" style="display:none;">
-          <div class="card-title">Generated Document <button class="btn btn-sm btn-gold" onclick="printDoc()" style="float:right;">🖨️ Print</button></div>
-          <div id="docContent" style="padding:18px;border:1px solid #e0e0e0;border-radius:8px;background:#fafafa;line-height:1.8;font-size:13px;white-space:pre-wrap;"></div>
+
+        <div class="card" id="docPreviewCard" style="display:none;">
+          <div class="card-title">Preview — review and edit the wording below, then finalize
+            <button class="btn btn-sm btn-gold" style="float:right;" onclick="finalizeDoc()">✅ Finalize &amp; Download PDF</button>
+          </div>
+          <p style="font-size:12px;color:#888;">Click directly into the text below to correct or adjust anything before generating the final PDF.</p>
+          <div id="docPreviewSheet"></div>
         </div>
       </div>
 
@@ -1023,7 +1052,7 @@ const db = getDatabase(app);
 
 const ADMINS = {dev:{pass:'CKAdmin2025',name:'Dev Mandrekar',role:'admin'},darleendy:{pass:'CKAdmin2025',name:'Darleendy',role:'admin'},kashif:{pass:'CKAdmin2025',name:'Kashif',role:'admin'},cem:{pass:'CKCem2026',name:'Cem Kapancioglu',role:'ceo'}};
 let currentAdmin='', adminName='';
-let DB={employees:{},leave:{},salary:{},loans:{},repayments:{},assets:{},holidays:{},announcements:{},policies:{},audit:{},flightAllowance:{},leavers:{},leaveAdjustments:{}};
+let DB={employees:{},leave:{},salary:{},loans:{},repayments:{},assets:{},holidays:{},announcements:{},policies:{},audit:{},flightAllowance:{},leavers:{},leaveAdjustments:{},docHistory:{}};
 let activeLoanKey=null;
 
 // ── HELPERS ──────────────────────────────────────────────────────────────────
@@ -1135,7 +1164,7 @@ function parseEmpSelect(val){
 
 const ref_db=(path)=>ref(db,path);
 function initListeners(){
-  const tables=['employees','leave','salary','loans','repayments','assets','holidays','announcements','policies','audit','flightAllowance','leavers','leaveAdjustments'];
+  const tables=['employees','leave','salary','loans','repayments','assets','holidays','announcements','policies','audit','flightAllowance','leavers','leaveAdjustments','docHistory'];
   tables.forEach(t=>{
     onValue(ref(db,t),snap=>{
       DB[t]=snap.val()||{};
@@ -1156,6 +1185,7 @@ function initListeners(){
       if(t==='flightAllowance'){renderFlight();updateFlightStats();}
       if(t==='leavers')renderLeavers();
       if(t==='leaveAdjustments'){}// handled via refreshLeaveSummary
+      if(t==='docHistory'){if(typeof renderDocHistory==='function')renderDocHistory();}
     });
   });
   document.getElementById('syncStatus').textContent='● Live';
@@ -2235,33 +2265,301 @@ function renderPolicies(){
 }
 
 // ── DOC GENERATOR ─────────────────────────────────────────────────────────────
-const docT={offer:{title:'Offer Letter',fields:['Candidate Name','Designation','Department','Start Date','Basic Salary (AED)','Entity']},employment:{title:'Employment Certificate',fields:['Employee Name','Employee ID','Designation','Department','Join Date','Entity']},salary:{title:'Salary Certificate',fields:['Employee Name','Employee ID','Designation','Basic Salary (AED)','Total Salary (AED)','Entity']},experience:{title:'Experience Letter',fields:['Employee Name','Employee ID','Designation','Join Date','Last Working Day','Entity']},noc:{title:'NOC Letter',fields:['Employee Name','Employee ID','Purpose of NOC','Entity']},warning:{title:'Warning Letter',fields:['Employee Name','Employee ID','Infraction Description','Warning Level','Entity']},termination:{title:'Termination Letter',fields:['Employee Name','Employee ID','Termination Date','Notice Period','Reason','Entity']},promotion:{title:'Promotion Letter',fields:['Employee Name','Employee ID','Old Designation','New Designation','Effective Date','New Salary (AED)','Entity']}};
+// ── DOCUMENT GENERATOR (v2) ─────────────────────────────────────────────────
+const docT={
+  salary:{title:'Salary Certificate',refCode:'SAL',purpose:true,extra:[]},
+  experience:{title:'Experience Certificate',refCode:'EXP',purpose:false,extra:[{id:'lwd',label:'Last Working Day',type:'date',auto:'exitDate'}]},
+  noc:{title:'NOC Letter',refCode:'NOC',purpose:true,extra:[]},
+  warning:{title:'Warning Letter',refCode:'WARN',purpose:false,extra:[{id:'wlevel',label:'Warning Level',type:'select',options:['Verbal Warning','First Written Warning','Second Written Warning','Final Written Warning']}]},
+  termination:{title:'Termination Letter',refCode:'TERM',purpose:false,extra:[{id:'termdate',label:'Termination / Last Working Date',type:'date'},{id:'notice',label:'Notice Period',type:'select',options:['Immediate','7 Days','30 Days','60 Days','90 Days','As per Contract']}]},
+  promotion:{title:'Promotion Letter',refCode:'PROMO',purpose:false,extra:[{id:'newdesig',label:'New Designation',type:'text',auto:'desig'},{id:'effdate',label:'Effective Date',type:'date'},{id:'newsal',label:'New Salary (AED)',type:'number',auto:'basicSalary'}]},
+  employment:{title:'Employment Certificate',refCode:'EMP',purpose:false,extra:[]},
+  offer:{title:'Offer Letter (generic — official template pending)',refCode:'OFFER',purpose:false,extra:[{id:'startdate',label:'Start Date',type:'date'},{id:'offersal',label:'Basic Salary (AED)',type:'number',auto:'basicSalary'}]}
+};
+const docPurposeOptions=['Banking','Loan Application','Visa/Immigration','Embassy/Consulate','Tenancy Contract','Personal Records','Driving Licence','Other'];
+let currentDocMeta=null; // {refNo, type, emp, key} set at preview time, reused at finalize time
+
+function currentDocEmp(){
+  const val=v('docEmpSel');if(!val)return null;
+  const key=val.split('|')[0];
+  const emp=DB.employees[key];
+  return emp?{key,emp}:null;
+}
+function entityFullName(emp){
+  return (emp.entity&&emp.entity.includes('Building'))?'CKC BUILDING CONTRACTING LLC':'CK ARCHITECTURE INTERIORS LLC';
+}
+function numToWords(num){
+  num=Math.round(parseFloat(num||0));
+  if(!num)return'Zero';
+  const ones=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+  const tens=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+  function threeDigits(n){let s='';if(n>=100){s+=ones[Math.floor(n/100)]+' Hundred ';n%=100;}if(n>=20){s+=tens[Math.floor(n/10)]+' ';n%=10;}if(n>0)s+=ones[n]+' ';return s;}
+  const million=Math.floor(num/1000000);num%=1000000;
+  const thousand=Math.floor(num/1000);num%=1000;
+  let s='';
+  if(million)s+=threeDigits(million)+'Million ';
+  if(thousand)s+=threeDigits(thousand)+'Thousand ';
+  if(num)s+=threeDigits(num);
+  return s.trim();
+}
+function loadImageAsDataURL(url){
+  return new Promise((resolve)=>{
+    const img=new Image();
+    img.crossOrigin='anonymous';
+    img.onload=()=>{
+      const canvas=document.createElement('canvas');
+      canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;
+      canvas.getContext('2d').drawImage(img,0,0);
+      try{resolve({dataUrl:canvas.toDataURL('image/png'),w:img.naturalWidth,h:img.naturalHeight});}
+      catch(e){resolve(null);}
+    };
+    img.onerror=()=>resolve(null);
+    img.src=url;
+  });
+}
+function nextRefNo(type){
+  const t=docT[type];const year=new Date().getFullYear();
+  const count=Object.values(DB.docHistory||{}).filter(d=>d.docTypeKey===type&&d.refNo&&d.refNo.includes('/'+year+'/')).length+1;
+  return `HR/${t.refCode}/${year}/${String(count).padStart(4,'0')}`;
+}
+
+window.onDocEmpChange=function(){renderDocHistory();updateDocForm();};
+
+window.renderDocHistory=function(){
+  const c=currentDocEmp();
+  const wrap=document.getElementById('docRecentWrap');
+  if(!wrap)return;
+  if(!c){wrap.style.display='none';return;}
+  const rows=Object.values(DB.docHistory||{}).filter(d=>d.empKey===c.key).sort((a,b)=>b.issueDate>a.issueDate?1:-1).slice(0,5);
+  if(!rows.length){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  document.getElementById('docRecentTable').innerHTML=`<table style="width:100%;"><thead><tr><th>Type</th><th>Ref No.</th><th>Issue Date</th><th>Generated By</th><th>Status</th></tr></thead><tbody>${
+    rows.map(d=>`<tr><td>${esc(d.docType)}</td><td>${esc(d.refNo)}</td><td>${fmt(d.issueDate)}</td><td>${esc(d.generatedBy)}</td><td><span class="badge badge-approved">${esc(d.status||'Issued')}</span></td></tr>`).join('')
+  }</tbody></table>`;
+};
+
 window.updateDocForm=function(){
-  const type=v('docType');if(!type){document.getElementById('docFormArea').style.display='none';return;}
-  const t=docT[type];document.getElementById('docFormTitle').textContent=t.title;
-  document.getElementById('docFormFields').innerHTML='<div class="form-grid">'+t.fields.map(f=>`<div class="form-group"><label>${f}</label><input type="text" id="df_${f.replace(/\W/g,'_')}" placeholder="${f}"></div>`).join('')+'</div>';
-  document.getElementById('docFormArea').style.display='block';document.getElementById('docOutput').style.display='none';
+  const type=v('docType');const c=currentDocEmp();
+  document.getElementById('docPreviewCard').style.display='none';
+  if(!type||!c){document.getElementById('docFormArea').style.display='none';return;}
+  const t=docT[type];
+  document.getElementById('docFormTitle').textContent=t.title+' — '+(c.emp.name||'');
+  let html='';
+  if(t.purpose)html+=`<div class="form-group"><label>Purpose</label><select id="df_purpose">${docPurposeOptions.map(p=>`<option>${p}</option>`).join('')}</select></div>`;
+  t.extra.forEach(f=>{
+    const autoVal=f.auto?(c.emp[f.auto]||''):'';
+    if(f.type==='select')html+=`<div class="form-group"><label>${f.label}</label><select id="df_${f.id}">${f.options.map(o=>`<option>${o}</option>`).join('')}</select></div>`;
+    else html+=`<div class="form-group"><label>${f.label}</label><input type="${f.type}" id="df_${f.id}" value="${esc(autoVal)}"></div>`;
+  });
+  document.getElementById('docFormFields').innerHTML=html;
+  document.getElementById('docComments').value='';
+  document.getElementById('docFormArea').style.display='block';
 };
-window.generateDoc=function(){
-  const type=v('docType');const t=docT[type];const vals={};
-  t.fields.forEach(f=>{vals[f]=document.getElementById('df_'+f.replace(/\W/g,'_'))?.value||'___';});
-  const today=new Date().toLocaleDateString('en-AE',{day:'numeric',month:'long',year:'numeric'});
-  const entity=vals['Entity']||'CK Architecture Interiors LLC';
-  let doc=`${entity}\nDubai, United Arab Emirates\n\nDate: ${today}\nRef: HR/${type.toUpperCase()}/${Math.floor(Math.random()*9000)+1000}\n\n`;
-  const n=vals['Employee Name']||vals['Candidate Name']||'___';const id=vals['Employee ID']||'';
-  if(type==='offer')doc+=`OFFER OF EMPLOYMENT\n\nDear ${n},\n\nWe are pleased to offer you the position of ${vals['Designation']} in the ${vals['Department']} department.\n\nStart Date: ${vals['Start Date']}\nBasic Salary: AED ${vals['Basic Salary (AED)']} per month\n\nThis offer is conditional upon successful document verification.\n\nYours sincerely,\n\nDev Mandrekar\nHR Director\n${entity}`;
-  else if(type==='employment')doc+=`TO WHOM IT MAY CONCERN\n\nThis certifies that ${n} (ID: ${id}) is employed as ${vals['Designation']} in the ${vals['Department']} department since ${vals['Join Date']}.\n\nIssued on request for whatever purpose it may serve.\n\nYours sincerely,\n\nDev Mandrekar\nHR Director\n${entity}`;
-  else if(type==='salary')doc+=`SALARY CERTIFICATE\n\nThis certifies that ${n} (ID: ${id}) is employed as ${vals['Designation']}.\n\nBasic Salary: AED ${vals['Basic Salary (AED)']} per month\nTotal Monthly Salary: AED ${vals['Total Salary (AED)']} per month\n\nYours sincerely,\n\nDev Mandrekar\nHR Director\n${entity}`;
-  else if(type==='experience')doc+=`EXPERIENCE LETTER\n\nThis certifies that ${n} (ID: ${id}) worked as ${vals['Designation']} from ${vals['Join Date']} to ${vals['Last Working Day']}.\n\nWe wish them every success in their future career.\n\nYours sincerely,\n\nDev Mandrekar\nHR Director\n${entity}`;
-  else if(type==='noc')doc+=`NO OBJECTION CERTIFICATE\n\n${entity} has no objection to ${n} (ID: ${id}) for: ${vals['Purpose of NOC']}.\n\nYours sincerely,\n\nDev Mandrekar\nHR Director\n${entity}`;
-  else if(type==='warning')doc+=`WARNING LETTER\n\nDear ${n} (ID: ${id}),\n\nThis is a formal ${vals['Warning Level']} warning regarding:\n\n${vals['Infraction Description']}\n\nFurther misconduct may result in disciplinary action including termination.\n\nEmployee Signature: _________________ Date: _________\n\nYours sincerely,\n\nDev Mandrekar\nHR Director\n${entity}`;
-  else if(type==='termination')doc+=`TERMINATION LETTER\n\nDear ${n} (ID: ${id}),\n\nYour employment is terminated effective ${vals['Termination Date']}.\nNotice Period: ${vals['Notice Period']}\nReason: ${vals['Reason']}\n\nPlease hand over all company property and documents.\n\nYours sincerely,\n\nDev Mandrekar\nHR Director\n${entity}`;
-  else if(type==='promotion')doc+=`PROMOTION LETTER\n\nDear ${n} (ID: ${id}),\n\nYou are promoted from ${vals['Old Designation']} to ${vals['New Designation']} effective ${vals['Effective Date']}.\nNew Salary: AED ${vals['New Salary (AED)']} per month.\n\nCongratulations.\n\nYours sincerely,\n\nDev Mandrekar\nHR Director\n${entity}`;
-  document.getElementById('docContent').textContent=doc;
-  document.getElementById('docOutput').style.display='block';
-  logAudit('Generate Document',t.title,n);
+
+function composeDocParagraphs(type,emp,vals,comments){
+  const name=emp.name||'—',id=emp.empId||'—',desig=emp.desig||'—',dept=emp.dept||'—';
+  const join=fmt(emp.join),entityFull=entityFullName(emp);
+  const purpose=vals.purpose||'';
+  let title='',paras=[];
+  if(type==='salary'){
+    title='SALARY CERTIFICATE';
+    const gross=parseFloat(emp.grossSalary||0);
+    paras.push(`This is to certify that ${name} (Employee ID: ${id}) is a permanent employee of ${entityFull}, working as ${desig} in the ${dept} department since ${join}.`);
+    paras.push(`${name.split(' ')[0]} is currently drawing an all-inclusive monthly salary of AED ${gross.toLocaleString('en-AE')} (UAE Dirhams ${numToWords(gross)} Only).`);
+    if(purpose)paras.push(`This certificate is issued for the purpose of: ${purpose}.`);
+  } else if(type==='experience'){
+    title='EXPERIENCE CERTIFICATE';
+    const lwd=fmt(vals.lwd||emp.exitDate);
+    paras.push(`This is to certify that ${name} (Employee ID: ${id}) was employed with ${entityFull} as ${desig} in the ${dept} department from ${join} to ${lwd}.`);
+    paras.push(`During the period of employment, ${name.split(' ')[0]} carried out the assigned duties and responsibilities in a satisfactory and professional manner.`);
+  } else if(type==='noc'){
+    title='NO OBJECTION CERTIFICATE';
+    paras.push(`This is to certify that ${entityFull} has no objection to ${name} (Employee ID: ${id}), currently employed as ${desig} in the ${dept} department, for the purpose of: ${purpose||'the purpose stated by the employee'}.`);
+  } else if(type==='warning'){
+    title=(vals.wlevel||'WARNING LETTER').toUpperCase();
+    paras.push(`Dear ${name},`);
+    paras.push(`This letter serves as a ${vals.wlevel||'formal warning'} regarding the matter described below.`);
+  } else if(type==='termination'){
+    title='TERMINATION OF EMPLOYMENT';
+    paras.push(`Dear ${name},`);
+    paras.push(`We regret to inform you that your employment with ${entityFull} as ${desig} will be terminated effective ${fmt(vals.termdate)}, with a notice period of ${vals.notice||'as per contract'}.`);
+    paras.push(`You are requested to complete all handover formalities and return any company property in your possession prior to your last working day.`);
+    paras.push(`Your final settlement, including any outstanding dues and end-of-service benefits as applicable under UAE Labour Law, will be processed in accordance with company policy.`);
+  } else if(type==='promotion'){
+    title='PROMOTION LETTER';
+    paras.push(`Dear ${name},`);
+    paras.push(`We are pleased to inform you that, in recognition of your performance and contribution, you have been promoted from ${desig} to ${vals.newdesig||desig}, effective ${fmt(vals.effdate)}.`);
+    if(vals.newsal)paras.push(`Your revised monthly salary will be AED ${parseFloat(vals.newsal).toLocaleString('en-AE')}, effective from the above date.`);
+  } else if(type==='employment'){
+    title='TO WHOMSOEVER IT MAY CONCERN';
+    paras.push(`This is to certify that ${name} (Employee ID: ${id}) is currently employed with ${entityFull} as ${desig} in the ${dept} department since ${join}.`);
+  } else if(type==='offer'){
+    title='OFFER OF EMPLOYMENT (GENERIC TEMPLATE)';
+    paras.push(`We are pleased to offer you the position of ${desig} in the ${dept} department at ${entityFull}, commencing ${fmt(vals.startdate)}.`);
+    if(vals.offersal)paras.push(`Your monthly basic salary will be AED ${parseFloat(vals.offersal).toLocaleString('en-AE')}.`);
+    paras.push(`Note: this is a generic placeholder — please replace with the company's official Offer Letter template once provided.`);
+  }
+  if(comments&&comments.trim())paras.push(comments.trim());
+  if(type==='warning')paras.push(`You are advised to take immediate corrective action. Continued or repeated conduct of this nature may result in further disciplinary action, up to and including termination of employment, in accordance with company policy and UAE Labour Law.`);
+  // Closing line
+  const closings={
+    salary:'This certificate is issued upon the employee\u2019s request and does not constitute a contractual commitment beyond the existing employment relationship.',
+    experience:`We wish ${name.split(' ')[0]} success in future endeavours.`,
+    noc:'This letter is issued upon request for official use.',
+    warning:'Please treat this matter with the seriousness it deserves.',
+    termination:'We thank you for your service and wish you success in your future endeavours.',
+    promotion:'Congratulations on this achievement. We look forward to your continued contribution to the organisation.',
+    employment:'This certificate is issued upon request for official purposes and does not constitute a guarantee of continued employment.',
+    offer:'We look forward to welcoming you to the team.'
+  };
+  paras.push(closings[type]||'');
+  return{title,paras};
+}
+
+window.previewDoc=function(){
+  const type=v('docType');const c=currentDocEmp();
+  if(!type||!c){alert('Please select an employee and document type first.');return;}
+  const t=docT[type];
+  const vals={};
+  if(t.purpose)vals.purpose=v('df_purpose');
+  t.extra.forEach(f=>{vals[f.id]=document.getElementById('df_'+f.id)?.value||'';});
+  const comments=v('docComments');
+  const refNo=nextRefNo(type);
+  const {title,paras}=composeDocParagraphs(type,c.emp,vals,comments);
+  currentDocMeta={type,refNo,key:c.key,emp:c.emp,vals,comments,title};
+
+  const today=new Date().toLocaleDateString('en-AE',{day:'2-digit',month:'long',year:'numeric'});
+  const entityFull=entityFullName(c.emp);
+  const metaRows=[
+    ['Ref. No.',refNo],['Date',today],
+    ['Employee Name',c.emp.name||'—'],['Employee ID',c.emp.empId||'—'],
+    ['Designation',c.emp.desig||'—'],['Department',c.emp.dept||'—']
+  ];
+  document.getElementById('docPreviewSheet').innerHTML=`
+    <div style="max-width:800px;margin:0 auto;border:1px solid #ddd;box-shadow:0 2px 12px rgba(0,0,0,0.08);background:#fff;color:#222;">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:24px 40px 16px;">
+        <img src="ck_logo.png" alt="CK Architecture Interiors" style="height:44px;">
+        <img src="ckc_logo.png" alt="CKC Building Contracting" style="height:44px;">
+      </div>
+      <div style="border-top:2.5px solid #1C3557;margin:0 40px;"></div>
+      <div style="padding:20px 40px 0;">
+        <table style="font-size:12.5px;border-collapse:collapse;">
+          ${metaRows.map(([l,val])=>`<tr><td style="font-weight:700;color:#1C3557;padding:2px 10px 2px 0;white-space:nowrap;">${esc(l)}</td><td style="padding:2px 6px;">:</td><td style="padding:2px 0;">${esc(val)}</td></tr>`).join('')}
+        </table>
+      </div>
+      <div style="border-top:1px solid #ccc;margin:16px 40px 0;"></div>
+      <div style="padding:24px 40px 30px;">
+        <div style="text-align:center;font-weight:700;font-size:14.5px;color:#1C3557;margin-bottom:20px;letter-spacing:0.5px;">${esc(title)}</div>
+        <div id="docEditableBody" contenteditable="true" style="font-size:13px;line-height:1.9;color:#222;outline:none;min-height:120px;border:1px dashed #ccc;padding:10px;border-radius:4px;">
+          ${paras.filter(p=>p).map(p=>`<p style="margin:0 0 14px 0;">${esc(p)}</p>`).join('')}
+        </div>
+        <div style="margin-top:40px;font-size:13px;">
+          <div>Yours sincerely,</div><br>
+          <div style="font-weight:700;">Dev Mandrekar</div>
+          <div>HR Director</div>
+          <div>${esc(entityFull)}</div>
+        </div>
+      </div>
+      <div style="border-top:1px solid #ccc;margin:0 40px;"></div>
+      <div style="color:#888;font-size:9.5px;padding:10px 40px 18px;text-align:center;">
+        CK Architecture Interiors LLC  |  CKC Building Contracting LLC  |  Dubai, UAE  |  This document is system-generated and confidential.
+      </div>
+    </div>`;
+  document.getElementById('docPreviewCard').style.display='block';
+  document.getElementById('docPreviewCard').scrollIntoView({behavior:'smooth'});
 };
-window.printDoc=function(){const w=window.open('','_blank');w.document.write(`<html><body><pre style="font-family:Arial;font-size:13px;line-height:1.8;padding:40px;">${document.getElementById('docContent').textContent}</pre></body></html>`);w.print();};
+
+window.finalizeDoc=async function(){
+  if(!currentDocMeta){alert('Please preview the document first.');return;}
+  const bodyEl=document.getElementById('docEditableBody');
+  const finalParas=Array.from(bodyEl.querySelectorAll('p')).map(p=>p.textContent).filter(p=>p.trim());
+  const {type,refNo,key,emp,title}=currentDocMeta;
+
+  if(!window.jspdf){
+    await new Promise((resolve,reject)=>{
+      const s=document.createElement('script');
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      s.onload=resolve;s.onerror=reject;
+      document.head.appendChild(s);
+    });
+  }
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const pageW=210,margin=20,contentW=pageW-margin*2;
+  const now=new Date();
+  const today=now.toLocaleDateString('en-AE',{day:'2-digit',month:'long',year:'numeric'});
+  const entityFull=entityFullName(emp);
+
+  // Logos — plain white letterhead, CK on the left, CKC on the right
+  const [ckLogo,ckcLogo]=await Promise.all([loadImageAsDataURL('ck_logo.png'),loadImageAsDataURL('ckc_logo.png')]);
+  let y=20;
+  if(ckLogo){const w=14*(ckLogo.w/ckLogo.h);doc.addImage(ckLogo.dataUrl,'PNG',margin,y-8,w,14);}
+  if(ckcLogo){const w=14*(ckcLogo.w/ckcLogo.h);doc.addImage(ckcLogo.dataUrl,'PNG',pageW-margin-w,y-8,w,14);}
+  y+=12;
+  doc.setDrawColor(28,53,87);doc.setLineWidth(0.8);doc.line(margin,y,pageW-margin,y);
+  y+=10;
+
+  const metaRows=[['Ref. No.',refNo],['Date',today],['Employee Name',emp.name||'—'],['Employee ID',emp.empId||'—'],['Designation',emp.desig||'—'],['Department',emp.dept||'—']];
+  doc.setFontSize(10.5);
+  metaRows.forEach(([l,val])=>{
+    doc.setFont('helvetica','bold');doc.setTextColor(28,53,87);
+    doc.text(l,margin,y);
+    doc.setFont('helvetica','normal');doc.setTextColor(30,30,30);
+    doc.text(':',margin+38,y);
+    doc.text(String(val),margin+43,y);
+    y+=6;
+  });
+  y+=4;
+  doc.setDrawColor(200,200,200);doc.setLineWidth(0.3);doc.line(margin,y,pageW-margin,y);
+  y+=12;
+
+  doc.setTextColor(28,53,87);doc.setFontSize(13);doc.setFont('helvetica','bold');
+  doc.text(title,pageW/2,y,{align:'center'});
+  y+=12;
+
+  doc.setTextColor(30,30,30);doc.setFontSize(10.5);doc.setFont('helvetica','normal');
+  finalParas.forEach(para=>{
+    const lines=doc.splitTextToSize(para,contentW);
+    lines.forEach(line=>{
+      if(y>250){doc.addPage();y=25;}
+      doc.text(line,margin,y);
+      y+=6.2;
+    });
+    y+=3.5;
+  });
+
+  y+=14;
+  if(y>250){doc.addPage();y=25;}
+  doc.setFontSize(10.5);
+  doc.text('Yours sincerely,',margin,y);y+=16;
+  doc.setFont('helvetica','bold');doc.text('Dev Mandrekar',margin,y);y+=5.5;
+  doc.setFont('helvetica','normal');doc.text('HR Director',margin,y);y+=5.5;
+  doc.text(entityFull,margin,y);
+
+  const pageCount=doc.internal.getNumberOfPages();
+  for(let p=1;p<=pageCount;p++){
+    doc.setPage(p);
+    doc.setDrawColor(200,200,200);doc.setLineWidth(0.3);doc.line(margin,282,pageW-margin,282);
+    doc.setTextColor(140,140,140);doc.setFontSize(7.5);doc.setFont('helvetica','normal');
+    doc.text('CK Architecture Interiors LLC  |  CKC Building Contracting LLC  |  Dubai, UAE  |  This document is system-generated and confidential.',pageW/2,288,{align:'center'});
+    doc.text('Page '+p+' of '+pageCount,pageW-margin,293,{align:'right'});
+  }
+
+  const safeName=(emp.name||'Employee').replace(/[^a-zA-Z0-9]+/g,'_');
+  doc.save(`${docT[type].refCode}_${safeName}_${now.toISOString().split('T')[0]}.pdf`);
+
+  const historyRecord={
+    empKey:key,empName:emp.name||'',docType:docT[type].title,docTypeKey:type,
+    refNo,issueDate:now.toISOString().split('T')[0],generatedBy:adminName,status:'Issued'
+  };
+  await set(push(ref(db,'docHistory')),historyRecord);
+  logAudit('Generate Document',docT[type].title,`${emp.name} — ${refNo}`);
+
+  document.getElementById('docPreviewCard').style.display='none';
+  document.getElementById('docFormArea').style.display='none';
+  sv('docType','');
+  currentDocMeta=null;
+};
 
 // ── REPORTS & EXCEL DOWNLOADS ─────────────────────────────────────────────────
 window.runProfileReport=function(){
