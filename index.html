@@ -367,10 +367,10 @@ tr:hover td{background:#fafbfc;}
         <div class="page-header"><h2>✈️ Flight Allowance</h2><p>AED 1,500 annual allowance — paid on completion of each year of service</p></div>
         <div class="alert alert-success" id="flight-alert"></div>
         <div class="stats-row">
-          <div class="stat-card gold"><div class="stat-num" id="fa-due">—</div><div class="stat-label">Due This Month</div></div>
-          <div class="stat-card red"><div class="stat-num" id="fa-overdue">—</div><div class="stat-label">Overdue (Not Paid)</div></div>
-          <div class="stat-card green"><div class="stat-num" id="fa-paid-yr">—</div><div class="stat-label">Paid This Year</div></div>
-          <div class="stat-card"><div class="stat-num" id="fa-upcoming">—</div><div class="stat-label">Due in Next 60 Days</div></div>
+          <div class="stat-card gold"><div class="stat-num" id="fa-due">—</div><div class="stat-label">Due This Month</div><div style="font-size:11px;color:#888;margin-top:2px;" id="fa-due-amt"></div></div>
+          <div class="stat-card red"><div class="stat-num" id="fa-overdue">—</div><div class="stat-label">Overdue (Not Paid)</div><div style="font-size:11px;color:#888;margin-top:2px;" id="fa-overdue-amt"></div></div>
+          <div class="stat-card green"><div class="stat-num" id="fa-paid-yr">—</div><div class="stat-label">Paid This Year</div><div style="font-size:11px;color:#888;margin-top:2px;" id="fa-paid-yr-amt"></div></div>
+          <div class="stat-card"><div class="stat-num" id="fa-upcoming">—</div><div class="stat-label">Due in Next 60 Days</div><div style="font-size:11px;color:#888;margin-top:2px;" id="fa-upcoming-amt"></div></div>
         </div>
         <div class="card">
           <div class="toolbar">
@@ -383,6 +383,7 @@ tr:hover td{background:#fafbfc;}
               <option value="paid">Paid This Cycle</option>
             </select>
             <button class="btn btn-gold" onclick="runReport('flight')">📥 Download Excel</button>
+            <button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="runFlightPDF()">📄 Yearly Summary PDF</button>
           </div>
           <div class="table-wrap">
             <table>
@@ -1700,10 +1701,17 @@ function updateFlightStats(){
     return d.getFullYear()===thisYear;
   });
 
+  const paidThisYearAmt=paidThisYear.reduce((s,p)=>s+parseFloat(p.amount||1500),0);
+  const upcomingFiltered=upcoming.filter(d=>d.daysUntilDue>=0);
+
   document.getElementById('fa-due').textContent=dueThisMonth.length;
+  document.getElementById('fa-due-amt').textContent=dueThisMonth.length?`AED ${(dueThisMonth.length*1500).toLocaleString('en-AE')}`:'';
   document.getElementById('fa-overdue').textContent=overdue.length;
+  document.getElementById('fa-overdue-amt').textContent=overdue.length?`AED ${(overdue.length*1500).toLocaleString('en-AE')}`:'';
   document.getElementById('fa-paid-yr').textContent=paidThisYear.length;
-  document.getElementById('fa-upcoming').textContent=upcoming.filter(d=>d.daysUntilDue>=0).length;
+  document.getElementById('fa-paid-yr-amt').textContent=paidThisYear.length?`AED ${paidThisYearAmt.toLocaleString('en-AE')}`:'';
+  document.getElementById('fa-upcoming').textContent=upcomingFiltered.length;
+  document.getElementById('fa-upcoming-amt').textContent=upcomingFiltered.length?`AED ${(upcomingFiltered.length*1500).toLocaleString('en-AE')}`:'';
 }
 
 window.renderFlight=function(){
@@ -2781,6 +2789,116 @@ window.runGratuityPDF=async function(entity){
   logAudit('Download Gratuity PDF',entityLabel,'EOSB report — '+rows.length+' employees — AED '+totalEOSB.toFixed(2));
 };
 
+window.runFlightPDF=async function(){
+  if(!window.jspdf){
+    await new Promise((resolve,reject)=>{
+      const s=document.createElement('script');
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      s.onload=resolve;s.onerror=reject;
+      document.head.appendChild(s);
+    });
+  }
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const now=new Date();
+  const today=now.toLocaleDateString('en-AE',{day:'2-digit',month:'long',year:'numeric'});
+  const pageW=210;const margin=14;const contentW=pageW-margin*2;
+  const entityLabel='CK ARCHITECTURE INTERIORS LLC  |  CKC BUILDING CONTRACTING LLC';
+  let y=0;
+
+  function addHeader(){
+    doc.setFillColor(28,53,87);doc.rect(0,0,pageW,22,'F');
+    doc.setTextColor(201,168,76);doc.setFontSize(11);doc.setFont('helvetica','bold');
+    doc.text(entityLabel,margin,9);
+    doc.setTextColor(255,255,255);doc.setFontSize(9.5);doc.setFont('helvetica','normal');
+    doc.text('FLIGHT ALLOWANCE — YEARLY PAYMENT SUMMARY',margin,16);
+    doc.setFontSize(8);
+    doc.text('Generated: '+today,pageW-margin-45,16);
+    y=30;
+  }
+  function addFooter(page){
+    doc.setFillColor(28,53,87);doc.rect(0,283,pageW,14,'F');
+    doc.setTextColor(201,168,76);doc.setFontSize(7);doc.setFont('helvetica','normal');
+    doc.text('CK Architecture Interiors LLC  |  CKC Building Contracting LLC  |  Dubai, UAE  |  Confidential — For Management Use Only',margin,290);
+    doc.setTextColor(255,255,255);
+    doc.text('Page '+page,pageW-margin-10,290);
+  }
+
+  // Group by calendar year, same logic as on-screen summary
+  const yearMap={};
+  Object.values(DB.flightAllowance).forEach(p=>{
+    const yr=p.year||(p.paidDate?new Date(p.paidDate).getFullYear():null);
+    if(!yr)return;
+    if(!yearMap[yr])yearMap[yr]={total:0,count:0};
+    yearMap[yr].total+=parseFloat(p.amount||1500);
+    yearMap[yr].count++;
+  });
+  const years=Object.keys(yearMap).map(Number).sort((a,b)=>a-b);
+  const grandTotal=years.reduce((s,yr)=>s+yearMap[yr].total,0);
+  const grandCount=years.reduce((s,yr)=>s+yearMap[yr].count,0);
+
+  addHeader();
+  doc.setTextColor(80,80,80);doc.setFontSize(9);doc.setFont('helvetica','normal');
+  doc.text('AED 1,500 annual allowance, paid on completion of each year of service. Calendar year basis: January – December.',margin,y);
+  y+=8;
+
+  const cols=[
+    {x:margin,w:35,label:'Year'},
+    {x:margin+40,w:50,label:'Total Paid (AED)'},
+    {x:margin+95,w:45,label:'No. of Payments'},
+    {x:margin+145,w:37,label:'vs Previous Year'}
+  ];
+  doc.setFillColor(28,53,87);doc.rect(margin,y,contentW,8,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(9);doc.setFont('helvetica','bold');
+  cols.forEach(c=>doc.text(c.label,c.x+2,y+5.5));
+  y+=9;
+
+  years.forEach((yr,i)=>{
+    const cur=yearMap[yr];
+    const prev=i>0?yearMap[years[i-1]]:null;
+    const isCurrentYear=yr===new Date().getFullYear();
+    if(isCurrentYear)doc.setFillColor(253,248,238);
+    else if(i%2===0)doc.setFillColor(235,243,251);
+    else doc.setFillColor(255,255,255);
+    doc.rect(margin,y,contentW,9,'F');
+    doc.setTextColor(28,53,87);doc.setFontSize(9);doc.setFont('helvetica','bold');
+    doc.text(String(yr)+(isCurrentYear?' (current)':''),cols[0].x+2,y+6);
+    doc.setFont('helvetica','normal');
+    doc.text('AED '+cur.total.toLocaleString('en-AE',{minimumFractionDigits:2}),cols[1].x+2,y+6);
+    doc.text(String(cur.count),cols[2].x+2,y+6);
+    if(prev&&prev.total>0){
+      const pct=((cur.total-prev.total)/prev.total*100);
+      const up=pct>=0;
+      doc.setTextColor(up?26:220,up?122:76,up?110:56);
+      doc.setFont('helvetica','bold');
+      doc.text((up?'▲ +':'▼ -')+Math.abs(pct).toFixed(1)+'%',cols[3].x+2,y+6);
+    } else {
+      doc.setTextColor(150,150,150);
+      doc.text('—',cols[3].x+2,y+6);
+    }
+    y+=9;
+  });
+
+  y+=4;
+  doc.setFillColor(201,168,76);doc.rect(margin,y,contentW,9,'F');
+  doc.setTextColor(28,53,87);doc.setFontSize(9);doc.setFont('helvetica','bold');
+  doc.text('GRAND TOTAL — ALL YEARS',cols[0].x+2,y+6);
+  doc.text('AED '+grandTotal.toLocaleString('en-AE',{minimumFractionDigits:2}),cols[1].x+2,y+6);
+  doc.text(String(grandCount),cols[2].x+2,y+6);
+  y+=20;
+
+  doc.setDrawColor(200,200,200);doc.setLineWidth(0.3);
+  doc.line(margin,y+15,margin+55,y+15);
+  doc.line(margin+70,y+15,margin+125,y+15);
+  doc.setTextColor(100,100,100);doc.setFontSize(7);doc.setFont('helvetica','normal');
+  doc.text('Prepared by: HR Director',margin,y+19);
+  doc.text('Reviewed/Approved by: CEO / Management',margin+70,y+19);
+
+  addFooter(1);
+  doc.save('CK_Flight_Allowance_Yearly_Summary_'+now.toISOString().split('T')[0]+'.pdf');
+  logAudit('Download Flight Allowance Yearly Summary PDF','All Employees','Total AED '+grandTotal.toFixed(2)+' across '+years.length+' years');
+};
+
 window.runReport=function(type){
   const emps=Object.values(DB.employees);
   const now=new Date();
@@ -2946,6 +3064,23 @@ window.runReport=function(type){
     ws_data.push(['Employee','Year','Amount (AED)','Paid Date','Payroll Ref','Paid By']);
     Object.values(DB.flightAllowance).sort((a,b)=>b.paidDate>a.paidDate?1:-1)
       .forEach(p=>ws_data.push([p.empName,p.year,1500,p.paidDate,p.ref,p.paidBy]));
+    ws_data.push(['']);
+    ws_data.push(['YEARLY PAYMENT SUMMARY (Jan–Dec)']);
+    ws_data.push(['Year','Total Paid (AED)','No. of Payments','vs Previous Year (%)']);
+    const fyMap={};
+    Object.values(DB.flightAllowance).forEach(p=>{
+      const yr=p.year||(p.paidDate?new Date(p.paidDate).getFullYear():null);
+      if(!yr)return;
+      if(!fyMap[yr])fyMap[yr]={total:0,count:0};
+      fyMap[yr].total+=parseFloat(p.amount||1500);
+      fyMap[yr].count++;
+    });
+    const fyYears=Object.keys(fyMap).map(Number).sort((a,b)=>a-b);
+    fyYears.forEach((yr,i)=>{
+      const cur=fyMap[yr],prev=i>0?fyMap[fyYears[i-1]]:null;
+      const pctChange=prev&&prev.total>0?(((cur.total-prev.total)/prev.total*100).toFixed(1)+'%'):'—';
+      ws_data.push([yr,cur.total.toFixed(2),cur.count,pctChange]);
+    });
   } else if(type==='leavers'){
     filename='CK_Leavers_Gratuity_Register';sheetname='Leavers';
     const allLeavers=Object.values(DB.leavers).sort((a,b)=>b.endDate>a.endDate?1:-1);
