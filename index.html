@@ -201,11 +201,11 @@ tr:hover td{background:#fafbfc;}
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
           <div class="card"><div class="card-title">📢 Latest Announcements</div><div id="d-ann"><div class="empty-state"><p>No announcements</p></div></div></div>
-          <div class="card"><div class="card-title">⚠️ Upcoming Expiries (30 days)</div><div id="d-exp"><div class="empty-state"><p>None</p></div></div></div>
+          <div class="card"><div class="card-title">⚠️ Upcoming Expiries (30 days)</div><div id="d-exp" style="max-height:280px;overflow-y:auto;"><div class="empty-state"><p>None</p></div></div></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
           <div class="card"><div class="card-title">🎂 Birthdays This Month</div><div id="d-bday"><div class="empty-state"><p>None this month</p></div></div></div>
-          <div class="card"><div class="card-title">🏦 Active Loans</div><div id="d-loans"><div class="empty-state"><p>No active loans</p></div></div></div>
+          <div class="card"><div class="card-title">🏦 Active Loans</div><div id="d-loans" style="max-height:280px;overflow-y:auto;"><div class="empty-state"><p>No active loans</p></div></div></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
           <div class="card"><div class="card-title">🏆 Work Anniversaries This Month</div><div id="d-anni"><div class="empty-state"><p>No milestones this month</p></div></div></div>
@@ -1171,7 +1171,7 @@ function updateDash(){
   emps.forEach(e=>[{f:'passExp',l:'Passport'},{f:'visaExp',l:'Visa'},{f:'eidExp',l:'Emirates ID'},{f:'labExp',l:'Labour Card'}].forEach(({f,l})=>{
     if(e[f]){const days=daysLeft(e[f]);if(days!==null&&days<=30)expList.push({name:e.name,doc:l,days});}
   }));
-  document.getElementById('d-exp').innerHTML=expList.length?expList.sort((a,b)=>a.days-b.days).slice(0,5).map(x=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;"><span style="font-size:13px;">${esc(x.name)} — ${x.doc}</span><span class="${expClass(x.days)}" style="font-size:12px;">${x.days<0?'EXPIRED':x.days+'d'}</span></div>`).join(''):'<div class="empty-state"><p>None in 30 days</p></div>';
+  document.getElementById('d-exp').innerHTML=expList.length?expList.sort((a,b)=>a.days-b.days).map(x=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;"><span style="font-size:13px;">${esc(x.name)} — ${x.doc}</span><span class="${expClass(x.days)}" style="font-size:12px;">${x.days<0?'EXPIRED':x.days+'d'}</span></div>`).join(''):'<div class="empty-state"><p>None in 30 days</p></div>';
   // Birthdays
   const bdEmps=emps.filter(e=>e.dob&&new Date(e.dob).getMonth()===m);
   document.getElementById('d-bday').innerHTML=bdEmps.length?bdEmps.map(e=>`<span style="display:inline-block;background:#fff3e0;color:#e67e22;padding:4px 12px;border-radius:16px;margin:3px;font-size:12px;">🎂 ${esc(e.name)} (${new Date(e.dob).getDate()} ${now.toLocaleString('default',{month:'short'})})</span>`).join(''):'<div class="empty-state"><p>None this month</p></div>';
@@ -1222,7 +1222,7 @@ function updateDash(){
     <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;"><span style="color:#666;">💼 Assets Issued</span><strong>${totalAssets}</strong></div>`;
   // Active loans
   const activeLoans=Object.entries(DB.loans).filter(([k,l])=>l.status==='Active');
-  document.getElementById('d-loans').innerHTML=activeLoans.length?activeLoans.slice(0,4).map(([k,l])=>{
+  document.getElementById('d-loans').innerHTML=activeLoans.length?activeLoans.map(([k,l])=>{
     const paid=Object.values(DB.repayments).filter(r=>r.loanKey===k).reduce((s,r)=>s+parseFloat(r.amt||0),0);
     const outstanding=parseFloat(l.amount||0)-paid;
     const pct=l.amount?Math.min(100,Math.round(paid/l.amount*100)):0;
