@@ -2871,7 +2871,7 @@ window.runFlightPDF=async function(){
       const up=pct>=0;
       doc.setTextColor(up?26:220,up?122:76,up?110:56);
       doc.setFont('helvetica','bold');
-      doc.text((up?'▲ +':'▼ -')+Math.abs(pct).toFixed(1)+'%',cols[3].x+2,y+6);
+      doc.text((up?'+':'-')+Math.abs(pct).toFixed(1)+'%',cols[3].x+2,y+6);
     } else {
       doc.setTextColor(150,150,150);
       doc.text('—',cols[3].x+2,y+6);
@@ -2882,7 +2882,9 @@ window.runFlightPDF=async function(){
   y+=4;
   doc.setFillColor(201,168,76);doc.rect(margin,y,contentW,9,'F');
   doc.setTextColor(28,53,87);doc.setFontSize(9);doc.setFont('helvetica','bold');
-  doc.text('GRAND TOTAL — ALL YEARS',cols[0].x+2,y+6);
+  doc.setFontSize(8);
+  doc.text('GRAND TOTAL',cols[0].x+2,y+6);
+  doc.setFontSize(9);
   doc.text('AED '+grandTotal.toLocaleString('en-AE',{minimumFractionDigits:2}),cols[1].x+2,y+6);
   doc.text(String(grandCount),cols[2].x+2,y+6);
   y+=20;
