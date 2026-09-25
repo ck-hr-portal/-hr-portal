@@ -391,6 +391,17 @@ tr:hover td{background:#fafbfc;}
             </table>
           </div>
         </div>
+        <!-- Yearly Payment Summary -->
+        <div class="card">
+          <div class="card-title">📊 Yearly Payment Summary (Jan–Dec)</div>
+          <p style="font-size:12px;color:#888;margin-bottom:8px;">Total flight allowance paid per calendar year, with year-on-year change — for management review.</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Year</th><th>Total Paid (AED)</th><th>No. of Payments</th><th>vs Previous Year</th></tr></thead>
+              <tbody id="flightYearlyBody"></tbody>
+            </table>
+          </div>
+        </div>
         <!-- Payment History -->
         <div class="card">
           <div class="card-title">📋 Payment History Log</div>
@@ -1761,6 +1772,35 @@ window.renderFlight=function(){
     <td><button class="btn btn-sm btn-primary" onclick="editFlightPayment('${k}')">Edit</button>
     <button class="btn btn-sm btn-danger" onclick="deleteFlightPayment('${k}')">Del</button></td>
   </tr>`).join(''):'<tr><td colspan="7"><div class="empty-state"><p>No payments recorded yet.</p></div></td></tr>';
+
+  // Yearly Payment Summary — Jan to Dec, grouped by calendar year, with YoY % change
+  const yearMap={};
+  Object.values(DB.flightAllowance).forEach(p=>{
+    const yr=p.year||(p.paidDate?new Date(p.paidDate).getFullYear():null);
+    if(!yr)return;
+    if(!yearMap[yr])yearMap[yr]={total:0,count:0};
+    yearMap[yr].total+=parseFloat(p.amount||1500);
+    yearMap[yr].count++;
+  });
+  const years=Object.keys(yearMap).map(Number).sort((a,b)=>a-b);
+  const ybody=document.getElementById('flightYearlyBody');
+  ybody.innerHTML=years.length?years.map((yr,i)=>{
+    const cur=yearMap[yr];
+    const prev=i>0?yearMap[years[i-1]]:null;
+    let changeDisplay='<span style="color:#888;">—</span>';
+    if(prev&&prev.total>0){
+      const pct=((cur.total-prev.total)/prev.total*100);
+      const up=pct>=0;
+      changeDisplay=`<span style="color:${up?'#1A7A6E':'#e74c3c'};font-weight:700;">${up?'▲':'▼'} ${Math.abs(pct).toFixed(1)}%</span>`;
+    }
+    const isCurrentYear=yr===new Date().getFullYear();
+    return`<tr${isCurrentYear?' style="background:#fdf8ee;"':''}>
+      <td><strong>${yr}${isCurrentYear?' (current)':''}</strong></td>
+      <td style="color:#1A7A6E;font-weight:700;">AED ${cur.total.toLocaleString('en-AE')}</td>
+      <td>${cur.count}</td>
+      <td>${changeDisplay}</td>
+    </tr>`;
+  }).join(''):'<tr><td colspan="4"><div class="empty-state"><p>No payments recorded yet.</p></div></td></tr>';
 };
 
 window.openFlightPay=function(empName, dueDate){
