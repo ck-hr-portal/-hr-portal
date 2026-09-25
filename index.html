@@ -199,6 +199,11 @@ tr:hover td{background:#fafbfc;}
             <div id="deptCostTable" style="font-size:12px;max-height:280px;overflow-y:auto;"></div>
           </div>
         </div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title">🔍 Data Quality Check</div>
+          <p style="font-size:12px;color:#888;margin-bottom:8px;">Employees missing Join Date or Basic Salary won't appear correctly in Gratuity, Flight Allowance or reports until fixed.</p>
+          <div id="d-dataq" style="max-height:220px;overflow-y:auto;"><div class="empty-state"><p>Checking...</p></div></div>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
           <div class="card"><div class="card-title">📢 Latest Announcements</div><div id="d-ann"><div class="empty-state"><p>No announcements</p></div></div></div>
           <div class="card"><div class="card-title">⚠️ Upcoming Expiries (30 days)</div><div id="d-exp" style="max-height:280px;overflow-y:auto;"><div class="empty-state"><p>None</p></div></div></div>
@@ -1163,6 +1168,14 @@ function updateDash(){
   document.getElementById('s-exp').textContent=expC;
   const m=now.getMonth();
   document.getElementById('s-bday').textContent=emps.filter(e=>e.dob&&new Date(e.dob).getMonth()===m).length;
+  // Data Quality Check — flag employees missing fields required for Gratuity/Flight Allowance/reports
+  const dq=Object.entries(DB.employees).filter(([k,e])=>(e.status==='Active'||!e.status)).map(([k,e])=>{
+    const missing=[];
+    if(!e.join)missing.push('Join Date');
+    if(!e.basicSalary&&!e.basic)missing.push('Basic Salary');
+    return{k,name:e.name,missing};
+  }).filter(x=>x.missing.length);
+  document.getElementById('d-dataq').innerHTML=dq.length?dq.map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0;"><span style="font-size:13px;"><strong>${esc(x.name)}</strong> — missing ${x.missing.join(', ')}</span><button class="btn btn-sm btn-primary" onclick="editEmp('${x.k}')">Fix</button></div>`).join(''):'<div class="empty-state"><p>✅ All active employee records complete</p></div>';
   // Announcements
   const anns=Object.values(DB.announcements).sort((a,b)=>b.ts-a.ts).slice(0,3);
   document.getElementById('d-ann').innerHTML=anns.length?anns.map(a=>`<div style="padding:7px 0;border-bottom:1px solid #f0f0f0;"><strong style="font-size:13px;">${esc(a.title)}</strong><br><span style="font-size:11px;color:#888;">${esc(a.category)} · ${new Date(a.ts).toLocaleDateString()}</span></div>`).join(''):'<div class="empty-state"><p>No announcements</p></div>';
