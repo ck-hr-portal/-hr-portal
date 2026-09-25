@@ -539,7 +539,8 @@ tr:hover td{background:#fafbfc;}
                 <option value="termination">Termination Letter</option>
                 <option value="promotion">Promotion Letter</option>
                 <option value="employment">Employment Certificate</option>
-                <option value="offer">Offer Letter (generic — official template pending)</option>
+                <option value="offer_labour">Offer Letter — Labour Category</option>
+                <option value="offer_whitecollar">Offer Letter / Contract — White Collar</option>
               </select>
             </div>
           </div>
@@ -2277,7 +2278,27 @@ const docT={
   termination:{title:'Termination Letter',refCode:'TERM',purpose:false,requiresAck:true,extra:[{id:'termdate',label:'Termination / Last Working Date',type:'date'},{id:'notice',label:'Notice Period',type:'select',options:['Immediate','7 Days','30 Days','60 Days','90 Days','As per Contract']}]},
   promotion:{title:'Promotion Letter',refCode:'PROMO',purpose:false,extra:[{id:'newdesig',label:'New Designation',type:'text',auto:'desig'},{id:'effdate',label:'Effective Date',type:'date'},{id:'newsal',label:'New Salary (AED)',type:'number',auto:'basicSalary'}]},
   employment:{title:'Employment Certificate',refCode:'EMP',purpose:false,extra:[]},
-  offer:{title:'Offer Letter (generic — official template pending)',refCode:'OFFER',purpose:false,extra:[{id:'startdate',label:'Start Date',type:'date'},{id:'offersal',label:'Basic Salary (AED)',type:'number',auto:'basicSalary'}]}
+  offer_labour:{title:'Offer Letter — Labour Category',refCode:'OFFR-L',purpose:false,numbered:true,requiresAck:true,
+    ackText:'I have read, fully understand and agree with the Terms & Conditions of this Offer of Employment.',
+    extra:[
+      {id:'reportTo',label:'Reporting To',type:'text',auto:'manager'},
+      {id:'commenceDate',label:'Commencement Date (leave blank for "To be discussed")',type:'date',auto:'join'},
+      {id:'employmentStatus',label:'Contract Term',type:'select',options:['Limited','Unlimited']},
+      {id:'visaStatus',label:'Visa/Employment Status',type:'select',options:['Single Status','Family Status']},
+      {id:'probation',label:'Probation Period',type:'select',options:['6 (six) months','3 (three) months','No Probation']},
+      {id:'costOfLiving',label:'Cost of Living Allowance (AED)',type:'number'}
+    ]},
+  offer_whitecollar:{title:'Offer Letter / Employment Contract — White Collar',refCode:'OFFR-W',purpose:false,numbered:true,requiresAck:true,
+    ackText:'I have read, fully understand and agree with the Terms & Conditions of the Contract of Employment.',
+    extra:[
+      {id:'reportTo',label:'Reporting To',type:'text',auto:'manager'},
+      {id:'commenceDate',label:'Commencement Date / Date of Joining',type:'date',auto:'join'},
+      {id:'employmentStatus',label:'Contract Term',type:'select',options:['Limited','Unlimited']},
+      {id:'visaStatus',label:'Visa Status',type:'select',options:['Single Status','Family Status']},
+      {id:'probation',label:'Probationary Period',type:'select',options:['6 (six) months','3 (three) months','No Probation']},
+      {id:'costOfLiving',label:'Cost of Living Allowance (AED)',type:'number'},
+      {id:'jobDuties',label:'Roles & Responsibilities (one per line)',type:'textarea'}
+    ]}
 };
 const docPurposeOptions=['Banking','Loan Application','Visa/Immigration','Embassy/Consulate','Tenancy Contract','Personal Records','Driving Licence','Other'];
 let currentDocMeta=null; // {refNo, type, emp, key} set at preview time, reused at finalize time
@@ -2352,6 +2373,7 @@ window.updateDocForm=function(){
   t.extra.forEach(f=>{
     const autoVal=f.auto?(c.emp[f.auto]||''):'';
     if(f.type==='select')html+=`<div class="form-group"><label>${f.label}</label><select id="df_${f.id}">${f.options.map(o=>`<option>${o}</option>`).join('')}</select></div>`;
+    else if(f.type==='textarea')html+=`<div class="form-group" style="grid-column:1/-1;"><label>${f.label}</label><textarea id="df_${f.id}" rows="4" style="width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;font-family:inherit;" placeholder="e.g.\nPerform structural analysis and calculations...\nPrepare technical reports and documentation...">${esc(autoVal)}</textarea></div>`;
     else html+=`<div class="form-group"><label>${f.label}</label><input type="${f.type}" id="df_${f.id}" value="${esc(autoVal)}"></div>`;
   });
   document.getElementById('docFormFields').innerHTML=html;
@@ -2396,11 +2418,6 @@ function composeDocParagraphs(type,emp,vals,comments){
   } else if(type==='employment'){
     title='TO WHOMSOEVER IT MAY CONCERN';
     paras.push(`This is to certify that ${name} (Employee ID: ${id}) is currently employed with ${entityFull} as ${desig} in the ${dept} department since ${join}.`);
-  } else if(type==='offer'){
-    title='OFFER OF EMPLOYMENT (GENERIC TEMPLATE)';
-    paras.push(`We are pleased to offer you the position of ${desig} in the ${dept} department at ${entityFull}, commencing ${fmt(vals.startdate)}.`);
-    if(vals.offersal)paras.push(`Your monthly basic salary will be AED ${parseFloat(vals.offersal).toLocaleString('en-AE')}.`);
-    paras.push(`Note: this is a generic placeholder — please replace with the company's official Offer Letter template once provided.`);
   }
   if(comments&&comments.trim())paras.push(comments.trim());
   if(type==='warning')paras.push(`You are advised to take immediate corrective action. Continued or repeated conduct of this nature may result in further disciplinary action, up to and including termination of employment, in accordance with company policy and UAE Labour Law.`);
@@ -2419,6 +2436,114 @@ function composeDocParagraphs(type,emp,vals,comments){
   return{title,paras};
 }
 
+function composeOfferClauses(type,emp,vals){
+  const name=emp.name||'—',desig=emp.desig||'—',nationality=emp.nationality||'—';
+  const passport=emp.passport||'—',passExp=fmt(emp.passExp);
+  const entityFull=entityFullName(emp);
+  const reportTo=vals.reportTo||emp.manager||'—';
+  const commenceDate=vals.commenceDate?fmt(vals.commenceDate):'To be discussed';
+  const employmentStatus=vals.employmentStatus||'Limited';
+  const visaStatus=vals.visaStatus||'Single Status';
+  const probation=vals.probation||'6 (six) months';
+  const basic=parseFloat(emp.basicSalary||0);
+  const costOfLiving=parseFloat(vals.costOfLiving||0);
+  const aed=n=>'AED '+n.toLocaleString('en-AE',{minimumFractionDigits:2});
+
+  if(type==='offer_labour'){
+    const total=basic+costOfLiving;
+    return[
+      {no:'1',heading:'Name of Employer and Employee',body:`Employer: ${entityFull}\nEmployee: ${name}\nHolder of ${nationality} Passport No. ${passport} expiring on ${passExp}.`},
+      {no:'2',heading:'Start of Employment',body:commenceDate},
+      {no:'3',heading:'Employment Status',body:`The term of this contract shall be "${employmentStatus}" and your employment status with the company will be of "${visaStatus}". As such the company will process any work permit application through concerned authorities and will pay for all the eligible costs associated to legalise your employment with our company.`},
+      {no:'4',heading:'Job Title',body:`${desig}, reporting to ${reportTo}`},
+      {no:'5',heading:'Remuneration Package per month',body:`Basic Salary: ${aed(basic)}\nCost of Living Allowance: ${aed(costOfLiving)}\nTotal Salary: ${aed(total)}`},
+      {no:'6',heading:'Precondition/Contract Clause',body:'You are required to undergo a medical check-up prior to your residence visa being approved by the immigration authorities. If the result of check-up proves negative, then this offer will be null and void. Your offer is subject to the company on your behalf being able to obtain clearances, work permit, residence visa and other similar documents as may be necessary from the government authorities in the UAE.'},
+      {no:'7',heading:'Working Hours',body:'As per UAE Labour Law (Office work days are from Monday to Saturday) / Hours to suit business/ project requirements.'},
+      {no:'8',heading:'Annual Leaves & Public Holidays',body:'As per UAE Labour Law.'},
+      {no:'9',heading:'Probation Period',body:`${probation}, effective from Employment commencement date.`},
+      {no:'10',heading:'Medical Insurance',body:'As per UAE Labour Law (Applicable in Dubai Jurisdiction).'},
+      {no:'11',heading:'End of Service Gratuity',body:'As per UAE Labour Law.'},
+      {no:'12',heading:'Employment Location',body:'Your point of Hire is Dubai - UAE & place of employment/Job location is Dubai - U.A.E, however the company reserves the right to transfer you to any other Emirates in the UAE or other region(s)/Branch offices in the Middle East region with the same terms and conditions of the current agreement unless and otherwise specified in writing.'},
+      {no:'13',heading:'Notice Period',body:`After the end of probationary period, this employment contract may be terminated by either party giving one (1) month notice in writing. If you fail to give one (1) month's notice then you may be required to forfeit your one month salary. Company will pay one month salary "in lieu" to you in the absence or failure to provide 1 month notice at the time of termination.`},
+      {no:'14',heading:'Labour Law',body:'All other terms & conditions not stated in this offer letter will be in accordance to the United Arab Emirates Federal Labour Law.\n\nThis offer letter will be valid for three (3) days from the date of Issuance. You are requested to acknowledge acceptance of this offer letter by signing and returning a copy through email. Formal "Contract of Employment" will be issued to you at the time of Joining date.'}
+    ];
+  }
+  // offer_whitecollar
+  const housing=parseFloat(emp.house||0),transport=parseFloat(emp.transport||0),other=parseFloat(emp.otherAllowances||0);
+  const total=basic+housing+transport+costOfLiving+other;
+  const duties=(vals.jobDuties||'To be defined based on role requirements.').split('\n').filter(l=>l.trim()).map(l=>'• '+l.trim()).join('\n');
+  return[
+    {no:'1',heading:'Employer',body:entityFull},
+    {no:'',heading:'Employee',body:`${name}, ${nationality} national & holder of Passport number ${passport}; Valid Till ${passExp}.`},
+    {no:'2',heading:'Job Title',body:`${desig}, reporting to ${reportTo}`},
+    {no:'',heading:'Location',body:'Your place of employment/Job location is Dubai-U.A.E, however the company reserves the right to transfer you to any other Emirates in the UAE or other region(s)/Branch offices in the UAE with the same terms and conditions of the current agreement unless and otherwise specified in writing.'},
+    {no:'',heading:'Employment Status',body:`The term of this contract shall be "${employmentStatus}" and your visa status with the company will be of ${visaStatus}. As such the company will process your work visa through the concerned authorities and will pay for all of the eligible visa expenses to legalize your stay in the UAE.`},
+    {no:'3',heading:'Nature Of Work',body:'Roles & Responsibilities (Brief):\n'+duties},
+    {no:'4',heading:'Pre-conditions/Contract Clause',body:'Your offer is subject to the company on your behalf being able to obtain clearances, work permit, residence visa and other similar documents as may be necessary from the Labor, Immigration or any other concerned government authorities in the UAE.'},
+    {no:'5',heading:'Commencement Date',body:`Your date of Joining is ${commenceDate}.`},
+    {no:'6',heading:'Probationary Period',body:`Confirmation of your appointment will be subject to satisfactory completion of a probationary period of ${probation}. On completion of the said period the company will confirm your appointment with the company in writing subject to satisfactory performance. During the probation period, you are not eligible for sick and/or paid leave(s).\n\nDuring the probationary period, the company and the employee reserve the right to terminate the contract in accordance with the UAE labour law.`},
+    {no:'7',heading:'Remuneration',body:`Your monthly remuneration will be as below. For the salary transfer, you are required to open/produce your local bank account details in the United Arab Emirates.\n\nBasic Salary: ${aed(basic)}\nHousing Allowance: ${aed(housing)}\nTransportation Allowance: ${aed(transport)}\nCost of Living Allowance: ${aed(costOfLiving)}\nOther Allowances: ${aed(other)}\nTotal Remuneration: ${aed(total)}`},
+    {no:'8',heading:'Tax',body:'As an expatriate working in the UAE, your salary is currently not subject to income tax. The company shall have no obligation for the administration of your taxation from either your affairs elsewhere or in any other country in which you may be deemed to be a resident.'},
+    {no:'9',heading:'End of Service Benefit',body:'Will be in accordance to the UAE Labour Law applicable at the time of employment termination.'},
+    {no:'10',heading:'Hours of Work',body:'Monday through Saturday (Flexible/Alternate day) from 7:30 to 16:30 or as required to perform your duties in a responsible and proper manner. Overtime is not applicable.'},
+    {no:'11',heading:'Insurances',body:'The company will provide Medical Insurance cover to you as per the company standard medical insurance policy and in line with the health Authority regulations of UAE.'},
+    {no:'12',heading:'Annual Leaves',body:'You will be eligible for a paid annual leave of 30 calendar days/Per year including UAE public and religious holidays. The eligibility of paid annual leave for a newly hired staff will only start after completion of 6 months of continuous service and shall be accrued/calculated on a pro-rata basis within the calendar period for the first (1) one year of service. The calendar period runs from January to December of any given year.'},
+    {no:'13',heading:'Sick /Compassionate Leave',body:'You are entitled to continuous or intermittent paid sick leave per year only upon completion of (6) six month of continued service, computed as follows:\ni) The first 15 days with full pay\nii) The next 30 days with half pay\niii) The remaining 45 days without pay'},
+    {no:'14',heading:'Other Leaves',body:'All other leaves which are enforced or applicable shall be granted in accordance to the UAE labour laws.'},
+    {no:'15',heading:'Employment Condition',body:'You will be entitled to a gratuity and other benefits as provided by the UAE labour laws.\n\nDuring the course of employment in the company, you will not be permitted to engage in any other employment/undertakings and/or other business activity other than as an employee of this company. You must fully abide by the UAE laws and customs that are enforced currently or from time to time. Failure to adhere to the aforementioned may result in disciplinary action up to and including dismissal or termination of employment services.'},
+    {no:'',heading:'Annual Flight Ticket',body:'After completing (12) twelve months of continued service with the company you will be paid an annual fare allowance amounting to AED 1,500.00.\n\nAnnual airfare allowance shall only be payable upon completing (1) one full year for each year of service. Work durations which is shorter than (12) twelve months will not qualify for any payment (meaning no amount will be calculated or paid on a pro-rata basis if (1) one full qualifying year is not completed.)'},
+    {no:'16',heading:'Confidentiality',body:'It is the condition of employment that if as a result of your work, you acquire knowledge of business practices, information, ways of working, processes or techniques which are confidential to the company, you shall not either during employment or after the end of service by way of resignation or termination disclose such information. You acknowledge that the company owns all intellectual property created in connection with your employment with the company that now exists or later comes into existence.'},
+    {no:'17',heading:'Company Assets',body:'All company assets will remain the sole property of the company and must be returned to the company when you leave employment. If the asset in question is not returned or is beyond normal expected wear and tear the replacement or repair cost will be deducted from your final settlement dues.'},
+    {no:'18',heading:'Disciplinary Procedures',body:'The Company reserves the right to take appropriate actions as per the company protocols and in accordance with UAE applicable procedures/law.'},
+    {no:'19',heading:'Notice Period in Termination',body:`After the employee's probationary period, the employment period may be terminated by either party giving (1) one month's notice in writing. If you fail to give (1) one month's notice then you may be required to forfeit your (1) one month's salary. The company will pay (1) one month's salary in lieu to you in the absence or failure to provide your (1) month's notice at the time of termination.\n\nAs per UAE law, the company will reserve full rights to terminate your contract without notice in any of the following events:\n• If you adopt a false identity or nationality or submit forged documents or certificates\n• Appointed under a probationary period and dismissal occurred during or at the end of the said period\n• Commits an error causing substantial material loss to the company\n• Violates instructions concerning the safety of the place of business\n• If you fail to perform your basic duties under the employment contract and persist in violating them despite formal investigation/warnings\n• If you divulge any secrets or business dealings of the company to unauthorized person or third party\n• If in case you are awarded a final judgement by the competent court in respect of an offense prejudicing honour, honesty or public morals\n• If you are found under the influence of Alcohol or the influence of prohibited drugs\n• During the course of work, you commit an assault on the employer, the manager or any of his colleagues\n• Absent yourself without lawful excuse for more than 20 intermittent days or for more than 7 successive days during one year\n• Exploits his/her position illegally to obtain personal results and gains\n• Joins another establishment without abiding by the rules and procedures in this regard`},
+    {no:'20',heading:'Labour Law',body:'All other terms & conditions not stated in this employment contract will be in accordance to the United Arab Emirates Federal labour law and regulations as amended from time to time.'}
+  ];
+}
+
+function previewOfferDoc(type,t,c,vals,comments,refNo){
+  const clauses=composeOfferClauses(type,c.emp,vals);
+  currentDocMeta={type,refNo,key:c.key,emp:c.emp,vals,comments,clauses};
+  const today=new Date().toLocaleDateString('en-AE',{day:'2-digit',month:'long',year:'numeric'});
+  document.getElementById('docPreviewSheet').innerHTML=`
+    <div style="max-width:820px;margin:0 auto;border:1px solid #ddd;box-shadow:0 2px 12px rgba(0,0,0,0.08);background:#fff;color:#222;font-size:12.5px;">
+      <div style="display:flex;justify-content:space-between;padding:22px 40px 10px;">
+        <div style="text-align:left;">
+          <img src="ckc_logo.png" alt="CKC Building Contracting" style="height:40px;display:block;margin-bottom:6px;">
+          <div style="font-size:9.5px;color:#555;">Warehouse 13, Al Qouz Industrial area 2<br>P.O. Box: 52994, Dubai, UAE</div>
+        </div>
+        <div style="text-align:right;">
+          <img src="ck_logo.png" alt="CK Architecture Interiors" style="height:40px;display:block;margin-bottom:6px;margin-left:auto;">
+          <div style="font-size:9.5px;color:#555;">Office 608, The Onyx Tower 2 Greens,<br>P.O. Box: 27138, Dubai, UAE</div>
+        </div>
+      </div>
+      <div style="border-top:2.5px solid #1C3557;margin:0 40px 20px;"></div>
+      <div style="padding:0 40px;">
+        <div style="margin-bottom:16px;">Date: ${today}</div>
+        <div id="docEditableBody">
+        ${clauses.map((cl,i)=>`<div style="display:flex;margin-bottom:14px;gap:10px;">
+          <div style="width:150px;flex-shrink:0;font-weight:700;">${cl.no?cl.no+'.&nbsp; ':''}<span style="text-decoration:underline;">${esc(cl.heading)}</span>${cl.no?' :':''}</div>
+          <div class="clause-body" data-idx="${i}" contenteditable="true" style="flex:1;white-space:pre-wrap;line-height:1.7;outline:none;border:1px dashed #ddd;padding:2px 6px;border-radius:3px;">${esc(cl.body)}</div>
+        </div>`).join('')}
+        </div>
+        <div style="margin-top:30px;">On behalf of <strong>${esc(entityFullName(c.emp))}</strong></div>
+        <div style="margin-top:18px;">Signed: ______________________&nbsp;&nbsp;&nbsp;&nbsp;Date: ${today}</div>
+        <div style="font-weight:700;margin-top:6px;">${esc(adminSignName)}</div>
+        <div>${esc(adminTitle)}</div>
+        <div style="margin-top:36px;padding-top:18px;border-top:1px dashed #999;">
+          <div style="margin-bottom:20px;">${esc(t.ackText)}</div>
+          <div>Signed: ______________________&nbsp;&nbsp;&nbsp;&nbsp;Date: ______________</div>
+          <div style="font-weight:700;margin-top:6px;">${esc(c.emp.name||'')}</div>
+        </div>
+      </div>
+      <div style="border-top:1px solid #ccc;margin:24px 40px 0;"></div>
+      <div style="color:#888;font-size:9.5px;padding:10px 40px 18px;text-align:center;">
+        Tel: +971 (0) 4 2209117 &nbsp; Fax: +971 (0) 048818014 &nbsp; info@ckarchitecture.com
+      </div>
+    </div>`;
+  document.getElementById('docPreviewCard').style.display='block';
+  document.getElementById('docPreviewCard').scrollIntoView({behavior:'smooth'});
+}
+
 window.previewDoc=function(){
   const type=v('docType');const c=currentDocEmp();
   if(!type||!c){alert('Please select an employee and document type first.');return;}
@@ -2428,6 +2553,9 @@ window.previewDoc=function(){
   t.extra.forEach(f=>{vals[f.id]=document.getElementById('df_'+f.id)?.value||'';});
   const comments=v('docComments');
   const refNo=nextRefNo(type);
+
+  if(t.numbered){previewOfferDoc(type,t,c,vals,comments,refNo);return;}
+
   const {title,paras}=composeDocParagraphs(type,c.emp,vals,comments);
   currentDocMeta={type,refNo,key:c.key,emp:c.emp,vals,comments,title};
 
@@ -2460,7 +2588,6 @@ window.previewDoc=function(){
           <div>Yours sincerely,</div><br>
           <div style="font-weight:700;">${esc(adminSignName)}</div>
           <div>${esc(adminTitle)}</div>
-          <div>${esc(entityFull)}</div>
         </div>
         ${t.requiresAck?`
         <div style="margin-top:36px;padding-top:20px;border-top:1px dashed #999;font-size:12.5px;">
@@ -2483,6 +2610,7 @@ window.previewDoc=function(){
 
 window.finalizeDoc=async function(){
   if(!currentDocMeta){alert('Please preview the document first.');return;}
+  if(docT[currentDocMeta.type].numbered){await finalizeOfferDoc();return;}
   const bodyEl=document.getElementById('docEditableBody');
   const finalParas=Array.from(bodyEl.querySelectorAll('p')).map(p=>p.textContent).filter(p=>p.trim());
   const {type,refNo,key,emp,title}=currentDocMeta;
@@ -2545,8 +2673,7 @@ window.finalizeDoc=async function(){
   doc.setFontSize(10.5);
   doc.text('Yours sincerely,',margin,y);y+=16;
   doc.setFont('helvetica','bold');doc.text(adminSignName,margin,y);y+=5.5;
-  doc.setFont('helvetica','normal');doc.text(adminTitle,margin,y);y+=5.5;
-  doc.text(entityFull,margin,y);
+  doc.setFont('helvetica','normal');doc.text(adminTitle,margin,y);
 
   if(docT[type].requiresAck){
     y+=22;
@@ -2580,6 +2707,111 @@ window.finalizeDoc=async function(){
   };
   await set(push(ref(db,'docHistory')),historyRecord);
   logAudit('Generate Document',docT[type].title,`${emp.name} — ${refNo}`);
+
+  document.getElementById('docPreviewCard').style.display='none';
+  document.getElementById('docFormArea').style.display='none';
+  sv('docType','');
+  currentDocMeta=null;
+};
+
+window.finalizeOfferDoc=async function(){
+  const {type,refNo,key,emp,clauses}=currentDocMeta;
+  const t=docT[type];
+  // Pull current (possibly HR-edited) text for each clause body
+  const editedClauses=clauses.map((cl,i)=>{
+    const el=document.querySelector(`.clause-body[data-idx="${i}"]`);
+    return{...cl,body:el?el.innerText:cl.body};
+  });
+
+  if(!window.jspdf){
+    await new Promise((resolve,reject)=>{
+      const s=document.createElement('script');
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      s.onload=resolve;s.onerror=reject;
+      document.head.appendChild(s);
+    });
+  }
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const pageW=210,margin=18,contentW=pageW-margin*2;
+  const now=new Date();
+  const today=now.toLocaleDateString('en-AE',{day:'2-digit',month:'long',year:'numeric'});
+  const entityFull=entityFullName(emp);
+
+  function drawLetterhead(){
+    let ly=16;
+    doc.setFontSize(7.7);doc.setTextColor(90,90,90);doc.setFont('helvetica','normal');
+    doc.text('Warehouse 13, Al Qouz Industrial area 2',margin+18,20);
+    doc.text('P.O. Box: 52994, Dubai, UAE',margin+18,24);
+    doc.text('Office 608, The Onyx Tower 2 Greens,',pageW-margin-18,20,{align:'right'});
+    doc.text('P.O. Box: 27138, Dubai, UAE',pageW-margin-18,24,{align:'right'});
+    doc.setDrawColor(28,53,87);doc.setLineWidth(0.8);doc.line(margin,30,pageW-margin,30);
+    return 40;
+  }
+  const [ckLogo,ckcLogo]=await Promise.all([loadImageAsDataURL('ck_logo.png'),loadImageAsDataURL('ckc_logo.png')]);
+  function drawLogos(){
+    if(ckcLogo){const w=10*(ckcLogo.w/ckcLogo.h);doc.addImage(ckcLogo.dataUrl,'PNG',margin,10,w,10);}
+    if(ckLogo){const w=10*(ckLogo.w/ckLogo.h);doc.addImage(ckLogo.dataUrl,'PNG',pageW-margin-10*(ckLogo.w/ckLogo.h),10,10*(ckLogo.w/ckLogo.h),10);}
+  }
+  function drawFooter(p,pageCount){
+    doc.setDrawColor(200,200,200);doc.setLineWidth(0.3);doc.line(margin,282,pageW-margin,282);
+    doc.setTextColor(140,140,140);doc.setFontSize(7.5);doc.setFont('helvetica','normal');
+    doc.text('Tel: +971 (0) 4 2209117   Fax: +971 (0) 048818014   info@ckarchitecture.com',pageW/2,288,{align:'center'});
+    doc.text('Page '+p+' of '+pageCount,pageW-margin,293,{align:'right'});
+  }
+
+  drawLogos();
+  let y=drawLetterhead();
+  doc.setTextColor(30,30,30);doc.setFontSize(10.5);doc.setFont('helvetica','normal');
+  doc.text('Date: '+today,margin,y);y+=10;
+
+  const labelW=45;
+  editedClauses.forEach(cl=>{
+    if(y>250){doc.addPage();drawLogos();y=drawLetterhead();}
+    doc.setFont('helvetica','bold');doc.setFontSize(10);
+    const headingText=(cl.no?cl.no+'.  ':'')+cl.heading+(cl.no?' :':'');
+    const headingLines=doc.splitTextToSize(headingText,labelW-3);
+    doc.setTextColor(30,30,30);
+    headingLines.forEach((hl,i)=>doc.text(hl,margin,y+i*5));
+    doc.setFont('helvetica','normal');
+    const bodyLines=doc.splitTextToSize(cl.body,contentW-labelW);
+    bodyLines.forEach((line,i)=>{
+      if(y+i*5.3>265){doc.addPage();drawLogos();y=drawLetterhead();}
+      doc.text(line,margin+labelW,y+i*5.3);
+    });
+    y+=Math.max(headingLines.length*5,bodyLines.length*5.3)+6;
+  });
+
+  if(y>230){doc.addPage();drawLogos();y=drawLetterhead();}
+  y+=6;
+  doc.setFontSize(10.5);doc.setFont('helvetica','normal');
+  doc.text('On behalf of',margin,y);
+  doc.setFont('helvetica','bold');doc.text(entityFull,margin+22,y);y+=14;
+  doc.setFont('helvetica','normal');
+  doc.text('Signed: ______________________      Date: '+today,margin,y);y+=8;
+  doc.setFont('helvetica','bold');doc.text(adminSignName,margin,y);y+=5.5;
+  doc.setFont('helvetica','normal');doc.text(adminTitle,margin,y);y+=16;
+
+  if(y>240){doc.addPage();drawLogos();y=drawLetterhead();}
+  doc.setDrawColor(180,180,180);doc.setLineWidth(0.2);doc.line(margin,y-8,pageW-margin,y-8);
+  const ackLines=doc.splitTextToSize(t.ackText,contentW);
+  ackLines.forEach(line=>{doc.text(line,margin,y);y+=5.5;});
+  y+=12;
+  doc.text('Signed: ______________________      Date: ______________',margin,y);y+=8;
+  doc.setFont('helvetica','bold');doc.text(emp.name||'',margin,y);
+
+  const pageCount=doc.internal.getNumberOfPages();
+  for(let p=1;p<=pageCount;p++){doc.setPage(p);drawFooter(p,pageCount);}
+
+  const safeName=(emp.name||'Employee').replace(/[^a-zA-Z0-9]+/g,'_');
+  doc.save(`${t.refCode}_${safeName}_${now.toISOString().split('T')[0]}.pdf`);
+
+  const historyRecord={
+    empKey:key,empName:emp.name||'',docType:t.title,docTypeKey:type,
+    refNo,issueDate:now.toISOString().split('T')[0],generatedBy:adminName,status:'Issued'
+  };
+  await set(push(ref(db,'docHistory')),historyRecord);
+  logAudit('Generate Document',t.title,`${emp.name} — ${refNo}`);
 
   document.getElementById('docPreviewCard').style.display='none';
   document.getElementById('docFormArea').style.display='none';
