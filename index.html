@@ -2532,11 +2532,14 @@ function previewOfferDoc(type,t,c,vals,comments,refNo){
       </div>
       <div style="border-top:2.5px solid #1C3557;margin:0 40px 20px;"></div>
       <div style="padding:0 40px;">
-        <div style="margin-bottom:16px;">Date: ${today}</div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:22px;font-size:12px;color:#555;">
+          <span>Date: ${today}</span>
+          <span>Employee: ${esc(c.emp.name||'')}</span>
+        </div>
         <div id="docEditableBody">
-        ${clauses.map((cl,i)=>`<div style="display:flex;margin-bottom:14px;gap:10px;">
-          <div style="width:150px;flex-shrink:0;font-weight:700;">${cl.no?cl.no+'.&nbsp; ':''}<span style="text-decoration:underline;">${esc(cl.heading)}</span>${cl.no?' :':''}</div>
-          <div class="clause-body" data-idx="${i}" contenteditable="true" style="flex:1;white-space:pre-wrap;line-height:1.7;outline:none;border:1px dashed #ddd;padding:2px 6px;border-radius:3px;">${esc(cl.body)}</div>
+        ${clauses.map((cl,i)=>`<div style="margin-bottom:18px;padding-left:14px;border-left:3px solid ${cl.no?'#C9A84C':'#e5e5e5'};">
+          <div style="font-weight:700;color:#1C3557;font-size:12.5px;margin-bottom:4px;">${cl.no?cl.no+'. ':''}${esc(cl.heading)}</div>
+          <div class="clause-body" data-idx="${i}" contenteditable="true" style="white-space:pre-wrap;line-height:1.75;outline:none;border-radius:3px;padding:2px 4px;color:#222;">${esc(cl.body)}</div>
         </div>`).join('')}
         </div>
         <div style="margin-top:30px;">On behalf of <strong>${esc(vals.signEntity||entityFullName(c.emp))}</strong></div>
@@ -2781,29 +2784,38 @@ window.finalizeOfferDoc=async function(){
 
   drawLogos();
   let y=drawLetterhead();
-  doc.setTextColor(30,30,30);doc.setFontSize(10.5);doc.setFont('helvetica','normal');
-  doc.text('Date: '+today,margin,y);y+=10;
+  doc.setTextColor(90,90,90);doc.setFontSize(9.5);doc.setFont('helvetica','normal');
+  doc.text('Date: '+today,margin,y);
+  doc.text('Employee: '+(emp.name||''),pageW-margin,y,{align:'right'});
+  y+=12;
 
-  const labelW=45;
+  const indent=4;
   editedClauses.forEach(cl=>{
-    if(y>250){doc.addPage();drawLogos();y=drawLetterhead();}
-    doc.setFont('helvetica','bold');doc.setFontSize(10);
-    const headingText=(cl.no?cl.no+'.  ':'')+cl.heading+(cl.no?' :':'');
-    const headingLines=doc.splitTextToSize(headingText,labelW-3);
-    doc.setTextColor(30,30,30);
-    headingLines.forEach((hl,i)=>doc.text(hl,margin,y+i*5));
-    doc.setFont('helvetica','normal');doc.setFontSize(10);
+    doc.setFont('helvetica','bold');doc.setFontSize(10.5);
+    const headingText=(cl.no?cl.no+'. ':'')+cl.heading;
+    const headingH=doc.splitTextToSize(headingText,contentW-indent).length*5.5;
     const bodyIsProse=!cl.body.includes('\n');
-    const bodyLines=doc.splitTextToSize(cl.body,contentW-labelW);
-    let by=y;
+    doc.setFont('helvetica','normal');doc.setFontSize(10);
+    const bodyLines=doc.splitTextToSize(cl.body,contentW-indent);
+    const blockH=headingH+4+bodyLines.length*5.3+8;
+    if(y+blockH>270&&y>60){doc.addPage();drawLogos();y=drawLetterhead();}
+
+    doc.setDrawColor(cl.no?201:225,cl.no?168:225,cl.no?76:225);doc.setLineWidth(1.1);
+    doc.line(margin,y-4,margin,y+headingH+bodyLines.length*5.3);
+    doc.setFont('helvetica','bold');doc.setFontSize(10.5);doc.setTextColor(28,53,87);
+    const headingLines=doc.splitTextToSize(headingText,contentW-indent);
+    headingLines.forEach((hl,i)=>doc.text(hl,margin+indent,y+i*5.5));
+    y+=headingH+4;
+
+    doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(30,30,30);
     bodyLines.forEach((line,i)=>{
-      if(by>265){doc.addPage();drawLogos();y=drawLetterhead();by=y;doc.setFont('helvetica','normal');doc.setFontSize(10);}
+      if(y>270){doc.addPage();drawLogos();y=drawLetterhead();doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(30,30,30);}
       const isLastLine=i===bodyLines.length-1;
-      if(bodyIsProse&&!isLastLine)doc.text(line,margin+labelW,by,{maxWidth:contentW-labelW,align:'justify'});
-      else doc.text(line,margin+labelW,by);
-      by+=5.3;
+      if(bodyIsProse&&!isLastLine)doc.text(line,margin+indent,y,{maxWidth:contentW-indent,align:'justify'});
+      else doc.text(line,margin+indent,y);
+      y+=5.3;
     });
-    y=Math.max(y+headingLines.length*5,by)+6;
+    y+=8;
   });
 
   if(y>230){doc.addPage();drawLogos();y=drawLetterhead();}
