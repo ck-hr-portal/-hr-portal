@@ -263,6 +263,7 @@ tr:hover td{background:#fafbfc;}
               <option>CKC Building Contracting</option>
             </select>
             <button class="btn btn-gold" onclick="runReport('uaenationals')">📥 Download Excel</button>
+            <button class="btn" style="background:#8e44ad;color:#fff;" onclick="runReportPDF('uaenationals')">📄 PDF</button>
           </div>
           <div class="table-wrap">
             <table>
@@ -573,7 +574,7 @@ tr:hover td{background:#fafbfc;}
       <div id="page-reports" class="page">
         <div class="page-header"><h2>Reports &amp; Downloads</h2><p>All reports export to Excel — formatted and ready to share</p></div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
-          <div class="card" style="cursor:pointer;border-top:3px solid #1C3557;" onclick="runReport('headcount')"><div class="card-title">👥 Headcount Report</div><p style="font-size:12px;color:#888;">By dept, entity, nationality, grade</p><div class="btn-row"><button class="btn btn-sm btn-primary">📥 Download Excel</button></div></div>
+          <div class="card" style="cursor:pointer;border-top:3px solid #1C3557;" onclick="runReport('headcount')"><div class="card-title">👥 Headcount Report</div><p style="font-size:12px;color:#888;">By dept, entity, nationality, grade</p><div class="btn-row"><button class="btn btn-sm btn-primary">📥 Download Excel</button><button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="event.stopPropagation();runReportPDF('headcount')">📄 PDF</button></div></div>
           <div class="card" style="border-top:3px solid #C9A84C;">
             <div class="card-title">💰 Gratuity / EOSB Report</div>
             <p style="font-size:12px;color:#888;margin-bottom:10px;">Live calculation as of today — per UAE Federal Decree-Law No. 33/2021. 21 days/yr (first 5 yrs), 30 days/yr (after).</p>
@@ -586,13 +587,13 @@ tr:hover td{background:#fafbfc;}
               <button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="runGratuityPDF('ckc')">📄 PDF (CKC)</button>
             </div>
           </div>
-          <div class="card" style="cursor:pointer;border-top:3px solid #e74c3c;" onclick="runReport('expiry')"><div class="card-title">⚠️ Document Expiry</div><p style="font-size:12px;color:#888;">All expiries by urgency</p><div class="btn-row"><button class="btn btn-sm btn-danger">📥 Download Excel</button></div></div>
-          <div class="card" style="cursor:pointer;border-top:3px solid #1A7A6E;" onclick="runReport('leavers')"><div class="card-title">🚪 Leavers Report</div><p style="font-size:12px;color:#888;">Exits with turnover % by dept</p><div class="btn-row"><button class="btn btn-sm btn-teal">📥 Download Excel</button></div></div>
-          <div class="card" style="cursor:pointer;border-top:3px solid #2563A8;" onclick="runReport('newhires')"><div class="card-title">🆕 New Hires Report</div><p style="font-size:12px;color:#888;">Joiners by period and department</p><div class="btn-row"><button class="btn btn-sm btn-primary">📥 Download Excel</button></div></div>
-          <div class="card" style="cursor:pointer;border-top:3px solid #8e44ad;" onclick="runReport('leave')"><div class="card-title">📅 Leave Summary</div><p style="font-size:12px;color:#888;">Leave by type, dept, employee</p><div class="btn-row"><button class="btn btn-sm" style="background:#8e44ad;color:#fff;">📥 Download Excel</button></div></div>
-          <div class="card" style="cursor:pointer;border-top:3px solid #e67e22;" onclick="runReport('loans')"><div class="card-title">🏦 Loan Report</div><p style="font-size:12px;color:#888;">All loans — outstanding balances</p><div class="btn-row"><button class="btn btn-sm" style="background:#e67e22;color:#fff;">📥 Download Excel</button></div></div>
-          <div class="card" style="cursor:pointer;border-top:3px solid #27ae60;" onclick="runReport('assets')"><div class="card-title">💼 Asset Register</div><p style="font-size:12px;color:#888;">All issued items per employee</p><div class="btn-row"><button class="btn btn-sm" style="background:#27ae60;color:#fff;">📥 Download Excel</button></div></div>
-          <div class="card" style="cursor:pointer;border-top:3px solid #1C3557;" onclick="runReport('salary')"><div class="card-title">💹 Salary Changes</div><p style="font-size:12px;color:#888;">All increments and promotions</p><div class="btn-row"><button class="btn btn-sm btn-primary">📥 Download Excel</button></div></div>
+          <div class="card" style="cursor:pointer;border-top:3px solid #e74c3c;" onclick="runReport('expiry')"><div class="card-title">⚠️ Document Expiry</div><p style="font-size:12px;color:#888;">All expiries by urgency</p><div class="btn-row"><button class="btn btn-sm btn-danger">📥 Download Excel</button><button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="event.stopPropagation();runReportPDF('expiry')">📄 PDF</button></div></div>
+          <div class="card" style="cursor:pointer;border-top:3px solid #1A7A6E;" onclick="runReport('leavers')"><div class="card-title">🚪 Leavers Report</div><p style="font-size:12px;color:#888;">Exits with turnover % by dept</p><div class="btn-row"><button class="btn btn-sm btn-teal">📥 Download Excel</button><button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="event.stopPropagation();runReportPDF('leavers')">📄 PDF</button></div></div>
+          <div class="card" style="cursor:pointer;border-top:3px solid #2563A8;" onclick="runReport('newhires')"><div class="card-title">🆕 New Hires Report</div><p style="font-size:12px;color:#888;">Joiners by period and department</p><div class="btn-row"><button class="btn btn-sm btn-primary">📥 Download Excel</button><button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="event.stopPropagation();runReportPDF('newhires')">📄 PDF</button></div></div>
+          <div class="card" style="cursor:pointer;border-top:3px solid #8e44ad;" onclick="runReport('leave')"><div class="card-title">📅 Leave Summary</div><p style="font-size:12px;color:#888;">Leave by type, dept, employee</p><div class="btn-row"><button class="btn btn-sm" style="background:#8e44ad;color:#fff;">📥 Download Excel</button><button class="btn btn-sm" style="background:#6c3483;color:#fff;" onclick="event.stopPropagation();runReportPDF('leave')">📄 PDF</button></div></div>
+          <div class="card" style="cursor:pointer;border-top:3px solid #e67e22;" onclick="runReport('loans')"><div class="card-title">🏦 Loan Report</div><p style="font-size:12px;color:#888;">All loans — outstanding balances</p><div class="btn-row"><button class="btn btn-sm" style="background:#e67e22;color:#fff;">📥 Download Excel</button><button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="event.stopPropagation();runReportPDF('loans')">📄 PDF</button></div></div>
+          <div class="card" style="cursor:pointer;border-top:3px solid #27ae60;" onclick="runReport('assets')"><div class="card-title">💼 Asset Register</div><p style="font-size:12px;color:#888;">All issued items per employee</p><div class="btn-row"><button class="btn btn-sm" style="background:#27ae60;color:#fff;">📥 Download Excel</button><button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="event.stopPropagation();runReportPDF('assets')">📄 PDF</button></div></div>
+          <div class="card" style="cursor:pointer;border-top:3px solid #1C3557;" onclick="runReport('salary')"><div class="card-title">💹 Salary Changes</div><p style="font-size:12px;color:#888;">All increments and promotions</p><div class="btn-row"><button class="btn btn-sm btn-primary">📥 Download Excel</button><button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="event.stopPropagation();runReportPDF('salary')">📄 PDF</button></div></div>
           <div class="card" style="border-top:3px solid #C9A84C;grid-column:1/-1;">
             <div class="card-title">👤 Individual Employee Profile Report</div>
             <p style="font-size:12px;color:#888;margin-bottom:12px;">Full employment history for a single employee — profile, salary history, leave, loans, assets. Download as Excel.</p>
@@ -3575,6 +3576,212 @@ window.runFlightPDF=async function(){
   addFooter(1);
   doc.save('CK_Flight_Allowance_Yearly_Summary_'+now.toISOString().split('T')[0]+'.pdf');
   logAudit('Download Flight Allowance Yearly Summary PDF','All Employees','Total AED '+grandTotal.toFixed(2)+' across '+years.length+' years');
+};
+
+// ── SHARED PROFESSIONAL PDF TABLE GENERATOR (used by every report below) ──────
+async function generateReportPDF(o){
+  if(!window.jspdf){
+    await new Promise((resolve,reject)=>{
+      const s=document.createElement('script');
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      s.onload=resolve;s.onerror=reject;
+      document.head.appendChild(s);
+    });
+  }
+  const {jsPDF}=window.jspdf;
+  const landscape=o.orientation!=='portrait';
+  const doc=new jsPDF({orientation:landscape?'landscape':'portrait',unit:'mm',format:'a4'});
+  const pageW=landscape?297:210, pageH=landscape?210:297;
+  const margin=14, contentW=pageW-margin*2;
+  const now=new Date();
+  const todayStr=now.toLocaleDateString('en-AE',{day:'2-digit',month:'long',year:'numeric'});
+  let y=0;
+
+  function addHeader(){
+    doc.setFillColor(28,53,87);doc.rect(0,0,pageW,20,'F');
+    doc.setTextColor(201,168,76);doc.setFontSize(10);doc.setFont('helvetica','bold');
+    doc.text('CK ARCHITECTURE INTERIORS LLC  |  CKC BUILDING CONTRACTING LLC',margin,8);
+    doc.setTextColor(255,255,255);doc.setFontSize(9.5);doc.setFont('helvetica','normal');
+    doc.text(o.title,margin,15);
+    doc.setFontSize(7.5);
+    doc.text('Generated: '+todayStr,pageW-margin,15,{align:'right'});
+    y=27;
+    if(o.subtitle){
+      doc.setTextColor(90,90,90);doc.setFontSize(8);doc.setFont('helvetica','normal');
+      const lines=doc.splitTextToSize(o.subtitle,contentW);
+      lines.forEach(l=>{doc.text(l,margin,y);y+=4.5;});
+      y+=2;
+    }
+  }
+  function addFooter(p,total){
+    doc.setFillColor(28,53,87);doc.rect(0,pageH-9,pageW,9,'F');
+    doc.setTextColor(201,168,76);doc.setFontSize(6.5);doc.setFont('helvetica','normal');
+    doc.text('CK Architecture Interiors LLC  |  CKC Building Contracting LLC  |  Confidential — HR Use Only',margin,pageH-3.5);
+    doc.setTextColor(255,255,255);
+    doc.text('Page '+p+' of '+total,pageW-margin,pageH-3.5,{align:'right'});
+  }
+  const totalW=o.columns.reduce((s,c)=>s+c.width,0);
+  const scale=contentW/totalW;
+  function drawTableHeader(){
+    doc.setFillColor(28,53,87);doc.rect(margin,y,contentW,7,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(7.5);doc.setFont('helvetica','bold');
+    let x=margin;
+    o.columns.forEach(c=>{doc.text(c.label,x+1.5,y+4.8);x+=c.width*scale;});
+    y+=8;
+  }
+  addHeader();
+  drawTableHeader();
+  doc.setFont('helvetica','normal');doc.setFontSize(7.3);
+  o.rows.forEach((row,i)=>{
+    if(y>pageH-16){doc.addPage();y=10;addHeader();drawTableHeader();doc.setFont('helvetica','normal');doc.setFontSize(7.3);}
+    if(i%2===0){doc.setFillColor(235,243,251);doc.rect(margin,y-4.3,contentW,6,'F');}
+    doc.setTextColor(30,30,30);
+    let x=margin;
+    row.forEach((val,ci)=>{
+      const w=o.columns[ci].width*scale;
+      let text=String(val==null||val===undefined?'—':val);
+      const maxChars=Math.floor(w/1.7);
+      if(text.length>maxChars)text=text.slice(0,maxChars-1)+'…';
+      doc.text(text,x+1.5,y);
+      x+=w;
+    });
+    y+=6;
+  });
+  if(o.summaryLines&&o.summaryLines.length){
+    y+=4;
+    if(y>pageH-30){doc.addPage();y=15;addHeader();}
+    doc.setFillColor(201,168,76);doc.rect(margin,y,contentW,7,'F');
+    doc.setTextColor(28,53,87);doc.setFont('helvetica','bold');doc.setFontSize(8.5);
+    doc.text('SUMMARY',margin+2,y+4.8);y+=11;
+    doc.setFont('helvetica','normal');doc.setTextColor(30,30,30);doc.setFontSize(8.5);
+    o.summaryLines.forEach(line=>{
+      if(y>pageH-14){doc.addPage();y=15;addHeader();}
+      doc.text(line,margin+2,y);y+=5.8;
+    });
+  }
+  const pageCount=doc.internal.getNumberOfPages();
+  for(let p=1;p<=pageCount;p++){doc.setPage(p);addFooter(p,pageCount);}
+  doc.save(o.filename+'_'+now.toISOString().split('T')[0]+'.pdf');
+  logAudit('Download PDF Report',o.title,o.rows.length+' rows');
+}
+
+window.runReportPDF=function(type){
+  const emps=Object.values(DB.employees);
+  const now=new Date();
+  const today=now.toLocaleDateString('en-AE',{day:'2-digit',month:'long',year:'numeric'});
+
+  if(type==='headcount'){
+    const active=emps.filter(e=>e.status==='Active'||!e.status);
+    const byDept={};active.forEach(e=>{byDept[e.dept||'Unknown']=(byDept[e.dept||'Unknown']||0)+1;});
+    generateReportPDF({
+      title:'HEADCOUNT REPORT',
+      subtitle:'By department, entity, nationality and grade — active employees only',
+      filename:'CK_Headcount_Report',
+      columns:[{label:'Name',width:38},{label:'Department',width:26},{label:'Designation',width:32},{label:'Entity',width:34},{label:'Nationality',width:24},{label:'Grade',width:20},{label:'Status',width:16}],
+      rows:active.map(e=>[e.name,e.dept,e.desig,e.entity,e.nationality,e.grade,e.status||'Active']),
+      summaryLines:[`Total Active Employees: ${active.length}`,...Object.entries(byDept).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k}: ${v}`)]
+    });
+  } else if(type==='expiry'){
+    const rows=[];
+    emps.forEach(e=>{
+      [{f:'passExp',l:'Passport'},{f:'visaExp',l:'Visa'},{f:'eidExp',l:'Emirates ID'},{f:'labExp',l:'Labour Card'}].forEach(({f,l})=>{
+        if(!e[f])return;
+        const dl=daysLeft(e[f]);
+        rows.push({name:e.name,dept:e.dept,doc:l,exp:e[f],dl,status:dl<0?'EXPIRED':dl<=30?'URGENT':dl<=60?'WARNING':'OK'});
+      });
+    });
+    rows.sort((a,b)=>a.dl-b.dl);
+    generateReportPDF({
+      title:'DOCUMENT EXPIRY REPORT',
+      subtitle:'All employee document expiries, sorted by urgency',
+      filename:'CK_Document_Expiry_Report',
+      columns:[{label:'Name',width:40},{label:'Department',width:28},{label:'Document',width:26},{label:'Expiry Date',width:24},{label:'Days Left',width:20},{label:'Status',width:20}],
+      rows:rows.map(r=>[r.name,r.dept,r.doc,r.exp,r.dl,r.status]),
+      summaryLines:[
+        `Expired: ${rows.filter(r=>r.dl<0).length}`,
+        `Expiring in 30 days: ${rows.filter(r=>r.dl>=0&&r.dl<=30).length}`,
+        `Expiring in 31–60 days: ${rows.filter(r=>r.dl>30&&r.dl<=60).length}`
+      ]
+    });
+  } else if(type==='leavers'){
+    const leavers=emps.filter(e=>e.exitDate||e.status==='Inactive');
+    generateReportPDF({
+      title:'LEAVERS & TURNOVER REPORT',
+      subtitle:'Employees who have exited, with turnover analysis',
+      filename:'CK_Leavers_Turnover_Report',
+      columns:[{label:'Name',width:40},{label:'Department',width:26},{label:'Entity',width:34},{label:'Last Working Day',width:26},{label:'Exit Type',width:24},{label:'Reason',width:32}],
+      rows:leavers.map(e=>[e.name,e.dept,e.entity,e.exitDate,e.exitType,e.exitReason]),
+      summaryLines:[`Total Headcount: ${emps.length}`,`Active: ${emps.filter(e=>e.status==='Active'||!e.status).length}`,`Leavers: ${leavers.length}`,`Turnover %: ${emps.length?(leavers.length/emps.length*100).toFixed(1)+'%':'—'}`]
+    });
+  } else if(type==='newhires'){
+    const rows=emps.filter(e=>e.join).sort((a,b)=>b.join>a.join?1:-1);
+    generateReportPDF({
+      title:'NEW HIRES REPORT',
+      subtitle:'Joiners by period and department',
+      filename:'CK_New_Hires_Report',
+      columns:[{label:'Name',width:40},{label:'Department',width:26},{label:'Designation',width:32},{label:'Entity',width:34},{label:'Nationality',width:24},{label:'Join Date',width:24}],
+      rows:rows.map(e=>[e.name,e.dept,e.desig,e.entity,e.nationality,e.join]),
+      summaryLines:[`Total New Hires Listed: ${rows.length}`]
+    });
+  } else if(type==='leave'){
+    const rows=Object.values(DB.leave).sort((a,b)=>a.from>b.from?1:-1);
+    const byType={};rows.forEach(l=>{byType[l.type||'Other']=(byType[l.type||'Other']||0)+1;});
+    generateReportPDF({
+      title:'LEAVE SUMMARY REPORT',
+      subtitle:'All recorded leave, by type, department and employee',
+      filename:'CK_Leave_Summary_Report',
+      columns:[{label:'Employee',width:36},{label:'Leave Type',width:26},{label:'From',width:22},{label:'To',width:22},{label:'Days',width:14},{label:'Status',width:18},{label:'Approved By',width:24}],
+      rows:rows.map(l=>{const d=l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:'';return[l.empName,l.type,l.from,l.to,d,l.status,l.approvedBy];}),
+      summaryLines:[`Total Leave Records: ${rows.length}`,...Object.entries(byType).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k}: ${v} records`)]
+    });
+  } else if(type==='loans'){
+    let totalLoan=0,totalOutstanding=0;
+    const rows=Object.entries(DB.loans).map(([k,l])=>{
+      const paid=Object.values(DB.repayments).filter(r=>r.loanKey===k).reduce((s,r)=>s+parseFloat(r.amt||0),0);
+      const outstanding=Math.max(0,parseFloat(l.amount||0)-paid);
+      const pct=l.amount?Math.round(paid/l.amount*100):0;
+      totalLoan+=parseFloat(l.amount||0);totalOutstanding+=outstanding;
+      return[l.empName,'AED '+parseFloat(l.amount||0).toLocaleString(),l.purpose,'AED '+outstanding.toFixed(2),pct+'%',l.status];
+    });
+    generateReportPDF({
+      title:'EMPLOYEE LOAN REPORT',
+      subtitle:'All loans with outstanding balances and recovery status',
+      filename:'CK_Loan_Report',
+      columns:[{label:'Employee',width:38},{label:'Loan Amount',width:28},{label:'Purpose',width:38},{label:'Outstanding',width:28},{label:'Recovery %',width:20},{label:'Status',width:20}],
+      rows,
+      summaryLines:[`Total Loan Amount: AED ${totalLoan.toLocaleString()}`,`Total Outstanding: AED ${totalOutstanding.toLocaleString()}`]
+    });
+  } else if(type==='assets'){
+    const byCat={};Object.values(DB.assets).forEach(a=>{byCat[a.category||'Other']=(byCat[a.category||'Other']||0)+1;});
+    generateReportPDF({
+      title:'ASSET & EQUIPMENT REGISTER',
+      subtitle:'All issued items per employee',
+      filename:'CK_Asset_Register_Report',
+      columns:[{label:'Employee',width:36},{label:'Category',width:26},{label:'Item',width:34},{label:'Serial/Batch',width:26},{label:'Issue Date',width:22},{label:'Status',width:20}],
+      rows:Object.values(DB.assets).map(a=>[a.empName,a.category,a.item,a.serial,a.issueDate,a.status]),
+      summaryLines:[`Total Assets Issued: ${Object.keys(DB.assets).length}`,...Object.entries(byCat).map(([k,v])=>`${k}: ${v} items`)]
+    });
+  } else if(type==='salary'){
+    const rows=Object.values(DB.salary).sort((a,b)=>b.ts-a.ts);
+    generateReportPDF({
+      title:'SALARY & PROMOTION HISTORY',
+      subtitle:'All increments, reductions and promotions',
+      filename:'CK_Salary_Changes_Report',
+      columns:[{label:'Employee',width:36},{label:'Type',width:30},{label:'Effective Date',width:24},{label:'Previous (AED)',width:26},{label:'New Amount (AED)',width:28},{label:'% Change',width:18},{label:'Approved By',width:24}],
+      rows:rows.map(s=>{const prev=parseFloat(s.prev)||0,nw=parseFloat(s.newVal)||0;const pct=prev?((nw-prev)/prev*100).toFixed(1)+'%':'—';return[s.empName,s.type,s.date,s.prev,s.newVal,pct,s.approvedBy];}),
+      summaryLines:[`Total Salary Change Records: ${rows.length}`]
+    });
+  } else if(type==='uaenationals'){
+    const uaeEmps=emps.filter(e=>{const nat=(e.nationality||'').toLowerCase();return nat.includes('emirati')||nat.includes('uae');});
+    generateReportPDF({
+      title:'UAE NATIONAL EMPLOYEES REPORT',
+      subtitle:'GPSSA Pension: 5% Employee + 12.5% Employer  |  Annual Leave: 30 Days  |  Gratuity: Not Applicable',
+      filename:'CK_UAE_Nationals_Report',
+      columns:[{label:'Name',width:38},{label:'Department',width:28},{label:'Designation',width:34},{label:'Entity',width:36},{label:'Grade',width:20},{label:'Status',width:18}],
+      rows:uaeEmps.map(e=>[e.name,e.dept,e.desig,e.entity,e.grade,e.status||'Active']),
+      summaryLines:[`Total UAE Nationals: ${uaeEmps.length}`,`CK Architecture: ${uaeEmps.filter(e=>e.entity&&e.entity.includes('Architecture')).length}`,`CKC Building: ${uaeEmps.filter(e=>e.entity&&e.entity.includes('Building')).length}`]
+    });
+  }
 };
 
 window.runReport=function(type){
