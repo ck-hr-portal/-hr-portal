@@ -125,7 +125,7 @@ tr:hover td{background:#fafbfc;}
     <p>CK Architecture Interiors &amp; CKC Building Contracting</p>
     <input type="text" id="loginUser" placeholder="Admin Username">
     <input type="password" id="loginPass" placeholder="Password">
-    <button onclick="doLogin()">Sign In</button>
+    <button id="loginBtn" onclick="doLogin()">Sign In</button>
     <div id="loginError">Invalid username or password.</div>
   </div>
 </div>
@@ -1038,6 +1038,7 @@ tr:hover td{background:#fafbfc;}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, push, get, remove, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getAuth, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const FC = {
   apiKey:"AIzaSyA_NToPyXvchX3XrApN937DpDcWOoJ7LTY",
@@ -1050,9 +1051,19 @@ const FC = {
 };
 const app = initializeApp(FC);
 const db = getDatabase(app);
+const auth = getAuth(app);
 
-const ADMINS = {dev:{pass:'CKAdmin2025',name:'Dev Mandrekar',role:'admin',title:'HR Director',signName:'Dev Mandrekar'},darleendy:{pass:'CKAdmin2025',name:'Darleendy',role:'admin',title:'HR Manager',signName:'Mary Darleendy Vilbar'},kashif:{pass:'CKAdmin2025',name:'Kashif',role:'admin',title:'HR Manager',signName:'Kashif'},cem:{pass:'CKCem2026',name:'Cem Kapancioglu',role:'ceo',title:'CEO',signName:'Cem Kapancioglu'}};
-let currentAdmin='', adminName='', adminTitle='', adminSignName='';
+// Real Firebase Authentication accounts. The internal @ckhr.internal addresses are never
+// meant to receive real email — they exist only so Firebase Auth (which requires an email
+// format) has something to key each account on. Login screen still just takes a short
+// username (dev/darleendy/kashif/cem); it's mapped to the matching account below.
+const ACCOUNTS = {
+  'dev@ckhr.internal':{username:'dev',name:'Dev Mandrekar',role:'admin',title:'HR Director',signName:'Dev Mandrekar'},
+  'darleendy@ckhr.internal':{username:'darleendy',name:'Darleendy',role:'admin',title:'HR Manager',signName:'Mary Darleendy Vilbar'},
+  'kashif@ckhr.internal':{username:'kashif',name:'Kashif',role:'pro',title:'PRO',signName:'Kashif'},
+  'cem@ckhr.internal':{username:'cem',name:'Cem Kapancioglu',role:'ceo',title:'CEO',signName:'Cem Kapancioglu'}
+};
+let currentAdmin='', currentRole='', adminName='', adminTitle='', adminSignName='';
 let DB={employees:{},leave:{},salary:{},loans:{},repayments:{},assets:{},holidays:{},announcements:{},policies:{},audit:{},flightAllowance:{},leavers:{},leaveAdjustments:{},docHistory:{}};
 let activeLoanKey=null;
 
@@ -1081,26 +1092,43 @@ async function logAudit(action,record,detail=''){
 }
 
 // ── LOGIN ─────────────────────────────────────────────────────────────────────
-window.doLogin=function(){
+window.doLogin=async function(){
   const u=v('loginUser').toLowerCase(), p=v('loginPass');
-  if(ADMINS[u]&&ADMINS[u].pass===p){
-    currentAdmin=u; adminName=ADMINS[u].name; adminTitle=ADMINS[u].title||'HR Department'; adminSignName=ADMINS[u].signName||ADMINS[u].name;
+  const email=u+'@ckhr.internal';
+  const btn=document.getElementById('loginBtn');
+  if(btn){btn.disabled=true;btn.textContent='Signing In...';}
+  document.getElementById('loginError').style.display='none';
+  try{
+    await signInWithEmailAndPassword(auth,email,p);
+    const acct=ACCOUNTS[email];
+    if(!acct){ // shouldn't happen if only the 4 accounts exist in Firebase, but guard anyway
+      await signOut(auth);
+      document.getElementById('loginError').textContent='This account is not recognized by the portal.';
+      document.getElementById('loginError').style.display='block';
+      return;
+    }
+    currentAdmin=acct.username; currentRole=acct.role;
+    adminName=acct.name; adminTitle=acct.title||'HR Department'; adminSignName=acct.signName||acct.name;
     document.getElementById('adminNameDisplay').textContent=adminName;
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('app').style.display='block';
     document.getElementById('dashDate').textContent=new Date().toLocaleDateString('en-AE',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-    document.getElementById('loginError').style.display='none';
-    // CEO read-only mode
-    const isCEO = ADMINS[u].role === 'ceo';
-    document.getElementById('adminBadge').textContent = isCEO ? 'CEO VIEW' : 'ADMIN';
-    document.getElementById('adminBadge').style.background = isCEO ? '#1A7A6E' : '#C9A84C';
-    if(isCEO) applyCEOMode();
+    const badgeText={admin:'ADMIN',ceo:'CEO VIEW',pro:'PRO'}[currentRole]||'ADMIN';
+    const badgeColor={admin:'#C9A84C',ceo:'#1A7A6E',pro:'#8e44ad'}[currentRole]||'#C9A84C';
+    document.getElementById('adminBadge').textContent=badgeText;
+    document.getElementById('adminBadge').style.background=badgeColor;
+    if(currentRole==='ceo')applyCEOMode();
+    if(currentRole==='pro')applyPROMode();
     initListeners();
-  } else {
+  }catch(err){
+    document.getElementById('loginError').textContent='Incorrect username or password.';
     document.getElementById('loginError').style.display='block';
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Sign In';}
   }
 };
 window.doLogout=function(){
+  signOut(auth).catch(()=>{});
   document.getElementById('loginScreen').style.display='flex';
   document.getElementById('app').style.display='none';
   sv('loginUser',''); sv('loginPass','');
@@ -1129,6 +1157,37 @@ function applyCEOMode(){
   document.head.appendChild(style);
   // Update topbar hint
   document.getElementById('syncStatus').textContent='● CEO Read-Only View';
+}
+
+function applyPROMode(){
+  const style=document.createElement('style');
+  style.textContent=`
+    .nav-item[onclick*="'loans'"] { display: none !important; }
+    button[onclick*="openEmpModal"], button[onclick="delEmp"], button[onclick*="delEmp("] { display: none !important; }
+  `;
+  document.head.appendChild(style);
+  document.getElementById('syncStatus').textContent='● PRO Access';
+  // Doc Generator restricted to NOC letters only for PRO
+  const restrictDocTypes=()=>{
+    const sel=document.getElementById('docType');
+    if(!sel||sel.dataset.proRestricted)return;
+    Array.from(sel.options).forEach(opt=>{if(opt.value&&opt.value!=='noc')opt.remove();});
+    sel.dataset.proRestricted='1';
+  };
+  setTimeout(restrictDocTypes,200);
+  document.querySelectorAll('.nav-item[onclick*="docgen"]').forEach(n=>n.addEventListener('click',()=>setTimeout(restrictDocTypes,100)));
+}
+// Employee fields PRO is allowed to edit (Documents & Expiry tab only); everything else
+// in the employee record becomes view-only for PRO — Salary, Personal & Job, Family, etc.
+const PRO_EDITABLE_FIELDS=['ePassport','ePassExp','eVisa','eVisaExp','eEid','eEidExp','eLab','eLabExp'];
+function applyPROFieldLock(){
+  if(currentRole!=='pro')return;
+  const modal=document.getElementById('empModal');
+  if(!modal)return;
+  modal.querySelectorAll('input, select, textarea').forEach(el=>{
+    if(!PRO_EDITABLE_FIELDS.includes(el.id))el.disabled=true;
+    else el.disabled=false;
+  });
 }
 
 function getAnniversaries(){
@@ -1397,6 +1456,7 @@ window.editEmp=function(key){
   document.getElementById('eEditKey').value=key;
   empTab('basic',document.querySelector('.tab-btn'));
   document.getElementById('empModal').classList.add('open');
+  applyPROFieldLock();
 };
 
 window.saveEmp=function(){
