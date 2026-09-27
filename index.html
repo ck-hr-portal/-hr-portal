@@ -1135,27 +1135,35 @@ window.doLogout=function(){
 };
 
 function applyCEOMode(){
-  // Hide all add/edit/delete buttons for CEO
+  // Hide only genuine edit/write actions for CEO, matched by their specific onclick
+  // handler name — NOT by generic style classes like .btn-primary/.btn-teal, since
+  // those are shared with harmless view/preview/download buttons elsewhere (Doc
+  // Generator's Preview button, the loan Payments/history view button, several
+  // Reports page download buttons all use those same classes).
   const style=document.createElement('style');
   style.textContent=`
-    .btn-primary:not(.btn-download), .btn-danger, .btn-teal,
     button[onclick*="openEmpModal"], button[onclick*="openLeaveModal"],
     button[onclick*="openSalModal"], button[onclick*="openLoanModal"],
     button[onclick*="openAssetModal"], button[onclick*="openRepayModal"],
+    button[onclick*="openLeaverModal"], button[onclick*="openEditLeave"],
+    button[onclick*="openLeaveSummary"],
     button[onclick*="saveHoliday"], button[onclick*="saveAnn"],
-    button[onclick*="savePol"], button[onclick*="editEmp"],
-    button[onclick*="delEmp"], button[onclick*="editLeave"],
-    button[onclick*="delLeave"], button[onclick*="editSal"],
-    button[onclick*="delSal"], button[onclick*="editLoan"],
-    button[onclick*="delLoan"], button[onclick*="editAsset"],
-    button[onclick*="delAsset"], button[onclick*="showRepay"],
-    .toolbar .btn-primary, .btn-row .btn-primary:not([onclick*="runReport"]),
-    .btn-row .btn-danger, .btn-row .btn-teal
+    button[onclick*="savePol"], button[onclick*="remove(ref"],
+    button[onclick*="editEmp"], button[onclick*="delEmp"],
+    button[onclick*="removeFamilyRow"], button[onclick*="addFamilyRow"],
+    button[onclick*="saveEmp"], button[onclick*="saveLeave"],
+    button[onclick*="saveEditedLeave"], button[onclick*="deleteLeaveFromEdit"],
+    button[onclick*="saveLeaveFromSummary"], button[onclick*="saveAdjustment"],
+    button[onclick*="editSal"], button[onclick*="delSal"], button[onclick*="saveSal"],
+    button[onclick*="editLoan"], button[onclick*="delLoan"], button[onclick*="saveLoan"],
+    button[onclick*="saveRepay"],
+    button[onclick*="editAsset"], button[onclick*="delAsset"], button[onclick*="saveAsset"],
+    button[onclick*="openFlightPay"], button[onclick*="editFlightPayment"],
+    button[onclick*="deleteFlightPayment"], button[onclick*="saveFlightPayment"],
+    button[onclick*="editLeaver"], button[onclick*="deleteLeaver"], button[onclick*="saveLeaver"]
     { display: none !important; }
-    .btn-gold[onclick*="runReport"] { display: inline-block !important; }
   `;
   document.head.appendChild(style);
-  // Update topbar hint
   document.getElementById('syncStatus').textContent='● CEO Read-Only View';
 }
 
