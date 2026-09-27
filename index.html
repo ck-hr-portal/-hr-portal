@@ -1037,7 +1037,7 @@ tr:hover td{background:#fafbfc;}
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, push, get, remove, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, set as _fbSet, push, get, remove as _fbRemove, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 import { getAuth, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const FC = {
@@ -1064,6 +1064,32 @@ const ACCOUNTS = {
   'cem@ckhr.internal':{username:'cem',name:'Cem Kapancioglu',role:'ceo',title:'CEO',signName:'Cem Kapancioglu'}
 };
 let currentAdmin='', currentRole='', adminName='', adminTitle='', adminSignName='';
+
+// CEO gets full view access identical to admin everywhere in the app — nothing is hidden.
+// The only restriction is enforced right here, at the actual point of writing data, so
+// there's no risk of a UI element being missed the way per-button hiding was.
+function set(...args){
+  if(currentRole==='ceo'){
+    alert('This account has view-only access. Changes are not saved.');
+    return Promise.reject(new Error('read-only-ceo'));
+  }
+  return _fbSet(...args);
+}
+function remove(...args){
+  if(currentRole==='ceo'){
+    alert('This account has view-only access. Changes are not saved.');
+    return Promise.reject(new Error('read-only-ceo'));
+  }
+  return _fbRemove(...args);
+}
+window.set=set; window.remove=remove; // some inline onclick handlers (e.g. holiday/announcement/policy delete) call these globally
+// For writes that happen automatically while rendering a page (like the loan
+// auto-"Fully Repaid" correction) rather than from a deliberate click — blocks
+// the write for CEO the same way, but never pops an alert just from viewing a page.
+function setSilent(...args){
+  if(currentRole==='ceo')return Promise.resolve();
+  return _fbSet(...args);
+}
 let DB={employees:{},leave:{},salary:{},loans:{},repayments:{},assets:{},holidays:{},announcements:{},policies:{},audit:{},flightAllowance:{},leavers:{},leaveAdjustments:{},docHistory:{}};
 let activeLoanKey=null;
 
@@ -1135,36 +1161,10 @@ window.doLogout=function(){
 };
 
 function applyCEOMode(){
-  // Hide only genuine edit/write actions for CEO, matched by their specific onclick
-  // handler name — NOT by generic style classes like .btn-primary/.btn-teal, since
-  // those are shared with harmless view/preview/download buttons elsewhere (Doc
-  // Generator's Preview button, the loan Payments/history view button, several
-  // Reports page download buttons all use those same classes).
-  const style=document.createElement('style');
-  style.textContent=`
-    button[onclick*="openEmpModal"], button[onclick*="openLeaveModal"],
-    button[onclick*="openSalModal"], button[onclick*="openLoanModal"],
-    button[onclick*="openAssetModal"], button[onclick*="openRepayModal"],
-    button[onclick*="openLeaverModal"], button[onclick*="openEditLeave"],
-    button[onclick*="openLeaveSummary"],
-    button[onclick*="saveHoliday"], button[onclick*="saveAnn"],
-    button[onclick*="savePol"], button[onclick*="remove(ref"],
-    button[onclick*="editEmp"], button[onclick*="delEmp"],
-    button[onclick*="removeFamilyRow"], button[onclick*="addFamilyRow"],
-    button[onclick*="saveEmp"], button[onclick*="saveLeave"],
-    button[onclick*="saveEditedLeave"], button[onclick*="deleteLeaveFromEdit"],
-    button[onclick*="saveLeaveFromSummary"], button[onclick*="saveAdjustment"],
-    button[onclick*="editSal"], button[onclick*="delSal"], button[onclick*="saveSal"],
-    button[onclick*="editLoan"], button[onclick*="delLoan"], button[onclick*="saveLoan"],
-    button[onclick*="saveRepay"],
-    button[onclick*="editAsset"], button[onclick*="delAsset"], button[onclick*="saveAsset"],
-    button[onclick*="openFlightPay"], button[onclick*="editFlightPayment"],
-    button[onclick*="deleteFlightPayment"], button[onclick*="saveFlightPayment"],
-    button[onclick*="editLeaver"], button[onclick*="deleteLeaver"], button[onclick*="saveLeaver"]
-    { display: none !important; }
-  `;
-  document.head.appendChild(style);
-  document.getElementById('syncStatus').textContent='● CEO Read-Only View';
+  // Full view access everywhere, identical to admin — nothing hidden. The only
+  // real restriction (blocking writes) is enforced centrally in the set()/remove()
+  // wrappers above, not by hiding buttons, so there's no risk of over- or under-hiding.
+  document.getElementById('syncStatus').textContent='● CEO — Full View, Read-Only';
 }
 
 function applyPROMode(){
@@ -1644,7 +1644,7 @@ function renderLoans(data){
     const paidCents=Math.round(paid*100);
     if(amountCents>0&&paidCents>0&&paidCents>=amountCents&&status!=='Fully Repaid'){
       status='Fully Repaid';
-      set(ref(db,'loans/'+k+'/status'),'Fully Repaid');
+      setSilent(ref(db,'loans/'+k+'/status'),'Fully Repaid');
     }
     return`<tr>
       <td><strong>${esc(l.empName||'')}</strong></td>
@@ -1700,7 +1700,7 @@ function renderRepay(loanKey){
   if(loan){
     const totalPaid=Object.values(DB.repayments).filter(r=>r.loanKey===loanKey).reduce((s,r)=>s+parseFloat(r.amt||0),0);
     if(totalPaid>=parseFloat(loan.amount||0)&&loan.status==='Active'){
-      set(ref(db,'loans/'+loanKey+'/status'),'Fully Repaid');
+      setSilent(ref(db,'loans/'+loanKey+'/status'),'Fully Repaid');
     }
   }
 }
@@ -2792,7 +2792,7 @@ window.finalizeDoc=async function(){
     empKey:key,empName:emp.name||'',docType:docT[type].title,docTypeKey:type,
     refNo,issueDate:now.toISOString().split('T')[0],generatedBy:adminName,status:'Issued'
   };
-  await set(push(ref(db,'docHistory')),historyRecord);
+  try{await set(push(ref(db,'docHistory')),historyRecord);}catch(e){}
   logAudit('Generate Document',docT[type].title,`${emp.name} — ${refNo}`);
 
   document.getElementById('docPreviewCard').style.display='none';
@@ -2914,7 +2914,7 @@ window.finalizeOfferDoc=async function(){
     empKey:key,empName:emp.name||'',docType:t.title,docTypeKey:type,
     refNo,issueDate:now.toISOString().split('T')[0],generatedBy:adminName,status:'Issued'
   };
-  await set(push(ref(db,'docHistory')),historyRecord);
+  try{await set(push(ref(db,'docHistory')),historyRecord);}catch(e){}
   logAudit('Generate Document',t.title,`${emp.name} — ${refNo}`);
 
   document.getElementById('docPreviewCard').style.display='none';
