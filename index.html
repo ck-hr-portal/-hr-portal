@@ -204,6 +204,16 @@ tr:hover td{background:#fafbfc;}
           <p style="font-size:12px;color:#888;margin-bottom:8px;">Employees missing Join Date or Basic Salary won't appear correctly in Gratuity, Flight Allowance or reports until fixed.</p>
           <div id="d-dataq" style="max-height:220px;overflow-y:auto;"><div class="empty-state"><p>Checking...</p></div></div>
         </div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title">🌴 Active &amp; Upcoming Leaves</div>
+          <p style="font-size:12px;color:#888;margin-bottom:8px;">Approved leave, currently active or starting soon — so no one is caught off guard by someone's absence.</p>
+          <div class="table-wrap" style="max-height:280px;overflow-y:auto;">
+            <table>
+              <thead><tr><th>Employee</th><th>Designation</th><th>Department</th><th>Start Date</th><th>End Date</th><th>Total Days</th><th>Status</th></tr></thead>
+              <tbody id="d-onleave"></tbody>
+            </table>
+          </div>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
           <div class="card"><div class="card-title">📢 Latest Announcements</div><div id="d-ann"><div class="empty-state"><p>No announcements</p></div></div></div>
           <div class="card"><div class="card-title">⚠️ Upcoming Expiries (30 days)</div><div id="d-exp" style="max-height:280px;overflow-y:auto;"><div class="empty-state"><p>None</p></div></div></div>
@@ -213,7 +223,7 @@ tr:hover td{background:#fafbfc;}
           <div class="card"><div class="card-title">🏦 Active Loans</div><div id="d-loans" style="max-height:280px;overflow-y:auto;"><div class="empty-state"><p>No active loans</p></div></div></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-          <div class="card"><div class="card-title">🏆 Work Anniversaries This Month</div><div id="d-anni"><div class="empty-state"><p>No milestones this month</p></div></div></div>
+          <div class="card"><div class="card-title">🏆 Upcoming Work Anniversaries (45 Days)</div><div id="d-anni"><div class="empty-state"><p>No milestones coming up</p></div></div></div>
           <div class="card"><div class="card-title">📋 Quick Stats</div><div id="d-stats"></div></div>
         </div>
       </div>
@@ -1201,17 +1211,24 @@ function applyPROFieldLock(){
 
 function getAnniversaries(){
   const now=new Date();const emps=Object.values(DB.employees);
-  const thisMonth=now.getMonth();const thisYear=now.getFullYear();
-  const milestones=[5,10,15,20,25];
+  const milestones=[5,10,15,20,25,30];
   const results=[];
   emps.forEach(e=>{
     if(!e.join)return;
     const join=new Date(e.join);
-    const years=thisYear-join.getFullYear();
-    if(join.getMonth()===thisMonth && milestones.includes(years)){
-      results.push({name:e.name,dept:e.dept,years,date:join.getDate()});
-    }
+    // Check both this year's and next year's occurrence of their join month/day,
+    // so a milestone shows with advance notice rather than only in the exact month.
+    [now.getFullYear(),now.getFullYear()+1].forEach(candidateYear=>{
+      const years=candidateYear-join.getFullYear();
+      if(!milestones.includes(years))return;
+      const occursOn=new Date(candidateYear,join.getMonth(),join.getDate());
+      const daysUntil=Math.round((occursOn-now)/86400000);
+      if(daysUntil>=-3&&daysUntil<=45){
+        results.push({name:e.name,dept:e.dept,years,date:join.getDate(),occursOn,daysUntil});
+      }
+    });
   });
+  results.sort((a,b)=>a.daysUntil-b.daysUntil);
   return results;
 }
 
@@ -1335,13 +1352,36 @@ function updateDash(){
   } catch(e){}
   // Department chart
   try{renderDeptChart();}catch(e){}
+  // Active & Upcoming Leaves — approved leave that's currently ongoing or starting soon
+  try{
+    const todayStr=now.toISOString().split('T')[0];
+    const empByName={};emps.forEach(e=>{empByName[e.name]=e;});
+    const onLeave=Object.values(DB.leave).filter(l=>l.status==='Approved'&&l.to&&l.to>=todayStr).sort((a,b)=>a.from>b.from?1:-1);
+    const onLeaveBody=document.getElementById('d-onleave');
+    if(onLeaveBody){
+      onLeaveBody.innerHTML=onLeave.length?onLeave.map(l=>{
+        const emp=empByName[l.empName]||{};
+        const totalDays=l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:'—';
+        const isActiveNow=l.from<=todayStr&&l.to>=todayStr;
+        return`<tr>
+          <td><strong>${esc(l.empName||'')}</strong></td>
+          <td>${esc(emp.desig||'—')}</td>
+          <td>${esc(emp.dept||'—')}</td>
+          <td>${fmt(l.from)}</td>
+          <td>${fmt(l.to)}</td>
+          <td>${totalDays}</td>
+          <td>${isActiveNow?'<span class="badge badge-pending">🟠 On Leave Now</span>':'<span class="badge" style="background:#e8f0fb;color:#2563A8;">📅 Upcoming</span>'}</td>
+        </tr>`;
+      }).join(''):'<tr><td colspan="7"><div class="empty-state"><p>No active or upcoming approved leave</p></div></td></tr>';
+    }
+  }catch(e){}
   // Anniversaries
   const anni=getAnniversaries();
   const medalColor={5:'#C9A84C',10:'#2563A8',15:'#1A7A6E',20:'#8e44ad',25:'#e74c3c'};
   document.getElementById('d-anni').innerHTML=anni.length?anni.map(a=>`<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #f0f0f0;">
     <div style="background:${medalColor[a.years]||'#1C3557'};color:#fff;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;">${a.years}Y</div>
-    <div><strong style="font-size:13px;">${esc(a.name)}</strong><br><span style="font-size:11px;color:#888;">${esc(a.dept||'')} · ${a.years} Year${a.years>1?'s':''} on ${a.date} ${now.toLocaleString('default',{month:'short'})}</span></div>
-  </div>`).join(''):'<div class="empty-state"><p>No milestones this month</p></div>';
+    <div><strong style="font-size:13px;">${esc(a.name)}</strong><br><span style="font-size:11px;color:#888;">${esc(a.dept||'')} · ${a.years} Year${a.years>1?'s':''} — ${a.occursOn.toLocaleDateString('en-AE',{day:'numeric',month:'short'})} ${a.daysUntil<0?'(passed)':a.daysUntil===0?'(today)':'(in '+a.daysUntil+'d)'}</span></div>
+  </div>`).join(''):'<div class="empty-state"><p>No milestones in the next 45 days</p></div>';
   // Quick stats
   const byEntity={};emps.forEach(e=>{const k=e.entity||'Unknown';byEntity[k]=(byEntity[k]||0)+1;});
   const nationalities=new Set(emps.map(e=>e.nationality).filter(Boolean)).size;
