@@ -4066,7 +4066,17 @@ async function generateReportPDF(o){
     doc.setFillColor(28,53,87);doc.rect(margin,y,contentW,7,'F');
     doc.setTextColor(255,255,255);doc.setFontSize(7.5);doc.setFont('helvetica','bold');
     let x=margin;
-    o.columns.forEach(c=>{doc.text(c.label,x+1.5,y+4.8);x+=c.width*scale;});
+    o.columns.forEach(c=>{
+      const w=c.width*scale;
+      const avail=w-3;
+      let label=c.label;
+      if(doc.getTextWidth(label)>avail){
+        while(label.length>1&&doc.getTextWidth(label+'…')>avail)label=label.slice(0,-1);
+        label=label.trimEnd()+'…';
+      }
+      doc.text(label,x+1.5,y+4.8);
+      x+=w;
+    });
     y+=8;
   }
   addHeader();
