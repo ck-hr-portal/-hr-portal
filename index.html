@@ -1233,7 +1233,7 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 // missing/extra middle name) would otherwise break the lookup.
 function normName(s){return String(s||'').toLowerCase().replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();}
 function buildNameIndex(){
-  return Object.values(DB.employees).map(e=>{const n=normName(e.name);return{e,n,t:n.split(' ').filter(Boolean)};});
+  return Object.entries(DB.employees).map(([key,e])=>{const n=normName(e.name);return{e,key,n,t:n.split(' ').filter(Boolean)};});
 }
 // Returns the matching employee record, or null if none / ambiguous.
 function findEmpByName(name,index){
@@ -1784,23 +1784,23 @@ window.runMolMatch=function(){
   const results=MOL_IMPORT_DATA.map(([name,salary,entity])=>{
     const n=normName(name);
     const idxExact=idx.find(x=>x.n===n);
-    let found=null,matchType='';
-    if(idxExact){found=idxExact.e;matchType='Exact';}
+    let found=null,foundKey=null,matchType='';
+    if(idxExact){found=idxExact.e;foundKey=idxExact.key;matchType='Exact';}
     else{
       const t=n.split(' ').filter(Boolean);
       const subset=idx.filter(x=>{const [short,long]=t.length<=x.t.length?[t,x.t]:[x.t,t];return short.length>=2&&short.every(tok=>long.includes(tok));});
-      if(subset.length===1){found=subset[0].e;matchType='Fuzzy (name subset)';}
+      if(subset.length===1){found=subset[0].e;foundKey=subset[0].key;matchType='Fuzzy (name subset)';}
       else if(subset.length>1){
         subset.sort((a,b)=>Math.abs(a.t.length-t.length)-Math.abs(b.t.length-t.length));
-        if(Math.abs(subset[0].t.length-t.length)<Math.abs(subset[1].t.length-t.length)){found=subset[0].e;matchType='Fuzzy (best of '+subset.length+' partial matches — verify)';}
+        if(Math.abs(subset[0].t.length-t.length)<Math.abs(subset[1].t.length-t.length)){found=subset[0].e;foundKey=subset[0].key;matchType='Fuzzy (best of '+subset.length+' partial matches — verify)';}
         else matchType='Ambiguous ('+subset.length+' possible matches — not applied)';
       } else {
         const fl=idx.filter(x=>x.t.length>=2&&t.length>=2&&x.t[0]===t[0]&&x.t[x.t.length-1]===t[t.length-1]);
-        if(fl.length===1){found=fl[0].e;matchType='Fuzzy (first/last name)';}
+        if(fl.length===1){found=fl[0].e;foundKey=fl[0].key;matchType='Fuzzy (first/last name)';}
         else matchType='No match in portal — ignored';
       }
     }
-    return{fileName:name,salary,entity,found,matchType};
+    return{fileName:name,salary,entity,found,foundKey,matchType};
   });
   window.molMatchResults=results;
   const matched=results.filter(r=>r.found);
@@ -1832,13 +1832,17 @@ window.applyMolImport=async function(){
   });
   if(!toApply.length){alert('No rows checked.');return;}
   if(!confirm(`This will set MOL Salary for ${toApply.length} employees. Nothing else on their records will change. Continue?`))return;
+  let successCount=0;const failed=[];
   for(const r of toApply){
-    const empKey=Object.keys(DB.employees).find(k=>DB.employees[k]===r.found);
-    if(!empKey)continue;
-    await set(ref(db,'employees/'+empKey+'/molSalary'),r.salary);
+    if(!r.foundKey){failed.push(r.fileName);continue;}
+    try{
+      await set(ref(db,'employees/'+r.foundKey+'/molSalary'),r.salary);
+      successCount++;
+    }catch(e){failed.push(r.fileName);}
   }
-  logAudit('MOL Salary Import',toApply.length+' employees','Bulk import from signed MOL contract list');
-  alert('Done. MOL Salary has been set for '+toApply.length+' employees.');
+  logAudit('MOL Salary Import',successCount+' employees','Bulk import from signed MOL contract list');
+  if(failed.length)alert(`Applied to ${successCount} employees. ${failed.length} failed and were NOT saved: ${failed.join(', ')}`);
+  else alert('Done. MOL Salary has been set for '+successCount+' employees. Refresh the Employee Records page to see it.');
   document.getElementById('molReviewCard').style.display='none';
 };
 
