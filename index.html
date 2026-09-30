@@ -4080,8 +4080,11 @@ async function generateReportPDF(o){
     row.forEach((val,ci)=>{
       const w=o.columns[ci].width*scale;
       let text=String(val==null||val===undefined?'—':val);
-      const maxChars=Math.floor(w/1.7);
-      if(text.length>maxChars)text=text.slice(0,maxChars-1)+'…';
+      const avail=w-3;
+      if(doc.getTextWidth(text)>avail){
+        while(text.length>1&&doc.getTextWidth(text+'…')>avail)text=text.slice(0,-1);
+        text=text.trimEnd()+'…';
+      }
       doc.text(text,x+1.5,y);
       x+=w;
     });
@@ -4117,8 +4120,8 @@ window.runReportPDF=function(type){
       title:'HEADCOUNT REPORT',
       subtitle:'By department, entity, nationality and grade — active employees only',
       filename:'CK_Headcount_Report',
-      columns:[{label:'Name',width:38},{label:'Department',width:26},{label:'Designation',width:32},{label:'Entity',width:34},{label:'Nationality',width:24},{label:'Grade',width:20},{label:'Status',width:16}],
-      rows:active.map(e=>[e.name,e.dept,e.desig,e.entity,e.nationality,e.grade,e.status||'Active']),
+      columns:[{label:'Name',width:36},{label:'Department',width:24},{label:'Designation',width:34},{label:'Entity',width:32},{label:'Nationality',width:18},{label:'Grade',width:16},{label:'MOL Salary',width:22},{label:'Gross Salary',width:22},{label:'Basic Salary',width:22}],
+      rows:active.map(e=>[e.name,e.dept,e.desig,e.entity,e.nationality,e.grade,e.molSalary?'AED '+parseFloat(e.molSalary).toLocaleString():'—','AED '+parseFloat(e.grossSalary||0).toLocaleString(),e.basicSalary?'AED '+parseFloat(e.basicSalary).toLocaleString():'—']),
       summaryLines:[`Total Active Employees: ${active.length}`,...Object.entries(byDept).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k}: ${v}`)]
     });
   } else if(type==='expiry'){
@@ -4236,9 +4239,9 @@ window.runReport=function(type){
     ws_data=[
       companyHdr,
       ['HEADCOUNT REPORT — Generated: '+today],[''],
-      ['Employee ID','Full Name','Department','Designation','Entity','Nationality','Gender','Grade','Employment Type','Join Date','Status','Basic Salary (AED)','Gross Salary (AED)','Site / Project']
+      ['Employee ID','Full Name','Department','Designation','Entity','Nationality','Gender','Grade','Employment Type','Join Date','Status','MOL Salary (AED)','Gross Salary (AED)','Basic Salary (AED)','Site / Project']
     ];
-    emps.filter(e=>e.status==='Active'||!e.status).forEach(e=>ws_data.push([e.empId,e.name,e.dept,e.desig,e.entity,e.nationality,e.gender,e.grade,e.contract,e.join,e.status||'Active',e.basicSalary,e.grossSalary,e.site]));
+    emps.filter(e=>e.status==='Active'||!e.status).forEach(e=>ws_data.push([e.empId,e.name,e.dept,e.desig,e.entity,e.nationality,e.gender,e.grade,e.contract,e.join,e.status||'Active',e.molSalary||'',e.grossSalary,e.basicSalary,e.site]));
     ws_data.push(['']);
     ws_data.push(['SUMMARY']);
     const byDept={};emps.forEach(e=>{byDept[e.dept||'Unknown']=(byDept[e.dept||'Unknown']||0)+1;});
