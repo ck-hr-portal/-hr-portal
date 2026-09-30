@@ -248,6 +248,7 @@ tr:hover td{background:#fafbfc;}
       <div class="nav-item" onclick="showPage('docgen',this)"><span class="icon">📄</span>Doc Generator</div>
       <div class="nav-section" id="navSectionPortal">Self-Service</div>
       <div class="nav-item" id="navPortalAccess" onclick="showPage('portalaccess',this)"><span class="icon">🔑</span>Portal Access</div>
+      <div class="nav-item" id="navMolImport" onclick="showPage('molimport',this)"><span class="icon">📋</span>MOL Salary Import</div>
       <div class="nav-section">Reports</div>
       <div class="nav-item" onclick="showPage('reports',this)"><span class="icon">📈</span>Reports &amp; Downloads</div>
       <div class="nav-item" onclick="showPage('auditlog',this)"><span class="icon">🔍</span>Audit Log</div>
@@ -314,7 +315,7 @@ tr:hover td{background:#fafbfc;}
             <button class="btn btn-primary" onclick="openEmpModal()">+ Add Employee</button>
           </div>
           <div class="table-wrap">
-            <table><thead><tr><th>Emp ID</th><th>Name</th><th>Department</th><th>Designation</th><th>Entity</th><th>Nationality</th><th>Gross Salary</th><th>Status</th><th>Actions</th></tr></thead>
+            <table><thead><tr><th>Emp ID</th><th>Name</th><th>Department</th><th>Designation</th><th>Entity</th><th>Nationality</th><th>Gross Salary</th><th style="color:#c0392b;">MOL Salary</th><th style="color:#1e8449;">Basic Salary</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody id="empBody"></tbody></table>
           </div>
         </div>
@@ -667,6 +668,29 @@ tr:hover td{background:#fafbfc;}
           </div>
         </div>
       </div>
+      <div id="page-molimport" class="page">
+        <div class="page-header"><h2>📋 MOL Salary Import</h2><p>One-time import of MOL/contract salary against employees already in the portal. Nothing outside the MOL Salary field is touched, and nothing is saved until you review and confirm each match below.</p></div>
+        <div class="card">
+          <button class="btn btn-primary" onclick="runMolMatch()">Run Match Against Current Employee Records</button>
+          <p id="molSummary" style="font-size:12px;color:#888;margin-top:8px;"></p>
+        </div>
+        <div class="card" id="molReviewCard" style="display:none;">
+          <div class="card-title">Review Matches — uncheck anything that looks wrong before applying</div>
+          <div class="btn-row" style="margin-bottom:10px;">
+            <button class="btn btn-sm" onclick="molCheckAll(true)">Check All Matched</button>
+            <button class="btn btn-sm" onclick="molCheckAll(false)">Uncheck All</button>
+          </div>
+          <div class="table-wrap" style="max-height:500px;overflow-y:auto;">
+            <table>
+              <thead><tr><th></th><th>Name in File</th><th>MOL Salary</th><th>Matched Employee in Portal</th><th>Current Dept</th><th>Match Type</th></tr></thead>
+              <tbody id="molReviewBody"></tbody>
+            </table>
+          </div>
+          <div class="btn-row" style="margin-top:14px;">
+            <button class="btn btn-gold" onclick="applyMolImport()">Apply MOL Salary to Checked Rows</button>
+          </div>
+        </div>
+      </div>
       <div id="page-reports" class="page">
         <div class="page-header"><h2>Reports &amp; Downloads</h2><p>All reports export to Excel — formatted and ready to share</p></div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
@@ -776,6 +800,7 @@ tr:hover td{background:#fafbfc;}
       <div class="form-grid">
         <div class="form-group"><label>Basic Salary (AED)</label><input type="number" id="eBasic"></div>
         <div class="form-group"><label>Gross Salary (AED)</label><input type="number" id="eGross"></div>
+        <div class="form-group"><label style="color:#c0392b;">MOL Salary (AED) — Ministry of Labour contract, fixed</label><input type="number" id="eMOL" style="border-color:#e6b0aa;"><p style="font-size:11px;color:#888;margin-top:3px;">This is the salary on the signed MOL/contract — it should not change unless the actual labour contract is amended.</p></div>
         <div class="form-group"><label>Housing Allowance</label><input type="number" id="eHouse"></div>
         <div class="form-group"><label>Transport Allowance</label><input type="number" id="eTransport"></div>
         <div class="form-group"><label>Other Allowances</label><input type="number" id="eOther"></div>
@@ -1326,7 +1351,7 @@ function applyCEOMode(){
   // Employee Portal Access (credential management), which stays admin-only
   // regardless of role, per explicit instruction.
   const style=document.createElement('style');
-  style.textContent=`#navSectionPortal, #navPortalAccess { display: none !important; }`;
+  style.textContent=`#navSectionPortal, #navPortalAccess, #navMolImport { display: none !important; }`;
   document.head.appendChild(style);
   document.getElementById('syncStatus').textContent='● CEO — Full View, Read-Only';
 }
@@ -1434,7 +1459,7 @@ function applyPROMode(){
   const style=document.createElement('style');
   style.textContent=`
     .nav-item[onclick*="'loans'"] { display: none !important; }
-    #navSectionPortal, #navPortalAccess { display: none !important; }
+    #navSectionPortal, #navPortalAccess, #navMolImport { display: none !important; }
     button[onclick*="openEmpModal"], button[onclick="delEmp"], button[onclick*="delEmp("] { display: none !important; }
   `;
   document.head.appendChild(style);
@@ -1682,12 +1707,14 @@ function renderEmp(data){
   const df=document.getElementById('empDept');const cur=df.value;
   df.innerHTML='<option value="">All Depts</option>'+depts.map(d=>`<option${d===cur?' selected':''}>${esc(d)}</option>`).join('');
   const tbody=document.getElementById('empBody');
-  if(!rows.length){tbody.innerHTML='<tr><td colspan="9"><div class="empty-state"><div class="icon">👥</div><p>No employees yet.</p></div></td></tr>';return;}
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="11"><div class="empty-state"><div class="icon">👥</div><p>No employees yet.</p></div></td></tr>';return;}
   tbody.innerHTML=rows.map(([k,e])=>`<tr>
     <td><strong>${esc(e.empId||'')}</strong></td>
     <td>${esc(e.name||'')}</td><td>${esc(e.dept||'')}</td><td>${esc(e.desig||'')}</td>
     <td style="font-size:11px;">${esc(e.entity||'')}</td><td>${esc(e.nationality||'')}</td>
     <td>AED ${parseFloat(e.grossSalary||e.gross||0).toLocaleString('en-AE',{minimumFractionDigits:0})}</td>
+    <td style="color:#c0392b;font-weight:600;">${e.molSalary?'AED '+parseFloat(e.molSalary).toLocaleString('en-AE',{minimumFractionDigits:0}):'—'}</td>
+    <td style="color:#1e8449;font-weight:600;">${e.basicSalary?'AED '+parseFloat(e.basicSalary).toLocaleString('en-AE',{minimumFractionDigits:0}):'—'}</td>
     <td><span class="badge badge-${(e.status||'active').toLowerCase().split(' ').join('-')}">${esc(e.status||'Active')}</span></td>
     <td>
       <button class="btn btn-sm btn-primary" onclick="editEmp('${k}')">Edit</button>
@@ -1749,7 +1776,72 @@ function suggestUsername(name,empId){
   const first=(name||'').trim().split(' ')[0].toLowerCase().replace(/[^a-z]/g,'');
   const last3=(empId||'').replace(/\D/g,'').slice(-3);
   return first+last3;
-}
+}const MOL_IMPORT_DATA=[['Sharifa Abdulla Mohammed Hasan Almemari',6000,'CK'],['Ahlam Ibrahim Shamal Ibrahim Almemari',6000,'CK'],['Marina Sherif Shukry Morcos',11000,'CK'],['Anwar Adel Ibrahim Elgharib',6500,'CK'],['Manav Sabharwal Deepak Sabharwal',10500,'CK'],['Sruthi Kiran Raveendran Kunhiparambath',14000,'CK'],['Jassem Zribi',12000,'CK'],['Manish Shivnarayan Sharma Shivnarayan Sarju Sharma',8500,'CK'],['Mohammedzuber Rafiahmed Deliwala',9000,'CK'],['Ganesh Rajasekaran Rajasekaran',7000,'CK'],['Noushad Kottayil Abu Kottayil',10000,'CK'],['Preeti Vicky Sharma Shanti Kumar Sarda',20000,'CK'],['Faisal Islam Islam Ud Din',5500,'CK'],['Rashed Abdulrahman Hussain Abdulla',6000,'CK'],['Aysha Saif Sultan Alqaiwani Alaleeli',6000,'CK'],['Huda Abdalla Ahmed Hussain Alhammadi',6000,'CK'],['Cem Kapancioglu',35000,'CK'],['Karthik Raj Raja Raja',8000,'CK'],['Mary Darleendy Balili Vilbar',8000,'CK'],['Arlenne Mendoza Perez',12000,'CK'],['Ceren Kapancioglu',15000,'CK'],['Tanveer Ul Hasan Najam Ul Hasan Najam Ul Hasan',25000,'CK'],['Devanand Vasant Mandrekar Vasant Jayram Mandrekar',14000,'CK'],['Ratheesh Naduvilparambil Ramadevan Ramadevan',7500,'CK'],['Tahir Abbas Zamurd Khan',19000,'CK'],['Kumbha Agri',2000,'CKC'],['Som Bahadur B K',1700,'CKC'],['Hira Bahadur Syangtan',2000,'CKC'],['Danda Bahadur Sarki',2000,'CKC'],['Ganga Bahadur Darji',1700,'CKC'],['Hansom Tita Tikum',1900,'CKC'],['Arafat Khan Late Sona Miah Khan',5000,'CKC'],['Salah Ahmad Miah Mizanur Rahman',2000,'CKC'],['Tarfa Ali Saeed Rashed Aljneibi',6000,'CKC'],['Omar Mohamed Ahmed Mohamed Almaeeni',6000,'CKC'],['Shouq Abdulla Ebraheim Abdulla Alblooshi',6000,'CKC'],['Khalaf Mubarak Rashed Aljafla Alhemeiri',6000,'CKC'],['Fatima Khalfan Mubarak Humaid Alghafri',6000,'CKC'],['Rashed Salem Rashed Saeed Almazrooei',6000,'CKC'],['Hamada Mohammed Badry Ahmed',8500,'CKC'],['Hania Magdy Elsayed Ismail',15000,'CKC'],['Mohamed Fakhri Mohamed Abdelaziz Radwan',5000,'CKC'],['Shiv Prakash Maniram',3500,'CKC'],['Arshad Alim Alim Uddin',1500,'CKC'],['Naji Mohammed Abdul Azeez Thadayil',2800,'CKC'],['Armanullah Irfan Ullah',2730,'CKC'],['Jaffar Ali Sallauddin',2500,'CKC'],['Ashok Kumar Mahatam',1900,'CKC'],['Pahaloo Ali Amir Gaddi',2000,'CKC'],['Manish Kumar Rajendra Yadav',1700,'CKC'],['Mohinuddeen Hazhar Siddeeque Moideenkutty',7000,'CKC'],['Vishal Kongapalliyil Jose Joseph Kongapalliyil Antony',4000,'CKC'],['Muhammed Uvais Thevarkalathil Abdusalam Thevarkalathil',5000,'CKC'],['Gnaneshwar Varala Sailu Varala',2150,'CKC'],['Cecil Mathew Thekunnathu Joseph Mathewkutty',5625,'CKC'],['Tanveer Haider Vasee Haider Sayed Vasee Haider Inamul Hasan',3500,'CKC'],['Abdul Raseed Choten',2475,'CKC'],['Shaik Mohammed Shahrukh Shaik Shamsuddin',10000,'CKC'],['Anil Bhaskaran Nair',15000,'CKC'],['Mukesh Kanaujiya Dukhran Kanaujiya',1800,'CKC'],['Hafiz Ali Shaikh Shaikh Haydar Ali',2100,'CKC'],['Istiyaq Mohammad Saleem',3000,'CKC'],['Shujatullah Khan Mohd Azmatullah Khan Mohd',12000,'CKC'],['Nadeem Sarwar Asrari Md Ashraf',2300,'CKC'],['Samsher Ukil Ali',2400,'CKC'],['Haider Ali Asagar Ali',2625,'CKC'],['Abdul Salam Abdul Rauf',1850,'CKC'],['Mohammad Adnan Khasim Koona Mohammad Yosuf Koona',8500,'CKC'],['Chena Ram Neta Ram',1500,'CKC'],['Santosh Thakur Ramanand Thakur',2100,'CKC'],['Mumtaj Ali Asgar Ali',1830,'CKC'],['Nizamuddin Abdul Rawoof',3500,'CKC'],['Ranjan Kumar Nayak Niranjan Nayak',3765,'CKC'],['Mohammad Shahzad Istekhar Ahmad',2500,'CKC'],['Rampukar Mahto Bhageshwar Mahto',1950,'CKC'],['Rajan Yadav Subash Yadav',1700,'CKC'],['Sadanapali Laxman Pradhan Sadanapali Jogi Pradhan',2200,'CKC'],['Ravinder Singh Kulwant Singh',4690,'CKC'],['Mohammed Ijas Chakkaramakkal Chakkaramakkal Moidunny',7500,'CKC'],['Mohammad Danish Aboosadahmad',2200,'CKC'],['Sheshnath Suresh Kannoujiya',2000,'CKC'],['Singwaj Ramchandr',1800,'CKC'],['Amrish Kumar Jank Ram',2800,'CKC'],['Ram Gopal Yadav Ram Chaveele',1900,'CKC'],['Imran Khan Awal Khan',8000,'CKC'],['Asghar Ali Salehon Muhammad',2200,'CKC'],['Saim Jamil Jamil Khan',1500,'CKC'],['Afrahim Abbasi Muhammad Javed Abbasi',1500,'CKC'],['Tajammal Altaf Altaf Hussain Awan',1500,'CKC'],['Hamza Mazhar Khawaja Mazhar Saeed',1500,'CKC'],['Muhammad Waqar Abdul Rehman',1800,'CKC'],['Muhammad Usaid Muhammad Iqbal Dabeer',2500,'CKC'],['Ashfaq Raza Malik Muhammad Irshad',2000,'CKC'],['Nisar Ahmed Ghulam Qadir',3550,'CKC'],['Abdul Jabbar Muhammad Ramzan',2150,'CKC'],['Muhammad Asghar Meraj Din',7160,'CKC'],['Muhammad Kashif Muhammad Hanif',2100,'CKC'],['Luqman Ashraf Muhammad Ashraf Khan Awan',1500,'CKC'],['Muhammad Zaman Zafar Zafar Iqbal',2500,'CKC'],['Zaheer Islam Islam Ud Din',15000,'CKC'],['Atif Naeem Muhammad Naeem',1800,'CKC'],['Mohammad Shafique Noor Hussain',1500,'CKC'],['Wajid Hussain Muhammad Sadiq',2520,'CKC'],['Khawaja Hammad Saeed Khawaja Mazhar Saeed',1500,'CKC'],['Jawad Ali Imdad Ali',4085,'CKC'],['Muhammad Faisal Muhammad Mushtaq',1875,'CKC'],['Muhammad Afzal Muhammad Sarwar',1500,'CKC'],['Hamza Nazir Gohar Nazir',7000,'CKC'],['Adnan Arshad Muhammad Arshad',2365,'CKC'],['Mohsin Abbas Sajjad Hussain Shahid',2500,'CKC'],['Muhammad Ishaq Rasheed Ahmad Saqib',2150,'CKC'],['Mehr Ali Shah Riaz Ali Shah',2500,'CKC'],['Muhammad Irfan Abdul Ghafoor',1200,'CKC'],['Jawwad Hussain Siddiqui Arshad Hussain Siddiqui',15000,'CKC'],['Muhammad Hasnain Muhammad Sher',2415,'CKC'],['Ubaid Ur Rehman Shafiq Ur Rehman',2000,'CKC'],['Muhammad Sajid Baz Din',2500,'CKC'],['Mazhar Ali Muhammad Afzal',1800,'CKC'],['Babar Ali Muhammad Salekheen',1800,'CKC'],['Jabir Hussain Shah Syed Zaman Shah',4250,'CKC'],['Asad Ali Muhammad Khalid',2400,'CKC'],['Hamid Ali Bashir Rahman',2250,'CKC'],['Adeeb Ul Hassan Muhammad Taj',3630,'CKC'],['Anees Abdul Nawab',4730,'CKC'],['Zubair Abdul Sattar',1700,'CKC'],['Sami Ul Hameed Abdul Hameed',1500,'CKC'],['Haseeb Ur Rehman Shafiq Ur Rehman',1500,'CKC'],['Muhammad Nadeem Muhammad Aslam',1500,'CKC'],['Muhammad Farooq Muhammad Bashir',3500,'CKC'],['Shahid Baz Din Baz Din',1500,'CKC'],['Nawaz Ali Shah Syed Zaman Shah',4000,'CKC'],['Muhammad Akbar Suleman Khan',2500,'CKC'],['Nadeem Akhtar Umar Ud Din',1200,'CKC'],['Munir Hussain Muhammad Alam',2000,'CKC'],['Muhammad Safdar Said Alam',2250,'CKC'],['Muhammad Sameer Hamza Abdul Rauf',2000,'CKC'],['Bilal Ahmad Aashiq Hussain',2000,'CKC'],['Muhammad Mateen Umar Rashid Mehmood',2000,'CKC'],['Naseer Ahmed Ghulam Jilani',2205,'CKC'],['Abdul Majid Muhammad Yousaf Naseem',2000,'CKC'],['Muhammad Rauf Imam Bakhsh',1800,'CKC'],['Kashif Kamran Muhammad Ishaq',6000,'CKC'],['Muhammad Umar Khalid Mehmood',4180,'CKC'],['Aqif Niaz Chaudhary Muhammad Niaz',3000,'CKC'],['Muhammad Imtiaz Muhammad Irfan',2310,'CKC'],['Abdul Nabi Niyazal',2000,'CKC'],['Asim Moeen Muhammad Ashiq Najmi Malik',10000,'CKC'],['Muhammad Amjad Abdul Rasheed',2500,'CKC'],['Tasawar Hussain Nazar Muhammad',3500,'CKC'],['Muhammad Naseer Muhammad Hussain',9000,'CKC'],['Fiaz Hussain Ghulam Sarwar',1950,'CKC'],['Sharaf Ud Din Muhammad Miskeen',2020,'CKC'],['Elenita Balili Vilbar',3500,'CKC'],['Francis Clemente Madera',15000,'CKC'],['Daniel Vergel De Dios Ramirez',5000,'CKC'],['Michael Tanque Estudillo',6000,'CKC'],['Kapilarathna Rathnayaka Mudiyanselage',1700,'CKC'],['Preethish Payyappat Prakasan Payyappat Krishnan',14250,'CKC'],['Avdhesh Kumar Rambriksh',2000,'CKC'],['Jamil Sain',1800,'CKC'],['Muhammad Nasir Nisar Ahmad',2000,'CKC'],['Qaiser Imran Muhammad Karamat',6750,'CKC'],['Ranjith Bandara Irukal Bandarage',2000,'CKC'],['Nadia Rehman Javed Aslam',3000,'CKC'],['Allah Ditta Nazar Muhammad',2310,'CKC'],['Muhammad Sajid Muhammad Sadiq',5600,'CKC'],['Tariq Aziz Muhammad Yousaf',4840,'CKC'],['Munwar Ali Magsi Mithal Magsi',4195,'CKC'],['Ajmal Khan Ali Afsar',3700,'CKC'],['Javed Ali Abu Laish',2500,'CKC']];
+
+window.molMatchResults=[];
+window.runMolMatch=function(){
+  const idx=buildNameIndex();
+  const results=MOL_IMPORT_DATA.map(([name,salary,entity])=>{
+    const n=normName(name);
+    const idxExact=idx.find(x=>x.n===n);
+    let found=null,matchType='';
+    if(idxExact){found=idxExact.e;matchType='Exact';}
+    else{
+      const t=n.split(' ').filter(Boolean);
+      const subset=idx.filter(x=>{const [short,long]=t.length<=x.t.length?[t,x.t]:[x.t,t];return short.length>=2&&short.every(tok=>long.includes(tok));});
+      if(subset.length===1){found=subset[0].e;matchType='Fuzzy (name subset)';}
+      else if(subset.length>1){
+        subset.sort((a,b)=>Math.abs(a.t.length-t.length)-Math.abs(b.t.length-t.length));
+        if(Math.abs(subset[0].t.length-t.length)<Math.abs(subset[1].t.length-t.length)){found=subset[0].e;matchType='Fuzzy (best of '+subset.length+' partial matches — verify)';}
+        else matchType='Ambiguous ('+subset.length+' possible matches — not applied)';
+      } else {
+        const fl=idx.filter(x=>x.t.length>=2&&t.length>=2&&x.t[0]===t[0]&&x.t[x.t.length-1]===t[t.length-1]);
+        if(fl.length===1){found=fl[0].e;matchType='Fuzzy (first/last name)';}
+        else matchType='No match in portal — ignored';
+      }
+    }
+    return{fileName:name,salary,entity,found,matchType};
+  });
+  window.molMatchResults=results;
+  const matched=results.filter(r=>r.found);
+  const unmatched=results.filter(r=>!r.found);
+  document.getElementById('molSummary').innerHTML=`Matched ${matched.length} of ${results.length} names to current employee records. ${unmatched.length} not found in the portal — these will be ignored, exactly as expected for people no longer in the system.`;
+  const body=document.getElementById('molReviewBody');
+  body.innerHTML=results.map((r,i)=>{
+    const rowColor=!r.found?'color:#aaa;':r.matchType==='Exact'?'':'background:#fff8e1;';
+    return`<tr style="${rowColor}">
+      <td>${r.found?`<input type="checkbox" id="molChk_${i}" checked>`:''}</td>
+      <td>${esc(r.fileName)}</td>
+      <td>AED ${r.salary.toLocaleString()}</td>
+      <td>${r.found?'<strong>'+esc(r.found.name)+'</strong> ('+esc(r.found.empId||'')+')':'<em>—</em>'}</td>
+      <td>${r.found?esc(r.found.dept||''):''}</td>
+      <td style="font-size:11px;">${esc(r.matchType)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('molReviewCard').style.display='block';
+};
+window.molCheckAll=function(state){
+  window.molMatchResults.forEach((r,i)=>{const el=document.getElementById('molChk_'+i);if(el)el.checked=state;});
+};
+window.applyMolImport=async function(){
+  const toApply=[];
+  window.molMatchResults.forEach((r,i)=>{
+    if(!r.found)return;
+    const chk=document.getElementById('molChk_'+i);
+    if(chk&&chk.checked)toApply.push(r);
+  });
+  if(!toApply.length){alert('No rows checked.');return;}
+  if(!confirm(`This will set MOL Salary for ${toApply.length} employees. Nothing else on their records will change. Continue?`))return;
+  for(const r of toApply){
+    const empKey=Object.keys(DB.employees).find(k=>DB.employees[k]===r.found);
+    if(!empKey)continue;
+    await set(ref(db,'employees/'+empKey+'/molSalary'),r.salary);
+  }
+  logAudit('MOL Salary Import',toApply.length+' employees','Bulk import from signed MOL contract list');
+  alert('Done. MOL Salary has been set for '+toApply.length+' employees.');
+  document.getElementById('molReviewCard').style.display='none';
+};
+
 window.renderPortalAccess=function(){
   const body=document.getElementById('portalAccessBody');
   if(!body)return;
@@ -1792,7 +1884,7 @@ window.editEmp=function(key){
   sv('eMobile',e.mobile);sv('eEmail',e.email);sv('eManager',e.manager);sv('eStatus',e.status);sv('eRemarks',e.remarks);
   sv('ePassport',e.passport);sv('eVisa',e.visa);sv('eEid',e.eid);sv('eLab',e.lab);
   sv('ePassExp',e.passExp);sv('eVisaExp',e.visaExp);sv('eEidExp',e.eidExp);sv('eLabExp',e.labExp);sv('eMed',e.medInsurance);sv('eDepCount',e.dependentsCount||'0');
-  sv('eBasic',e.basicSalary);sv('eGross',e.grossSalary);sv('eHouse',e.house);sv('eTransport',e.transport);sv('eOther',e.otherAllowances);
+  sv('eBasic',e.basicSalary);sv('eGross',e.grossSalary);sv('eMOL',e.molSalary);sv('eHouse',e.house);sv('eTransport',e.transport);sv('eOther',e.otherAllowances);
   sv('eBank',e.bank);sv('eIban',e.iban);sv('eLeaveEnt',e.annualLeaveEnt);sv('eLeaveBal',e.annualLeaveBalance);sv('eGrat',e.gratuity);
   const eosbResult=calcEOSB(e);
   const eGratLiveEl=document.getElementById('eGratLive');
@@ -1821,7 +1913,7 @@ window.saveEmp=function(){
     passport:v('ePassport'),visa:v('eVisa'),eid:v('eEid'),lab:v('eLab'),
     passExp:v('ePassExp'),visaExp:v('eVisaExp'),eidExp:v('eEidExp'),labExp:v('eLabExp'),medInsurance:v('eMed'),
     dependentsCount:v('eDepCount'),
-    basicSalary:v('eBasic'),grossSalary:v('eGross'),house:v('eHouse'),transport:v('eTransport'),
+    basicSalary:v('eBasic'),grossSalary:v('eGross'),molSalary:v('eMOL'),house:v('eHouse'),transport:v('eTransport'),
     otherAllowances:v('eOther'),bank:v('eBank'),iban:v('eIban'),
     annualLeaveEnt:v('eLeaveEnt'),annualLeaveBalance:v('eLeaveBal'),gratuity:v('eGrat'),
     lPassport:v('lPassport'),lVisa:v('lVisa'),lEid:v('lEid'),lLab:v('lLab'),
