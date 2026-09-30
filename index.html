@@ -1499,12 +1499,12 @@ function renderMyLeaveHistory(){
   }).join(''):'<tr><td colspan="5"><div class="empty-state"><p>No leave history yet</p></div></td></tr>';
 }
 function describeLeaveStage(r){
-  if(r.status==='Cancelled')return{label:'Cancelled',cls:'badge-inactive'};
-  if(r.status==='Rejected')return{label:'Rejected'+(r.rejectedAt?' at '+r.rejectedStage:''),cls:'badge-rejected'};
-  if(r.status==='Approved')return{label:'Approved',cls:'badge-approved'};
+  if(r.status==='Cancelled')return{label:'Cancelled & Closed',cls:'badge-inactive'};
+  if(r.status==='Rejected')return{label:'Rejected & Closed'+(r.rejectedAt?' (at '+r.rejectedStage+')':''),cls:'badge-rejected'};
+  if(r.status==='Approved')return{label:'Approved & Closed',cls:'badge-approved'};
   if(r.stage==='HR Review')return{label:'HR Review',cls:'badge-pending'};
-  if(r.stage==='Line Manager Approval')return{label:'Manager Approval',cls:'badge-pending'};
-  if(r.stage==='Additional Approval')return{label:'Final Approval',cls:'badge-pending'};
+  if(r.stage==='Line Manager Approval')return{label:'Manager Approval'+(r.lineManagerName?' — '+r.lineManagerName:''),cls:'badge-pending'};
+  if(r.stage==='Additional Approval')return{label:'Final Approval'+(r.additionalApproverName?' — '+r.additionalApproverName:''),cls:'badge-pending'};
   return{label:r.status||'Submitted',cls:'badge-pending'};
 }
 let currentAdjustKey=null;
@@ -1697,7 +1697,8 @@ function buildLeaveStageBreakdown(r){
   }
   // Overall
   let overall;
-  if(r.status==='Rejected')overall={label:'Overall',status:'Rejected at '+(r.rejectedStage||'—'),ok:false};
+  if(r.status==='Cancelled')overall={label:'Overall',status:'Cancelled & Closed',ok:false};
+  else if(r.status==='Rejected')overall={label:'Overall',status:'Rejected & Closed (at '+(r.rejectedStage||'—')+')',ok:false};
   else if(r.stage==='Completed'&&r.status==='Approved')overall={label:'Overall',status:'Approved & Closed',ok:true};
   else overall={label:'Overall',status:'In Progress — currently at '+r.stage,ok:null};
   return{lines,overall};
