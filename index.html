@@ -173,6 +173,11 @@ tr:hover td{background:#fafbfc;}
       </div>
       <button class="btn btn-primary" onclick="openLeaveRequestForm()">+ Submit Leave Request</button>
     </div>
+    <div class="card" id="empApprovalsCard" style="display:none;">
+      <div class="card-title">📋 My Approvals</div>
+      <p style="font-size:12px;color:#888;margin-bottom:8px;">Leave requests from your team waiting on your decision.</p>
+      <div id="empApprovalsBody"></div>
+    </div>
   </div>
 </div>
 
@@ -249,6 +254,7 @@ tr:hover td{background:#fafbfc;}
       <div class="nav-section" id="navSectionPortal">Self-Service</div>
       <div class="nav-item" id="navPortalAccess" onclick="showPage('portalaccess',this)"><span class="icon">🔑</span>Portal Access</div>
       <div class="nav-item" id="navMolImport" onclick="showPage('molimport',this)"><span class="icon">📋</span>MOL Salary Import</div>
+      <div class="nav-item" id="navLeaveApprovals" onclick="showPage('leaveapprovals',this)"><span class="icon">✅</span>Leave Approvals</div>
       <div class="nav-section">Reports</div>
       <div class="nav-item" onclick="showPage('reports',this)"><span class="icon">📈</span>Reports &amp; Downloads</div>
       <div class="nav-item" onclick="showPage('auditlog',this)"><span class="icon">🔍</span>Audit Log</div>
@@ -691,6 +697,26 @@ tr:hover td{background:#fafbfc;}
           </div>
         </div>
       </div>
+      <div id="page-leaveapprovals" class="page">
+        <div class="page-header"><h2>✅ Leave Approvals — HR Review</h2><p>Employee submits → <strong>HR Review</strong> → Line Manager → Additional Approval (if configured) → Completed. Darleendy reviews first; escalates to Dev automatically after 48 hours if still pending.</p></div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Employee</th><th>Type</th><th>Dates</th><th>Days</th><th>Reason</th><th>Submitted</th><th>Line Manager</th><th>HR Comments</th><th>Action</th></tr></thead>
+              <tbody id="hrReviewBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="page-header" style="margin-top:24px;"><h2 style="font-size:16px;">Full History</h2></div>
+        <div class="card">
+          <div class="table-wrap" style="max-height:400px;overflow-y:auto;">
+            <table>
+              <thead><tr><th>Employee</th><th>Type</th><th>Dates</th><th>Stage</th><th>HR</th><th>Manager</th><th>Additional</th></tr></thead>
+              <tbody id="leaveHistoryAllBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
       <div id="page-reports" class="page">
         <div class="page-header"><h2>Reports &amp; Downloads</h2><p>All reports export to Excel — formatted and ready to share</p></div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
@@ -776,6 +802,18 @@ tr:hover td{background:#fafbfc;}
         <div class="form-group"><label>Mobile</label><input type="text" id="eMobile"></div>
         <div class="form-group"><label>Company Email</label><input type="email" id="eEmail"></div>
         <div class="form-group"><label>Reporting Manager</label><input type="text" id="eManager"></div>
+        <div class="form-group"><label>Line Manager (for Leave Approval)</label>
+          <select id="eLineManager" onclick="if(this.options.length<=1)buildEmpDropdown('eLineManager')">
+            <option value="">— Select Employee —</option>
+          </select>
+          <p style="font-size:11px;color:#888;margin-top:3px;">Who approves this person's leave requests, after HR review.</p>
+        </div>
+        <div class="form-group"><label><input type="checkbox" id="eNeedsAdditionalApproval" onchange="document.getElementById('eAdditionalApproverWrap').style.display=this.checked?'block':'none';"> Requires an additional approval level</label></div>
+        <div class="form-group" id="eAdditionalApproverWrap" style="display:none;"><label>Additional Approver</label>
+          <select id="eAdditionalApprover" onclick="if(this.options.length<=1)buildEmpDropdown('eAdditionalApprover')">
+            <option value="">— Select Employee —</option>
+          </select>
+        </div>
         <div class="form-group"><label>Status</label><select id="eStatus"><option>Active</option><option>Inactive</option><option>On Probation</option><option>Unpaid Leave</option></select></div>
         <div class="form-group form-full"><label>Remarks</label><textarea id="eRemarks"></textarea></div>
       </div>
@@ -1378,6 +1416,7 @@ function initEmployeeListeners(empKey){
   onValue(ref(db,'leaveRequests'),snap=>{
     DB.leaveRequests=snap.val()||{};
     renderMyLeaveRequests();
+    renderMyApprovals();
   });
   onValue(ref(db,'holidays'),snap=>{DB.holidays=snap.val()||{};});
 }
@@ -1414,12 +1453,142 @@ function renderMyLeaveHistory(){
     return`<tr><td>${esc(l.type)}</td><td>${fmt(l.from)}</td><td>${fmt(l.to)}</td><td>${d}</td><td>${esc(l.status)}</td></tr>`;
   }).join(''):'<tr><td colspan="5"><div class="empty-state"><p>No leave history yet</p></div></td></tr>';
 }
+function describeLeaveStage(r){
+  if(r.status==='Rejected')return{label:'Rejected'+(r.rejectedAt?' at '+r.rejectedStage:''),cls:'badge-rejected'};
+  if(r.status==='Approved')return{label:'Approved',cls:'badge-approved'};
+  if(r.stage==='HR Review')return{label:'HR Review',cls:'badge-pending'};
+  if(r.stage==='Line Manager Approval')return{label:'Manager Approval',cls:'badge-pending'};
+  if(r.stage==='Additional Approval')return{label:'Final Approval',cls:'badge-pending'};
+  return{label:r.status||'Submitted',cls:'badge-pending'};
+}
+window.renderHRReviewQueue=function(){
+  const body=document.getElementById('hrReviewBody');
+  if(!body)return; // page not currently open
+  const canAct=currentRole==='admin';
+  const pending=Object.entries(DB.leaveRequests||{}).filter(([k,r])=>r.stage==='HR Review'&&r.status!=='Rejected').sort((a,b)=>a[1].submittedAt-b[1].submittedAt);
+  body.innerHTML=pending.length?pending.map(([k,r])=>{
+    const hoursWaiting=(Date.now()-r.submittedAt)/3600000;
+    const escalated=hoursWaiting>48;
+    if(escalated&&!r.escalated)setSilent(ref(db,'leaveRequests/'+k+'/escalated'),true);
+    const noManager=!r.lineManagerKey;
+    return`<tr style="${escalated?'background:#fdecea;':''}">
+      <td><strong>${esc(r.empName)}</strong></td>
+      <td>${esc(r.leaveType)}</td>
+      <td>${fmt(r.startDate)} – ${fmt(r.endDate)}</td>
+      <td>${r.totalDays}</td>
+      <td style="font-size:11px;max-width:150px;">${esc(r.reason||'—')}${r.attachmentName?'<br>📎 '+esc(r.attachmentName):''}</td>
+      <td style="font-size:11px;">${fmt(new Date(r.submittedAt).toISOString().split('T')[0])}${escalated?'<br><span style="color:#c0392b;font-weight:700;">⚠️ Escalated to Dev — '+Math.floor(hoursWaiting)+'h waiting</span>':''}</td>
+      <td style="font-size:11px;">${r.lineManagerName?esc(r.lineManagerName):'<span style="color:#c0392b;">Not set</span>'}</td>
+      <td>${canAct?`<textarea id="hrc_${k}" rows="2" style="width:140px;font-size:11px;padding:4px;border:1px solid #ddd;border-radius:4px;"></textarea>`:''}</td>
+      <td>${canAct?`
+        <button class="btn btn-sm btn-primary" ${noManager?'disabled title="Set a Line Manager on this employee\'s record first"':''} onclick="completeHRReview('${k}')">Complete & Forward</button>
+        <button class="btn btn-sm btn-danger" onclick="rejectLeaveRequest('${k}','HR Review')">Reject</button>
+      `:'<span style="font-size:11px;color:#888;">View only</span>'}</td>
+    </tr>`;
+  }).join(''):'<tr><td colspan="9"><div class="empty-state"><p>Nothing waiting for HR review</p></div></td></tr>';
+
+  const histBody=document.getElementById('leaveHistoryAllBody');
+  if(histBody){
+    const all=Object.values(DB.leaveRequests||{}).sort((a,b)=>b.submittedAt-a.submittedAt).slice(0,100);
+    histBody.innerHTML=all.map(r=>{
+      const st=describeLeaveStage(r);
+      return`<tr><td>${esc(r.empName)}</td><td>${esc(r.leaveType)}</td><td>${fmt(r.startDate)} – ${fmt(r.endDate)}</td>
+        <td><span class="badge ${st.cls}">${esc(st.label)}</span></td>
+        <td style="font-size:11px;">${esc(r.hrComments||'—')}</td>
+        <td style="font-size:11px;">${esc(r.lmComments||'—')}</td>
+        <td style="font-size:11px;">${esc(r.addlComments||'—')}</td></tr>`;
+    }).join('');
+  }
+};
+window.completeHRReview=function(key){
+  const r=DB.leaveRequests[key];
+  if(!r.lineManagerKey){alert('This employee has no Line Manager set. Please add one in Employee Records first.');return;}
+  const comments=v('hrc_'+key);
+  set(ref(db,'leaveRequests/'+key),{...r,stage:'Line Manager Approval',hrReviewedBy:adminName,hrReviewedAt:Date.now(),hrComments:comments}).then(()=>{
+    logAudit('HR Review Completed',r.empName,comments||'');
+  });
+};
+window.rejectLeaveRequest=function(key,atStage){
+  const r=DB.leaveRequests[key];
+  const comments=prompt('Reason for rejecting this leave request:');
+  if(comments===null)return;
+  const field=atStage==='HR Review'?'hrComments':atStage==='Line Manager Approval'?'lmComments':'addlComments';
+  set(ref(db,'leaveRequests/'+key),{...r,status:'Rejected',rejectedStage:atStage,rejectedAt:Date.now(),rejectedBy:adminName||adminSignName,[field]:comments}).then(()=>{
+    logAudit('Leave Request Rejected',r.empName,atStage+': '+comments);
+  });
+};
+// Runs whenever an admin session syncs leaveRequests — mirrors any newly fully-approved
+// request into the official Leave Register and deducts the balance. Kept admin-side only
+// because that's the session with write access to `leave` and `employees` under the
+// database rules; employee (line manager) sessions can only write to leaveRequests itself.
+window.syncApprovedLeaveRequests=function(){
+  Object.entries(DB.leaveRequests||{}).forEach(([k,r])=>{
+    if(r.stage==='Completed'&&r.status==='Approved'&&!r.syncedToLeaveRegister){
+      set(push(ref(db,'leave')),{
+        empName:r.empName,type:r.leaveType,from:r.startDate,to:r.endDate,
+        status:'Approved',approvedBy:r.lineManagerName||'Line Manager',
+        reason:r.reason,ts:Date.now(),source:'Employee Self-Service Request'
+      });
+      const emp=Object.entries(DB.employees).find(([ek,e])=>ek===r.empKey);
+      if(emp&&r.leaveType==='Annual Leave'&&emp[1].annualLeaveBalance!=null){
+        const newBal=Math.max(0,parseFloat(emp[1].annualLeaveBalance)-r.totalDays);
+        set(ref(db,'employees/'+r.empKey+'/annualLeaveBalance'),newBal);
+      }
+      set(ref(db,'leaveRequests/'+k+'/syncedToLeaveRegister'),true);
+      logAudit('Leave Request Synced to Register',r.empName,r.leaveType+' '+r.startDate+' to '+r.endDate);
+    }
+  });
+};
+
 window.renderMyLeaveRequests=function(){
   const e=DB.employees[currentEmpKey];if(!e)return;
   const rows=Object.values(DB.leaveRequests||{}).filter(r=>r.empKey===currentEmpKey).sort((a,b)=>b.submittedAt-a.submittedAt);
-  document.getElementById('empMyRequests').innerHTML=rows.length?rows.map(r=>
-    `<tr><td>${esc(r.leaveType)}</td><td>${fmt(r.startDate)}</td><td>${fmt(r.endDate)}</td><td>${r.totalDays}</td><td><span class="badge badge-pending">${esc(r.status||'Submitted')}</span></td></tr>`
-  ).join(''):'<tr><td colspan="5"><div class="empty-state"><p>No requests submitted yet</p></div></td></tr>';
+  document.getElementById('empMyRequests').innerHTML=rows.length?rows.map(r=>{
+    const st=describeLeaveStage(r);
+    const comments=[r.hrComments,r.lmComments,r.addlComments].filter(Boolean).join(' · ');
+    return`<tr><td>${esc(r.leaveType)}</td><td>${fmt(r.startDate)}</td><td>${fmt(r.endDate)}</td><td>${r.totalDays}</td><td><span class="badge ${st.cls}">${esc(st.label)}</span>${comments?'<br><span style="font-size:10px;color:#888;">'+esc(comments)+'</span>':''}</td></tr>`;
+  }).join(''):'<tr><td colspan="5"><div class="empty-state"><p>No requests submitted yet</p></div></td></tr>';
+};
+window.renderMyApprovals=function(){
+  const card=document.getElementById('empApprovalsCard');
+  const body=document.getElementById('empApprovalsBody');
+  if(!card||!body)return; // not in employee session
+  const asManager=Object.entries(DB.leaveRequests||{}).filter(([k,r])=>r.lineManagerKey===currentEmpKey&&r.stage==='Line Manager Approval'&&r.status!=='Rejected');
+  const asAdditional=Object.entries(DB.leaveRequests||{}).filter(([k,r])=>r.additionalApproverKey===currentEmpKey&&r.stage==='Additional Approval'&&r.status!=='Rejected');
+  const items=[...asManager.map(([k,r])=>({k,r,role:'lineManager'})),...asAdditional.map(([k,r])=>({k,r,role:'additional'}))];
+  if(!items.length){card.style.display='none';return;}
+  card.style.display='block';
+  body.innerHTML=items.map(({k,r,role})=>`
+    <div style="border:1px solid #e0e0e0;border-radius:8px;padding:12px;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;">
+        <strong>${esc(r.empName)}</strong>
+        <span style="font-size:11px;color:#888;">${role==='lineManager'?'As Line Manager':'As Additional Approver'}</span>
+      </div>
+      <div style="font-size:13px;margin:4px 0;">${esc(r.leaveType)} — ${fmt(r.startDate)} to ${fmt(r.endDate)} (${r.totalDays} day${r.totalDays>1?'s':''})</div>
+      ${r.reason?`<div style="font-size:12px;color:#555;">Reason: ${esc(r.reason)}</div>`:''}
+      ${r.hrComments?`<div style="font-size:12px;color:#1A7A6E;">HR note: ${esc(r.hrComments)}</div>`:''}
+      <textarea id="apc_${k}" rows="2" placeholder="Optional comment" style="width:100%;margin-top:8px;padding:6px;border:1px solid #ddd;border-radius:5px;font-size:12px;"></textarea>
+      <div class="btn-row" style="margin-top:8px;">
+        <button class="btn btn-sm btn-primary" onclick="decideLeaveApproval('${k}','${role}',true)">Approve</button>
+        <button class="btn btn-sm btn-danger" onclick="decideLeaveApproval('${k}','${role}',false)">Reject</button>
+      </div>
+    </div>`).join('');
+};
+window.decideLeaveApproval=async function(key,role,approve){
+  const r=DB.leaveRequests[key];
+  const comments=v('apc_'+key);
+  if(!approve){
+    await set(ref(db,'leaveRequests/'+key),{...r,status:'Rejected',rejectedStage:role==='lineManager'?'Line Manager Approval':'Additional Approval',rejectedAt:Date.now(),rejectedBy:adminName,[role==='lineManager'?'lmComments':'addlComments']:comments});
+    alert('Request rejected.');
+    return;
+  }
+  if(role==='lineManager'){
+    const nextStage=r.needsAdditionalApproval?'Additional Approval':'Completed';
+    await set(ref(db,'leaveRequests/'+key),{...r,stage:nextStage,status:nextStage==='Completed'?'Approved':'Pending',lmDecision:'Approved',lmComments:comments,lmActedAt:Date.now()});
+  } else {
+    await set(ref(db,'leaveRequests/'+key),{...r,stage:'Completed',status:'Approved',addlDecision:'Approved',addlComments:comments,addlActedAt:Date.now()});
+  }
+  alert('Decision recorded.');
 };
 window.openLeaveRequestForm=function(){
   sv('lrStart','');sv('lrEnd','');sv('lrDays','');sv('lrReason','');
@@ -1448,8 +1617,17 @@ window.submitLeaveRequest=async function(){
   }
   const record={
     empKey:currentEmpKey,empName:e.name,leaveType,startDate,endDate,totalDays,reason,
-    attachmentBase64,attachmentName,status:'Submitted',submittedAt:Date.now()
+    attachmentBase64,attachmentName,submittedAt:Date.now(),
+    // Workflow routing — captured now so it stays consistent even if the org chart changes later
+    lineManagerKey:e.lineManagerKey||'',lineManagerName:e.lineManagerName||'',
+    needsAdditionalApproval:!!e.needsAdditionalApproval,
+    additionalApproverKey:e.additionalApproverKey||'',additionalApproverName:e.additionalApproverName||'',
+    stage:'HR Review',status:'Pending',
+    hrReviewedBy:'',hrReviewedAt:'',hrComments:'',
+    lmDecision:'',lmComments:'',lmActedAt:'',
+    addlDecision:'',addlComments:'',addlActedAt:''
   };
+  if(!e.lineManagerKey){alert('Your Line Manager has not been set up yet in the system. Please ask HR to configure it before your request can be reviewed. It will still be submitted.');}
   await set(push(ref(db,'leaveRequests')),record);
   closeModal('leaveReqModal');
   alert('Your leave request has been submitted for review.');
@@ -1521,6 +1699,13 @@ function buildEmpDropdown(selectId, includeBlank=true){
       ${current.includes(k)?'selected':''}>${e.name||''} ${e.empId?'('+e.empId+')':''} — ${e.dept||''}</option>`).join('');
 }
 
+function selectEmpByKey(selectId,key){
+  const sel=document.getElementById(selectId);
+  if(!sel)return;
+  if(!key){sel.value='';return;}
+  const opt=Array.from(sel.options).find(o=>o.value.startsWith(key+'|'));
+  if(opt)sel.value=opt.value;
+}
 function parseEmpSelect(val){
   const parts = val.split('|');
   return {key: parts[0]||'', empId: parts[1]||'', name: parts[2]||''};
@@ -1550,7 +1735,12 @@ function initListeners(){
       if(t==='leavers')renderLeavers();
       if(t==='leaveAdjustments'){}// handled via refreshLeaveSummary
       if(t==='docHistory'){if(typeof renderDocHistory==='function')renderDocHistory();}
-      if(t==='leaveRequests'){if(typeof renderMyLeaveRequests==='function')renderMyLeaveRequests();}
+      if(t==='leaveRequests'){
+        if(typeof renderMyLeaveRequests==='function')renderMyLeaveRequests();
+        if(typeof renderHRReviewQueue==='function')renderHRReviewQueue();
+        if(typeof renderMyApprovals==='function')renderMyApprovals();
+        if(currentRole==='admin'&&typeof syncApprovedLeaveRequests==='function')syncApprovedLeaveRequests();
+      }
     });
   });
   document.getElementById('syncStatus').textContent='● Live';
@@ -1576,6 +1766,7 @@ window.showPage=function(page,el){
     setTimeout(()=>buildEmpDropdown('docEmpSel'),100);
   }
   if(page==='portalaccess')renderPortalAccess();
+  if(page==='leaveapprovals')renderHRReviewQueue();
 };
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
@@ -1886,6 +2077,10 @@ window.editEmp=function(key){
   sv('eEntity',e.entity);sv('eNat',e.nationality);sv('eGender',e.gender);sv('eDob',e.dob);
   sv('eJoin',e.join);sv('eContract',e.contract);sv('eGrade',e.grade);sv('eSite',e.site);
   sv('eMobile',e.mobile);sv('eEmail',e.email);sv('eManager',e.manager);sv('eStatus',e.status);sv('eRemarks',e.remarks);
+  buildEmpDropdown('eLineManager');selectEmpByKey('eLineManager',e.lineManagerKey);
+  buildEmpDropdown('eAdditionalApprover');selectEmpByKey('eAdditionalApprover',e.additionalApproverKey);
+  document.getElementById('eNeedsAdditionalApproval').checked=!!e.needsAdditionalApproval;
+  document.getElementById('eAdditionalApproverWrap').style.display=e.needsAdditionalApproval?'block':'none';
   sv('ePassport',e.passport);sv('eVisa',e.visa);sv('eEid',e.eid);sv('eLab',e.lab);
   sv('ePassExp',e.passExp);sv('eVisaExp',e.visaExp);sv('eEidExp',e.eidExp);sv('eLabExp',e.labExp);sv('eMed',e.medInsurance);sv('eDepCount',e.dependentsCount||'0');
   sv('eBasic',e.basicSalary);sv('eGross',e.grossSalary);sv('eMOL',e.molSalary);sv('eHouse',e.house);sv('eTransport',e.transport);sv('eOther',e.otherAllowances);
@@ -1914,6 +2109,11 @@ window.saveEmp=function(){
     nationality:v('eNat'),gender:v('eGender'),dob:v('eDob'),join:v('eJoin'),
     contract:v('eContract'),grade:v('eGrade'),site:v('eSite'),mobile:v('eMobile'),
     email:v('eEmail'),manager:v('eManager'),status:v('eStatus'),remarks:v('eRemarks'),
+    lineManagerKey:parseEmpSelect(v('eLineManager')).key,
+    lineManagerName:parseEmpSelect(v('eLineManager')).name,
+    needsAdditionalApproval:document.getElementById('eNeedsAdditionalApproval').checked,
+    additionalApproverKey:parseEmpSelect(v('eAdditionalApprover')).key,
+    additionalApproverName:parseEmpSelect(v('eAdditionalApprover')).name,
     passport:v('ePassport'),visa:v('eVisa'),eid:v('eEid'),lab:v('eLab'),
     passExp:v('ePassExp'),visaExp:v('eVisaExp'),eidExp:v('eEidExp'),labExp:v('eLabExp'),medInsurance:v('eMed'),
     dependentsCount:v('eDepCount'),
