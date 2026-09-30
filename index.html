@@ -4077,15 +4077,17 @@ async function generateReportPDF(o){
       doc.text(label,x+1.5,y+4.8);
       x+=w;
     });
-    y+=8;
+    y+=7; // exactly the header bar's own height — no extra gap that could overlap the first row
   }
   addHeader();
   drawTableHeader();
   doc.setFont('helvetica','normal');doc.setFontSize(7.3);
+  const ROW_H=6;
   o.rows.forEach((row,i)=>{
-    if(y>pageH-16){doc.addPage();y=10;addHeader();drawTableHeader();doc.setFont('helvetica','normal');doc.setFontSize(7.3);}
-    if(i%2===0){doc.setFillColor(235,243,251);doc.rect(margin,y-4.3,contentW,6,'F');}
+    if(y+ROW_H>pageH-10){doc.addPage();y=10;addHeader();drawTableHeader();doc.setFont('helvetica','normal');doc.setFontSize(7.3);}
+    if(i%2===0){doc.setFillColor(235,243,251);doc.rect(margin,y,contentW,ROW_H,'F');}
     doc.setTextColor(30,30,30);
+    const textY=y+4.3; // baseline within this row, consistent whether or not the row is shaded
     let x=margin;
     row.forEach((val,ci)=>{
       const w=o.columns[ci].width*scale;
@@ -4095,10 +4097,10 @@ async function generateReportPDF(o){
         while(text.length>1&&doc.getTextWidth(text+'…')>avail)text=text.slice(0,-1);
         text=text.trimEnd()+'…';
       }
-      doc.text(text,x+1.5,y);
+      doc.text(text,x+1.5,textY);
       x+=w;
     });
-    y+=6;
+    y+=ROW_H;
   });
   if(o.summaryLines&&o.summaryLines.length){
     y+=4;
