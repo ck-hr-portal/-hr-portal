@@ -315,7 +315,7 @@ tr:hover td{background:#fafbfc;}
             <button class="btn btn-primary" onclick="openEmpModal()">+ Add Employee</button>
           </div>
           <div class="table-wrap">
-            <table><thead><tr><th>Emp ID</th><th>Name</th><th>Department</th><th>Designation</th><th>Entity</th><th>Nationality</th><th>Gross Salary</th><th style="color:#c0392b;">MOL Salary</th><th style="color:#1e8449;">Basic Salary</th><th>Status</th><th>Actions</th></tr></thead>
+            <table><thead><tr><th>Emp ID</th><th>Name</th><th>Department</th><th>Designation</th><th>Entity</th><th>Nationality</th><th style="color:#c0392b;">MOL Salary</th><th>Gross Salary</th><th style="color:#1e8449;">Basic Salary</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody id="empBody"></tbody></table>
           </div>
         </div>
@@ -799,8 +799,8 @@ tr:hover td{background:#fafbfc;}
     <div id="etab-salary" style="display:none;">
       <div class="form-grid">
         <div class="form-group"><label>Basic Salary (AED)</label><input type="number" id="eBasic"></div>
-        <div class="form-group"><label>Gross Salary (AED)</label><input type="number" id="eGross"></div>
         <div class="form-group"><label style="color:#c0392b;">MOL Salary (AED) — Ministry of Labour contract, fixed</label><input type="number" id="eMOL" style="border-color:#e6b0aa;"><p style="font-size:11px;color:#888;margin-top:3px;">This is the salary on the signed MOL/contract — it should not change unless the actual labour contract is amended.</p></div>
+        <div class="form-group"><label>Gross Salary (AED)</label><input type="number" id="eGross"></div>
         <div class="form-group"><label>Housing Allowance</label><input type="number" id="eHouse"></div>
         <div class="form-group"><label>Transport Allowance</label><input type="number" id="eTransport"></div>
         <div class="form-group"><label>Other Allowances</label><input type="number" id="eOther"></div>
@@ -1712,8 +1712,8 @@ function renderEmp(data){
     <td><strong>${esc(e.empId||'')}</strong></td>
     <td>${esc(e.name||'')}</td><td>${esc(e.dept||'')}</td><td>${esc(e.desig||'')}</td>
     <td style="font-size:11px;">${esc(e.entity||'')}</td><td>${esc(e.nationality||'')}</td>
-    <td>AED ${parseFloat(e.grossSalary||e.gross||0).toLocaleString('en-AE',{minimumFractionDigits:0})}</td>
     <td style="color:#c0392b;font-weight:600;">${e.molSalary?'AED '+parseFloat(e.molSalary).toLocaleString('en-AE',{minimumFractionDigits:0}):'—'}</td>
+    <td>AED ${parseFloat(e.grossSalary||e.gross||0).toLocaleString('en-AE',{minimumFractionDigits:0})}</td>
     <td style="color:#1e8449;font-weight:600;">${e.basicSalary?'AED '+parseFloat(e.basicSalary).toLocaleString('en-AE',{minimumFractionDigits:0}):'—'}</td>
     <td><span class="badge badge-${(e.status||'active').toLowerCase().split(' ').join('-')}">${esc(e.status||'Active')}</span></td>
     <td>
