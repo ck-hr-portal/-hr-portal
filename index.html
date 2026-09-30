@@ -310,6 +310,11 @@ tr:hover td{background:#fafbfc;}
           <p style="font-size:12px;color:#888;margin-bottom:8px;">Employees missing Join Date or Basic Salary won't appear correctly in Gratuity, Flight Allowance or reports until fixed.</p>
           <div id="d-dataq" style="max-height:220px;overflow-y:auto;"><div class="empty-state"><p>Checking...</p></div></div>
         </div>
+        <div class="card" id="dashMyApprovalsCard" style="display:none;margin-bottom:16px;">
+          <div class="card-title">📋 My Approvals</div>
+          <p style="font-size:12px;color:#888;margin-bottom:8px;">Leave requests from people reporting to you, waiting on your decision.</p>
+          <div id="dashMyApprovalsBody"></div>
+        </div>
         <div class="card" style="margin-bottom:16px;">
           <div class="card-title">🌴 Active &amp; Upcoming Leaves</div>
           <p style="font-size:12px;color:#888;margin-bottom:8px;">Approved leave, currently active or starting soon — so no one is caught off guard by someone's absence.</p>
@@ -1558,17 +1563,18 @@ function getCurrentAdminEmpKey(){
   return found?found[0]:null;
 }
 window.renderAdminMyApprovals=function(){
-  const card=document.getElementById('adminMyApprovalsCard');
-  const body=document.getElementById('adminMyApprovalsBody');
-  if(!card||!body)return;
   const myEmpKey=getCurrentAdminEmpKey();
-  if(!myEmpKey){card.style.display='none';return;}
+  const targets=[
+    {card:document.getElementById('adminMyApprovalsCard'),body:document.getElementById('adminMyApprovalsBody')},
+    {card:document.getElementById('dashMyApprovalsCard'),body:document.getElementById('dashMyApprovalsBody')}
+  ].filter(t=>t.card&&t.body);
+  if(!targets.length)return;
+  if(!myEmpKey){targets.forEach(t=>t.card.style.display='none');return;}
   const asManager=Object.entries(DB.leaveRequests||{}).filter(([k,r])=>r.lineManagerKey===myEmpKey&&r.stage==='Line Manager Approval'&&r.status!=='Rejected');
   const asAdditional=Object.entries(DB.leaveRequests||{}).filter(([k,r])=>r.additionalApproverKey===myEmpKey&&r.stage==='Additional Approval'&&r.status!=='Rejected');
   const items=[...asManager.map(([k,r])=>({k,r,role:'lineManager'})),...asAdditional.map(([k,r])=>({k,r,role:'additional'}))];
-  if(!items.length){card.style.display='none';return;}
-  card.style.display='block';
-  body.innerHTML=items.map(({k,r,role})=>`
+  if(!items.length){targets.forEach(t=>t.card.style.display='none');return;}
+  const html=items.map(({k,r,role})=>`
     <div style="border:1px solid #e0e0e0;border-radius:8px;padding:12px;margin-bottom:10px;">
       <div style="display:flex;justify-content:space-between;">
         <strong>${esc(r.empName)}</strong>
@@ -1583,6 +1589,7 @@ window.renderAdminMyApprovals=function(){
         <button class="btn btn-sm btn-danger" onclick="decideLeaveApproval('${k}','${role}',false)">Reject</button>
       </div>
     </div>`).join('');
+  targets.forEach(t=>{t.card.style.display='block';t.body.innerHTML=html;});
 };
 window.renderHRReviewQueue=function(){
   renderAdminMyApprovals();
@@ -1957,6 +1964,7 @@ window.showPage=function(page,el){
 function updateDash(){
   const emps=Object.values(DB.employees);
   document.getElementById('s-emp').textContent=emps.length;
+  if(typeof renderAdminMyApprovals==='function')renderAdminMyApprovals();
   const today=new Date().toISOString().split('T')[0];
   const onLeave=Object.values(DB.leave).filter(l=>l.status==='Approved'&&l.from<=today&&l.to>=today).length;
   document.getElementById('s-leave').textContent=onLeave;
