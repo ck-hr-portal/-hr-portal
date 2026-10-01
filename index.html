@@ -628,13 +628,23 @@ tr:hover td{background:#fafbfc;}
         <div class="page-header"><h2>Announcements</h2></div>
         <div class="alert alert-success" id="ann-alert"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-          <div class="card"><div class="card-title">+ New Announcement</div>
+          <div class="card" id="annFormCard"><div class="card-title" id="annFormTitle">+ New Announcement</div>
+            <input type="hidden" id="annEditKey" value="">
             <div class="form-group"><label>Title</label><input type="text" id="annTitle"></div>
             <div class="form-group" style="margin-top:10px;"><label>Message</label><textarea id="annMsg"></textarea></div>
             <div class="form-group" style="margin-top:10px;"><label>Category</label><select id="annCat"><option>General</option><option>HR Policy</option><option>Safety</option><option>Event</option><option>Urgent</option></select></div>
-            <div class="btn-row"><button class="btn btn-primary" onclick="saveAnn()">Publish</button></div>
+            <div class="form-grid" style="margin-top:10px;">
+              <div class="form-group"><label>Live From</label><input type="date" id="annStart"></div>
+              <div class="form-group"><label>Live Until (expires after this date)</label><input type="date" id="annExpiry"></div>
+            </div>
+            <div class="btn-row"><button class="btn btn-primary" onclick="saveAnn()" id="annSaveBtn">Publish</button><button class="btn" id="annCancelBtn" style="display:none;" onclick="cancelAnnEdit()">Cancel Edit</button></div>
           </div>
-          <div class="card"><div class="card-title">📢 Published</div><div id="annList"></div></div>
+          <div class="card"><div class="card-title">📢 Currently Live</div><div id="annList"></div></div>
+        </div>
+        <div class="card" style="margin-top:16px;">
+          <div class="card-title">🗄️ Announcement Log (Expired)</div>
+          <p style="font-size:12px;color:#888;margin-bottom:8px;">Past announcements, kept for reference. Only Dev and Darleendy can delete these.</p>
+          <div id="annLogList"></div>
         </div>
       </div>
 
@@ -1454,7 +1464,7 @@ function applyCEOMode(){
   // Employee Portal Access (credential management), which stays admin-only
   // regardless of role, per explicit instruction.
   const style=document.createElement('style');
-  style.textContent=`#navSectionPortal, #navPortalAccess, #navMolImport { display: none !important; }`;
+  style.textContent=`#navSectionPortal, #navPortalAccess, #navMolImport, #annFormCard { display: none !important; }`;
   document.head.appendChild(style);
   document.getElementById('syncStatus').textContent='● CEO — Full View, Read-Only';
 }
@@ -1489,7 +1499,8 @@ function initEmployeeListeners(empKey){
 }
 function renderEmpAnnouncements(){
   const el=document.getElementById('empAnnList');if(!el)return;
-  const list=Object.values(DB.announcements||{}).sort((a,b)=>b.ts-a.ts);
+  const today=new Date().toISOString().split('T')[0];
+  const list=Object.values(DB.announcements||{}).filter(a=>!a.expiryDate||a.expiryDate>=today).sort((a,b)=>b.ts-a.ts);
   el.innerHTML=list.length?list.map(a=>`<div style="padding:9px 0;border-bottom:1px solid #f0f0f0;">
     <strong style="font-size:13px;">${esc(a.title)}</strong>
     <p style="font-size:12px;color:#555;margin:3px 0;">${esc(a.message||'')}</p>
@@ -1884,7 +1895,7 @@ function applyPROMode(){
   const style=document.createElement('style');
   style.textContent=`
     .nav-item[onclick*="'loans'"] { display: none !important; }
-    #navSectionPortal, #navPortalAccess, #navMolImport { display: none !important; }
+    #navSectionPortal, #navPortalAccess, #navMolImport, #annFormCard { display: none !important; }
     button[onclick*="openEmpModal"], button[onclick="delEmp"], button[onclick*="delEmp("] { display: none !important; }
   `;
   document.head.appendChild(style);
@@ -2039,7 +2050,8 @@ function updateDash(){
   }).filter(x=>x.missing.length);
   document.getElementById('d-dataq').innerHTML=dq.length?dq.map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0;"><span style="font-size:13px;"><strong>${esc(x.name)}</strong> — missing ${x.missing.join(', ')}</span><button class="btn btn-sm btn-primary" onclick="editEmp('${x.k}')">Fix</button></div>`).join(''):'<div class="empty-state"><p>✅ All active employee records complete</p></div>';
   // Announcements
-  const anns=Object.values(DB.announcements).sort((a,b)=>b.ts-a.ts).slice(0,3);
+  const todayStr2=new Date().toISOString().split('T')[0];
+  const anns=Object.values(DB.announcements).filter(a=>!a.expiryDate||a.expiryDate>=todayStr2).sort((a,b)=>b.ts-a.ts).slice(0,3);
   document.getElementById('d-ann').innerHTML=anns.length?anns.map(a=>`<div style="padding:7px 0;border-bottom:1px solid #f0f0f0;"><strong style="font-size:13px;">${esc(a.title)}</strong><br><span style="font-size:11px;color:#888;">${esc(a.category)} · ${new Date(a.ts).toLocaleDateString()}</span></div>`).join(''):'<div class="empty-state"><p>No announcements</p></div>';
   // Expiries
   const expList=[];
@@ -3173,18 +3185,65 @@ function renderHolidays(){
 }
 
 // ── ANNOUNCEMENTS ─────────────────────────────────────────────────────────────
+// Only Dev and Darleendy can publish/edit/delete — same restriction already enforced
+// at the database level; this just keeps the buttons from appearing for anyone else.
+function canManageAnnouncements(){return currentRole==='admin';}
 window.saveAnn=function(){
-  const data={title:v('annTitle'),message:v('annMsg'),category:v('annCat'),by:adminName,ts:Date.now()};
+  const editKey=v('annEditKey');
+  const data={
+    title:v('annTitle'),message:v('annMsg'),category:v('annCat'),
+    startDate:v('annStart')||new Date().toISOString().split('T')[0],
+    expiryDate:v('annExpiry'),
+    by:adminName,ts:editKey?DB.announcements[editKey]?.ts||Date.now():Date.now(),
+    lastEditedBy:editKey?adminName:'',lastEditedAt:editKey?Date.now():''
+  };
   if(!data.title){alert('Title required');return;}
-  set(push(ref(db,'announcements')),data).then(()=>{logAudit('Publish Announcement',data.title,data.category);showAlert('ann-alert','Published!');sv('annTitle','');sv('annMsg','');});
+  if(!data.expiryDate){alert('Please set a "Live Until" date so this announcement moves to the log automatically once it expires.');return;}
+  const op=editKey?set(ref(db,'announcements/'+editKey),data):set(push(ref(db,'announcements')),data);
+  op.then(()=>{
+    logAudit(editKey?'Edit Announcement':'Publish Announcement',data.title,data.category);
+    showAlert('ann-alert',editKey?'Updated!':'Published!');
+    cancelAnnEdit();
+  });
+};
+window.editAnn=function(key){
+  const a=DB.announcements[key];
+  sv('annEditKey',key);sv('annTitle',a.title);sv('annMsg',a.message);sv('annCat',a.category);
+  sv('annStart',a.startDate||'');sv('annExpiry',a.expiryDate||'');
+  document.getElementById('annFormTitle').textContent='✏️ Editing Announcement';
+  document.getElementById('annSaveBtn').textContent='Save Changes';
+  document.getElementById('annCancelBtn').style.display='inline-block';
+  window.scrollTo(0,0);
+};
+window.cancelAnnEdit=function(){
+  sv('annEditKey','');sv('annTitle','');sv('annMsg','');sv('annStart','');sv('annExpiry','');
+  document.getElementById('annFormTitle').textContent='+ New Announcement';
+  document.getElementById('annSaveBtn').textContent='Publish';
+  document.getElementById('annCancelBtn').style.display='none';
 };
 function renderAnn(){
-  const list=Object.entries(DB.announcements).sort((a,b)=>b[1].ts-a[1].ts);
-  document.getElementById('annList').innerHTML=list.length?list.map(([k,a])=>`<div style="padding:9px 0;border-bottom:1px solid #f0f0f0;">
-    <div style="display:flex;justify-content:space-between;"><strong style="font-size:13px;">${esc(a.title)}</strong><button class="btn btn-sm btn-danger" onclick="remove(ref(window._db,'announcements/${k}'));logAudit('Delete Announcement','${esc(a.title)}','')">✕</button></div>
+  const canManage=canManageAnnouncements();
+  const today=new Date().toISOString().split('T')[0];
+  const all=Object.entries(DB.announcements||{});
+  const live=all.filter(([k,a])=>!a.expiryDate||a.expiryDate>=today).sort((a,b)=>b[1].ts-a[1].ts);
+  const expired=all.filter(([k,a])=>a.expiryDate&&a.expiryDate<today).sort((a,b)=>b[1].expiryDate.localeCompare(a[1].expiryDate));
+  document.getElementById('annList').innerHTML=live.length?live.map(([k,a])=>`<div style="padding:9px 0;border-bottom:1px solid #f0f0f0;">
+    <div style="display:flex;justify-content:space-between;align-items:start;">
+      <strong style="font-size:13px;">${esc(a.title)}</strong>
+      ${canManage?`<span><button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="editAnn('${k}')">Edit</button> <button class="btn btn-sm btn-danger" onclick="if(confirm('Delete this announcement?')){remove(ref(window._db,'announcements/${k}'));logAudit('Delete Announcement','${esc(a.title)}','')}">✕</button></span>`:''}
+    </div>
     <p style="font-size:12px;color:#555;margin:3px 0;">${esc(a.message||'')}</p>
-    <span style="font-size:11px;color:#888;">${esc(a.category)} · ${esc(a.by)} · ${new Date(a.ts).toLocaleDateString()}</span>
-  </div>`).join(''):'<div class="empty-state"><p>No announcements.</p></div>';
+    <span style="font-size:11px;color:#888;">${esc(a.category)} · ${esc(a.by)} · Live ${fmt(a.startDate)} – ${fmt(a.expiryDate)}${a.lastEditedBy?' · edited by '+esc(a.lastEditedBy):''}</span>
+  </div>`).join(''):'<div class="empty-state"><p>No announcements currently live.</p></div>';
+
+  document.getElementById('annLogList').innerHTML=expired.length?expired.map(([k,a])=>`<div style="padding:9px 0;border-bottom:1px solid #f0f0f0;opacity:0.75;">
+    <div style="display:flex;justify-content:space-between;align-items:start;">
+      <strong style="font-size:13px;">${esc(a.title)}</strong>
+      ${canManage?`<button class="btn btn-sm btn-danger" onclick="if(confirm('Permanently delete this archived announcement?')){remove(ref(window._db,'announcements/${k}'));logAudit('Delete Announcement (Log)','${esc(a.title)}','')}">✕</button>`:''}
+    </div>
+    <p style="font-size:12px;color:#555;margin:3px 0;">${esc(a.message||'')}</p>
+    <span style="font-size:11px;color:#888;">${esc(a.category)} · ${esc(a.by)} · Was live ${fmt(a.startDate)} – ${fmt(a.expiryDate)}</span>
+  </div>`).join(''):'<div class="empty-state"><p>No expired announcements yet.</p></div>';
   window._db=db; window.logAudit=logAudit;
 }
 
