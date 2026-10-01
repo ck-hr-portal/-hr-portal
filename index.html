@@ -188,6 +188,14 @@ tr:hover td{background:#fafbfc;}
         </table>
       </div>
     </div>
+    <div class="card">
+      <div class="card-title">📢 Company Announcements</div>
+      <div id="empAnnList" style="max-height:260px;overflow-y:auto;"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📋 HR Policies</div>
+      <div id="empPolList" style="max-height:300px;overflow-y:auto;"></div>
+    </div>
   </div>
 </div>
 
@@ -213,8 +221,8 @@ tr:hover td{background:#fafbfc;}
     <div class="modal-header"><h3>Submit Leave Request</h3><span class="modal-close" onclick="closeModal('leaveReqModal')">&times;</span></div>
     <div class="form-grid">
       <div class="form-group"><label>Leave Type</label>
-        <select id="lrType">
-          <option>Annual Leave</option><option>Sick Leave</option><option>Maternity Leave</option>
+        <select id="lrType" onchange="updateLeaveFormVisibility()">
+          <option>Annual Leave</option><option>Sick Leave</option><option>Emergency Leave</option><option>Maternity Leave</option>
           <option>Paternity/Parental Leave</option><option>Compassionate/Bereavement Leave</option>
           <option>Study Leave</option><option>Work From Home</option><option>Compensatory Leave</option>
           <option>Unpaid Leave</option>
@@ -226,7 +234,19 @@ tr:hover td{background:#fafbfc;}
       <div class="form-group"><label>Total Days</label><input type="text" id="lrDays" readonly style="background:#f5f5f5;font-weight:700;"></div>
       <div></div>
       <div class="form-group" style="grid-column:1/-1;"><label>Reason / Comments</label><textarea id="lrReason" rows="3" style="width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;font-family:inherit;"></textarea></div>
-      <div class="form-group" style="grid-column:1/-1;"><label>Attachment (optional — e.g. sick leave certificate)</label><input type="file" id="lrAttachment" style="width:100%;"><p style="font-size:11px;color:#888;margin-top:4px;">Max 500KB. Only needed for leave types that require supporting documents.</p></div>
+      <div id="lrExtraFields" style="display:none;grid-column:1/-1;">
+        <div style="border-top:1px dashed #ccc;margin:4px 0 12px;"></div>
+        <p style="font-size:12px;color:#888;margin-bottom:10px;">Since this leave is for more than 2 days, please also provide:</p>
+        <div class="form-grid">
+          <div class="form-group"><label>Contact Address (Native Place)</label><input type="text" id="lrNativeAddress"></div>
+          <div class="form-group"><label>Mobile / Contact Number (Native Place)</label><input type="text" id="lrNativeContact"></div>
+          <div class="form-group"><label>Reliever Name</label><input type="text" id="lrReliever"></div>
+          <div class="form-group"><label>Remarks / Additional Comments</label><input type="text" id="lrRemarks"></div>
+        </div>
+      </div>
+      <div class="form-group" style="grid-column:1/-1;background:#fdecea;border:1px solid #e6b0aa;border-radius:7px;padding:10px 12px;">
+        <p style="font-size:12.5px;color:#c0392b;font-weight:600;margin:0;">All supporting documents should be emailed to the HR department and/or the original submitted to HR in person for filing and record purposes. Documents cannot be uploaded through the portal.</p>
+      </div>
     </div>
     <div class="btn-row"><button class="btn btn-primary" onclick="submitLeaveRequest()">Submit Request</button></div>
   </div>
@@ -1464,6 +1484,29 @@ function initEmployeeListeners(empKey){
     renderMyApprovals();
   });
   onValue(ref(db,'holidays'),snap=>{DB.holidays=snap.val()||{};});
+  onValue(ref(db,'announcements'),snap=>{DB.announcements=snap.val()||{};renderEmpAnnouncements();});
+  onValue(ref(db,'policies'),snap=>{DB.policies=snap.val()||{};renderEmpPolicies();});
+}
+function renderEmpAnnouncements(){
+  const el=document.getElementById('empAnnList');if(!el)return;
+  const list=Object.values(DB.announcements||{}).sort((a,b)=>b.ts-a.ts);
+  el.innerHTML=list.length?list.map(a=>`<div style="padding:9px 0;border-bottom:1px solid #f0f0f0;">
+    <strong style="font-size:13px;">${esc(a.title)}</strong>
+    <p style="font-size:12px;color:#555;margin:3px 0;">${esc(a.message||'')}</p>
+    <span style="font-size:11px;color:#888;">${esc(a.category||'')} · ${esc(a.by||'')} · ${new Date(a.ts).toLocaleDateString()}</span>
+  </div>`).join(''):'<div class="empty-state"><p>No announcements.</p></div>';
+}
+function renderEmpPolicies(){
+  const el=document.getElementById('empPolList');if(!el)return;
+  const list=Object.entries(DB.policies||{}).sort((a,b)=>b[1].ts-a[1].ts);
+  el.innerHTML=list.length?list.map(([k,p])=>`<div style="border:1px solid #e0e0e0;border-radius:8px;margin-bottom:10px;overflow:hidden;">
+    <div style="background:#f5f7fa;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+      <div><strong style="font-size:13px;color:#1C3557;">${esc(p.name)}</strong>
+      <span style="font-size:11px;color:#888;margin-left:10px;">${esc(p.category||'')} · Effective: ${p.date||'—'}</span></div>
+      <button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="togglePolicy('emppol_${k}')">View</button>
+    </div>
+    <div id="emppol_${k}" style="display:none;padding:14px;font-size:12px;line-height:1.8;white-space:pre-wrap;color:#333;background:#fff;border-top:1px solid #e0e0e0;max-height:300px;overflow-y:auto;">${esc(p.content||'No content added.')}</div>
+  </div>`).join(''):'<div class="empty-state"><p>No policies published yet.</p></div>';
 }
 function renderMyInfo(e){
   const rows=[['Employee ID',e.empId],['Designation',e.desig],['Department',e.dept],['Entity',e.entity],
@@ -1607,7 +1650,11 @@ window.renderHRReviewQueue=function(){
       <td>${esc(r.leaveType)}</td>
       <td>${fmt(r.startDate)} – ${fmt(r.endDate)}</td>
       <td>${r.totalDays}</td>
-      <td style="font-size:11px;max-width:150px;">${esc(r.reason||'—')}${r.attachmentName?'<br>📎 '+esc(r.attachmentName):''}</td>
+      <td style="font-size:11px;max-width:180px;">${esc(r.reason||'—')}${r.attachmentName?'<br>📎 '+esc(r.attachmentName):''}
+        ${r.nativeAddress?'<br><strong>Address:</strong> '+esc(r.nativeAddress):''}
+        ${r.nativeContact?'<br><strong>Contact:</strong> '+esc(r.nativeContact):''}
+        ${r.relieverName?'<br><strong>Reliever:</strong> '+esc(r.relieverName):''}
+        ${r.remarks?'<br><strong>Remarks:</strong> '+esc(r.remarks):''}</td>
       <td style="font-size:11px;">${fmt(new Date(r.submittedAt).toISOString().split('T')[0])}${escalated?'<br><span style="color:#c0392b;font-weight:700;">⚠️ Escalated to Dev — '+Math.floor(hoursWaiting)+'h waiting</span>':''}</td>
       <td style="font-size:11px;">${r.lineManagerName?esc(r.lineManagerName):'<span style="color:#c0392b;">Not set</span>'}</td>
       <td>${canAct?`<textarea id="hrc_${k}" rows="2" style="width:140px;font-size:11px;padding:4px;border:1px solid #ddd;border-radius:4px;"></textarea>`:''}</td>
@@ -1784,14 +1831,25 @@ window.decideLeaveApproval=async function(key,role,approve){
 };
 window.openLeaveRequestForm=function(){
   sv('lrStart','');sv('lrEnd','');sv('lrDays','');sv('lrReason','');
-  document.getElementById('lrAttachment').value='';
+  sv('lrNativeAddress','');sv('lrNativeContact','');sv('lrReliever','');sv('lrRemarks','');
+  document.getElementById('lrExtraFields').style.display='none';
   document.getElementById('leaveReqModal').classList.add('open');
+};
+// The 4 extra fields (native address/contact, reliever, remarks) only apply to
+// Annual/Sick/Emergency leave longer than 2 days.
+window.updateLeaveFormVisibility=function(){
+  const type=v('lrType');
+  const from=v('lrStart'),to=v('lrEnd');
+  const days=(from&&to)?Math.ceil((new Date(to)-new Date(from))/86400000)+1:0;
+  const needsExtra=['Annual Leave','Sick Leave','Emergency Leave'].includes(type)&&days>2;
+  document.getElementById('lrExtraFields').style.display=needsExtra?'block':'none';
 };
 window.calcLRDays=function(){
   const from=v('lrStart'),to=v('lrEnd');
   if(!from||!to){sv('lrDays','');return;}
   const d=Math.ceil((new Date(to)-new Date(from))/86400000)+1;
   sv('lrDays',d>0?d+' day'+(d>1?'s':''):'Invalid dates');
+  updateLeaveFormVisibility();
 };
 window.submitLeaveRequest=async function(){
   const leaveType=v('lrType'),startDate=v('lrStart'),endDate=v('lrEnd'),reason=v('lrReason');
@@ -1799,17 +1857,14 @@ window.submitLeaveRequest=async function(){
   const totalDays=Math.ceil((new Date(endDate)-new Date(startDate))/86400000)+1;
   if(totalDays<1){alert('End date must be on or after the start date.');return;}
   const e=DB.employees[currentEmpKey];
-  const fileInput=document.getElementById('lrAttachment');
-  let attachmentBase64='',attachmentName='';
-  if(fileInput.files&&fileInput.files[0]){
-    const file=fileInput.files[0];
-    if(file.size>500*1024){alert('Attachment must be under 500KB.');return;}
-    attachmentBase64=await new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(file);});
-    attachmentName=file.name;
-  }
+  const needsExtra=['Annual Leave','Sick Leave','Emergency Leave'].includes(leaveType)&&totalDays>2;
   const record={
     empKey:currentEmpKey,empName:e.name,leaveType,startDate,endDate,totalDays,reason,
-    attachmentBase64,attachmentName,submittedAt:Date.now(),
+    nativeAddress:needsExtra?v('lrNativeAddress'):'',
+    nativeContact:needsExtra?v('lrNativeContact'):'',
+    relieverName:needsExtra?v('lrReliever'):'',
+    remarks:needsExtra?v('lrRemarks'):'',
+    submittedAt:Date.now(),
     // Workflow routing — captured now so it stays consistent even if the org chart changes later
     lineManagerKey:e.lineManagerKey||'',lineManagerName:e.lineManagerName||'',
     needsAdditionalApproval:!!e.needsAdditionalApproval,
