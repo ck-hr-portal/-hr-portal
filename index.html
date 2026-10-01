@@ -631,7 +631,7 @@ tr:hover td{background:#fafbfc;}
           <div class="card" id="annFormCard"><div class="card-title" id="annFormTitle">+ New Announcement</div>
             <input type="hidden" id="annEditKey" value="">
             <div class="form-group"><label>Title</label><input type="text" id="annTitle"></div>
-            <div class="form-group" style="margin-top:10px;"><label>Message</label><textarea id="annMsg"></textarea></div>
+            <div class="form-group" style="margin-top:10px;"><label>Message</label><textarea id="annMsg" rows="6"></textarea><p style="font-size:11px;color:#888;margin-top:4px;">Tip: start a line with <strong>Label:</strong> to bold it automatically. Start a line with <strong>- </strong> to make it a bullet point. Press Enter for a new line — it will display exactly as typed.</p></div>
             <div class="form-group" style="margin-top:10px;"><label>Category</label><select id="annCat"><option>General</option><option>HR Policy</option><option>Safety</option><option>Event</option><option>Urgent</option></select></div>
             <div class="form-grid" style="margin-top:10px;">
               <div class="form-group"><label>Live From</label><input type="date" id="annStart"></div>
@@ -1503,7 +1503,7 @@ function renderEmpAnnouncements(){
   const list=Object.values(DB.announcements||{}).filter(a=>!a.expiryDate||a.expiryDate>=today).sort((a,b)=>b.ts-a.ts);
   el.innerHTML=list.length?list.map(a=>`<div style="padding:9px 0;border-bottom:1px solid #f0f0f0;">
     <strong style="font-size:13px;">${esc(a.title)}</strong>
-    <p style="font-size:12px;color:#555;margin:3px 0;">${esc(a.message||'')}</p>
+    <div style="font-size:12px;color:#555;margin:3px 0;line-height:1.6;">${formatAnnouncementText(a.message)}</div>
     <span style="font-size:11px;color:#888;">${esc(a.category||'')} · ${esc(a.by||'')} · ${new Date(a.ts).toLocaleDateString()}</span>
   </div>`).join(''):'<div class="empty-state"><p>No announcements.</p></div>';
 }
@@ -3185,6 +3185,36 @@ function renderHolidays(){
 }
 
 // ── ANNOUNCEMENTS ─────────────────────────────────────────────────────────────
+// Turns plain-typed announcement text into clean, structured HTML:
+//  - line breaks are preserved (the original bug — they were being collapsed)
+//  - a short "Label:" at the start of a line is auto-bolded
+//  - a line starting with "- " becomes a real bullet point
+//  - **text** anywhere becomes bold, for anything the auto-detection misses
+function formatAnnouncementText(text){
+  if(!text)return '';
+  const lines=String(text).split('\n');
+  let html='',inList=false;
+  lines.forEach(rawLine=>{
+    const line=rawLine.trim();
+    if(!line){if(inList){html+='</ul>';inList=false;}return;}
+    const isBullet=/^[-•*]\s+/.test(line);
+    let content=isBullet?line.replace(/^[-•*]\s+/,''):line;
+    content=esc(content).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+    if(!content.startsWith('<strong>')){
+      const m=content.match(/^([A-Za-z0-9 &\/\-–—]{2,45}:)(\s*)(.*)$/);
+      if(m)content='<strong>'+m[1]+'</strong>'+m[2]+m[3];
+    }
+    if(isBullet){
+      if(!inList){html+='<ul style="margin:4px 0 4px 18px;padding:0;">';inList=true;}
+      html+='<li style="margin-bottom:5px;">'+content+'</li>';
+    }else{
+      if(inList){html+='</ul>';inList=false;}
+      html+='<div style="margin-bottom:5px;">'+content+'</div>';
+    }
+  });
+  if(inList)html+='</ul>';
+  return html;
+}
 // Only Dev and Darleendy can publish/edit/delete — same restriction already enforced
 // at the database level; this just keeps the buttons from appearing for anyone else.
 function canManageAnnouncements(){return currentRole==='admin';}
@@ -3232,7 +3262,7 @@ function renderAnn(){
       <strong style="font-size:13px;">${esc(a.title)}</strong>
       ${canManage?`<span><button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="editAnn('${k}')">Edit</button> <button class="btn btn-sm btn-danger" onclick="if(confirm('Delete this announcement?')){remove(ref(window._db,'announcements/${k}'));logAudit('Delete Announcement','${esc(a.title)}','')}">✕</button></span>`:''}
     </div>
-    <p style="font-size:12px;color:#555;margin:3px 0;">${esc(a.message||'')}</p>
+    <div style="font-size:12px;color:#555;margin:3px 0;line-height:1.6;">${formatAnnouncementText(a.message)}</div>
     <span style="font-size:11px;color:#888;">${esc(a.category)} · ${esc(a.by)} · Live ${fmt(a.startDate)} – ${fmt(a.expiryDate)}${a.lastEditedBy?' · edited by '+esc(a.lastEditedBy):''}</span>
   </div>`).join(''):'<div class="empty-state"><p>No announcements currently live.</p></div>';
 
@@ -3241,7 +3271,7 @@ function renderAnn(){
       <strong style="font-size:13px;">${esc(a.title)}</strong>
       ${canManage?`<button class="btn btn-sm btn-danger" onclick="if(confirm('Permanently delete this archived announcement?')){remove(ref(window._db,'announcements/${k}'));logAudit('Delete Announcement (Log)','${esc(a.title)}','')}">✕</button>`:''}
     </div>
-    <p style="font-size:12px;color:#555;margin:3px 0;">${esc(a.message||'')}</p>
+    <div style="font-size:12px;color:#555;margin:3px 0;line-height:1.6;">${formatAnnouncementText(a.message)}</div>
     <span style="font-size:11px;color:#888;">${esc(a.category)} · ${esc(a.by)} · Was live ${fmt(a.startDate)} – ${fmt(a.expiryDate)}</span>
   </div>`).join(''):'<div class="empty-state"><p>No expired announcements yet.</p></div>';
   window._db=db; window.logAudit=logAudit;
