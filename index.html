@@ -146,6 +146,15 @@ tr:hover td{background:#fafbfc;}
     </div>
   </div>
   <div style="max-width:900px;margin:80px auto 40px;padding:0 24px;">
+    <div class="card" id="empCEOMsgCard" style="display:none;background:linear-gradient(135deg,#1C3557,#2563A8);color:#fff;">
+      <div style="display:flex;gap:16px;align-items:center;">
+        <img id="empCEOMsgPhoto" src="" style="display:none;width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid #C9A84C;flex-shrink:0;">
+        <div>
+          <div style="color:#C9A84C;font-weight:700;font-size:13px;margin-bottom:4px;">A Message from Our CEO</div>
+          <div id="empCEOMsgText" style="font-size:14px;line-height:1.6;"></div>
+        </div>
+      </div>
+    </div>
     <div class="card">
       <div class="card-title">👤 My Information</div>
       <div id="empMyInfo" class="form-grid" style="font-size:13px;"></div>
@@ -187,6 +196,16 @@ tr:hover td{background:#fafbfc;}
           <tbody id="empApprovalHistoryBody"></tbody>
         </table>
       </div>
+    </div>
+    <div class="card">
+      <div class="card-title">🎉 Birthdays &amp; Work Anniversaries</div>
+      <p style="font-size:12px;color:#888;margin-bottom:8px;">Coming up across the company in the next 45 days.</p>
+      <div id="empBdayAnni"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🏢 My Department — Who's on Leave</div>
+      <p style="font-size:12px;color:#888;margin-bottom:8px;">So you and your teammates can plan work around each other's time off.</p>
+      <div id="empDeptLeave"></div>
     </div>
     <div class="card">
       <div class="card-title">📢 Company Announcements</div>
@@ -330,6 +349,12 @@ tr:hover td{background:#fafbfc;}
           <div class="card-title">🔍 Data Quality Check</div>
           <p style="font-size:12px;color:#888;margin-bottom:8px;">Employees missing Join Date or Basic Salary won't appear correctly in Gratuity, Flight Allowance or reports until fixed.</p>
           <div id="d-dataq" style="max-height:220px;overflow-y:auto;"><div class="empty-state"><p>Checking...</p></div></div>
+        </div>
+        <div class="card" id="dashHRReviewCard" style="display:none;margin-bottom:16px;border-top:3px solid #e67e22;">
+          <div class="card-title">⏳ Pending HR Review</div>
+          <p style="font-size:12px;color:#888;margin-bottom:8px;">Leave requests waiting on HR review — visible to both Dev and Darleendy, since this step isn't assigned to one specific person.</p>
+          <div id="dashHRReviewBody"></div>
+          <button class="btn btn-sm btn-primary" style="margin-top:8px;" onclick="showPage('leaveapprovals',document.getElementById('navLeaveApprovals'))">Go to Leave Approvals</button>
         </div>
         <div class="card" id="dashMyApprovalsCard" style="display:none;margin-bottom:16px;">
           <div class="card-title">📋 My Approvals</div>
@@ -628,6 +653,15 @@ tr:hover td{background:#fafbfc;}
       <div id="page-announcements" class="page">
         <div class="page-header"><h2>Announcements</h2></div>
         <div class="alert alert-success" id="ann-alert"></div>
+        <div class="card" id="ceoMsgFormCard" style="margin-bottom:16px;border-top:3px solid #C9A84C;">
+          <div class="card-title">👤 CEO's Message (shown to every employee, at the top of their portal)</div>
+          <div class="form-grid">
+            <div class="form-group" style="grid-column:1/-1;"><label>Message</label><textarea id="ceoMsgText" rows="4" placeholder="A short welcome or message from Cem to all staff."></textarea></div>
+            <div class="form-group"><label>Photo (optional)</label><input type="file" id="ceoMsgPhoto" accept="image/*"><p style="font-size:11px;color:#888;margin-top:4px;">Max 200KB — a simple headshot works best.</p></div>
+            <div class="form-group"><label>Current Photo</label><div id="ceoMsgPhotoPreview" style="font-size:12px;color:#888;">None set</div></div>
+          </div>
+          <div class="btn-row"><button class="btn btn-primary" onclick="saveCEOMessage()">Save</button><button class="btn btn-danger" onclick="clearCEOMessage()">Remove Message</button></div>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
           <div class="card" id="annFormCard"><div class="card-title" id="annFormTitle">+ New Announcement</div>
             <input type="hidden" id="annEditKey" value="">
@@ -1481,7 +1515,7 @@ function applyCEOMode(){
   // Employee Portal Access (credential management), which stays admin-only
   // regardless of role, per explicit instruction.
   const style=document.createElement('style');
-  style.textContent=`#navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #annFormCard, #polFormCard { display: none !important; }`;
+  style.textContent=`#navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #annFormCard, #polFormCard, #ceoMsgFormCard { display: none !important; }`;
   document.head.appendChild(style);
   document.getElementById('syncStatus').textContent='● CEO — Full View, Read-Only';
 }
@@ -1511,8 +1545,26 @@ function initEmployeeListeners(empKey){
     renderMyApprovals();
   });
   onValue(ref(db,'holidays'),snap=>{DB.holidays=snap.val()||{};});
+  // Full employee list — needed for company-wide birthdays/anniversaries and seeing
+  // who in the same department is on leave. Kept in a separate variable (DB.allEmployees)
+  // so it doesn't disturb the existing single-record DB.employees used elsewhere.
+  onValue(ref(db,'employees'),snap=>{
+    DB.allEmployees=snap.val()||{};
+    renderEmpBirthdaysAnniversaries();
+    renderEmpDeptLeave();
+  });
   onValue(ref(db,'announcements'),snap=>{DB.announcements=snap.val()||{};renderEmpAnnouncements();});
   onValue(ref(db,'policies'),snap=>{DB.policies=snap.val()||{};renderEmpPolicies();});
+  onValue(ref(db,'ceoMessage'),snap=>{
+    const m=snap.val()||{};
+    const card=document.getElementById('empCEOMsgCard');
+    if(!card)return;
+    if(!m.text&&!m.photoBase64){card.style.display='none';return;}
+    card.style.display='block';
+    document.getElementById('empCEOMsgText').textContent=m.text||'';
+    const img=document.getElementById('empCEOMsgPhoto');
+    if(m.photoBase64){img.src=m.photoBase64;img.style.display='block';}else{img.style.display='none';}
+  });
 }
 function renderEmpAnnouncements(){
   const el=document.getElementById('empAnnList');if(!el)return;
@@ -1778,6 +1830,54 @@ function buildLeaveStageBreakdown(r){
   else overall={label:'Overall',status:'In Progress — currently at '+r.stage,ok:null};
   return{lines,overall};
 }
+function renderEmpBirthdaysAnniversaries(){
+  const el=document.getElementById('empBdayAnni');if(!el)return;
+  const now=new Date();
+  const all=Object.values(DB.allEmployees||{});
+  const items=[];
+  all.forEach(e=>{
+    if(e.dob){
+      const dob=new Date(e.dob);
+      [now.getFullYear(),now.getFullYear()+1].forEach(yr=>{
+        const occursOn=new Date(yr,dob.getMonth(),dob.getDate());
+        const daysUntil=Math.round((occursOn-now)/86400000);
+        if(daysUntil>=0&&daysUntil<=45)items.push({type:'birthday',name:e.name,dept:e.dept,occursOn,daysUntil});
+      });
+    }
+    if(e.join){
+      const join=new Date(e.join);
+      const milestones=[5,10,15,20,25,30];
+      [now.getFullYear(),now.getFullYear()+1].forEach(yr=>{
+        const years=yr-join.getFullYear();
+        if(!milestones.includes(years))return;
+        const occursOn=new Date(yr,join.getMonth(),join.getDate());
+        const daysUntil=Math.round((occursOn-now)/86400000);
+        if(daysUntil>=0&&daysUntil<=45)items.push({type:'anniversary',name:e.name,dept:e.dept,years,occursOn,daysUntil});
+      });
+    }
+  });
+  items.sort((a,b)=>a.daysUntil-b.daysUntil);
+  el.innerHTML=items.length?items.map(x=>`<div style="padding:7px 0;border-bottom:1px solid #f0f0f0;font-size:13px;">
+    <span style="font-size:18px;margin-right:6px;">${x.type==='birthday'?'🎂':'🏆'}</span>
+    <strong>${esc(x.name)}</strong> <span style="color:#888;font-size:12px;">(${esc(x.dept||'')})</span>
+    — ${x.type==='birthday'?'Birthday':x.years+'-Year Anniversary'} · ${x.occursOn.toLocaleDateString('en-AE',{day:'numeric',month:'short'})} ${x.daysUntil===0?'(today)':'(in '+x.daysUntil+'d)'}
+  </div>`).join(''):'<div class="empty-state"><p>Nothing coming up in the next 45 days</p></div>';
+}
+function renderEmpDeptLeave(){
+  const el=document.getElementById('empDeptLeave');if(!el)return;
+  const myDept=DB.employees[currentEmpKey]?.dept;
+  if(!myDept){el.innerHTML='<div class="empty-state"><p>Department not set on your profile yet</p></div>';return;}
+  const deptNames=new Set(Object.values(DB.allEmployees||{}).filter(e=>e.dept===myDept).map(e=>e.name));
+  const today=new Date().toISOString().split('T')[0];
+  const onLeave=Object.values(DB.leave||{}).filter(l=>l.status==='Approved'&&l.to&&l.to>=today&&deptNames.has(l.empName)).sort((a,b)=>a.from>b.from?1:-1);
+  el.innerHTML=onLeave.length?onLeave.map(l=>{
+    const isActiveNow=l.from<=today&&l.to>=today;
+    return`<div style="padding:7px 0;border-bottom:1px solid #f0f0f0;font-size:13px;">
+      <strong>${esc(l.empName)}</strong> — ${fmt(l.from)} to ${fmt(l.to)}
+      ${isActiveNow?'<span class="badge badge-pending" style="margin-left:6px;">On Leave Now</span>':'<span class="badge" style="background:#e8f0fb;color:#2563A8;margin-left:6px;">Upcoming</span>'}
+    </div>`;
+  }).join(''):'<div class="empty-state"><p>No one in your department is on leave right now or soon</p></div>';
+}
 window.renderMyLeaveRequests=function(){
   const e=DB.employees[currentEmpKey];if(!e)return;
   const rows=Object.values(DB.leaveRequests||{}).filter(r=>r.empKey===currentEmpKey).sort((a,b)=>b.submittedAt-a.submittedAt);
@@ -1912,7 +2012,7 @@ function applyPROMode(){
   const style=document.createElement('style');
   style.textContent=`
     .nav-item[onclick*="'loans'"] { display: none !important; }
-    #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #annFormCard, #polFormCard { display: none !important; }
+    #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #annFormCard, #polFormCard, #ceoMsgFormCard { display: none !important; }
     button[onclick*="openEmpModal"], button[onclick="delEmp"], button[onclick*="delEmp("] { display: none !important; }
   `;
   document.head.appendChild(style);
@@ -1988,7 +2088,7 @@ function parseEmpSelect(val){
 
 const ref_db=(path)=>ref(db,path);
 function initListeners(){
-  const tables=['employees','leave','salary','loans','repayments','assets','holidays','announcements','policies','audit','flightAllowance','leavers','leaveAdjustments','docHistory','leaveRequests'];
+  const tables=['employees','leave','salary','loans','repayments','assets','holidays','announcements','policies','audit','flightAllowance','leavers','leaveAdjustments','docHistory','leaveRequests','ceoMessage'];
   tables.forEach(t=>{
     onValue(ref(db,t),snap=>{
       DB[t]=snap.val()||{};
@@ -2016,6 +2116,7 @@ function initListeners(){
         if(typeof renderMyApprovals==='function')renderMyApprovals();
         if(currentRole==='admin'&&typeof syncApprovedLeaveRequests==='function')syncApprovedLeaveRequests();
       }
+      if(t==='ceoMessage'&&typeof loadCEOMessageForm==='function')loadCEOMessageForm();
     });
   });
   document.getElementById('syncStatus').textContent='● Live';
@@ -2050,6 +2151,24 @@ function updateDash(){
   const emps=Object.values(DB.employees);
   document.getElementById('s-emp').textContent=emps.length;
   if(typeof renderAdminMyApprovals==='function')renderAdminMyApprovals();
+  if(currentRole==='admin'){
+    const hrCard=document.getElementById('dashHRReviewCard');
+    const hrBody=document.getElementById('dashHRReviewBody');
+    if(hrCard&&hrBody){
+      const pending=Object.values(DB.leaveRequests||{}).filter(r=>r.stage==='HR Review'&&r.status!=='Rejected');
+      if(pending.length){
+        hrCard.style.display='block';
+        hrBody.innerHTML=pending.map(r=>{
+          const hours=(Date.now()-r.submittedAt)/3600000;
+          const escalated=hours>48;
+          return`<div style="padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:13px;">
+            <strong>${esc(r.empName)}</strong> — ${esc(r.leaveType)}, ${fmt(r.startDate)} to ${fmt(r.endDate)}
+            ${escalated?' <span style="color:#c0392b;font-weight:700;">⚠️ Escalated to Dev</span>':''}
+          </div>`;
+        }).join('');
+      } else hrCard.style.display='none';
+    }
+  }
   const today=new Date().toISOString().split('T')[0];
   const onLeave=Object.values(DB.leave).filter(l=>l.status==='Approved'&&l.from<=today&&l.to>=today).length;
   document.getElementById('s-leave').textContent=onLeave;
@@ -3234,6 +3353,33 @@ function renderHolidays(){
     <button class="btn btn-sm btn-danger" onclick="remove(ref(window._db,'holidays/${k}'))">✕</button>
   </div>`).join(''):'<div class="empty-state"><p>No holidays added.</p></div>';
   window._db=db;
+}
+
+// ── CEO MESSAGE ───────────────────────────────────────────────────────────────
+window.saveCEOMessage=async function(){
+  const text=v('ceoMsgText');
+  const fileInput=document.getElementById('ceoMsgPhoto');
+  let photoBase64=(DB.ceoMessage&&DB.ceoMessage.photoBase64)||'';
+  if(fileInput.files&&fileInput.files[0]){
+    const file=fileInput.files[0];
+    if(file.size>200*1024){alert('Photo must be under 200KB. Please use a smaller/compressed image.');return;}
+    photoBase64=await new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(file);});
+  }
+  if(!text&&!photoBase64){alert('Please add a message or a photo first.');return;}
+  await set(ref(db,'ceoMessage'),{text,photoBase64,updatedAt:Date.now(),updatedBy:adminName});
+  logAudit('Update CEO Message','','');
+  showAlert('ann-alert','Saved!');
+};
+window.clearCEOMessage=async function(){
+  if(!confirm('Remove the CEO message from all employee portals?'))return;
+  await set(ref(db,'ceoMessage'),{text:'',photoBase64:'',updatedAt:Date.now(),updatedBy:adminName});
+  logAudit('Remove CEO Message','','');
+};
+function loadCEOMessageForm(){
+  const el=document.getElementById('ceoMsgText');if(!el)return;
+  const m=DB.ceoMessage||{};
+  sv('ceoMsgText',m.text||'');
+  document.getElementById('ceoMsgPhotoPreview').innerHTML=m.photoBase64?`<img src="${m.photoBase64}" style="height:50px;border-radius:6px;">`:'None set';
 }
 
 // ── ANNOUNCEMENTS ─────────────────────────────────────────────────────────────
