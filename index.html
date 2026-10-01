@@ -300,6 +300,7 @@ tr:hover td{background:#fafbfc;}
       <div class="nav-section" id="navSectionPortal">Self-Service</div>
       <div class="nav-item" id="navPortalAccess" onclick="showPage('portalaccess',this)"><span class="icon">🔑</span>Portal Access</div>
       <div class="nav-item" id="navMolImport" onclick="showPage('molimport',this)"><span class="icon">📋</span>MOL Salary Import</div>
+      <div class="nav-item" id="navPolicyImport" onclick="showPage('policyimport',this)"><span class="icon">📚</span>HR Policy Import</div>
       <div class="nav-item" id="navLeaveApprovals" onclick="showPage('leaveapprovals',this)"><span class="icon">✅</span>Leave Approvals</div>
       <div class="nav-section">Reports</div>
       <div class="nav-item" onclick="showPage('reports',this)"><span class="icon">📈</span>Reports &amp; Downloads</div>
@@ -660,10 +661,10 @@ tr:hover td{background:#fafbfc;}
         <div class="page-header"><h2>HR Policies</h2></div>
         <div class="alert alert-success" id="pol-alert"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-          <div class="card"><div class="card-title">+ Add Policy</div>
+          <div class="card" id="polFormCard"><div class="card-title">+ Add Policy</div>
             <div class="form-group"><label>Policy Name</label><input type="text" id="polName"></div>
             <div class="form-group" style="margin-top:10px;"><label>Category</label><select id="polCat"><option>Leave &amp; Attendance</option><option>Code of Conduct</option><option>Compensation</option><option>Health &amp; Safety</option><option>Recruitment</option><option>General</option></select></div>
-            <div class="form-group" style="margin-top:10px;"><label>Policy Content</label><textarea id="polContent" style="min-height:180px;" placeholder="Paste the full policy text here. It will be stored and displayed in the portal with formatting preserved."></textarea></div>
+            <div class="form-group" style="margin-top:10px;"><label>Policy Content</label><textarea id="polContent" style="min-height:180px;" placeholder="Paste the full policy text here."></textarea><p style="font-size:11px;color:#888;margin-top:4px;">Tip: start a line with <strong>Label:</strong> to bold it, <strong>1. </strong> for a numbered list, or <strong>- </strong> for a bullet point.</p></div>
             <div class="form-group" style="margin-top:10px;"><label>Effective Date</label><input type="date" id="polDate"></div>
             <div class="btn-row"><button class="btn btn-primary" onclick="savePol()">Save Policy</button></div>
           </div>
@@ -732,6 +733,22 @@ tr:hover td{background:#fafbfc;}
               <thead><tr><th>Employee</th><th>Login Username</th><th>Password</th><th>Portal Access</th><th>Action</th></tr></thead>
               <tbody id="portalAccessBody"></tbody>
             </table>
+          </div>
+        </div>
+      </div>
+      <div id="page-policyimport" class="page">
+        <div class="page-header"><h2>📚 HR Policy Import</h2><p>One-time import of the Basic HR Policy handbook, split into 12 separate policies for easier reading. Review and uncheck anything you don't want published, then confirm.</p></div>
+        <div class="card">
+          <div class="table-wrap" style="max-height:600px;overflow-y:auto;">
+            <table>
+              <thead><tr><th style="width:30px;"></th><th>Policy Name</th><th>Category</th><th>Preview</th></tr></thead>
+              <tbody id="policyImportBody"></tbody>
+            </table>
+          </div>
+          <div class="btn-row" style="margin-top:14px;">
+            <button class="btn btn-sm" onclick="policyImportCheckAll(true)">Check All</button>
+            <button class="btn btn-sm" onclick="policyImportCheckAll(false)">Uncheck All</button>
+            <button class="btn btn-gold" onclick="applyPolicyImport()">Publish Checked Policies</button>
           </div>
         </div>
       </div>
@@ -1464,7 +1481,7 @@ function applyCEOMode(){
   // Employee Portal Access (credential management), which stays admin-only
   // regardless of role, per explicit instruction.
   const style=document.createElement('style');
-  style.textContent=`#navSectionPortal, #navPortalAccess, #navMolImport, #annFormCard { display: none !important; }`;
+  style.textContent=`#navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #annFormCard, #polFormCard { display: none !important; }`;
   document.head.appendChild(style);
   document.getElementById('syncStatus').textContent='● CEO — Full View, Read-Only';
 }
@@ -1516,7 +1533,7 @@ function renderEmpPolicies(){
       <span style="font-size:11px;color:#888;margin-left:10px;">${esc(p.category||'')} · Effective: ${p.date||'—'}</span></div>
       <button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="togglePolicy('emppol_${k}')">View</button>
     </div>
-    <div id="emppol_${k}" style="display:none;padding:14px;font-size:12px;line-height:1.8;white-space:pre-wrap;color:#333;background:#fff;border-top:1px solid #e0e0e0;max-height:300px;overflow-y:auto;">${esc(p.content||'No content added.')}</div>
+    <div id="emppol_${k}" style="display:none;padding:14px;font-size:12px;line-height:1.8;color:#333;background:#fff;border-top:1px solid #e0e0e0;max-height:300px;overflow-y:auto;">${p.content?formatRichText(p.content):'No content added.'}</div>
   </div>`).join(''):'<div class="empty-state"><p>No policies published yet.</p></div>';
 }
 function renderMyInfo(e){
@@ -1895,7 +1912,7 @@ function applyPROMode(){
   const style=document.createElement('style');
   style.textContent=`
     .nav-item[onclick*="'loans'"] { display: none !important; }
-    #navSectionPortal, #navPortalAccess, #navMolImport, #annFormCard { display: none !important; }
+    #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #annFormCard, #polFormCard { display: none !important; }
     button[onclick*="openEmpModal"], button[onclick="delEmp"], button[onclick*="delEmp("] { display: none !important; }
   `;
   document.head.appendChild(style);
@@ -2024,6 +2041,7 @@ window.showPage=function(page,el){
     setTimeout(()=>buildEmpDropdown('docEmpSel'),100);
   }
   if(page==='portalaccess')renderPortalAccess();
+  if(page==='policyimport')renderPolicyImportList();
   if(page==='leaveapprovals')renderHRReviewQueue();
 };
 
@@ -2295,6 +2313,40 @@ window.applyMolImport=async function(){
   if(failed.length)alert(`Applied to ${successCount} employees. ${failed.length} failed and were NOT saved: ${failed.join(', ')}`);
   else alert('Done. MOL Salary has been set for '+successCount+' employees. Refresh the Employee Records page to see it.');
   document.getElementById('molReviewCard').style.display='none';
+};
+
+const POLICY_IMPORT_DATA=[["Company Vision, Mission & Motto", "General", "Vision:\nOur vision is to be the best customer-oriented, tech-driven design & build company in the region with the best competitive prices. And to develop a leadership that will set as an example to the whole industry of design and build by taking calculated risks without risking integrity and customer satisfaction.\n\nMission:\nOur mission is to help our clients reflect their concept in the best way possible to their space by offering customized solutions to fit their purpose. To co-create challenging/timeless spaces for reputable companies/personas in the region from concept to end of construction and develop a long-term relationship as a solution partner.\n\nOur Motto:\n\"Highest level of honesty and integrity; Do the right thing in the right way\" — Cem Kapancioglu", "2025-01-21"], ["On Boarding Policy", "Recruitment", "Pre-boarding:\n1. Offer Letter along with the Rules and Regulations + Vision and Mission.\n2. Submission of documents for visa processing.\n\nFirst Day at Work:\n1. Warm welcome from the team.\n2. Assign workstation.\n3. Explain duties and responsibilities.\n4. Provide company email and all working tools needed (proper use of existing software).\n\nProbationary Period:\n1. Employee will be under probationary period for the first three to six months.\n2. Initial evaluation will be done for the first three months, and second evaluation will be done before completing six months to assess the employee's regularization.", "2025-01-21"], ["Attendance Policy", "Leave & Attendance", "1. The employee should follow the office work timing 7:30 am to 4:30 pm Monday to Friday until further notice from the Management.\n2. All employees are required to sign in and out of the attendance machine every day for records. It can be found on the table near the main entrance.\n3. In case of additional time required for a work deadline, please follow the minimum time requirement (48 hours per week).\n4. Saturday is flexible. You must be available every Saturday whenever you are needed during office hours to ensure there will be no delay on the progress of work.\n5. Nos. 1-4 does not apply to employees working on site.\n6. In case of going out early/lates or absence at work, the employee should inform his/her department head and HR department (this is mandatory).\n7. Ramadan Timing is 7:30am to 1:30pm.", "2025-01-21"], ["Annual Leave & Sick Leave Policy", "Leave & Attendance", "Annual Leave:\n1. Every employee is entitled to 30 calendar days of Annual leave and 15 days of Sick leave (including weekends and holidays).\n2. Employees must use their leaves in the year of entitlement.\n3. Annual leave application forms must be submitted three months before the desired date.\n4. Any unused leave provision from 2024 will not be carried over to the following year.\n5. Starting 2025, all employees will be required to utilize a minimum of seven (7) consecutive days of their annual leave entitlement during the Holy Month of Ramadan. This mandatory leave will be deducted from the employee's annual leave balance. Employees who will utilize their full annual leave entitlement (30 days) in a single continuous period during the year are exempted from this requirement.\n6. In case an employee has not filed any leave upon completion of one year, ten days will be automatically blocked and will be forfeited if not used within three months.\n7. Short leaves should be submitted as per below categories:\n- 1-3 calendar days – 2 weeks before the intended leave\n- 4-10 calendar days – 3 weeks before the intended leave\n- 10-20 calendar days – 4 weeks before the intended leave\n\nSick Leave:\n1. An employee is entitled to a sick leave of not more than 90 days per year, only after the end of probationary period. The 90 days sick leave computation are as follows:\n- Full pay of first 15 days\n- Half pay of the next 30 days\n- No pay for the exceeding days\n2. During the probation period, the employee is not entitled to any paid sick leave.\n3. All sick leave applications must be submitted with an attendance/medical certificate.\n\nAdditional Notes:\n- Please note that the ongoing project should be properly handed over to the other project manager. There must be a to-do list of pending works and a contact list with a scope of work which must be accepted by the receiving project manager.\n- Leave encashment is NOT encouraged by the management.\n- If in any case the employee's service ends, he shall be paid a cash allowance for the balance of legally due leave, according to the basic salary.", "2025-01-21"], ["Annual Airfare Allowance Policy", "Compensation", "1. Every employee is eligible for annual airfare allowance after completing one year amounting to 1,500 AED. Starting August 1, 2022.\n2. Previous (before August 1, 2022) airfare ticket will be calculated on a pro-rata basis.", "2025-01-21"], ["General Rules", "Code of Conduct", "1. Using office time for personal use is not permitted.\n2. Unwanted social media applications like Facebook, Instagram, etc. are not permitted during office hours.\n3. Printer is for office use only and not for personal use.\n4. Downloading anything for personal use is strictly prohibited. This includes downloading things from the company server for personal or future use.\n5. All the work created here is property of the company.\n6. To-do list daily, weekly and monthly is a must. Everybody should have a written to-do list sent to hr@ckarchitecture.com (HR department) every end of the week.\n7. Doing political moves is prohibited. Open communication and sharing ideas to find and develop the best is encouraged.\n8. Talking on the phone/internet for more than five minutes for personal needs is prohibited during working hours.\n9. Gossiping and sharing company information with third parties or anyone not affiliated with CK & CKC is forbidden. This is zero tolerance.\n10. The company will reimburse 80% of the total bill during the renewal process of insurance for the following:\n- Employee needs to go for an emergency consultation with a doctor.\n- Emergency cases that would require hospital assistance.", "2025-01-21"], ["Dress Code Policy", "Code of Conduct", "1. Employees are expected to dress in casual, business casual and smart casual attire.\n2. Employees must always present a clean, professional appearance.\n3. Everyone is expected to be well-groomed and wear clean clothing (must practice proper hygiene every day and avoid repeating clothes without washing them).\n4. All employees who will go to an existing house for maintenance must be presentable, wear clean & washed clothes. This is MANDATORY.\n5. Closed shoes should be worn by men.", "2025-01-21"], ["Company Loan Policy", "Compensation", "Eligibility:\n1. All regular, full-time employees with at least 12 months of continuous service are eligible to apply for a loan.\n2. Applications will be considered only for emergency situations.\n\nLoan Amount:\n1. The maximum loan amount shall be equivalent to 1 month of the employee's full salary.\n\nRepayment Terms:\n1. Loans must be repaid in 6 equal monthly installments.\n2. Repayment will be automatically deducted from the employee's monthly salary.\n3. The first installment will be due on the next payday following the loan approval.\n\nDocumentation:\n1. Employees must submit the documents to support their loan application.\n\nApproval Process:\n1. Send a letter/email requesting the company loan.\n2. Fill out the policy loan agreement form.\n3. Loan applications will be reviewed by HR Department, Management, Accounts Department and approved by the CEO.\n\nNote: Any other kinds of loan is NOT encouraged by the Management.", "2025-01-21"], ["Code of Ethics", "Code of Conduct", "Compliance with the Law:\nAll employees are required to protect our company's legality. Therefore, they should comply with all environmental, safety and fair dealing laws. We do expect employees to be ethical and responsible whenever dealing with our company finances, projects, partnerships and public image.\n\nRespect in the Workplace:\nAll employees are expected to respect their colleagues. We will not allow any kind of discriminatory behaviour, harassment or victimization. Employees should also conform with the equal opportunity policy in all aspects of their job duties.\n\nProtection of Company Property:\nAll employees are expected to treat property with respect and care. This means that employees:\n- Should not misuse company equipment or frivolously use it.\n- Should respect all incorporeal property such as trademarks, copyright and other property. Employees should, however, use them to complete their job duties only.\n- Should protect the company facilities and material property from damage and unprofessionalism.\n\nProfessionalism at the Workplace:\nAll employees are expected to act and show integrity and professionalism while in the workplace:\n1. Personal appearance: When it comes to personal appearance of an employee, we expect all employees to follow the dress code.\n2. Job duties and authority: All employees should fulfil their job duties with integrity and respect toward customers. Supervisors and project managers must not abuse their authority. We expect them to delegate duties to their team members taking into account their competences and workload. Likewise, we expect team members to follow the department head/Project managers instructions and complete their duties with skill and in a timely manner.\n3. Absenteeism and tardiness: Employees need to follow the office timing. However, there are exceptions that may prevent employees from following the standard working hours or day, and we outline those in our Employee Attendance Policy. In any case, we do expect all employees to be punctual when coming in and leaving the office.\n4. Conflict of interest: Employees are expected to avoid any personal, financial or other interests which may hinder their capability or willingness to fulfil their job duties.\n5. Collaboration: At the workplace, employees are expected to act friendly and collaborative with everyone. We don't want anyone to disrupt the workplace or create obstacles to colleagues' work.\n6. Benefits: All employees are expected to not abuse their employment benefits, including time off, holidays, facilities, or other benefits we offer.\n7. Policies: All employees are required to read and follow all of our company policies. If you should have any questions, ask your manager or the Human Resources (HR) department, for assistance.\n\nDisciplinary Actions:\nWe may take disciplinary action against any employees who have repeatedly or intentionally failed to follow our code of conduct. The disciplinary actions will vary based on the violation committed. Possible consequences include:\n1. Demotion.\n2. Suspension or termination, when dealing with serious offenses.\n3. Detraction of benefits for a specific amount of time.\n\nCK Architecture Interiors LLC & CKC Building Contracting LLC may take legal action if corruption, theft, embezzlement or other unlawful behaviour takes place at any given time.", "2025-01-21"], ["Termination & Disciplinary Policy", "Code of Conduct", "Warning:\n1. Verbal warning is the first step of the disciplinary process. It measures where the Management/Employer speaks to the employee about an issue involving their behavior, conduct or job performance.\n2. After the verbal warning, a written warning will be issued in the form of a document. The potential consequences will be mentioned if the employee does not remedy their behavior.\n3. Please note that two (2) written warnings can be grounds for termination.\n\nGrounds for Termination:\n1. Attendance issues, such as frequent absences or chronic tardiness.\n2. Incompetence, including lack of productivity or poor quality of work.\n3. Insubordination and related issues such as dishonesty or breaking company rules.\n4. Theft and other criminal behaviour including revealing the organization's confidential things.\n5. Intentional lying for own benefits.\n\nRules of Termination — Dubai Government:\n1. The employer and the worker may terminate the employment contract with undetermined term for valid grounds at any time after the conclusion of the contract, and such as after notifying the other party thereof in writing at least 30 days after the termination.\n\nRules of Termination — CK & CKC:\n1. Termination is to be effective the same day onwards to protect the company and its relations and interest. The employee must leave on the same day and is entitled to take only personal things.\n2. The employee has to return all the assets issued by the company; failure to do so will result in the delay of issuing the final settlement.\n3. The final settlement will be calculated as per the U.A.E. law.", "2025-01-21"], ["Core Values", "General", "Honesty & Integrity: Honesty is doing the right and moral thing even when it is not in your best interest. Do what you say, it is a form of honesty; say what you do and do what you say to establish trust.\nProactive: You take positive action as opposed to finding excuses.\nTeamwork: You know that you are limited if you act alone, you cannot do much and go far. Be a team player for a reason.\nInitiative: Acting when it is necessary without waiting for any approval, and taking responsibility of that action.\nSacrifice: Sacrificing self-interest for a greater good, whether it is time or other concepts.\nPositive Thinking: We should always find an opportunity in every outcome rather than focusing on the negative outcomes.\nOpenness: We should be open to everything, at least to listen and understand.\nHappiness: We need to be happy to serve others, and to be happy we need to eat well, sleep well, and move well and stress well, as a minimum requirement.\nExplore: When we do all the things we do, we should not forget that we need to explore new things, make research and learn from others, and use their experiences almost for free.\nEmpowerment: It is a part of being a team — we need to empower ourselves and others so that they can help us and our cause to achieve better results.\nPlanning: We need to think before we act. For that we need to have a plan — we need to write it down daily, weekly, monthly, yearly, decades and project base.\nCommunication: We have to clearly talk/write about our thoughts and feelings without waiting for the right time, so that minor problems do not accumulate and become something big.", "2025-01-21"], ["Management Notes", "General", "1. This handbook serves as employees' information and guide for the company's basic rules and regulations.\n2. The Management is expecting that all employees should follow the rules and regulations mentioned in this handbook.\n3. Thank you for your continued cooperation and support.\n4. As our policy is aligned with the UAE Labour law, please expect changes from time to time.", "2025-01-21"]];
+
+window.renderPolicyImportList=function(){
+  const body=document.getElementById('policyImportBody');
+  if(!body)return;
+  body.innerHTML=POLICY_IMPORT_DATA.map((row,i)=>{
+    const[name,cat,content]=row;
+    const preview=content.replace(/\n/g,' ').slice(0,90)+'...';
+    return`<tr>
+      <td><input type="checkbox" id="polImpChk_${i}" checked></td>
+      <td><strong>${esc(name)}</strong></td>
+      <td>${esc(cat)}</td>
+      <td style="font-size:11px;color:#888;">${esc(preview)}</td>
+    </tr>`;
+  }).join('');
+};
+window.policyImportCheckAll=function(state){
+  POLICY_IMPORT_DATA.forEach((row,i)=>{const el=document.getElementById('polImpChk_'+i);if(el)el.checked=state;});
+};
+window.applyPolicyImport=async function(){
+  const toApply=[];
+  POLICY_IMPORT_DATA.forEach((row,i)=>{
+    const chk=document.getElementById('polImpChk_'+i);
+    if(chk&&chk.checked)toApply.push(row);
+  });
+  if(!toApply.length){alert('Nothing checked.');return;}
+  if(!confirm(`Publish ${toApply.length} policies to the HR Policy library? You can edit or delete any of them afterward from the Policies page.`))return;
+  for(const[name,category,content,date] of toApply){
+    await set(push(ref(db,'policies')),{name,category,content,date,ts:Date.now()});
+  }
+  logAudit('HR Policy Import',toApply.length+' policies','Bulk import from Basic HR Policy handbook');
+  alert('Done. '+toApply.length+' policies published — check the Policies page.');
 };
 
 window.renderPortalAccess=function(){
@@ -3190,31 +3242,38 @@ function renderHolidays(){
 //  - a short "Label:" at the start of a line is auto-bolded
 //  - a line starting with "- " becomes a real bullet point
 //  - **text** anywhere becomes bold, for anything the auto-detection misses
-function formatAnnouncementText(text){
+function formatRichText(text){
   if(!text)return '';
   const lines=String(text).split('\n');
-  let html='',inList=false;
+  let html='',listType=null; // null | 'ul' | 'ol'
+  function closeList(){if(listType){html+='</'+listType+'>';listType=null;}}
   lines.forEach(rawLine=>{
     const line=rawLine.trim();
-    if(!line){if(inList){html+='</ul>';inList=false;}return;}
-    const isBullet=/^[-•*]\s+/.test(line);
-    let content=isBullet?line.replace(/^[-•*]\s+/,''):line;
+    if(!line){closeList();return;}
+    const bulletMatch=/^[-•*]\s+/.test(line);
+    const numberMatch=/^\d+[.)]\s+/.test(line);
+    const subMatch=/^[a-zA-Z][.)]\s+/.test(line)||/^[ivxIVX]+[.)]\s+/.test(line);
+    const isListItem=bulletMatch||numberMatch||subMatch;
+    let content=isListItem?line.replace(/^([-•*]|\d+[.)]|[a-zA-Z][.)]|[ivxIVX]+[.)])\s+/,''):line;
     content=esc(content).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
     if(!content.startsWith('<strong>')){
       const m=content.match(/^([A-Za-z0-9 &\/\-–—]{2,45}:)(\s*)(.*)$/);
       if(m)content='<strong>'+m[1]+'</strong>'+m[2]+m[3];
     }
-    if(isBullet){
-      if(!inList){html+='<ul style="margin:4px 0 4px 18px;padding:0;">';inList=true;}
-      html+='<li style="margin-bottom:5px;">'+content+'</li>';
+    if(isListItem){
+      const wantType=numberMatch?'ol':'ul';
+      if(listType!==wantType){closeList();html+='<'+wantType+' style="margin:4px 0 4px 18px;padding:0;">';listType=wantType;}
+      const indent=subMatch?' style="margin-bottom:5px;margin-left:16px;list-style-type:lower-alpha;"':' style="margin-bottom:5px;"';
+      html+='<li'+indent+'>'+content+'</li>';
     }else{
-      if(inList){html+='</ul>';inList=false;}
+      closeList();
       html+='<div style="margin-bottom:5px;">'+content+'</div>';
     }
   });
-  if(inList)html+='</ul>';
+  closeList();
   return html;
 }
+const formatAnnouncementText=formatRichText; // kept as an alias — existing calls still work unchanged
 // Only Dev and Darleendy can publish/edit/delete — same restriction already enforced
 // at the database level; this just keeps the buttons from appearing for anyone else.
 function canManageAnnouncements(){return currentRole==='admin';}
@@ -3308,10 +3367,10 @@ function renderPolicies(){
       </div>
       <div style="display:flex;gap:6px;">
         <button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="togglePolicy('pol_${k}')">View</button>
-        <button class="btn btn-sm btn-danger" onclick="remove(ref(window._db,'policies/${k}'))">✕</button>
+        ${currentRole==='admin'?`<button class="btn btn-sm btn-danger" onclick="if(confirm('Delete this policy?'))remove(ref(window._db,'policies/${k}'))">✕</button>`:''}
       </div>
     </div>
-    <div id="pol_${k}" style="display:none;padding:14px;font-size:12px;line-height:1.8;white-space:pre-wrap;color:#333;background:#fff;border-top:1px solid #e0e0e0;max-height:300px;overflow-y:auto;">${esc(p.content||'No content added.')}</div>
+    <div id="pol_${k}" style="display:none;padding:14px;font-size:12px;line-height:1.8;color:#333;background:#fff;border-top:1px solid #e0e0e0;max-height:300px;overflow-y:auto;">${p.content?formatRichText(p.content):'No content added.'}</div>
   </div>`).join(''):'<div class="empty-state"><p>No policies yet.</p></div>';
   window._db=db;
 }
