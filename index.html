@@ -1619,12 +1619,28 @@ function applyEmployeeMode(){
 }
 // Lightweight sync for employee sessions — only the tables they actually need,
 // not the full 15-table admin sync (keeps bandwidth down and matches what they can see).
+// Called from two independent listeners (the employee's own record, and the org chart
+// data itself) since either can arrive first — this re-checks both every time so the
+// card never gets stuck hidden just because of load order.
+function renderEmpOrgChart(){
+  const card=document.getElementById('empOrgChartCard');
+  if(!card)return;
+  const m=DB.empOrgChartData||{};
+  const e=DB.employees[currentEmpKey];
+  if(!e||!e.canViewOrgChart||!m.fileBase64){card.style.display='none';return;}
+  card.style.display='block';
+  document.getElementById('empOrgChartLastUpdated').textContent=m.uploadedAt?('Last Updated: '+new Date(m.uploadedAt).toLocaleDateString('en-AE',{month:'long',year:'numeric'})):'';
+  const dispEl=document.getElementById('empOrgChartDisplay');
+  if(m.fileType==='application/pdf')dispEl.innerHTML=`<iframe src="${m.fileBase64}" style="width:100%;height:600px;border:1px solid #e0e0e0;border-radius:8px;"></iframe>`;
+  else dispEl.innerHTML=`<img src="${m.fileBase64}" style="max-width:100%;border-radius:8px;border:1px solid #e0e0e0;">`;
+}
 function initEmployeeListeners(empKey){
   onValue(ref(db,'employees/'+empKey),snap=>{
     const e=snap.val()||{};
     DB.employees={[empKey]:e}; // keep just this one record locally
     renderMyInfo(e);
     renderMyLeaveBalance(e);
+    renderEmpOrgChart(); // re-check in case org chart data already arrived before this did
   });
   onValue(ref(db,'leave'),snap=>{
     DB.leave=snap.val()||{};
@@ -1647,16 +1663,8 @@ function initEmployeeListeners(empKey){
   onValue(ref(db,'announcements'),snap=>{DB.announcements=snap.val()||{};renderEmpAnnouncements();});
   onValue(ref(db,'policies'),snap=>{DB.policies=snap.val()||{};renderEmpPolicies();});
   onValue(ref(db,'orgChart'),snap=>{
-    const m=snap.val()||{};
-    const e=DB.employees[currentEmpKey];
-    const card=document.getElementById('empOrgChartCard');
-    if(!card)return;
-    if(!e||!e.canViewOrgChart||!m.fileBase64){card.style.display='none';return;}
-    card.style.display='block';
-    document.getElementById('empOrgChartLastUpdated').textContent=m.uploadedAt?('Last Updated: '+new Date(m.uploadedAt).toLocaleDateString('en-AE',{month:'long',year:'numeric'})):'';
-    const dispEl=document.getElementById('empOrgChartDisplay');
-    if(m.fileType==='application/pdf')dispEl.innerHTML=`<iframe src="${m.fileBase64}" style="width:100%;height:600px;border:1px solid #e0e0e0;border-radius:8px;"></iframe>`;
-    else dispEl.innerHTML=`<img src="${m.fileBase64}" style="max-width:100%;border-radius:8px;border:1px solid #e0e0e0;">`;
+    DB.empOrgChartData=snap.val()||{};
+    renderEmpOrgChart();
   });
   onValue(ref(db,'ceoMessage'),snap=>{
     const m=snap.val()||{};
