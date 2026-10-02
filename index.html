@@ -914,7 +914,19 @@ tr:hover td{background:#fafbfc;}
             <div class="form-group"><label>Cheque Number (if applicable)</label><input type="text" id="stChequeNo"></div>
           </div>
 
-          <div class="btn-row" style="margin-top:16px;"><button class="btn btn-gold" onclick="generateSettlementPDF()">✅ Generate Final Settlement PDF</button></div>
+          <div class="btn-row" style="margin-top:16px;"><button class="btn btn-gold" onclick="previewSettlement()">👁️ Preview Settlement</button></div>
+        </div>
+
+        <div class="card" id="settlementPreviewCard" style="display:none;">
+          <div class="card-title">Preview — review carefully before finalizing</div>
+          <p style="font-size:12px;color:#888;margin-bottom:10px;">This is exactly how the PDF will look. If anything needs changing, go back and edit, then preview again.</p>
+          <div id="settlementPreviewSheet" style="border:1px solid #e0e0e0;border-radius:8px;padding:20px;background:#fff;"></div>
+          <div class="btn-row" style="margin-top:16px;">
+            <button class="btn" onclick="backToEditSettlement()">⬅ Back to Edit</button>
+            <button class="btn btn-primary" onclick="downloadSettlementOnly()">📥 Download PDF Only (draft, not finalized)</button>
+            <button class="btn btn-gold" onclick="finalizeSettlementAndAddToLeavers()">✅ Finalize &amp; Add to Leavers List</button>
+          </div>
+          <p style="font-size:11px;color:#888;margin-top:8px;">"Download PDF Only" lets you share a draft without affecting the Leavers register. "Finalize" downloads the PDF <strong>and</strong> adds this person to the Leavers list with these exact figures — use it once this is truly final.</p>
         </div>
       </div>
 
@@ -3794,9 +3806,9 @@ window.updateSettlementTotals=function(){
   sv('stNetPay','AED '+net.toLocaleString('en-AE',{minimumFractionDigits:2}));
   sv('stNetWords',numToWords(net)+' Dirhams only');
 };
-window.generateSettlementPDF=async function(){
+function getSettlementData(){
   const e=DB.employees[stSettlementEmpKey];
-  if(!e){alert('Please select an employee first.');return;}
+  if(!e)return null;
   const getRows=tbodyId=>Array.from(document.querySelectorAll(`#${tbodyId} tr`)).map(tr=>({
     desc:tr.querySelector('input[id^="std_"]')?.value||'',
     basis:tr.querySelector('input[id^="stb_"]')?.value||'',
@@ -3805,8 +3817,62 @@ window.generateSettlementPDF=async function(){
   const earnings=getRows('stEarningsBody'),deductions=getRows('stDeductionsBody');
   const totalEarn=earnings.reduce((s,r)=>s+r.amount,0),totalDeduct=deductions.reduce((s,r)=>s+r.amount,0);
   const net=totalEarn-totalDeduct;
-  const entityFull=entityFullName(e);
-
+  return{e,earnings,deductions,totalEarn,totalDeduct,net,
+    endDate:v('stEndDate'),payDate:v('stPayDate'),payMode:v('stPayMode'),chequeNo:v('stChequeNo')};
+}
+window.previewSettlement=function(){
+  const d=getSettlementData();
+  if(!d){alert('Please select an employee first.');return;}
+  const rowHTML=(er,dr)=>`<tr>
+    <td style="padding:4px 8px;">${esc(er?.desc||'')}${er?.basis?`<br><span style="font-size:10px;color:#888;">${esc(er.basis)}</span>`:''}</td>
+    <td style="padding:4px 8px;text-align:right;">${er?er.amount.toLocaleString('en-AE',{minimumFractionDigits:2}):''}</td>
+    <td style="padding:4px 8px;text-align:right;">${dr?dr.amount.toLocaleString('en-AE',{minimumFractionDigits:2}):''}</td>
+  </tr>`;
+  const maxRows=Math.max(d.earnings.length,d.deductions.length);
+  let rows='';
+  for(let i=0;i<maxRows;i++)rows+=rowHTML(d.earnings[i],d.deductions[i]);
+  document.getElementById('settlementPreviewSheet').innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #1C3557;padding-bottom:10px;margin-bottom:14px;">
+      <h2 style="color:#1C3557;margin:0;">Final Settlement</h2>
+      <div style="font-size:10px;color:#888;text-align:right;">Tel: 971 (0) 4 2209117<br>P.O. Box: 27138<br>hr@ckarchitecture.com</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:13px;margin-bottom:14px;">
+      <div><strong>Name</strong>: ${esc(d.e.name)}</div><div><strong>Title</strong>: ${esc(d.e.desig||'')}</div>
+      <div><strong>Joining Date</strong>: ${fmt(d.e.join)}</div><div><strong>Department</strong>: ${esc(d.e.dept||'')}</div>
+      <div><strong>End Date</strong>: ${fmt(d.endDate)}</div><div><strong>Years of Service</strong>: ${v('stYears')}</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+      <thead><tr style="background:#e6e6e6;"><th style="padding:5px 8px;text-align:left;">Description</th><th style="padding:5px 8px;text-align:right;">Earnings</th><th style="padding:5px 8px;text-align:right;">Deductions</th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot>
+        <tr style="border-top:1px solid #999;font-weight:700;"><td style="padding:5px 8px;">Total</td><td style="padding:5px 8px;text-align:right;">${d.totalEarn.toLocaleString('en-AE',{minimumFractionDigits:2})}</td><td style="padding:5px 8px;text-align:right;">${d.totalDeduct>0?d.totalDeduct.toLocaleString('en-AE',{minimumFractionDigits:2}):'-'}</td></tr>
+      </tfoot>
+    </table>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;">
+      <div style="font-size:12px;">
+        <div><strong>Payment Date</strong>: ${d.payDate?fmt(d.payDate):'—'}</div>
+        <div><strong>Payment Mode</strong>: ${esc(d.payMode)}</div>
+        <div><strong>Cheque Number</strong>: ${esc(d.chequeNo)||'—'}</div>
+      </div>
+      <div style="background:#e6e6e6;padding:10px 20px;text-align:center;border-radius:6px;">
+        <div style="font-size:11px;font-weight:700;">NET PAY</div>
+        <div style="font-size:16px;font-weight:700;color:#1A7A6E;">AED ${d.net.toLocaleString('en-AE',{minimumFractionDigits:2})}</div>
+      </div>
+    </div>
+    <div style="text-align:center;font-style:italic;font-size:12px;color:#555;margin-top:8px;">${numToWords(d.net)} Dirhams only</div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:30px;font-size:10px;text-align:center;">
+      ${[['Prepared by:','MARY DARLEENDY VILBAR','Human Resource Manager'],['Reviewed by:','DEV MANDREKAR','HR Director'],['Reviewed by:','NOUSHAD KOTTAYIL','Admin/ Accounts'],['Reviewed by:','SRUTHI KIRAN','CFO'],['Received & Accepted by:',(d.e.name||'').toUpperCase(),'Employee']]
+        .map(([label,name,title])=>`<div>${label}<div style="border-top:1px solid #999;margin-top:22px;padding-top:4px;font-weight:700;">${esc(name)}</div><div style="color:#888;">${esc(title)}</div></div>`).join('')}
+    </div>`;
+  document.getElementById('settlementFormArea').style.display='none';
+  document.getElementById('settlementPreviewCard').style.display='block';
+  document.getElementById('settlementPreviewCard').scrollIntoView({behavior:'smooth'});
+};
+window.backToEditSettlement=function(){
+  document.getElementById('settlementPreviewCard').style.display='none';
+  document.getElementById('settlementFormArea').style.display='block';
+};
+async function buildSettlementPDF(d){
   if(!window.jspdf){
     await new Promise((resolve,reject)=>{
       const s=document.createElement('script');
@@ -3830,8 +3896,9 @@ window.generateSettlementPDF=async function(){
   doc.setDrawColor(28,53,87);doc.setLineWidth(0.6);doc.line(margin,y,pageW-margin,y);
   y+=8;
 
+  const e=d.e;
   doc.setFontSize(9.5);
-  const leftInfo=[['Name',e.name],['Joining Date',fmt(e.join)],['End Date',fmt(v('stEndDate'))]];
+  const leftInfo=[['Name',e.name],['Joining Date',fmt(e.join)],['End Date',fmt(d.endDate)]];
   const rightInfo=[['Title',e.desig],['Department',e.dept],['Years of Service',v('stYears')]];
   leftInfo.forEach(([l,val],i)=>{
     doc.setFont('helvetica','bold');doc.setTextColor(30,30,30);doc.text(l,margin,y+i*5.5);
@@ -3850,9 +3917,9 @@ window.generateSettlementPDF=async function(){
   doc.text('Deductions',pageW-margin-2,y+5,{align:'right'});
   y+=10;
   doc.setFont('helvetica','normal');doc.setFontSize(9);
-  const maxRows=Math.max(earnings.length,deductions.length);
+  const maxRows=Math.max(d.earnings.length,d.deductions.length);
   for(let i=0;i<maxRows;i++){
-    const er=earnings[i],dr=deductions[i];
+    const er=d.earnings[i],dr=d.deductions[i];
     if(er){
       doc.text(er.desc,margin+2,y);
       if(er.basis)doc.setFontSize(7.5),doc.setTextColor(120,120,120),doc.text(er.basis,margin+2,y+3.5),doc.setFontSize(9),doc.setTextColor(30,30,30);
@@ -3866,13 +3933,12 @@ window.generateSettlementPDF=async function(){
   y+=5;
   doc.setFont('helvetica','bold');
   doc.text('Total',margin+2,y);
-  doc.text(totalEarn.toLocaleString('en-AE',{minimumFractionDigits:2}),margin+115,y,{align:'right'});
-  doc.text(totalDeduct>0?totalDeduct.toLocaleString('en-AE',{minimumFractionDigits:2}):'-',pageW-margin-2,y,{align:'right'});
+  doc.text(d.totalEarn.toLocaleString('en-AE',{minimumFractionDigits:2}),margin+115,y,{align:'right'});
+  doc.text(d.totalDeduct>0?d.totalDeduct.toLocaleString('en-AE',{minimumFractionDigits:2}):'-',pageW-margin-2,y,{align:'right'});
   y+=10;
 
-  const payDate=v('stPayDate'),payMode=v('stPayMode'),chequeNo=v('stChequeNo');
   doc.setFont('helvetica','normal');doc.setFontSize(9);
-  [['Payment Date',payDate?fmt(payDate):''],['Payment Mode',payMode],['Cheque Number',chequeNo]].forEach(([l,val],i)=>{
+  [['Payment Date',d.payDate?fmt(d.payDate):''],['Payment Mode',d.payMode],['Cheque Number',d.chequeNo]].forEach(([l,val],i)=>{
     doc.setFont('helvetica','bold');doc.text(l,margin+2,y+i*5.5);
     doc.setFont('helvetica','normal');doc.text(': '+(val||''),margin+32,y+i*5.5);
   });
@@ -3880,10 +3946,10 @@ window.generateSettlementPDF=async function(){
   doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text('NET PAY',pageW/2+42,y,{align:'center'});
   y+=9;
   doc.setFont('helvetica','bold');doc.setFontSize(11);
-  doc.text('AED '+net.toLocaleString('en-AE',{minimumFractionDigits:2}),pageW/2+42,y,{align:'center'});
+  doc.text('AED '+d.net.toLocaleString('en-AE',{minimumFractionDigits:2}),pageW/2+42,y,{align:'center'});
   y+=8;
   doc.setFont('helvetica','italic');doc.setFontSize(9);doc.setTextColor(60,60,60);
-  doc.text(numToWords(net)+' Dirhams only',pageW/2+42,y,{align:'center'});
+  doc.text(numToWords(d.net)+' Dirhams only',pageW/2+42,y,{align:'center'});
   y+=20;
 
   const sigY=y;
@@ -3906,19 +3972,50 @@ window.generateSettlementPDF=async function(){
     doc.text(c.title,cx,sigY+20,{align:'center'});
     doc.setFontSize(7.5);doc.setTextColor(30,30,30);doc.setFont('helvetica','normal');
   });
+  return doc;
+}
+window.downloadSettlementOnly=async function(){
+  const d=getSettlementData();
+  if(!d)return;
+  const doc=await buildSettlementPDF(d);
+  doc.save(`Final_Settlement_DRAFT_${(d.e.name||'Employee').replace(/\s+/g,'_')}.pdf`);
+};
+window.finalizeSettlementAndAddToLeavers=async function(){
+  const d=getSettlementData();
+  if(!d)return;
+  if(!confirm(`This will finalize the settlement for ${d.e.name} and add them to the Leavers register with Net Pay AED ${d.net.toLocaleString()}. Continue?`))return;
+  const doc=await buildSettlementPDF(d);
+  doc.save(`Final_Settlement_${(d.e.name||'Employee').replace(/\s+/g,'_')}.pdf`);
 
-  const refNo='FS-'+(e.empId||stSettlementEmpKey).toString().slice(-6)+'-'+Date.now().toString().slice(-4);
-  doc.save(`Final_Settlement_${(e.name||'Employee').replace(/\s+/g,'_')}.pdf`);
-
+  const refNo='FS-'+(d.e.empId||stSettlementEmpKey).toString().slice(-6)+'-'+Date.now().toString().slice(-4);
   try{
     await set(push(ref(db,'finalSettlements')),{
-      empKey:stSettlementEmpKey,empName:e.name,endDate:v('stEndDate'),
-      totalEarnings:totalEarn,totalDeductions:totalDeduct,netPay:net,
-      earnings,deductions,payDate,payMode,chequeNo,
+      empKey:stSettlementEmpKey,empName:d.e.name,endDate:d.endDate,
+      totalEarnings:d.totalEarn,totalDeductions:d.totalDeduct,netPay:d.net,
+      earnings:d.earnings,deductions:d.deductions,payDate:d.payDate,payMode:d.payMode,chequeNo:d.chequeNo,
       generatedBy:adminName,refNo,ts:Date.now()
     });
-    logAudit('Final Settlement Generated',e.name,'Net Pay: AED '+net.toLocaleString());
+    logAudit('Final Settlement Finalized',d.e.name,'Net Pay: AED '+d.net.toLocaleString());
   }catch(err){}
+
+  // Add/update the Leavers register entry with this settlement's exact figures
+  const gratuityRow=d.earnings.find(r=>r.desc.toLowerCase().includes('gratuity'));
+  const leaverData={
+    name:d.e.name,empId:d.e.empId,dept:d.e.dept,desig:d.e.desig,
+    entity:d.e.entity,nationality:d.e.nationality,joinDate:d.e.join,
+    endDate:d.endDate,exitType:d.e.exitType||'',gratuity:gratuityRow?gratuityRow.amount.toFixed(2):'0',
+    settle:d.net.toFixed(2),rehire:d.e.rehire||'',reason:d.e.exitReason||'',
+    addedBy:adminName,ts:Date.now(),sourceEmpKey:stSettlementEmpKey,autoSynced:true,fromSettlement:true
+  };
+  try{
+    const existingLeaverEntry=Object.entries(DB.leavers||{}).find(([k,l])=>l.sourceEmpKey===stSettlementEmpKey);
+    if(existingLeaverEntry)await set(ref(db,'leavers/'+existingLeaverEntry[0]),{...existingLeaverEntry[1],...leaverData});
+    else await set(push(ref(db,'leavers')),leaverData);
+    logAudit('Added to Leavers from Settlement',d.e.name,'Settlement: AED '+d.net.toLocaleString());
+    alert(`Done. ${d.e.name}'s settlement has been finalized, downloaded, and added to the Leavers register.`);
+  }catch(err){
+    alert('Settlement was downloaded and saved, but adding to Leavers failed — please add manually. ('+err.message+')');
+  }
 };
 
 // ── CEO MESSAGE ───────────────────────────────────────────────────────────────
