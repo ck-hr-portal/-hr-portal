@@ -282,6 +282,30 @@ tr:hover td{background:#fafbfc;}
 </div>
 
 <!-- LEAVE REQUEST FORM MODAL -->
+<div class="modal-overlay" id="pendingHireModal">
+  <div class="modal">
+    <div class="modal-header"><h3>Add New Candidate (Yet to Join)</h3><span class="modal-close" onclick="closeModal('pendingHireModal')">&times;</span></div>
+    <p style="font-size:12px;color:#888;margin-bottom:12px;">Just enough detail to generate an offer letter. Once they actually join, add them properly via Employee Records — this list is only for people who haven't started yet.</p>
+    <input type="hidden" id="phEditKey" value="">
+    <div class="form-grid">
+      <div class="form-group"><label>Full Name *</label><input type="text" id="phName"></div>
+      <div class="form-group"><label>Designation *</label><input type="text" id="phDesig"></div>
+      <div class="form-group"><label>Department *</label><input type="text" id="phDept"></div>
+      <div class="form-group"><label>Entity *</label><select id="phEntity"><option>CK Architecture Interiors</option><option>CKC Building Contracting</option></select></div>
+      <div class="form-group"><label>Nationality</label><input type="text" id="phNationality"></div>
+      <div class="form-group"><label>Expected Join Date</label><input type="date" id="phJoin"></div>
+      <div class="form-group"><label>Basic Salary (AED)</label><input type="number" id="phBasic"></div>
+      <div class="form-group"><label>Gross Salary (AED)</label><input type="number" id="phGross"></div>
+      <div class="form-group"><label>Housing Allowance</label><input type="number" id="phHouse"></div>
+      <div class="form-group"><label>Transport Allowance</label><input type="number" id="phTransport"></div>
+      <div class="form-group"><label>Other Allowances</label><input type="number" id="phOther"></div>
+      <div class="form-group"><label>Mobile</label><input type="text" id="phMobile"></div>
+      <div class="form-group"><label>Email</label><input type="text" id="phEmail"></div>
+    </div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="savePendingHire()">Save Candidate</button></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="adjustLeaveModal">
   <div class="modal">
     <div class="modal-header"><h3>Adjust Approved Leave</h3><span class="modal-close" onclick="closeModal('adjustLeaveModal')">&times;</span></div>
@@ -777,22 +801,35 @@ tr:hover td{background:#fafbfc;}
         <div class="page-header"><h2>📄 Document Generator</h2><p>Generate professional HR letters and certificates directly from employee records.</p></div>
 
         <div class="card">
+          <div class="form-group" style="margin-bottom:14px;">
+            <label>Who is this document for?</label>
+            <div style="display:flex;gap:18px;margin-top:4px;">
+              <label style="font-weight:400;font-size:13px;"><input type="radio" name="docSourceMode" value="existing" checked onchange="switchDocSourceMode()"> Existing Employee</label>
+              <label style="font-weight:400;font-size:13px;"><input type="radio" name="docSourceMode" value="pending" onchange="switchDocSourceMode()"> New Staff — Yet to Join</label>
+            </div>
+          </div>
           <div class="form-grid">
-            <div class="form-group"><label>Select Employee</label>
+            <div class="form-group" id="docEmpSelWrap"><label>Select Employee</label>
               <select id="docEmpSel" onclick="if(this.options.length<=1)buildEmpDropdown('docEmpSel')" onchange="onDocEmpChange()">
                 <option value="">— Select Employee —</option>
               </select>
             </div>
+            <div class="form-group" id="docPendingSelWrap" style="display:none;"><label>Select Candidate</label>
+              <select id="docPendingSel" onchange="onDocEmpChange()">
+                <option value="">— Select Candidate —</option>
+              </select>
+              <p style="font-size:11px;color:#888;margin-top:4px;"><a href="#" onclick="openPendingHireModal();return false;">+ Add a new candidate</a> not in this list yet.</p>
+            </div>
             <div class="form-group"><label>Select Document Type</label>
               <select id="docType" onchange="updateDocForm()">
                 <option value="">— Select —</option>
-                <option value="salary">Salary Certificate</option>
-                <option value="experience">Experience Certificate</option>
-                <option value="noc">NOC Letter</option>
-                <option value="warning">Warning Letter</option>
-                <option value="termination">Termination Letter</option>
-                <option value="promotion">Promotion Letter</option>
-                <option value="employment">Employment Certificate</option>
+                <option value="salary" class="docOptExisting">Salary Certificate</option>
+                <option value="experience" class="docOptExisting">Experience Certificate</option>
+                <option value="noc" class="docOptExisting">NOC Letter</option>
+                <option value="warning" class="docOptExisting">Warning Letter</option>
+                <option value="termination" class="docOptExisting">Termination Letter</option>
+                <option value="promotion" class="docOptExisting">Promotion Letter</option>
+                <option value="employment" class="docOptExisting">Employment Certificate</option>
                 <option value="offer_labour">Offer Letter — Labour Category</option>
                 <option value="offer_whitecollar">Offer Letter / Contract — White Collar</option>
               </select>
@@ -2222,7 +2259,7 @@ function parseEmpSelect(val){
 
 const ref_db=(path)=>ref(db,path);
 function initListeners(){
-  const tables=['employees','leave','salary','loans','repayments','assets','holidays','announcements','policies','audit','flightAllowance','leavers','leaveAdjustments','docHistory','leaveRequests','ceoMessage','orgChart'];
+  const tables=['employees','leave','salary','loans','repayments','assets','holidays','announcements','policies','audit','flightAllowance','leavers','leaveAdjustments','docHistory','leaveRequests','ceoMessage','orgChart','pendingHires'];
   tables.forEach(t=>{
     onValue(ref(db,t),snap=>{
       DB[t]=snap.val()||{};
@@ -2716,11 +2753,44 @@ window.saveEmp=function(){
   if(!data.name){alert('Employee name required');return;}
   const key=editKeyForSave;
   const op=key?set(ref(db,'employees/'+key),data):set(push(ref(db,'employees')),data);
-  op.then(()=>{
+  op.then(async()=>{
     logAudit(key?'Edit Employee':'Add Employee',data.name,`ID:${data.empId} Dept:${data.dept}`);
+    if(key&&data.status==='Inactive')await syncToLeaversIfInactive(key,data);
     closeModal('empModal');showAlert('emp-alert',`Employee ${key?'updated':'added'} successfully!`);
   });
 };
+// When an employee's status is set to Inactive, automatically create or update their
+// matching Leavers register entry from the Exit Details already filled in — no separate
+// manual re-entry needed. Safe to call repeatedly: it updates the same linked record
+// rather than creating duplicates, so later edits to exit details stay in sync too.
+async function syncToLeaversIfInactive(empKey,data){
+  let gratuity='0';
+  if(data.join&&data.basicSalary){
+    const asOf=data.exitDate?new Date(data.exitDate):new Date();
+    const years=(asOf-new Date(data.join))/(365.25*86400000);
+    if(years>=1){
+      const basic=parseFloat(data.basicSalary||0);
+      const dailyRate=basic*12/365;
+      const eosb=years<=5?(dailyRate*21*years):(dailyRate*21*5+dailyRate*30*(years-5));
+      gratuity=eosb.toFixed(2);
+    }
+  }
+  const leaverData={
+    name:data.name,empId:data.empId,dept:data.dept,desig:data.desig,
+    entity:data.entity,nationality:data.nationality,joinDate:data.join,
+    endDate:data.exitDate||'',exitType:data.exitType||'',gratuity,
+    settle:data.settle||'',rehire:data.rehire||'',reason:data.exitReason||'',
+    addedBy:adminName,ts:Date.now(),sourceEmpKey:empKey,autoSynced:true
+  };
+  const existingLeaverEntry=Object.entries(DB.leavers||{}).find(([k,l])=>l.sourceEmpKey===empKey);
+  if(existingLeaverEntry){
+    await set(ref(db,'leavers/'+existingLeaverEntry[0]),{...existingLeaverEntry[1],...leaverData});
+    logAudit('Leavers Record Auto-Updated',data.name,'Synced from employee exit details');
+  }else{
+    await set(push(ref(db,'leavers')),leaverData);
+    logAudit('Auto-Added to Leavers',data.name,'Status changed to Inactive');
+  }
+}
 window.delEmp=function(key){
   if(!confirm('Delete this employee?'))return;
   const name=DB.employees[key]?.name||key;
@@ -3778,11 +3848,57 @@ const docPurposeOptions=['Banking','Loan Application','Visa/Immigration','Embass
 let currentDocMeta=null; // {refNo, type, emp, key} set at preview time, reused at finalize time
 
 function currentDocEmp(){
+  const mode=document.querySelector('input[name="docSourceMode"]:checked')?.value||'existing';
+  if(mode==='pending'){
+    const val=v('docPendingSel');if(!val)return null;
+    const key=val.split('|')[0];
+    const emp=DB.pendingHires[key];
+    return emp?{key,emp,isPending:true}:null;
+  }
   const val=v('docEmpSel');if(!val)return null;
   const key=val.split('|')[0];
   const emp=DB.employees[key];
   return emp?{key,emp}:null;
 }
+window.switchDocSourceMode=function(){
+  const mode=document.querySelector('input[name="docSourceMode"]:checked').value;
+  document.getElementById('docEmpSelWrap').style.display=mode==='existing'?'block':'none';
+  document.getElementById('docPendingSelWrap').style.display=mode==='pending'?'block':'none';
+  document.querySelectorAll('.docOptExisting').forEach(o=>o.style.display=mode==='existing'?'block':'none');
+  sv('docEmpSel','');sv('docPendingSel','');sv('docType','');
+  document.getElementById('docFormArea').style.display='none';
+  document.getElementById('docPreviewCard').style.display='none';
+  document.getElementById('docRecentWrap').style.display='none';
+  if(mode==='pending')buildPendingHireDropdown();
+};
+function buildPendingHireDropdown(){
+  const sel=document.getElementById('docPendingSel');
+  const candidates=Object.entries(DB.pendingHires||{}).sort((a,b)=>a[1].name?.localeCompare(b[1].name||'')||0);
+  sel.innerHTML='<option value="">— Select Candidate —</option>'+
+    candidates.map(([k,c])=>`<option value="${k}||${c.name||''}">${c.name||''} — ${c.desig||''}</option>`).join('');
+}
+window.openPendingHireModal=function(){
+  sv('phEditKey','');sv('phName','');sv('phDesig','');sv('phDept','');sv('phEntity','CK Architecture Interiors');
+  sv('phNationality','');sv('phJoin','');sv('phBasic','');sv('phGross','');sv('phHouse','');sv('phTransport','');
+  sv('phOther','');sv('phMobile','');sv('phEmail','');
+  document.getElementById('pendingHireModal').classList.add('open');
+};
+window.savePendingHire=async function(){
+  const data={
+    name:v('phName'),desig:v('phDesig'),dept:v('phDept'),entity:v('phEntity'),
+    nationality:v('phNationality'),join:v('phJoin'),
+    basicSalary:v('phBasic'),grossSalary:v('phGross'),house:v('phHouse'),
+    transport:v('phTransport'),otherAllowances:v('phOther'),
+    mobile:v('phMobile'),email:v('phEmail'),addedBy:adminName,ts:Date.now()
+  };
+  if(!data.name||!data.desig||!data.dept){alert('Name, Designation and Department are required.');return;}
+  const key=v('phEditKey');
+  await (key?set(ref(db,'pendingHires/'+key),data):set(push(ref(db,'pendingHires')),data));
+  logAudit(key?'Edit Candidate':'Add Candidate',data.name,`${data.desig}, ${data.dept}`);
+  closeModal('pendingHireModal');
+  buildPendingHireDropdown();
+  alert('Candidate saved. You can now select them above to generate their offer letter.');
+};
 function entityFullName(emp){
   return (emp.entity&&emp.entity.includes('Building'))?'CKC BUILDING CONTRACTING LLC':'CK ARCHITECTURE INTERIORS LLC';
 }
