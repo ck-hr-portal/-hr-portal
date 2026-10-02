@@ -257,6 +257,14 @@ tr:hover td{background:#fafbfc;}
       </div>
     </div>
 
+    <div class="card" id="empOrgChartCard" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div class="card-title" style="margin:0;">🏢 Organizational Chart</div>
+        <span id="empOrgChartLastUpdated" style="font-size:12px;color:#888;font-weight:600;"></span>
+      </div>
+      <div id="empOrgChartDisplay" style="text-align:center;"></div>
+    </div>
+
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
       <div class="card">
         <div class="card-title">📢 Company Announcements</div>
@@ -374,6 +382,7 @@ tr:hover td{background:#fafbfc;}
       <div class="nav-item" id="navPortalAccess" onclick="showPage('portalaccess',this)"><span class="icon">🔑</span>Portal Access</div>
       <div class="nav-item" id="navMolImport" onclick="showPage('molimport',this)"><span class="icon">📋</span>MOL Salary Import</div>
       <div class="nav-item" id="navPolicyImport" onclick="showPage('policyimport',this)"><span class="icon">📚</span>HR Policy Import</div>
+      <div class="nav-item" onclick="showPage('orgchart',this)"><span class="icon">🏢</span>Org Chart</div>
       <div class="nav-item" id="navLeaveApprovals" onclick="showPage('leaveapprovals',this)"><span class="icon">✅</span>Leave Approvals</div>
       <div class="nav-section">Reports</div>
       <div class="nav-item" onclick="showPage('reports',this)"><span class="icon">📈</span>Reports &amp; Downloads</div>
@@ -824,6 +833,31 @@ tr:hover td{background:#fafbfc;}
           </div>
         </div>
       </div>
+      <div id="page-orgchart" class="page">
+        <div class="page-header"><h2>🏢 Organizational Chart</h2><p>Visible to Dev, Darleendy, Cem, Kashif, and Arlenne only.</p></div>
+        <div class="card" id="orgChartUploadCard">
+          <div class="card-title">Upload Latest Chart</div>
+          <p style="font-size:12px;color:#888;margin-bottom:8px;">Upload a PNG, JPG or PDF of the current org chart whenever the structure changes. "Last Updated" is set automatically from today's date — no need to edit it into the file yourself.</p>
+          <input type="file" id="orgChartFile" accept="image/*,application/pdf" style="margin-bottom:10px;">
+          <div class="btn-row"><button class="btn btn-primary" onclick="saveOrgChart()">Upload New Version</button></div>
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div class="card-title" style="margin:0;">Current Chart</div>
+            <span id="orgChartLastUpdated" style="font-size:12px;color:#888;font-weight:600;"></span>
+          </div>
+          <div id="orgChartDisplay" style="text-align:center;"></div>
+        </div>
+        <div class="card" id="orgChartNotesCard">
+          <div class="card-title">📝 Change Notes</div>
+          <p style="font-size:12px;color:#888;margin-bottom:8px;">Quick notes on changes not yet reflected in the chart above — leavers, new hires, transfers, promotions — so nothing gets lost before the next redraw.</p>
+          <div id="orgChartAddNote" style="display:flex;gap:8px;margin-bottom:12px;">
+            <input type="text" id="orgChartNoteText" placeholder="e.g. Kashif promoted to Senior PRO — not yet reflected above" style="flex:1;">
+            <button class="btn btn-primary" onclick="addOrgChartNote()">Add Note</button>
+          </div>
+          <div id="orgChartNotesList"></div>
+        </div>
+      </div>
       <div id="page-policyimport" class="page">
         <div class="page-header"><h2>📚 HR Policy Import</h2><p>One-time import of the Basic HR Policy handbook, split into 12 separate policies for easier reading. Review and uncheck anything you don't want published, then confirm.</p></div>
         <div class="card">
@@ -988,6 +1022,9 @@ tr:hover td{background:#fafbfc;}
         <div class="form-group"><label>Linked Admin Login (only if this person IS one of the 4 admin accounts)</label>
           <select id="eLinkedAdmin"><option value="">— None —</option><option value="dev">Dev</option><option value="darleendy">Darleendy</option><option value="cem">Cem</option><option value="kashif">Kashif</option></select>
           <p style="font-size:11px;color:#888;margin-top:3px;">Lets that admin see and act on "My Approvals" directly from their normal login, when set as someone's Line Manager or Additional Approver.</p>
+        </div>
+        <div class="form-group"><label><input type="checkbox" id="eCanViewOrgChart"> Can view the Org Chart (self-service portal)</label>
+          <p style="font-size:11px;color:#888;margin-top:3px;">For specific named staff who need it (e.g. for document filing), outside the admin/leadership accounts.</p>
         </div>
         <div class="form-group"><label>Status</label><select id="eStatus"><option>Active</option><option>Inactive</option><option>On Probation</option><option>Unpaid Leave</option></select></div>
         <div class="form-group form-full"><label>Remarks</label><textarea id="eRemarks"></textarea></div>
@@ -1569,7 +1606,7 @@ function applyCEOMode(){
   // Employee Portal Access (credential management), which stays admin-only
   // regardless of role, per explicit instruction.
   const style=document.createElement('style');
-  style.textContent=`#navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #annFormCard, #polFormCard, #ceoMsgFormCard { display: none !important; }`;
+  style.textContent=`#navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }`;
   document.head.appendChild(style);
   document.getElementById('syncStatus').textContent='● CEO — Full View, Read-Only';
 }
@@ -1609,6 +1646,18 @@ function initEmployeeListeners(empKey){
   });
   onValue(ref(db,'announcements'),snap=>{DB.announcements=snap.val()||{};renderEmpAnnouncements();});
   onValue(ref(db,'policies'),snap=>{DB.policies=snap.val()||{};renderEmpPolicies();});
+  onValue(ref(db,'orgChart'),snap=>{
+    const m=snap.val()||{};
+    const e=DB.employees[currentEmpKey];
+    const card=document.getElementById('empOrgChartCard');
+    if(!card)return;
+    if(!e||!e.canViewOrgChart||!m.fileBase64){card.style.display='none';return;}
+    card.style.display='block';
+    document.getElementById('empOrgChartLastUpdated').textContent=m.uploadedAt?('Last Updated: '+new Date(m.uploadedAt).toLocaleDateString('en-AE',{month:'long',year:'numeric'})):'';
+    const dispEl=document.getElementById('empOrgChartDisplay');
+    if(m.fileType==='application/pdf')dispEl.innerHTML=`<iframe src="${m.fileBase64}" style="width:100%;height:600px;border:1px solid #e0e0e0;border-radius:8px;"></iframe>`;
+    else dispEl.innerHTML=`<img src="${m.fileBase64}" style="max-width:100%;border-radius:8px;border:1px solid #e0e0e0;">`;
+  });
   onValue(ref(db,'ceoMessage'),snap=>{
     const m=snap.val()||{};
     const card=document.getElementById('empCEOMsgCard');
@@ -2074,7 +2123,7 @@ function applyPROMode(){
   const style=document.createElement('style');
   style.textContent=`
     .nav-item[onclick*="'loans'"] { display: none !important; }
-    #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #annFormCard, #polFormCard, #ceoMsgFormCard { display: none !important; }
+    #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }
     button[onclick*="openEmpModal"], button[onclick="delEmp"], button[onclick*="delEmp("] { display: none !important; }
   `;
   document.head.appendChild(style);
@@ -2150,7 +2199,7 @@ function parseEmpSelect(val){
 
 const ref_db=(path)=>ref(db,path);
 function initListeners(){
-  const tables=['employees','leave','salary','loans','repayments','assets','holidays','announcements','policies','audit','flightAllowance','leavers','leaveAdjustments','docHistory','leaveRequests','ceoMessage'];
+  const tables=['employees','leave','salary','loans','repayments','assets','holidays','announcements','policies','audit','flightAllowance','leavers','leaveAdjustments','docHistory','leaveRequests','ceoMessage','orgChart'];
   tables.forEach(t=>{
     onValue(ref(db,t),snap=>{
       DB[t]=snap.val()||{};
@@ -2179,6 +2228,7 @@ function initListeners(){
         if(currentRole==='admin'&&typeof syncApprovedLeaveRequests==='function')syncApprovedLeaveRequests();
       }
       if(t==='ceoMessage'&&typeof loadCEOMessageForm==='function')loadCEOMessageForm();
+      if(t==='orgChart'&&typeof renderOrgChart==='function')renderOrgChart();
     });
   });
   document.getElementById('syncStatus').textContent='● Live';
@@ -2215,6 +2265,7 @@ window.showPage=function(page,el){
   if(page==='portalaccess')renderPortalAccess();
   if(page==='policyimport')renderPolicyImportList();
   if(page==='leaveapprovals')renderHRReviewQueue();
+  if(page==='orgchart')renderOrgChart();
 };
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
@@ -2582,6 +2633,7 @@ window.editEmp=function(key){
   buildEmpDropdown('eLineManager');selectEmpByKey('eLineManager',e.lineManagerKey);
   buildEmpDropdown('eAdditionalApprover');selectEmpByKey('eAdditionalApprover',e.additionalApproverKey);
   sv('eLinkedAdmin',e.linkedAdminLogin||'');
+  document.getElementById('eCanViewOrgChart').checked=!!e.canViewOrgChart;
   document.getElementById('eNeedsAdditionalApproval').checked=!!e.needsAdditionalApproval;
   document.getElementById('eAdditionalApproverWrap').style.display=e.needsAdditionalApproval?'block':'none';
   sv('ePassport',e.passport);sv('eVisa',e.visa);sv('eEid',e.eid);sv('eLab',e.lab);
@@ -2618,6 +2670,7 @@ window.saveEmp=function(){
     additionalApproverKey:parseEmpSelect(v('eAdditionalApprover')).key,
     additionalApproverName:parseEmpSelect(v('eAdditionalApprover')).name,
     linkedAdminLogin:v('eLinkedAdmin'),
+    canViewOrgChart:document.getElementById('eCanViewOrgChart').checked,
     passport:v('ePassport'),visa:v('eVisa'),eid:v('eEid'),lab:v('eLab'),
     passExp:v('ePassExp'),visaExp:v('eVisaExp'),eidExp:v('eEidExp'),labExp:v('eLabExp'),medInsurance:v('eMed'),
     dependentsCount:v('eDepCount'),
@@ -3424,6 +3477,54 @@ function renderHolidays(){
     <button class="btn btn-sm btn-danger" onclick="remove(ref(window._db,'holidays/${k}'))">✕</button>
   </div>`).join(''):'<div class="empty-state"><p>No holidays added.</p></div>';
   window._db=db;
+}
+
+// ── ORG CHART ─────────────────────────────────────────────────────────────────
+window.saveOrgChart=async function(){
+  const fileInput=document.getElementById('orgChartFile');
+  if(!fileInput.files||!fileInput.files[0]){alert('Please choose a file first.');return;}
+  const file=fileInput.files[0];
+  if(file.size>2*1024*1024){alert('File must be under 2MB. Try exporting as a compressed image (PNG/JPG) if your PDF is large.');return;}
+  const fileBase64=await new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(file);});
+  const existing=DB.orgChart||{};
+  await set(ref(db,'orgChart'),{fileBase64,fileType:file.type,uploadedAt:Date.now(),uploadedBy:adminName,notes:existing.notes||{}});
+  logAudit('Org Chart Updated','',adminName+' uploaded a new version');
+  fileInput.value='';
+  alert('Org chart updated.');
+};
+window.addOrgChartNote=async function(){
+  const text=v('orgChartNoteText');
+  if(!text){alert('Please enter a note first.');return;}
+  const noteRef=push(ref(db,'orgChart/notes'));
+  await set(noteRef,{text,by:adminName,ts:Date.now()});
+  logAudit('Org Chart Note Added','',text);
+  sv('orgChartNoteText','');
+};
+window.deleteOrgChartNote=async function(key){
+  if(!confirm('Delete this note?'))return;
+  await remove(ref(db,'orgChart/notes/'+key));
+};
+function renderOrgChart(){
+  const m=DB.orgChart||{};
+  const stampEl=document.getElementById('orgChartLastUpdated');
+  const dispEl=document.getElementById('orgChartDisplay');
+  if(stampEl){
+    stampEl.textContent=m.uploadedAt?('Last Updated: '+new Date(m.uploadedAt).toLocaleDateString('en-AE',{month:'long',year:'numeric'})):'';
+  }
+  if(dispEl){
+    if(!m.fileBase64){dispEl.innerHTML='<div class="empty-state"><p>No chart uploaded yet.</p></div>';}
+    else if(m.fileType==='application/pdf'){dispEl.innerHTML=`<iframe src="${m.fileBase64}" style="width:100%;height:700px;border:1px solid #e0e0e0;border-radius:8px;"></iframe>`;}
+    else{dispEl.innerHTML=`<img src="${m.fileBase64}" style="max-width:100%;border-radius:8px;border:1px solid #e0e0e0;">`;}
+  }
+  const notesList=document.getElementById('orgChartNotesList');
+  if(notesList){
+    const canManage=currentRole==='admin';
+    const notes=Object.entries(m.notes||{}).sort((a,b)=>b[1].ts-a[1].ts);
+    notesList.innerHTML=notes.length?notes.map(([k,n])=>`<div style="padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px;display:flex;justify-content:space-between;">
+      <div>${esc(n.text)} <span style="color:#888;font-size:11px;">— ${esc(n.by)}, ${new Date(n.ts).toLocaleDateString()}</span></div>
+      ${canManage?`<button class="btn btn-sm btn-danger" onclick="deleteOrgChartNote('${k}')">✕</button>`:''}
+    </div>`).join(''):'<div class="empty-state"><p>No pending change notes.</p></div>';
+  }
 }
 
 // ── CEO MESSAGE ───────────────────────────────────────────────────────────────
