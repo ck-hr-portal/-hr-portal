@@ -2659,7 +2659,13 @@ window.editEmp=function(key){
 };
 
 window.saveEmp=function(){
+  const editKeyForSave=document.getElementById('eEditKey').value;
+  // Start from the existing record (if any) so fields this form doesn't manage — Portal
+  // Access username/password/enabled being the critical ones — survive every save, not
+  // just the fields listed below. Only an explicit admin action should ever change those.
+  const existingRecord=editKeyForSave?(DB.employees[editKeyForSave]||{}):{};
   const data={
+    ...existingRecord,
     empId:v('eId'),name:v('eName'),dept:v('eDept'),desig:v('eDesig'),entity:v('eEntity'),
     nationality:v('eNat'),gender:v('eGender'),dob:v('eDob'),join:v('eJoin'),
     contract:v('eContract'),grade:v('eGrade'),site:v('eSite'),mobile:v('eMobile'),
@@ -2685,7 +2691,7 @@ window.saveEmp=function(){
     family:familyRows
   };
   if(!data.name){alert('Employee name required');return;}
-  const key=document.getElementById('eEditKey').value;
+  const key=editKeyForSave;
   const op=key?set(ref(db,'employees/'+key),data):set(push(ref(db,'employees')),data);
   op.then(()=>{
     logAudit(key?'Edit Employee':'Add Employee',data.name,`ID:${data.empId} Dept:${data.dept}`);
