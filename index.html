@@ -260,7 +260,10 @@ tr:hover td{background:#fafbfc;}
     <div class="card" id="empOrgChartCard" style="display:none;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
         <div class="card-title" style="margin:0;">🏢 Organizational Chart</div>
-        <span id="empOrgChartLastUpdated" style="font-size:12px;color:#888;font-weight:600;"></span>
+        <span style="display:flex;align-items:center;gap:12px;">
+          <span id="empOrgChartLastUpdated" style="font-size:12px;color:#888;font-weight:600;"></span>
+          <a id="empOrgChartPdfDownloadLink" style="display:none;font-size:12px;" class="btn btn-sm" href="#" download="CK_CKC_Org_Chart.pdf">📄 Download PDF</a>
+        </span>
       </div>
       <div id="empOrgChartDisplay" style="text-align:center;"></div>
     </div>
@@ -837,14 +840,21 @@ tr:hover td{background:#fafbfc;}
         <div class="page-header"><h2>🏢 Organizational Chart</h2><p>Visible to Dev, Darleendy, Cem, Kashif, and Arlenne only.</p></div>
         <div class="card" id="orgChartUploadCard">
           <div class="card-title">Upload Latest Chart</div>
-          <p style="font-size:12px;color:#888;margin-bottom:8px;">Upload a PNG, JPG or PDF of the current org chart whenever the structure changes. "Last Updated" is set automatically from today's date — no need to edit it into the file yourself.</p>
+          <p style="font-size:12px;color:#888;margin-bottom:8px;">Upload a PNG or JPG for on-screen viewing — this is what displays below. "Last Updated" is set automatically from today's date — no need to edit it into the file yourself.</p>
           <input type="file" id="orgChartFile" accept="image/*,application/pdf" style="margin-bottom:10px;">
           <div class="btn-row"><button class="btn btn-primary" onclick="saveOrgChart()">Upload New Version</button></div>
+          <div style="border-top:1px dashed #ddd;margin:16px 0 12px;"></div>
+          <p style="font-size:12px;color:#888;margin-bottom:8px;"><strong>Separately</strong>, upload a PDF version for people who need to print it or zoom in on fine detail without any blur — this is offered as a "Download PDF" button, not shown inline.</p>
+          <input type="file" id="orgChartPdfFile" accept="application/pdf" style="margin-bottom:10px;">
+          <div class="btn-row"><button class="btn btn-primary" onclick="saveOrgChartPdf()">Upload PDF for Download</button></div>
         </div>
         <div class="card">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
             <div class="card-title" style="margin:0;">Current Chart</div>
-            <span id="orgChartLastUpdated" style="font-size:12px;color:#888;font-weight:600;"></span>
+            <span style="display:flex;align-items:center;gap:12px;">
+              <span id="orgChartLastUpdated" style="font-size:12px;color:#888;font-weight:600;"></span>
+              <a id="orgChartPdfDownloadLink" style="display:none;font-size:12px;" class="btn btn-sm" href="#" download="CK_CKC_Org_Chart.pdf">📄 Download PDF</a>
+            </span>
           </div>
           <div id="orgChartDisplay" style="text-align:center;"></div>
         </div>
@@ -1633,6 +1643,11 @@ function renderEmpOrgChart(){
   const dispEl=document.getElementById('empOrgChartDisplay');
   if(m.fileType==='application/pdf')dispEl.innerHTML=`<iframe src="${m.fileBase64}" style="width:100%;height:600px;border:1px solid #e0e0e0;border-radius:8px;"></iframe>`;
   else dispEl.innerHTML=`<img src="${m.fileBase64}" style="max-width:100%;border-radius:8px;border:1px solid #e0e0e0;">`;
+  const pdfLink=document.getElementById('empOrgChartPdfDownloadLink');
+  if(pdfLink){
+    if(m.pdfBase64){pdfLink.href=m.pdfBase64;pdfLink.style.display='inline-block';}
+    else pdfLink.style.display='none';
+  }
 }
 function initEmployeeListeners(empKey){
   onValue(ref(db,'employees/'+empKey),snap=>{
@@ -3501,10 +3516,23 @@ window.saveOrgChart=async function(){
   if(file.size>2*1024*1024){alert('File must be under 2MB. Try exporting as a compressed image (PNG/JPG) if your PDF is large.');return;}
   const fileBase64=await new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(file);});
   const existing=DB.orgChart||{};
-  await set(ref(db,'orgChart'),{fileBase64,fileType:file.type,uploadedAt:Date.now(),uploadedBy:adminName,notes:existing.notes||{}});
+  await set(ref(db,'orgChart'),{...existing,fileBase64,fileType:file.type,uploadedAt:Date.now(),uploadedBy:adminName});
   logAudit('Org Chart Updated','',adminName+' uploaded a new version');
   fileInput.value='';
   alert('Org chart updated.');
+};
+window.saveOrgChartPdf=async function(){
+  const fileInput=document.getElementById('orgChartPdfFile');
+  if(!fileInput.files||!fileInput.files[0]){alert('Please choose a PDF first.');return;}
+  const file=fileInput.files[0];
+  if(file.type!=='application/pdf'){alert('Please choose a PDF file.');return;}
+  if(file.size>3*1024*1024){alert('File must be under 3MB. Try re-exporting the PDF at a standard (not print/press) quality setting.');return;}
+  const pdfBase64=await new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(file);});
+  const existing=DB.orgChart||{};
+  await set(ref(db,'orgChart'),{...existing,pdfBase64,pdfUploadedAt:Date.now(),pdfUploadedBy:adminName});
+  logAudit('Org Chart PDF Updated','',adminName+' uploaded a downloadable PDF');
+  fileInput.value='';
+  alert('PDF for download updated.');
 };
 window.addOrgChartNote=async function(){
   const text=v('orgChartNoteText');
@@ -3529,6 +3557,11 @@ function renderOrgChart(){
     if(!m.fileBase64){dispEl.innerHTML='<div class="empty-state"><p>No chart uploaded yet.</p></div>';}
     else if(m.fileType==='application/pdf'){dispEl.innerHTML=`<iframe src="${m.fileBase64}" style="width:100%;height:700px;border:1px solid #e0e0e0;border-radius:8px;"></iframe>`;}
     else{dispEl.innerHTML=`<img src="${m.fileBase64}" style="max-width:100%;border-radius:8px;border:1px solid #e0e0e0;">`;}
+  }
+  const pdfLink=document.getElementById('orgChartPdfDownloadLink');
+  if(pdfLink){
+    if(m.pdfBase64){pdfLink.href=m.pdfBase64;pdfLink.style.display='inline-block';}
+    else pdfLink.style.display='none';
   }
   const notesList=document.getElementById('orgChartNotesList');
   if(notesList){
