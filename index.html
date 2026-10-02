@@ -2381,6 +2381,9 @@ window.showPage=function(page,el){
   if(page==='docgen'){
     setTimeout(()=>buildEmpDropdown('docEmpSel'),100);
   }
+  if(page==='settlement'){
+    setTimeout(()=>buildEmpDropdown('stEmpSel'),100);
+  }
   if(page==='portalaccess')renderPortalAccess();
   if(page==='policyimport')renderPolicyImportList();
   if(page==='leaveapprovals')renderHRReviewQueue();
