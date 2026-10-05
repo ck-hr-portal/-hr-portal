@@ -1115,6 +1115,7 @@ tr:hover td{background:#fafbfc;}
       <button class="tab-btn" onclick="empTab('salary',this)">Salary</button>
       <button class="tab-btn" onclick="empTab('family',this)">Family / Dependents</button>
       <button class="tab-btn" onclick="empTab('links',this)">Doc Links</button>
+      <button class="tab-btn" id="empPensionTabBtn" style="display:none;" onclick="empTab('pension',this)">Pension (GPSSA)</button>
       <button class="tab-btn" onclick="empTab('exit',this)">Exit Details</button>
     </div>
     <!-- Basic -->
@@ -1176,7 +1177,7 @@ tr:hover td{background:#fafbfc;}
     <!-- Salary -->
     <div id="etab-salary" style="display:none;">
       <div class="form-grid">
-        <div class="form-group"><label>Basic Salary (AED)</label><input type="number" id="eBasic"></div>
+        <div class="form-group"><label>Basic Salary (AED)</label><input type="number" id="eBasic" oninput="updatePensionLive()"></div>
         <div class="form-group"><label style="color:#c0392b;">MOL Salary (AED) — Ministry of Labour contract, fixed</label><input type="number" id="eMOL" style="border-color:#e6b0aa;"><p style="font-size:11px;color:#888;margin-top:3px;">This is the salary on the signed MOL/contract — it should not change unless the actual labour contract is amended.</p></div>
         <div class="form-group"><label>Gross Salary (AED)</label><input type="number" id="eGross"></div>
         <div class="form-group"><label>Housing Allowance</label><input type="number" id="eHouse"></div>
@@ -1186,8 +1187,8 @@ tr:hover td{background:#fafbfc;}
         <div class="form-group form-full"><label>IBAN / WPS</label><input type="text" id="eIban"></div>
         <div class="form-group"><label>Annual Leave Entitlement</label><input type="number" id="eLeaveEnt"></div>
         <div class="form-group"><label>Annual Leave Balance</label><input type="number" id="eLeaveBal"></div>
-        <div class="form-group"><label>Gratuity (AED) — manual note / final settlement</label><input type="number" id="eGrat"></div>
-        <div class="form-group"><label>Live Accrued Gratuity (auto-calculated as of today)</label><div id="eGratLive" style="padding:10px 12px;background:#f0f7f5;border:1px solid #d3e8e3;border-radius:6px;font-weight:700;color:#1A7A6E;">—</div></div>
+        <div class="form-group" data-grat-field><label>Gratuity (AED) — manual note / final settlement</label><input type="number" id="eGrat"></div>
+        <div class="form-group" data-grat-field><label>Live Accrued Gratuity (auto-calculated as of today)</label><div id="eGratLive" style="padding:10px 12px;background:#f0f7f5;border:1px solid #d3e8e3;border-radius:6px;font-weight:700;color:#1A7A6E;">—</div></div>
       </div>
     </div>
     <!-- Family -->
@@ -1214,6 +1215,14 @@ tr:hover td{background:#fafbfc;}
       </div>
     </div>
     <!-- Exit -->
+    <div id="etab-pension" style="display:none;">
+      <div class="form-grid">
+        <div class="form-group form-full"><p style="font-size:12px;color:#555;margin:0 0 4px;">UAE nationals are covered by the GPSSA pension scheme instead of end-of-service gratuity.</p></div>
+        <div class="form-group"><label>Pension Contribution Salary (AED) — leave blank to use Basic Salary</label><input type="number" id="ePenSalary" oninput="updatePensionLive()"></div>
+        <div class="form-group"><label>GPSSA Registration No.</label><input type="text" id="eGpssaNo"></div>
+        <div class="form-group form-full"><label>Monthly pension contributions (calculated automatically)</label><div id="ePenLive" style="padding:10px 12px;background:#f0f7f5;border:1px solid #d3e8e3;border-radius:6px;font-weight:700;color:#00732F;">—</div></div>
+      </div>
+    </div>
     <div id="etab-exit" style="display:none;">
       <div class="form-grid">
         <div class="form-group"><label>Last Working Day</label><input type="date" id="eExitDate"></div>
@@ -1643,9 +1652,21 @@ function findEmpByName(name,index){
 
 // Single shared gratuity/EOSB formula — used by the Salary tab live figure, the Reports Excel, and the PDF.
 // Any future change to UAE gratuity rules only needs to happen here.
+// UAE nationals are covered by the GPSSA pension scheme instead of end-of-service gratuity.
+// Contribution rates are kept here in one place so they are easy to change.
+const GPSSA_EMPLOYEE_PCT=5, GPSSA_EMPLOYER_PCT=12.5;
+function isUAENational(e){
+  const nat=((e&&e.nationality)||'').toLowerCase();
+  return nat.includes('emirati')||nat.includes('uae')||nat==='united arab emirates'||nat.includes('u.a.e');
+}
+function calcPension(e){
+  const salary=parseFloat((e&&e.pensionSalary)||(e&&e.basicSalary)||0);
+  return{salary,employee:salary*GPSSA_EMPLOYEE_PCT/100,employer:salary*GPSSA_EMPLOYER_PCT/100};
+}
 function calcEOSB(e){
   if(!e||!e.join)return null;
   const years=(new Date()-new Date(e.join))/(365.25*86400000);
+  if(isUAENational(e))return{years,eosb:0,uae:true};
   if(years<1)return{years,eosb:0};
   const basic=parseFloat(e.basicSalary||0);
   const dailyRate=basic*12/365;
@@ -2585,7 +2606,7 @@ window.filterEmp=function(){
 };
 
 window.empTab=function(tab,el){
-  ['basic','docs','salary','family','links','exit'].forEach(t=>document.getElementById('etab-'+t).style.display=t===tab?'block':'none');
+  ['basic','docs','salary','family','links','pension','exit'].forEach(t=>document.getElementById('etab-'+t).style.display=t===tab?'block':'none');
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   if(el)el.classList.add('active');
 };
@@ -2610,10 +2631,27 @@ function renderFamilyRows(){
 }
 window.removeFamilyRow=function(i){familyRows.splice(i,1);renderFamilyRows();};
 
+window.updatePensionLive=function(){
+  const el=document.getElementById('ePenLive');
+  if(!el)return;
+  const p=calcPension({pensionSalary:v('ePenSalary'),basicSalary:v('eBasic')});
+  if(!p.salary){el.innerHTML='<span style="color:#e74c3c;">Enter Basic Salary or a Pension Contribution Salary</span>';return;}
+  const f=n=>n.toLocaleString('en-AE',{minimumFractionDigits:2,maximumFractionDigits:2});
+  el.textContent='Employee '+GPSSA_EMPLOYEE_PCT+'%: AED '+f(p.employee)+'  |  Employer '+GPSSA_EMPLOYER_PCT+'%: AED '+f(p.employer)+'  (on AED '+f(p.salary)+')';
+};
+// The Pension tab only appears when a record is opened from the UAE Nationals page.
+// Employee Records opens the normal form, with gratuity and no pension tab.
+let empModalUAE=false;
+window.applyEmpModalMode=function(){
+  document.querySelectorAll('#empModal [data-grat-field]').forEach(el=>el.style.display=empModalUAE?'none':'');
+  const pb=document.getElementById('empPensionTabBtn');
+  if(pb)pb.style.display=empModalUAE?'':'none';
+  if(empModalUAE)updatePensionLive();
+};
 window.openEmpModal=function(){
   document.getElementById('empModalTitle').textContent='Add Employee';
   ['eId','eName','eDept','eDesig','eNat','eMobile','eEmail','eManager','eRemarks','eDepCount',
-   'ePassport','eVisa','eEid','eLab','eMed','eBasic','eGross','eHouse','eTransport','eOther','eBank','eIban','eLeaveEnt','eLeaveBal','eGrat',
+   'ePassport','eVisa','eEid','eLab','eMed','eBasic','eGross','eHouse','eTransport','eOther','eBank','eIban','eLeaveEnt','eLeaveBal','eGrat','ePenSalary','eGpssaNo',
    'lPassport','lVisa','lEid','lLab','lOffer','lContract','lEdu','lOther',
    'eExitReason'].forEach(id=>sv(id,''));
   ['eJoin','eDob','ePassExp','eVisaExp','eEidExp','eLabExp','eExitDate'].forEach(id=>sv(id,''));
@@ -2621,6 +2659,7 @@ window.openEmpModal=function(){
   sv('eExitType',''); sv('eNotice',''); sv('eExitInt',''); sv('eSettle',''); sv('eRehire','');
   sv('clIT',''); sv('clAccess',''); sv('clUniform',''); sv('clAssets','');
   document.getElementById('eEditKey').value='';
+  empModalUAE=false;applyEmpModalMode();
   familyRows=[];renderFamilyRows();
   empTab('basic',document.querySelector('.tab-btn'));
   document.querySelector('.tab-btn').classList.add('active');
@@ -2768,9 +2807,10 @@ window.savePortalAccess=function(key){
   });
 };
 
-window.editEmp=function(key){
+window.editEmp=function(key,uaeMode){
   const e=DB.employees[key];
-  document.getElementById('empModalTitle').textContent='Edit Employee';
+  empModalUAE=!!uaeMode;
+  document.getElementById('empModalTitle').textContent=uaeMode?'Edit UAE National':'Edit Employee';
   sv('eId',e.empId);sv('eName',e.name);sv('eDept',e.dept);sv('eDesig',e.desig);
   sv('eEntity',e.entity);sv('eNat',e.nationality);sv('eGender',e.gender);sv('eDob',e.dob);
   sv('eJoin',e.join);sv('eContract',e.contract);sv('eGrade',e.grade);sv('eSite',e.site);
@@ -2784,7 +2824,8 @@ window.editEmp=function(key){
   sv('ePassport',e.passport);sv('eVisa',e.visa);sv('eEid',e.eid);sv('eLab',e.lab);
   sv('ePassExp',e.passExp);sv('eVisaExp',e.visaExp);sv('eEidExp',e.eidExp);sv('eLabExp',e.labExp);sv('eMed',e.medInsurance);sv('eDepCount',e.dependentsCount||'0');
   sv('eBasic',e.basicSalary);sv('eGross',e.grossSalary);sv('eMOL',e.molSalary);sv('eHouse',e.house);sv('eTransport',e.transport);sv('eOther',e.otherAllowances);
-  sv('eBank',e.bank);sv('eIban',e.iban);sv('eLeaveEnt',e.annualLeaveEnt);sv('eLeaveBal',e.annualLeaveBalance);sv('eGrat',e.gratuity);
+  sv('eBank',e.bank);sv('eIban',e.iban);sv('eLeaveEnt',e.annualLeaveEnt);sv('eLeaveBal',e.annualLeaveBalance);sv('eGrat',e.gratuity);sv('ePenSalary',e.pensionSalary||'');sv('eGpssaNo',e.gpssaNo||'');
+  applyEmpModalMode();
   const eosbResult=calcEOSB(e);
   const eGratLiveEl=document.getElementById('eGratLive');
   if(!e.join)eGratLiveEl.innerHTML='<span style="color:#e74c3c;">— Join Date missing, cannot calculate</span>';
@@ -2827,7 +2868,7 @@ window.saveEmp=function(){
     dependentsCount:v('eDepCount'),
     basicSalary:v('eBasic'),grossSalary:v('eGross'),molSalary:v('eMOL'),house:v('eHouse'),transport:v('eTransport'),
     otherAllowances:v('eOther'),bank:v('eBank'),iban:v('eIban'),
-    annualLeaveEnt:v('eLeaveEnt'),annualLeaveBalance:v('eLeaveBal'),gratuity:v('eGrat'),
+    annualLeaveEnt:v('eLeaveEnt'),annualLeaveBalance:v('eLeaveBal'),gratuity:v('eGrat'),pensionSalary:v('ePenSalary'),gpssaNo:v('eGpssaNo'),
     lPassport:v('lPassport'),lVisa:v('lVisa'),lEid:v('lEid'),lLab:v('lLab'),
     lOffer:v('lOffer'),lContract:v('lContract'),lEdu:v('lEdu'),lOther:v('lOther'),
     exitDate:v('eExitDate'),exitType:v('eExitType'),notice:v('eNotice'),exitInt:v('eExitInt'),
@@ -2850,7 +2891,7 @@ window.saveEmp=function(){
 // rather than creating duplicates, so later edits to exit details stay in sync too.
 async function syncToLeaversIfInactive(empKey,data){
   let gratuity='0';
-  if(data.join&&data.basicSalary){
+  if(data.join&&data.basicSalary&&!isUAENational(data)){
     const asOf=data.exitDate?new Date(data.exitDate):new Date();
     const years=(asOf-new Date(data.join))/(365.25*86400000);
     if(years>=1){
@@ -3500,7 +3541,7 @@ window.renderUAE=function(){
     <td>AED ${parseFloat(e.basicSalary||0).toLocaleString('en-AE',{minimumFractionDigits:0})}</td>
     <td>AED ${parseFloat(e.grossSalary||0).toLocaleString('en-AE',{minimumFractionDigits:0})}</td>
     <td><span class="badge badge-${(e.status||'active').toLowerCase().split(' ').join('-')}">${esc(e.status||'Active')}</span></td>
-    <td><button class="btn btn-sm btn-primary" onclick="editEmp('${e._key}')">Edit</button></td>
+    <td><button class="btn btn-sm btn-primary" onclick="editEmp('${e._key}',true)">Edit</button></td>
   </tr>`).join('');
 };
 
@@ -3797,11 +3838,18 @@ window.recalcSettlement=function(){
   sv('stYears',years>0?(y+' years and '+remMonths+' months'):'—');
   const basic=parseFloat(e.basicSalary||0);
   let gratuity=0;
-  if(years>=1){
+  const uaeNat=isUAENational(e);
+  if(years>=1&&!uaeNat){
     const dailyRate=basic*12/365;
     gratuity=years<=5?dailyRate*21*years:dailyRate*21*5+dailyRate*30*(years-5);
   }
-  sv('stb_gratuity',(years>=1?years.toFixed(2):'0')+' yrs @ AED '+basic.toLocaleString()+' basic');
+  if(uaeNat){
+    sv('std_gratuity','Gratuity (not applicable - UAE national)');
+    sv('stb_gratuity','Covered by GPSSA pension');
+  }else{
+    sv('std_gratuity','Gratuity Payable on Basic Pay');
+    sv('stb_gratuity',(years>=1?years.toFixed(2):'0')+' yrs @ AED '+basic.toLocaleString()+' basic');
+  }
   sv('sta_gratuity',gratuity.toFixed(2));
   updateSettlementTotals();
 };
@@ -5259,7 +5307,7 @@ window.runGratuityPDF=async function(entity){
   let totalEOSB=0,ckEOSB=0,ckcEOSB=0,ckCount=0,ckcCount=0;
   emps.forEach(e=>{
     const result=calcEOSB(e);
-    if(!result||result.years<1)return;
+    if(!result||result.uae||result.years<1)return;
     const eosb=result.eosb;
     const basic=parseFloat(e.basicSalary||0);
     totalEOSB+=eosb;
@@ -5752,7 +5800,7 @@ window.runReport=function(type){
     const ckTotal={eosb:0,count:0};const ckcTotal={eosb:0,count:0};
     gratEmps.filter(e=>e.join&&(e.status==='Active'||!e.status)).forEach(e=>{
       const result=calcEOSB(e);
-      if(!result||result.years<1)return;
+      if(!result||result.uae||result.years<1)return;
       const years=result.years,eosb=result.eosb;
       const basic=parseFloat(e.basicSalary||0);
       const dailyRate=basic*12/365;
