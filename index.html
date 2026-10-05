@@ -537,7 +537,7 @@ tr:hover td{background:#fafbfc;}
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Emp ID</th><th>Name</th><th>Department</th><th>Designation</th><th>Entity</th><th>Grade</th><th>Basic Salary (AED)</th><th>Gross Salary (AED)</th><th>Status</th></tr></thead>
+              <thead><tr><th>Emp ID</th><th>Name</th><th>Department</th><th>Designation</th><th>Entity</th><th>Grade</th><th>Basic Salary (AED)</th><th>Gross Salary (AED)</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody id="uaeBody"></tbody>
             </table>
           </div>
@@ -2345,7 +2345,7 @@ function initListeners(){
   tables.forEach(t=>{
     onValue(ref(db,t),snap=>{
       DB[t]=snap.val()||{};
-      if(t==='employees'){renderEmp();updateDash();
+      if(t==='employees'){renderEmp();updateDash();if(document.getElementById('uaeBody')&&window.renderUAE){try{renderUAE();}catch(err){}}
       // Refresh any employee dropdowns that are visible
       const sel=document.getElementById('profileEmpSel');
       if(sel&&sel.options.length<=1) buildEmpDropdown('profileEmpSel');
@@ -3467,7 +3467,7 @@ window.deleteLeaver=function(key){
 window.renderUAE=function(){
   const q=v('uaeSearch').toLowerCase();
   const entityF=document.getElementById('uaeEntityF')?.value||'';
-  const emps=Object.values(DB.employees).filter(e=>{
+  const emps=Object.entries(DB.employees).map(([k,e])=>({...e,_key:k})).filter(e=>{
     const nat=(e.nationality||'').toLowerCase();
     const isUAE=nat.includes('emirati')||nat.includes('uae')||nat==='united arab emirates'||nat.includes('u.a.e');
     return isUAE;
@@ -3487,7 +3487,7 @@ window.renderUAE=function(){
 
   const tbody=document.getElementById('uaeBody');
   if(!filtered.length){
-    tbody.innerHTML='<tr><td colspan="9"><div class="empty-state"><div class="icon">🇦🇪</div><p>No UAE National employees found. Make sure nationality is set to "Emirati" in employee records.</p></div></td></tr>';
+    tbody.innerHTML='<tr><td colspan="10"><div class="empty-state"><div class="icon">🇦🇪</div><p>No UAE National employees found. Make sure nationality is set to "Emirati" in employee records.</p></div></td></tr>';
     return;
   }
   tbody.innerHTML=filtered.map(e=>`<tr>
@@ -3500,6 +3500,7 @@ window.renderUAE=function(){
     <td>AED ${parseFloat(e.basicSalary||0).toLocaleString('en-AE',{minimumFractionDigits:0})}</td>
     <td>AED ${parseFloat(e.grossSalary||0).toLocaleString('en-AE',{minimumFractionDigits:0})}</td>
     <td><span class="badge badge-${(e.status||'active').toLowerCase().split(' ').join('-')}">${esc(e.status||'Active')}</span></td>
+    <td><button class="btn btn-sm btn-primary" onclick="editEmp('${e._key}')">Edit</button></td>
   </tr>`).join('');
 };
 
