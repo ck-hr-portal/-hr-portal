@@ -10,7 +10,9 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f5;color:#1a1a2e;}
 #loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#1C3557 0%,#2563A8 100%);}
 .loginBox{background:#fff;border-radius:16px;padding:48px 40px;width:90%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center;}
 .login-logos{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:22px;}
-.login-logos img{height:46px;width:auto;max-width:42%;object-fit:contain;}
+.login-logos img{width:auto;max-width:46%;object-fit:contain;}
+.login-logos .lg-ck{height:52px;}
+.login-logos .lg-ckc{height:44px;}
 .login-logo-divider{width:1px;height:40px;background:#d5dbe3;flex:0 0 auto;}
 .loginBox h1{color:#1C3557;font-size:22px;margin-bottom:6px;}
 .loginBox p{color:#666;font-size:13px;margin-bottom:28px;}
@@ -137,7 +139,8 @@ tr:hover td{background:#fafbfc;}
   .topbar-logo-2,.topbar-divider{display:none;}
   .topbar-title{font-size:12px;}
   .loginBox{padding:36px 22px;}
-  .login-logos img{height:38px;}
+  .login-logos .lg-ck{height:44px;}
+  .login-logos .lg-ckc{height:37px;}
 }
 
   .logo-wrap{display:flex;align-items:center;gap:3px;}
@@ -155,9 +158,9 @@ tr:hover td{background:#fafbfc;}
 <div id="loginScreen">
   <div class="loginBox">
     <div class="login-logos">
-      <img src="ck_logo.png" alt="CK Architecture Interiors">
+      <img class="lg-ck" src="ck_logo.png" alt="CK Architecture Interiors">
       <span class="login-logo-divider"></span>
-      <img src="ckc_logo.png" alt="CKC Building Contracting">
+      <img class="lg-ckc" src="ckc_logo.png" alt="CKC Building Contracting">
     </div>
     <h1>CK | HR Portal</h1>
     <p>CK Architecture Interiors &amp; CKC Building Contracting</p>
