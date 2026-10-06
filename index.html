@@ -1764,6 +1764,8 @@ function findEmpByName(name,index){const m=matchEmpByName(name,index);return m?m
 function findEmpKeyByName(name,index){const m=matchEmpByName(name,index);return m?m.key:null;}
 // The one name a leave record should be filed under: the Employee Records spelling if we can match it
 function leaveGroupName(name,index){const m=matchEmpByName(name,index);return(m&&m.e&&m.e.name)?m.e.name:(name||'Unknown');}
+// Only approved leave counts as days taken (a record with no status is treated as approved, as before)
+function leaveCounts(l){return !l.status||l.status==='Approved';}
 function leaveBelongsTo(l,empName,index){return l.empName===empName||leaveGroupName(l.empName,index)===empName;}
 // Number of days on a leave record (handles half days, which store 0.5)
 function leaveDaysOf(l){
@@ -2354,6 +2356,7 @@ function renderMyLeaveHistory(){
 }
 function describeLeaveStage(r){
   if(r.status==='Cancelled')return{label:'Cancelled & Closed',cls:'badge-inactive'};
+  if(r.status==='Rejected'&&r.returnedForCorrection)return{label:'Returned — please correct and submit again',cls:'badge-pending'};
   if(r.status==='Rejected')return{label:'Rejected & Closed'+(r.rejectedAt?' (at '+r.rejectedStage+')':''),cls:'badge-rejected'};
   if(r.status==='Approved')return{label:'Approved & Closed',cls:'badge-approved'};
   if(r.stage==='HR Review')return{label:'HR Review',cls:'badge-pending'};
@@ -2440,8 +2443,8 @@ window.renderAdminMyApprovals=function(){
       ${r.hrComments?`<div style="font-size:12px;color:#1A7A6E;">HR note: ${esc(r.hrComments)}</div>`:''}
       <textarea id="apc_${k}" rows="2" placeholder="Optional comment" style="width:100%;margin-top:8px;padding:6px;border:1px solid #ddd;border-radius:5px;font-size:12px;"></textarea>
       <div class="btn-row" style="margin-top:8px;">
-        <button class="btn btn-sm btn-primary" onclick="decideLeaveApproval('${k}','${role}',true)">Approve</button>
-        <button class="btn btn-sm btn-danger" onclick="decideLeaveApproval('${k}','${role}',false)">Reject</button>
+        <button class="btn btn-sm btn-primary" onclick="decideLeaveApproval('${k}','${role}',true)">✓ Approve</button>
+        <button class="btn btn-sm btn-danger" onclick="decideLeaveApproval('${k}','${role}',false)">✗ Reject</button>
       </div>
     </div>`).join('');
   targets.forEach(t=>{t.card.style.display='block';t.body.innerHTML=html;});
@@ -2472,7 +2475,8 @@ window.renderHRReviewQueue=function(){
       <td>${canAct?`<textarea id="hrc_${k}" rows="2" style="width:140px;font-size:11px;padding:4px;border:1px solid #ddd;border-radius:4px;"></textarea>`:''}</td>
       <td>${canAct?`
         <button class="btn btn-sm btn-primary" ${noManager?'disabled title="Set a Line Manager on this employee\'s record first"':''} onclick="completeHRReview('${k}')">Complete & Forward</button>
-        <button class="btn btn-sm btn-danger" onclick="rejectLeaveRequest('${k}','HR Review')">Reject</button>
+        <button class="btn btn-sm" style="background:#e67e22;color:#fff;" title="Send it back: the employee is told what to correct and submits a new request" onclick="returnLeaveForCorrection('${k}')">↩ Return for correction</button>
+        <button class="btn btn-sm btn-danger" onclick="rejectLeaveRequest('${k}','HR Review')">✗ Reject</button>
       `:'<span style="font-size:11px;color:#888;">View only</span>'}</td>
     </tr>`;
   }).join(''):'<tr><td colspan="9"><div class="empty-state"><p>Nothing waiting for HR review</p></div></td></tr>';
@@ -2488,7 +2492,7 @@ window.renderHRReviewQueue=function(){
         <td style="font-size:11px;">${esc(r.hrComments||'—')}</td>
         <td style="font-size:11px;">${esc(r.lmComments||'—')}</td>
         <td style="font-size:11px;">${esc(r.addlComments||'—')}</td>
-        <td>${canAdjust?`<button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="openAdjustLeave('${k}')">Adjust</button>`:''}</td></tr>`;
+        <td>${canAdjust?`<button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="openAdjustLeave('${k}')">Adjust</button>`:''}${(canAct&&r.status==='Pending'&&(r.stage==='Line Manager Approval'||r.stage==='Additional Approval'))?`<button class="btn btn-sm btn-danger" title="Reject on behalf of the approver" onclick="rejectLeaveRequest('${k}','${esc(r.stage)}')">✗ Reject</button>`:''}</td></tr>`;
     }).join('');
   }
 };
@@ -2505,10 +2509,22 @@ window.completeHRReview=function(key){
     logAudit('HR Review Completed',r.empName,(comments||'')+(fixed?' [days corrected from '+r.totalDays+' to '+realDays+']':''));
   });
 };
+window.returnLeaveForCorrection=function(key){
+  const r=DB.leaveRequests[key];if(!r)return;
+  let what=prompt('What needs to be corrected? (the employee will see this and can submit a new request)');
+  if(what===null)return;
+  what=what.trim();
+  if(!what){alert('Please say what needs to be corrected.');return;}
+  set(ref(db,'leaveRequests/'+key),{...r,status:'Rejected',rejectedStage:'HR Review',rejectedAt:Date.now(),rejectedBy:adminName||adminSignName,hrComments:'Returned for correction: '+what,returnedForCorrection:true}).then(()=>{
+    logAudit('Leave Request Returned for Correction',r.empName,what);
+  }).catch(err=>alert('Could not save ('+((err&&err.code)||(err&&err.message)||'unknown error')+'). Please refresh and try again.'));
+};
 window.rejectLeaveRequest=function(key,atStage){
   const r=DB.leaveRequests[key];
-  const comments=prompt('Reason for rejecting this leave request:');
+  let comments=prompt('Reason for rejecting this leave request (the employee will see this):');
   if(comments===null)return;
+  comments=comments.trim();
+  if(!comments){alert('Please give a short reason so the employee knows why it was rejected.');return;}
   const field=atStage==='HR Review'?'hrComments':atStage==='Line Manager Approval'?'lmComments':'addlComments';
   set(ref(db,'leaveRequests/'+key),{...r,status:'Rejected',rejectedStage:atStage,rejectedAt:Date.now(),rejectedBy:adminName||adminSignName,[field]:comments}).then(()=>{
     logAudit('Leave Request Rejected',r.empName,atStage+': '+comments);
@@ -2547,7 +2563,7 @@ function buildLeaveStageBreakdown(r){
   const lines=[];
   // HR Review
   if(r.hrReviewedAt)lines.push({label:'HR Review',status:'Completed',by:r.hrReviewedBy,comment:r.hrComments,ok:true});
-  else if(r.rejectedStage==='HR Review')lines.push({label:'HR Review',status:'Rejected',by:r.rejectedBy,comment:r.hrComments,ok:false});
+  else if(r.rejectedStage==='HR Review')lines.push({label:'HR Review',status:r.returnedForCorrection?'Returned for correction':'Rejected',by:r.rejectedBy,comment:r.hrComments,ok:false});
   else lines.push({label:'HR Review',status:'Pending',ok:null});
   // Line Manager
   if(r.stage==='HR Review'&&r.status!=='Rejected'){/* not reached yet */}
@@ -2563,6 +2579,7 @@ function buildLeaveStageBreakdown(r){
   // Overall
   let overall;
   if(r.status==='Cancelled')overall={label:'Overall',status:'Cancelled & Closed',ok:false};
+  else if(r.status==='Rejected'&&r.returnedForCorrection)overall={label:'Overall',status:'Returned — please submit a corrected request',ok:false};
   else if(r.status==='Rejected')overall={label:'Overall',status:'Rejected & Closed (at '+(r.rejectedStage||'—')+')',ok:false};
   else if(r.stage==='Completed'&&r.status==='Approved')overall={label:'Overall',status:'Approved & Closed',ok:true};
   else overall={label:'Overall',status:'In Progress — currently at '+r.stage,ok:null};
@@ -2677,26 +2694,38 @@ window.renderMyApprovals=function(){
       ${r.hrComments?`<div style="font-size:12px;color:#1A7A6E;">HR note: ${esc(r.hrComments)}</div>`:''}
       <textarea id="apc_${k}" rows="2" placeholder="Optional comment" style="width:100%;margin-top:8px;padding:6px;border:1px solid #ddd;border-radius:5px;font-size:12px;"></textarea>
       <div class="btn-row" style="margin-top:8px;">
-        <button class="btn btn-sm btn-primary" onclick="decideLeaveApproval('${k}','${role}',true)">Approve</button>
-        <button class="btn btn-sm btn-danger" onclick="decideLeaveApproval('${k}','${role}',false)">Reject</button>
+        <button class="btn btn-sm btn-primary" onclick="decideLeaveApproval('${k}','${role}',true)">✓ Approve</button>
+        <button class="btn btn-sm btn-danger" onclick="decideLeaveApproval('${k}','${role}',false)">✗ Reject</button>
       </div>
     </div>`).join('');
 };
 window.decideLeaveApproval=async function(key,role,approve){
   const r=DB.leaveRequests[key];
-  const comments=v('apc_'+key);
-  if(!approve){
-    await set(ref(db,'leaveRequests/'+key),{...r,status:'Rejected',rejectedStage:role==='lineManager'?'Line Manager Approval':'Additional Approval',rejectedAt:Date.now(),rejectedBy:adminName,[role==='lineManager'?'lmComments':'addlComments']:comments});
-    alert('Request rejected.');
-    return;
+  if(!r){alert('This request could not be found. Please refresh the page and try again.');return;}
+  let comments=v('apc_'+key);
+  try{
+    if(!approve){
+      if(!comments){
+        const why=prompt('Reason for rejecting this request (the employee will see this):');
+        if(why===null)return;
+        comments=why.trim();
+        if(!comments){alert('Please give a short reason so the employee knows why it was rejected.');return;}
+      }
+      await set(ref(db,'leaveRequests/'+key),{...r,status:'Rejected',rejectedStage:role==='lineManager'?'Line Manager Approval':'Additional Approval',rejectedAt:Date.now(),rejectedBy:adminName,[role==='lineManager'?'lmComments':'addlComments']:comments});
+      alert('Request rejected.');
+      return;
+    }
+    if(role==='lineManager'){
+      const nextStage=r.needsAdditionalApproval?'Additional Approval':'Completed';
+      await set(ref(db,'leaveRequests/'+key),{...r,stage:nextStage,status:nextStage==='Completed'?'Approved':'Pending',lmDecision:'Approved',lmComments:comments,lmActedAt:Date.now()});
+    } else {
+      await set(ref(db,'leaveRequests/'+key),{...r,stage:'Completed',status:'Approved',addlDecision:'Approved',addlComments:comments,addlActedAt:Date.now()});
+    }
+    alert('Decision recorded.');
+  }catch(err){
+    if(err&&err.message==='read-only-ceo')return;
+    alert('Your decision could not be saved ('+((err&&err.code)||(err&&err.message)||'unknown error')+'). Please refresh the page and try again. If it still fails, take a screenshot and send it to Dev.');
   }
-  if(role==='lineManager'){
-    const nextStage=r.needsAdditionalApproval?'Additional Approval':'Completed';
-    await set(ref(db,'leaveRequests/'+key),{...r,stage:nextStage,status:nextStage==='Completed'?'Approved':'Pending',lmDecision:'Approved',lmComments:comments,lmActedAt:Date.now()});
-  } else {
-    await set(ref(db,'leaveRequests/'+key),{...r,stage:'Completed',status:'Approved',addlDecision:'Approved',addlComments:comments,addlActedAt:Date.now()});
-  }
-  alert('Decision recorded.');
 };
 window.openLeaveRequestForm=function(){
   sv('lrStart','');sv('lrEnd','');sv('lrDays','');sv('lrReason','');
@@ -3417,7 +3446,7 @@ function renderLeave(data){
 
   let html2='';
   Object.entries(grouped).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([empName,empRows])=>{
-    const totalDays=empRows.reduce((s,[k,l])=>s+leaveDaysOf(l),0);
+    const totalDays=empRows.reduce((s,[k,l])=>s+(leaveCounts(l)?leaveDaysOf(l):0),0);
     const types=[...new Set(empRows.map(([k,l])=>l.type))];
     const alsoAs=[...new Set(empRows.map(([k,l])=>l.empName||'').filter(n=>n&&n!==empName))];
     
@@ -3425,7 +3454,7 @@ function renderLeave(data){
     html2+=`<tr style="background:#f0f4ff;cursor:pointer;" onclick="openLeaveSummary('${esc(empName)}')">
       <td colspan="5">
         <strong style="color:#1C3557;">${esc(empName)}</strong>
-        <span style="font-size:11px;color:#888;margin-left:10px;">${empRows.length} records · ${totalDays} days total</span>
+        <span style="font-size:11px;color:#888;margin-left:10px;">${empRows.length} records · ${totalDays} days approved</span>
         ${alsoAs.length?`<span style="font-size:10px;color:#b7791f;margin-left:8px;" title="These records were typed with a slightly different spelling and are shown together here">(also filed as: ${alsoAs.slice(0,3).map(esc).join(', ')})</span>`:''}
         <span style="font-size:11px;color:#2563A8;margin-left:8px;">${types.slice(0,3).map(t=>`<span class="leave-tag" style="font-size:10px;">${esc(t)}</span>`).join(' ')}</span>
       </td>
@@ -6717,6 +6746,7 @@ function refreshLeaveSummary(empName){
   const entitled=parseFloat(emp?.annualLeaveEnt||30);
   let alDays=0,slDays=0,wfhDays=0;
   empLeave.forEach(l=>{
+    if(!leaveCounts(l))return; // rejected, cancelled and pending leave is not taken
     const d=leaveDaysOf(l);
     if(l.type==='Annual Leave'||l.type==='Half Day Leave'||l.type==='Emergency Leave'||l.type==='Hajj Leave'||l.type==='Compassionate Leave'||l.type==='Maternity Leave'||l.type==='Paternity Leave') alDays+=d;
     else if(l.type==='Sick Leave') slDays+=d;
