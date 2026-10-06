@@ -367,6 +367,9 @@ tr:hover td{background:#fafbfc;}
       <div class="form-group" id="lrSessionWrap" style="display:none;"><label>Which half of the day?</label>
         <select id="lrSession"><option>Morning (first half)</option><option>Afternoon (second half)</option></select>
       </div>
+      <div class="form-group" id="lrRelWrap" style="display:none;"><label>Relationship to the person who passed away *</label>
+        <select id="lrRel"><option value="">— select —</option><option value="spouse">Spouse</option><option value="other">Parent / Child / Sibling / Grandparent / Grandchild</option></select>
+      </div>
       <div class="form-group"><label id="lrStartLabel">Start Date</label><input type="date" id="lrStart" onchange="calcLRDays()"></div>
       <div class="form-group" id="lrEndWrap"><label>End Date</label><input type="date" id="lrEnd" onchange="calcLRDays()"></div>
       <div class="form-group"><label>Total Days</label><input type="text" id="lrDays" readonly style="background:#f5f5f5;font-weight:700;"></div>
@@ -575,7 +578,7 @@ tr:hover td{background:#fafbfc;}
           <div class="toolbar">
             <input class="search-box" type="text" id="leaveSearch" placeholder="🔍 Search employee..." oninput="filterLeave()">
             <select id="leaveTypeF" onchange="filterLeave()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;">
-              <option value="">All Types</option><option>Annual Leave</option><option>Sick Leave</option><option>Emergency Leave</option><option>Maternity Leave</option><option>Paternity Leave</option><option>Hajj Leave</option><option>Study Leave</option><option>Unpaid Leave</option><option>Compassionate Leave</option><option>Work From Home</option><option>Half Day Leave</option><option>Other</option>
+              <option value="">All Types</option><option>Annual Leave</option><option>Sick Leave</option><option>Emergency Leave</option><option>Maternity Leave</option><option>Paternity Leave</option><option>Hajj Leave</option><option>Umrah Leave</option><option>Study Leave</option><option>Unpaid Leave</option><option>Compassionate Leave</option><option>Work From Home</option><option>Half Day Leave</option><option>Other</option>
             </select>
             <select id="leaveStatusF" onchange="filterLeave()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="">All Status</option><option>Approved</option><option>Pending</option><option>Rejected</option></select>
             <button class="btn btn-primary" onclick="openLeaveModal()">+ Add Leave</button>
@@ -1305,12 +1308,12 @@ tr:hover td{background:#fafbfc;}
         <input type="hidden" id="lvEmp">
         <input type="hidden" id="lvEmpKey">
       </div>
-      <div class="form-group"><label>Leave Type *</label><select id="lvType"><option>Annual Leave</option><option>Half Day Leave</option><option>Sick Leave</option><option>Emergency Leave</option><option>Maternity Leave</option><option>Paternity Leave</option><option>Hajj Leave</option><option>Study Leave</option><option>Unpaid Leave</option><option>Compassionate Leave</option><option>Work From Home</option><option>Other</option></select></div>
+      <div class="form-group"><label>Leave Type *</label><select id="lvType"><option>Annual Leave</option><option>Half Day Leave</option><option>Sick Leave</option><option>Emergency Leave</option><option>Maternity Leave</option><option>Paternity Leave</option><option>Hajj Leave</option><option>Umrah Leave</option><option>Study Leave</option><option>Unpaid Leave</option><option>Compassionate Leave</option><option>Work From Home</option><option>Other</option></select></div>
       <div class="form-group"><label>Status</label><select id="lvStatus"><option>Approved</option><option>Pending</option><option>Rejected</option></select></div>
       <div class="form-group"><label>From *</label><input type="date" id="lvFrom"></div>
       <div class="form-group"><label>To *</label><input type="date" id="lvTo"></div>
       <div class="form-group"><label>Approved By</label><input type="text" id="lvApproved"></div>
-      <div class="form-group form-full"><label>Notes</label><textarea id="lvNotes"></textarea></div>
+      <div class="form-group"><label>Relationship (Compassionate leave only)</label><select id="lvRel"><option value="">— not applicable —</option><option value="spouse">Spouse (5 days not deducted)</option><option value="other">Parent / Child / Sibling / Grandparent / Grandchild (3 days not deducted)</option></select></div><div class="form-group form-full"><label>Notes</label><textarea id="lvNotes"></textarea></div>
     </div>
     <input type="hidden" id="lvKey">
     <div class="btn-row"><button class="btn btn-primary" onclick="saveLeave()">Save</button><button class="btn" onclick="closeModal('leaveModal')" style="background:#f0f0f0;">Cancel</button></div>
@@ -1512,7 +1515,7 @@ tr:hover td{background:#fafbfc;}
     <div style="background:#f0f4ff;border-radius:10px;padding:14px 18px;margin-bottom:14px;display:flex;gap:20px;align-items:center;flex-wrap:wrap;">
       <div style="text-align:center;"><div style="font-size:22px;font-weight:700;color:#1C3557;" id="lsEntitled">—</div><div style="font-size:11px;color:#888;">Entitled</div></div>
       <div style="font-size:18px;color:#ccc;">−</div>
-      <div style="text-align:center;"><div style="font-size:22px;font-weight:700;color:#e74c3c;" id="lsUsed">—</div><div style="font-size:11px;color:#888;">Used (AL+WFH)</div></div>
+      <div style="text-align:center;"><div style="font-size:22px;font-weight:700;color:#e74c3c;" id="lsUsed">—</div><div style="font-size:11px;color:#888;">Leave Used</div></div>
       <div style="font-size:18px;color:#ccc;">=</div>
       <div style="text-align:center;"><div style="font-size:22px;font-weight:700;color:#1A7A6E;" id="lsBalance">—</div><div style="font-size:11px;color:#888;">Balance</div></div>
       <div style="flex:1;min-width:120px;">
@@ -1580,7 +1583,7 @@ tr:hover td{background:#fafbfc;}
     <div id="lstab-addleave" style="display:none;">
       <div class="form-grid">
         <div class="form-group"><label>Leave Type</label>
-          <select id="alsType"><option>Annual Leave</option><option>Half Day Leave</option><option>Sick Leave</option><option>Work From Home</option><option>Emergency Leave</option><option>Maternity Leave</option><option>Paternity Leave</option><option>Hajj Leave</option><option>Unpaid Leave</option><option>Compassionate Leave</option><option>Other</option></select>
+          <select id="alsType"><option>Annual Leave</option><option>Half Day Leave</option><option>Sick Leave</option><option>Work From Home</option><option>Emergency Leave</option><option>Maternity Leave</option><option>Paternity Leave</option><option>Hajj Leave</option><option>Umrah Leave</option><option>Unpaid Leave</option><option>Compassionate Leave</option><option>Other</option></select>
         </div>
         <div class="form-group"><label>Status</label>
           <select id="alsStatus"><option>Approved</option><option>Pending</option><option>Rejected</option></select>
@@ -1589,7 +1592,7 @@ tr:hover td{background:#fafbfc;}
         <div class="form-group"><label>To</label><input type="date" id="alsTo"></div>
         <div class="form-group"><label>Days (override if needed)</label><input type="number" id="alsDays" step="0.5" placeholder="Leave blank to auto-calculate"></div>
         <div class="form-group"><label>Approved By</label><input type="text" id="alsApproved"></div>
-        <div class="form-group form-full"><label>Notes</label><textarea id="alsNotes" style="min-height:50px;"></textarea></div>
+        <div class="form-group"><label>Relationship (Compassionate leave only)</label><select id="alsRel"><option value="">— not applicable —</option><option value="spouse">Spouse (5 days not deducted)</option><option value="other">Parent / Child / Sibling / Grandparent / Grandchild (3 days not deducted)</option></select></div><div class="form-group form-full"><label>Notes</label><textarea id="alsNotes" style="min-height:50px;"></textarea></div>
       </div>
       <div class="btn-row"><button class="btn btn-primary" onclick="saveLeaveFromSummary()">Save Leave Record</button></div>
     </div>
@@ -1603,7 +1606,7 @@ tr:hover td{background:#fafbfc;}
     <div class="form-grid">
       <div class="form-group form-full"><label>Employee</label><input type="text" id="elEmp" readonly style="background:#f5f5f5;"></div>
       <div class="form-group"><label>Leave Type</label>
-        <select id="elType"><option>Annual Leave</option><option>Half Day Leave</option><option>Sick Leave</option><option>Work From Home</option><option>Emergency Leave</option><option>Maternity Leave</option><option>Paternity Leave</option><option>Hajj Leave</option><option>Unpaid Leave</option><option>Compassionate Leave</option><option>Other</option></select>
+        <select id="elType"><option>Annual Leave</option><option>Half Day Leave</option><option>Sick Leave</option><option>Work From Home</option><option>Emergency Leave</option><option>Maternity Leave</option><option>Paternity Leave</option><option>Hajj Leave</option><option>Umrah Leave</option><option>Unpaid Leave</option><option>Compassionate Leave</option><option>Other</option></select>
       </div>
       <div class="form-group"><label>Status</label>
         <select id="elStatus"><option>Approved</option><option>Pending</option><option>Rejected</option></select>
@@ -1612,7 +1615,7 @@ tr:hover td{background:#fafbfc;}
       <div class="form-group"><label>To</label><input type="date" id="elTo"></div>
       <div class="form-group"><label>Days</label><input type="number" id="elDays" step="0.5"></div>
       <div class="form-group"><label>Approved By</label><input type="text" id="elApproved"></div>
-      <div class="form-group form-full"><label>Notes</label><textarea id="elNotes" style="min-height:55px;"></textarea></div>
+      <div class="form-group"><label>Relationship (Compassionate leave only)</label><select id="elRel"><option value="">— not applicable —</option><option value="spouse">Spouse (5 days not deducted)</option><option value="other">Parent / Child / Sibling / Grandparent / Grandchild (3 days not deducted)</option></select></div><div class="form-group form-full"><label>Notes</label><textarea id="elNotes" style="min-height:55px;"></textarea></div>
     </div>
     <input type="hidden" id="elKey">
     <div class="btn-row">
@@ -2381,11 +2384,12 @@ window.saveLeaveAdjustment=async function(){
   if(newDays<0.5){alert('End date must be on or after start date.');return;}
   const oldDays=r.totalDays;
   // Restore the old deduction, then apply the new one — net effect is just the difference
-  if(r.leaveType==='Annual Leave'||isHalfAdj){
+  const _rel=compRelation(null,r.reason),oldDed=leaveDeductFor(r.leaveType,oldDays,_rel),newDed=leaveDeductFor(r.leaveType,newDays,_rel);
+  if(oldDed>0||newDed>0){
     const emp=DB.employees[r.empKey];
     if(emp&&emp.annualLeaveBalance!=null){
-      const restored=parseFloat(emp.annualLeaveBalance)+oldDays;
-      const newBal=Math.max(0,restored-newDays);
+      const restored=parseFloat(emp.annualLeaveBalance)+oldDed;
+      const newBal=Math.max(0,restored-newDed);
       await set(ref(db,'employees/'+r.empKey+'/annualLeaveBalance'),newBal);
     }
   }
@@ -2400,10 +2404,11 @@ window.cancelApprovedLeave=async function(){
   const key=currentAdjustKey;const r=DB.leaveRequests[key];
   if(!confirm(`Cancel ${r.empName}'s ${r.leaveType} (${fmt(r.startDate)}–${fmt(r.endDate)}) entirely? Their leave balance will be restored.`))return;
   const reason=v('alReason');
-  if(r.leaveType==='Annual Leave'||r.leaveType==='Half Day Leave'){
+  const dedBack=leaveDeductFor(r.leaveType,r.totalDays,compRelation(null,r.reason));
+  if(dedBack>0){
     const emp=DB.employees[r.empKey];
     if(emp&&emp.annualLeaveBalance!=null){
-      const restored=parseFloat(emp.annualLeaveBalance)+r.totalDays;
+      const restored=parseFloat(emp.annualLeaveBalance)+dedBack;
       await set(ref(db,'employees/'+r.empKey+'/annualLeaveBalance'),restored);
     }
   }
@@ -2542,11 +2547,13 @@ window.syncApprovedLeaveRequests=function(){
         empName:r.empName,type:r.leaveType,from:r.startDate,to:r.endDate,
         status:'Approved',approvedBy:r.lineManagerName||'Line Manager',
         reason:r.reason,ts:Date.now(),source:'Employee Self-Service Request',
-        ...(r.leaveType==='Half Day Leave'?{days:'0.5'}:{})
+        ...(r.leaveType==='Half Day Leave'?{days:'0.5'}:{}),
+        ...(compRelation(null,r.reason)?{relation:compRelation(null,r.reason)}:{})
       });
       const emp=Object.entries(DB.employees).find(([ek,e])=>ek===r.empKey);
-      if(emp&&(r.leaveType==='Annual Leave'||r.leaveType==='Half Day Leave')&&emp[1].annualLeaveBalance!=null){
-        const newBal=Math.max(0,parseFloat(emp[1].annualLeaveBalance)-r.totalDays);
+      const ded=leaveDeductFor(r.leaveType,r.totalDays,compRelation(null,r.reason));
+      if(emp&&ded>0&&emp[1].annualLeaveBalance!=null){
+        const newBal=Math.max(0,parseFloat(emp[1].annualLeaveBalance)-ded);
         set(ref(db,'employees/'+r.empKey+'/annualLeaveBalance'),newBal);
       }
       set(ref(db,'leaveRequests/'+k+'/syncedToLeaveRegister'),true);
@@ -2744,6 +2751,7 @@ window.updateLeaveFormVisibility=function(){
   if(sw)sw.style.display=half?'':'none';
   if(ew)ew.style.display=half?'none':'';
   if(sl)sl.textContent=half?'Date':'Start Date';
+  const rw=document.getElementById('lrRelWrap');if(rw)rw.style.display=(leaveKind(type)==='compassion')?'':'none';
   const from=v('lrStart'),to=half?from:v('lrEnd');
   const days=half?(from?0.5:0):((from&&to)?Math.ceil((new Date(to)-new Date(from))/86400000)+1:0);
   const needsExtra=['Annual Leave','Sick Leave','Emergency Leave'].includes(type)&&days>2;
@@ -2762,7 +2770,12 @@ window.submitLeaveRequest=async function(){
   const leaveType=v('lrType'),startDate=v('lrStart');
   const half=leaveType==='Half Day Leave';
   const endDate=half?startDate:v('lrEnd');
-  const reason=half?('['+v('lrSession')+'] '+v('lrReason')).trim():v('lrReason');
+  let reason=half?('['+v('lrSession')+'] '+v('lrReason')).trim():v('lrReason');
+  if(leaveKind(leaveType)==='compassion'){
+    const rel=v('lrRel');
+    if(!rel){alert('Please select your relationship to the person who passed away.');return;}
+    reason=('[Relationship: '+(rel==='spouse'?'Spouse':'Parent/Child/Sibling/Grandparent/Grandchild')+'] '+reason).trim();
+  }
   if(!startDate||!endDate){alert(half?'Please select the date.':'Please select both a start and end date.');return;}
   const totalDays=half?0.5:Math.ceil((new Date(endDate)-new Date(startDate))/86400000)+1;
   if(totalDays<0.5){alert('End date must be on or after the start date.');return;}
@@ -3472,7 +3485,7 @@ window.filterLeave=function(){
   renderLeave(filtered);
 };
 window.openLeaveModal=function(){
-  ['lvEmp','lvEmpKey','lvFrom','lvTo','lvApproved','lvNotes'].forEach(id=>sv(id,''));
+  ['lvEmp','lvEmpKey','lvFrom','lvTo','lvApproved','lvNotes','lvRel'].forEach(id=>sv(id,''));
   sv('lvKey','');sv('lvType','Annual Leave');sv('lvStatus','Approved');
   buildEmpDropdown('lvEmpSel');
   document.getElementById('lvEmpSel').onchange=function(){
@@ -3481,9 +3494,9 @@ window.openLeaveModal=function(){
   };
   document.getElementById('leaveModal').classList.add('open');
 };
-window.editLeave=function(key){const l=DB.leave[key];sv('lvEmp',l.empName);sv('lvType',l.type);sv('lvStatus',l.status);sv('lvFrom',l.from);sv('lvTo',l.to);sv('lvApproved',l.approvedBy);sv('lvNotes',l.notes);sv('lvKey',key);document.getElementById('leaveModal').classList.add('open');};
+window.editLeave=function(key){const l=DB.leave[key];sv('lvEmp',l.empName);sv('lvType',l.type);sv('lvStatus',l.status);sv('lvFrom',l.from);sv('lvTo',l.to);sv('lvApproved',l.approvedBy);sv('lvNotes',l.notes);sv('lvRel',l.relation||'');sv('lvKey',key);document.getElementById('leaveModal').classList.add('open');};
 window.saveLeave=function(){
-  const data={empName:v('lvEmp'),type:v('lvType'),status:v('lvStatus'),from:v('lvFrom'),to:v('lvTo'),approvedBy:v('lvApproved'),notes:v('lvNotes'),ts:Date.now()};
+  const data={empName:v('lvEmp'),type:v('lvType'),status:v('lvStatus'),from:v('lvFrom'),to:v('lvTo'),approvedBy:v('lvApproved'),notes:v('lvNotes'),relation:(leaveKind(v('lvType'))==='compassion'?v('lvRel'):''),ts:Date.now()};
   if(!data.empName){alert('Employee name required');return;}
   if(data.type==='Half Day Leave'){data.to=data.from;data.days='0.5';}
   const key=v('lvKey');const op=key?set(ref(db,'leave/'+key),data):set(push(ref(db,'leave')),data);
@@ -4234,12 +4247,12 @@ window.openEditLeave=function(key){
   if(!l){alert('Record not found');return;}
   sv('elEmp',l.empName);sv('elType',l.type||'Annual Leave');sv('elStatus',l.status||'Approved');
   sv('elFrom',l.from);sv('elTo',l.to);sv('elDays',l.days||'');
-  sv('elApproved',l.approvedBy||'');sv('elNotes',l.notes||'');sv('elKey',key);
+  sv('elApproved',l.approvedBy||'');sv('elNotes',l.notes||'');sv('elRel',l.relation||'');sv('elKey',key);
   document.getElementById('editLeaveModal').classList.add('open');
 };
 window.saveEditedLeave=function(){
   const key=v('elKey');if(!key)return;
-  const data={empName:v('elEmp'),type:v('elType'),status:v('elStatus'),from:v('elFrom'),to:v('elTo'),days:v('elDays'),approvedBy:v('elApproved'),notes:v('elNotes'),ts:DB.leave[key]?.ts||Date.now()};
+  const data={empName:v('elEmp'),type:v('elType'),status:v('elStatus'),from:v('elFrom'),to:v('elTo'),days:v('elDays'),approvedBy:v('elApproved'),notes:v('elNotes'),relation:(leaveKind(v('elType'))==='compassion'?v('elRel'):''),ts:DB.leave[key]?.ts||Date.now()};
   if(data.type==='Half Day Leave'){data.days='0.5';data.to=data.from;}
   set(ref(db,'leave/'+key),data).then(()=>{
     logAudit('Edit Leave',data.empName,`${data.type} ${data.from} ${data.days}d`);
@@ -4261,11 +4274,11 @@ window.saveLeaveFromSummary=function(){
   if(isHalfAdd&&!days)days='0.5';
   if(!days&&fromDate&&toDate) days=String(Math.ceil((new Date(toDate)-new Date(fromDate))/86400000)+1);
   if(!days) days='1';
-  const data={empName,type:v('alsType'),status:v('alsStatus'),from:fromDate,to:(isHalfAdd&&!toDate)?fromDate:toDate,days,approvedBy:v('alsApproved'),notes:v('alsNotes'),ts:Date.now()};
+  const data={empName,type:v('alsType'),status:v('alsStatus'),from:fromDate,to:(isHalfAdd&&!toDate)?fromDate:toDate,days,approvedBy:v('alsApproved'),notes:v('alsNotes'),relation:(leaveKind(v('alsType'))==='compassion'?v('alsRel'):''),ts:Date.now()};
   if(!fromDate){alert('From date required');return;}
   set(push(ref(db,'leave')),data).then(()=>{
     logAudit('Add Leave',empName,`${data.type} ${data.from} ${data.days}d`);
-    ['alsFrom','alsTo','alsDays','alsApproved','alsNotes'].forEach(id=>sv(id,''));
+    ['alsFrom','alsTo','alsDays','alsApproved','alsNotes','alsRel'].forEach(id=>sv(id,''));
     refreshLeaveSummary(empName);
     lsTab('history',document.querySelector('#leaveSummaryModal .tab-btn'));
   });
@@ -6737,6 +6750,25 @@ window.openLeaveSummary=function(empName){
   document.getElementById('leaveSummaryModal').classList.add('open');
 };
 
+function leaveKind(t){t=String(t||'').toLowerCase();
+  if(/half/.test(t))return'half'; if(/work from home|wfh/.test(t))return'wfh'; if(/sick/.test(t))return'sick';
+  if(/annual/.test(t))return'annual'; if(/emergency/.test(t))return'emergency'; if(/hajj/.test(t))return'hajj';
+  if(/umrah/.test(t))return'umrah'; if(/compassion|bereave/.test(t))return'compassion'; if(/maternity/.test(t))return'maternity';
+  if(/paternity|parental/.test(t))return'paternity'; if(/unpaid/.test(t))return'unpaid'; if(/study/.test(t))return'study'; return'other';}
+// 'spouse' | 'other' | null (not recorded). Reads the saved field, or the "[Relationship: ...]" tag staff requests carry.
+function compRelation(rel,text){
+  const r=String(rel||'').toLowerCase(); if(r==='spouse'||r==='other')return r;
+  const m=/\[relationship:\s*([^\]]*)\]/i.exec(String(text||''));
+  if(m)return /spouse|husband|wife/i.test(m[1])?'spouse':'other';
+  return null;}
+// How many days of this leave come off the ANNUAL leave balance.
+// Annual, Half Day, Emergency, Hajj, Umrah: all days. Compassionate: only days beyond 5 (spouse) / 3 (other relatives).
+// Sick, WFH, Maternity, Paternity, Study, Unpaid, Other: none.
+function leaveDeductFor(type,days,relation){
+  const k=leaveKind(type); days=Number(days)||0;
+  if(['annual','half','emergency','hajj','umrah'].includes(k))return days;
+  if(k==='compassion')return Math.max(0,days-(relation==='spouse'?5:3));
+  return 0;}
 function refreshLeaveSummary(empName){
   const lsIdx=buildNameIndex();
   const empLeave=Object.values(DB.leave)
@@ -6744,17 +6776,33 @@ function refreshLeaveSummary(empName){
     .sort((a,b)=>a.from>b.from?1:-1);
   const emp=Object.values(DB.employees).find(e=>e.name===empName)||findEmpByName(empName,lsIdx);
   const entitled=parseFloat(emp?.annualLeaveEnt||30);
-  let alDays=0,slDays=0,wfhDays=0;
+  let alDays=0,slDays=0,wfhDays=0,unpaidSick=0;
+  // Sick leave is paid only after 6 months of service from the join date; before that it is unpaid (but never taken from annual leave)
+  let probEnd=null;if(emp&&emp.join){const pe=new Date(emp.join);if(!isNaN(pe)){pe.setMonth(pe.getMonth()+6);probEnd=pe;}}
+  const sickUnpaidOf=(l,d)=>{
+    if(!probEnd||!l.from)return 0;
+    const f=new Date(l.from),t=new Date(l.to||l.from);
+    if(f>=probEnd)return 0; if(t<probEnd)return d;
+    const total=Math.round((t-f)/86400000)+1,before=Math.round((probEnd-f)/86400000);
+    return d*(before/total);};
   empLeave.forEach(l=>{
     if(!leaveCounts(l))return; // rejected, cancelled and pending leave is not taken
-    const d=leaveDaysOf(l);
-    if(l.type==='Annual Leave'||l.type==='Half Day Leave'||l.type==='Emergency Leave'||l.type==='Hajj Leave'||l.type==='Compassionate Leave'||l.type==='Maternity Leave'||l.type==='Paternity Leave') alDays+=d;
-    else if(l.type==='Sick Leave') slDays+=d;
-    else if(l.type==='Work From Home') wfhDays+=d;
+    const d=leaveDaysOf(l),k=leaveKind(l.type);
+    alDays+=leaveDeductFor(l.type,d,compRelation(l.relation,l.notes||l.reason));
+    if(k==='sick'){slDays+=d;unpaidSick+=sickUnpaidOf(l,d);}
+    else if(k==='wfh')wfhDays+=d;
   });
+  const rowTag=(l,d)=>{
+    const k=leaveKind(l.type);if(!leaveCounts(l))return'';
+    if(k==='sick'){const u=sickUnpaidOf(l,d);return u>0?'<div style="color:#c0392b;font-weight:600;">Unpaid (probation)'+(u<d?': '+u.toFixed(1)+' of '+d+' days':'')+'</div>':'';}
+    if(k==='compassion'){
+      const rel=compRelation(l.relation,l.notes||l.reason),free=rel==='spouse'?5:3,ded=leaveDeductFor(l.type,d,rel);
+      return '<div style="color:#1A7A6E;font-weight:600;">'+(rel?'':'Relationship not recorded (3 days assumed). ')+(ded>0?ded+' day(s) deducted from annual leave (beyond '+free+')':'Not deducted from annual leave')+'</div>';}
+    if(k==='maternity'||k==='paternity')return '<div style="color:#1A7A6E;font-weight:600;">Separate entitlement, not deducted</div>';
+    return'';};
   const adjs=Object.values(DB.leaveAdjustments||{}).filter(a=>leaveBelongsTo(a,empName,lsIdx)&&a.year===String(new Date().getFullYear()));
   const adjTotal=adjs.reduce((s,a)=>s+parseFloat(a.days||0),0);
-  const totalUsed=alDays+wfhDays;
+  const totalUsed=alDays; // only leave that really comes off the annual balance (see leaveDeductFor)
   const balance=entitled+adjTotal-totalUsed;
   const pct=entitled>0?Math.min(100,Math.max(0,(balance/(entitled+adjTotal))*100)):0;
   document.getElementById('lsEntitled').textContent=(entitled+adjTotal);
@@ -6762,9 +6810,9 @@ function refreshLeaveSummary(empName){
   document.getElementById('lsBalance').textContent=balance.toFixed(1);
   document.getElementById('lsBalBar').style.width=pct+'%';
   document.getElementById('lsBalBar').style.background=balance<5?'#e74c3c':balance<10?'#e67e22':'#1A7A6E';
-  document.getElementById('lsSickUsed').textContent=slDays.toFixed(1);
+  document.getElementById('lsSickUsed').innerHTML=slDays.toFixed(1)+(unpaidSick>0?'<div style="font-size:10px;color:#c0392b;font-weight:600;">'+unpaidSick.toFixed(1)+' unpaid (probation)</div>':'');
   document.getElementById('lsWFHUsed').textContent=wfhDays.toFixed(1);
-  const colors={'Annual Leave':'#2563A8','Half Day Leave':'#16a085','Sick Leave':'#e74c3c','Work From Home':'#8e44ad','Emergency Leave':'#e67e22','Hajj Leave':'#1A7A6E','Compassionate Leave':'#8e44ad','Maternity Leave':'#e91e8c','Paternity Leave':'#1A7A6E','Unpaid Leave':'#888','Other':'#555'};
+  const colors={'Annual Leave':'#2563A8','Half Day Leave':'#16a085','Sick Leave':'#e74c3c','Work From Home':'#8e44ad','Emergency Leave':'#e67e22','Hajj Leave':'#1A7A6E','Umrah Leave':'#1A7A6E','Compassionate Leave':'#8e44ad','Maternity Leave':'#e91e8c','Paternity Leave':'#1A7A6E','Unpaid Leave':'#888','Other':'#555'};
   const tbody=document.getElementById('lsHistBody');
   if(!empLeave.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#999;padding:16px;">No records</td></tr>';return;}
   tbody.innerHTML=empLeave.map(l=>{
@@ -6777,7 +6825,7 @@ function refreshLeaveSummary(empName){
       <td style="font-size:12px;">${l.to?new Date(l.to).toLocaleDateString('en-AE',{day:'2-digit',month:'short',year:'numeric'}):''}</td>
       <td style="font-weight:600;">${d}</td>
       <td><span class="badge badge-${(l.status||'approved').toLowerCase()}">${esc(l.status||'')}</span></td>
-      <td style="font-size:11px;color:#666;max-width:150px;">${esc(l.notes||'—')}</td>
+      <td style="font-size:11px;color:#666;max-width:190px;">${rowTag(l,leaveDaysOf(l))}${esc(l.notes||'—')}</td>
       <td>${key?`<button class="btn btn-sm btn-primary" onclick="openEditLeave('${key}')">Edit</button>`:'—'}</td>
     </tr>`;
   }).join('');
