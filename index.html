@@ -227,6 +227,15 @@ tr:hover td{background:#fafbfc;}
       </div>
     </div>
 
+    <div class="card" id="empCompCard">
+      <div class="card-title">⏱️ My Compensatory Leave</div>
+      <p style="font-size:12px;color:#888;margin-bottom:10px;">Time earned for extra hours worked (late nights, public holidays, rest days, work during annual leave) and time already taken. HR keeps this updated. It cannot be requested here — to claim compensatory leave, please email Darleendy.</p>
+      <div id="empCompSummary" style="margin-bottom:10px;"></div>
+      <div class="table-wrap" style="max-height:230px;overflow-y:auto;">
+        <table><thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Reason</th><th>Note from HR</th></tr></thead><tbody id="empCompBody"></tbody></table>
+      </div>
+    </div>
+
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
       <div class="card">
         <div class="card-title">🎂 Upcoming Birthdays</div>
@@ -348,16 +357,18 @@ tr:hover td{background:#fafbfc;}
     <div class="modal-header"><h3>Submit Leave Request</h3><span class="modal-close" onclick="closeModal('leaveReqModal')">&times;</span></div>
     <div class="form-grid">
       <div class="form-group"><label>Leave Type</label>
-        <select id="lrType" onchange="updateLeaveFormVisibility()">
+        <select id="lrType" onchange="calcLRDays()">
           <option>Annual Leave</option><option>Sick Leave</option><option>Emergency Leave</option><option>Maternity Leave</option>
           <option>Paternity/Parental Leave</option><option>Compassionate/Bereavement Leave</option>
-          <option>Study Leave</option><option>Work From Home</option><option>Compensatory Leave</option>
+          <option>Study Leave</option><option>Work From Home</option><option>Half Day Leave</option>
           <option>Unpaid Leave</option>
         </select>
       </div>
-      <div></div>
-      <div class="form-group"><label>Start Date</label><input type="date" id="lrStart" onchange="calcLRDays()"></div>
-      <div class="form-group"><label>End Date</label><input type="date" id="lrEnd" onchange="calcLRDays()"></div>
+      <div class="form-group" id="lrSessionWrap" style="display:none;"><label>Which half of the day?</label>
+        <select id="lrSession"><option>Morning (first half)</option><option>Afternoon (second half)</option></select>
+      </div>
+      <div class="form-group"><label id="lrStartLabel">Start Date</label><input type="date" id="lrStart" onchange="calcLRDays()"></div>
+      <div class="form-group" id="lrEndWrap"><label>End Date</label><input type="date" id="lrEnd" onchange="calcLRDays()"></div>
       <div class="form-group"><label>Total Days</label><input type="text" id="lrDays" readonly style="background:#f5f5f5;font-weight:700;"></div>
       <div></div>
       <div class="form-group" style="grid-column:1/-1;"><label>Reason / Comments</label><textarea id="lrReason" rows="3" style="width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;font-family:inherit;"></textarea></div>
@@ -410,6 +421,7 @@ tr:hover td{background:#fafbfc;}
       <div class="nav-item" onclick="showPage('employees',this)"><span class="icon">👥</span>Employee Records</div>
       <div class="nav-item" onclick="showPage('uaenationals',this)"><span class="icon">🇦🇪</span>UAE Nationals</div>
       <div class="nav-item" onclick="showPage('leave',this)"><span class="icon">📅</span>Leave Register</div>
+      <div class="nav-item" id="navComp" onclick="showPage('comp',this)"><span class="icon">⏱️</span>Compensatory Leave</div>
       <div class="nav-item" onclick="showPage('salary',this)"><span class="icon">💰</span>Salary &amp; Promotions</div>
       <div class="nav-section">Finance</div>
       <div class="nav-item" onclick="showPage('loans',this)"><span class="icon">🏦</span>Employee Loans</div>
@@ -559,10 +571,11 @@ tr:hover td{background:#fafbfc;}
         <div class="page-header"><h2>Leave Register</h2><p>UAE Labour Law compliant — Federal Decree-Law No. 33/2021</p></div>
         <div class="alert alert-success" id="leave-alert"></div>
         <div class="card">
+          <div id="leaveUnlinkedNote"></div>
           <div class="toolbar">
             <input class="search-box" type="text" id="leaveSearch" placeholder="🔍 Search employee..." oninput="filterLeave()">
             <select id="leaveTypeF" onchange="filterLeave()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;">
-              <option value="">All Types</option><option>Annual Leave</option><option>Sick Leave</option><option>Emergency Leave</option><option>Maternity Leave</option><option>Paternity Leave</option><option>Hajj Leave</option><option>Study Leave</option><option>Unpaid Leave</option><option>Compassionate Leave</option><option>Work From Home</option><option>Other</option>
+              <option value="">All Types</option><option>Annual Leave</option><option>Sick Leave</option><option>Emergency Leave</option><option>Maternity Leave</option><option>Paternity Leave</option><option>Hajj Leave</option><option>Study Leave</option><option>Unpaid Leave</option><option>Compassionate Leave</option><option>Work From Home</option><option>Half Day Leave</option><option>Other</option>
             </select>
             <select id="leaveStatusF" onchange="filterLeave()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="">All Status</option><option>Approved</option><option>Pending</option><option>Rejected</option></select>
             <button class="btn btn-primary" onclick="openLeaveModal()">+ Add Leave</button>
@@ -570,6 +583,23 @@ tr:hover td{background:#fafbfc;}
           <div class="table-wrap">
             <table><thead><tr><th>Employee</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th>Approved By</th><th>Actions</th></tr></thead>
             <tbody id="leaveBody"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- COMPENSATORY LEAVE (Dev and Darleendy only) -->
+      <div id="page-comp" class="page">
+        <div class="page-header"><h2>Compensatory Leave</h2><p>Extra time worked (late nights, public holidays, rest days, during annual leave) and compensatory time taken. Only Dev and Darleendy can see and edit this page. Staff see their own balance, read-only.</p></div>
+        <div class="alert alert-success" id="comp-alert"></div>
+        <div class="card">
+          <div class="toolbar">
+            <input class="search-box" type="text" id="compSearch" placeholder="🔍 Search employee..." oninput="renderCompPage()">
+            <button class="btn btn-primary" onclick="openCompModal('')">+ Add Entry</button>
+          </div>
+          <p style="font-size:12px;color:#888;margin:0 0 10px;">Counted in hours: 1 day = 8 hours, half day = 4 hours. “Earned” adds to the balance, “Taken” reduces it. Staff cannot request or edit this; they email Darleendy.</p>
+          <div class="table-wrap">
+            <table><thead><tr><th>Employee</th><th>Earned</th><th>Taken</th><th>Balance</th><th>Last Entry</th><th>Actions</th></tr></thead>
+            <tbody id="compBody"></tbody></table>
           </div>
         </div>
       </div>
@@ -1275,7 +1305,7 @@ tr:hover td{background:#fafbfc;}
         <input type="hidden" id="lvEmp">
         <input type="hidden" id="lvEmpKey">
       </div>
-      <div class="form-group"><label>Leave Type *</label><select id="lvType"><option>Annual Leave</option><option>Sick Leave</option><option>Emergency Leave</option><option>Maternity Leave</option><option>Paternity Leave</option><option>Hajj Leave</option><option>Study Leave</option><option>Unpaid Leave</option><option>Compassionate Leave</option><option>Work From Home</option><option>Other</option></select></div>
+      <div class="form-group"><label>Leave Type *</label><select id="lvType"><option>Annual Leave</option><option>Half Day Leave</option><option>Sick Leave</option><option>Emergency Leave</option><option>Maternity Leave</option><option>Paternity Leave</option><option>Hajj Leave</option><option>Study Leave</option><option>Unpaid Leave</option><option>Compassionate Leave</option><option>Work From Home</option><option>Other</option></select></div>
       <div class="form-group"><label>Status</label><select id="lvStatus"><option>Approved</option><option>Pending</option><option>Rejected</option></select></div>
       <div class="form-group"><label>From *</label><input type="date" id="lvFrom"></div>
       <div class="form-group"><label>To *</label><input type="date" id="lvTo"></div>
@@ -1284,6 +1314,42 @@ tr:hover td{background:#fafbfc;}
     </div>
     <input type="hidden" id="lvKey">
     <div class="btn-row"><button class="btn btn-primary" onclick="saveLeave()">Save</button><button class="btn" onclick="closeModal('leaveModal')" style="background:#f0f0f0;">Cancel</button></div>
+  </div>
+</div>
+
+<!-- COMPENSATORY LEAVE: ADD / EDIT ENTRY -->
+<div class="modal-overlay" id="compModal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-title">Compensatory Leave Entry <span class="modal-close" onclick="closeModal('compModal')">✕</span></div>
+    <div class="form-grid">
+      <div class="form-group form-full"><label>Employee *</label>
+        <select id="compEmpSel" style="width:100%;padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="">— Select Employee —</option></select>
+      </div>
+      <div class="form-group"><label>Entry Type *</label>
+        <select id="compKind" onchange="compKindChanged()"><option value="earned">Earned — worked extra time</option><option value="taken">Taken — compensatory time used</option></select>
+      </div>
+      <div class="form-group"><label>Date *</label><input type="date" id="compDate"></div>
+      <div class="form-group"><label>Amount *</label>
+        <select id="compUnit"><option value="h1">1 hour</option><option value="h2">2 hours</option><option value="h3">3 hours</option><option value="half">Half day (4 hours)</option><option value="full">Full day (8 hours)</option></select>
+      </div>
+      <div class="form-group" id="compCatWrap"><label>Reason</label>
+        <select id="compCat"><option>Worked late night / extra hours</option><option>Worked on a public holiday</option><option>Worked on a weekly rest day</option><option>Worked during annual leave</option><option>Other</option></select>
+      </div>
+      <div class="form-group form-full"><label>Note (the employee can see this)</label><textarea id="compNote" maxlength="300" style="min-height:55px;" placeholder="e.g. Site handover until 11 pm on 12 Oct — approved by line manager"></textarea></div>
+    </div>
+    <input type="hidden" id="compKey">
+    <div class="btn-row"><button class="btn btn-primary" onclick="saveCompEntry()">Save</button><button class="btn" onclick="closeModal('compModal')" style="background:#f0f0f0;">Cancel</button></div>
+  </div>
+</div>
+<!-- COMPENSATORY LEAVE: ONE EMPLOYEE'S ENTRIES -->
+<div class="modal-overlay" id="compDetailModal">
+  <div class="modal" style="max-width:760px;">
+    <div class="modal-title"><span id="compDetailName">Employee</span> <span class="modal-close" onclick="closeModal('compDetailModal')">✕</span></div>
+    <div id="compDetailStats" style="display:flex;gap:26px;margin-bottom:12px;flex-wrap:wrap;"></div>
+    <div class="table-wrap" style="max-height:340px;overflow-y:auto;">
+      <table><thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Reason</th><th>Note</th><th>By</th><th></th></tr></thead><tbody id="compDetailBody"></tbody></table>
+    </div>
+    <div class="btn-row"><button class="btn btn-primary" id="compDetailAdd">+ Add Entry</button><button class="btn" onclick="closeModal('compDetailModal')" style="background:#f0f0f0;">Close</button></div>
   </div>
 </div>
 
@@ -1514,7 +1580,7 @@ tr:hover td{background:#fafbfc;}
     <div id="lstab-addleave" style="display:none;">
       <div class="form-grid">
         <div class="form-group"><label>Leave Type</label>
-          <select id="alsType"><option>Annual Leave</option><option>Sick Leave</option><option>Work From Home</option><option>Emergency Leave</option><option>Maternity Leave</option><option>Paternity Leave</option><option>Hajj Leave</option><option>Unpaid Leave</option><option>Compassionate Leave</option><option>Other</option></select>
+          <select id="alsType"><option>Annual Leave</option><option>Half Day Leave</option><option>Sick Leave</option><option>Work From Home</option><option>Emergency Leave</option><option>Maternity Leave</option><option>Paternity Leave</option><option>Hajj Leave</option><option>Unpaid Leave</option><option>Compassionate Leave</option><option>Other</option></select>
         </div>
         <div class="form-group"><label>Status</label>
           <select id="alsStatus"><option>Approved</option><option>Pending</option><option>Rejected</option></select>
@@ -1537,7 +1603,7 @@ tr:hover td{background:#fafbfc;}
     <div class="form-grid">
       <div class="form-group form-full"><label>Employee</label><input type="text" id="elEmp" readonly style="background:#f5f5f5;"></div>
       <div class="form-group"><label>Leave Type</label>
-        <select id="elType"><option>Annual Leave</option><option>Sick Leave</option><option>Work From Home</option><option>Emergency Leave</option><option>Maternity Leave</option><option>Paternity Leave</option><option>Hajj Leave</option><option>Unpaid Leave</option><option>Compassionate Leave</option><option>Other</option></select>
+        <select id="elType"><option>Annual Leave</option><option>Half Day Leave</option><option>Sick Leave</option><option>Work From Home</option><option>Emergency Leave</option><option>Maternity Leave</option><option>Paternity Leave</option><option>Hajj Leave</option><option>Unpaid Leave</option><option>Compassionate Leave</option><option>Other</option></select>
       </div>
       <div class="form-group"><label>Status</label>
         <select id="elStatus"><option>Approved</option><option>Pending</option><option>Rejected</option></select>
@@ -1628,7 +1694,7 @@ function setSilent(...args){
   if(currentRole==='ceo')return Promise.resolve();
   return _fbSet(...args);
 }
-let DB={employees:{},leave:{},salary:{},loans:{},repayments:{},assets:{},holidays:{},announcements:{},policies:{},audit:{},flightAllowance:{},leavers:{},leaveAdjustments:{},docHistory:{},leaveRequests:{},staffMap:{},sharedBdays:{},sharedAnnis:{},deptLeave:{}};
+let DB={employees:{},leave:{},salary:{},loans:{},repayments:{},assets:{},holidays:{},announcements:{},policies:{},audit:{},flightAllowance:{},leavers:{},leaveAdjustments:{},docHistory:{},leaveRequests:{},staffMap:{},compLeave:{},sharedBdays:{},sharedAnnis:{},deptLeave:{}};
 let activeLoanKey=null;
 
 // ── HELPERS ──────────────────────────────────────────────────────────────────
@@ -1644,27 +1710,66 @@ function normName(s){return String(s||'').toLowerCase().replace(/[^a-z0-9\s]/g,'
 function buildNameIndex(){
   return Object.entries(DB.employees).map(([key,e])=>{const n=normName(e.name);return{e,key,n,t:n.split(' ').filter(Boolean)};});
 }
-// Returns the matching employee record, or null if none / ambiguous.
-function findEmpByName(name,index){
+// Small spelling differences ("Payyapat" / "Payyappat") — one letter out is still the same word
+function _lev(a,b){
+  if(a===b)return 0;
+  const m=a.length,n=b.length;
+  if(Math.abs(m-n)>1)return 2;
+  let prev=Array.from({length:n+1},(_,j)=>j);
+  for(let i=1;i<=m;i++){
+    const cur=[i];
+    for(let j=1;j<=n;j++)cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));
+    prev=cur;
+  }
+  return prev[n];
+}
+function _tokMatch(a,b){return a===b||(a.length>=6&&b.length>=6&&_lev(a,b)<=1);}
+// Returns the matching index entry {e,key,...}, or null if none / ambiguous.
+function matchEmpByName(name,index){
   const n=normName(name);if(!n)return null;
   const idx=index||buildNameIndex();
   const exact=idx.find(x=>x.n===n);
-  if(exact)return exact.e;
+  if(exact)return exact;
   const t=n.split(' ').filter(Boolean);
   // All words of the shorter name appear in the longer one (needs 2+ words to avoid loose matches)
   const subset=idx.filter(x=>{
     const [short,long]=t.length<=x.t.length?[t,x.t]:[x.t,t];
     return short.length>=2&&short.every(tok=>long.includes(tok));
   });
-  if(subset.length===1)return subset[0].e;
+  if(subset.length===1){
+    // a typo'd spelling that could equally be a DIFFERENT employee must not be guessed
+    const alt=idx.filter(x=>{
+      const [short,long]=t.length<=x.t.length?[t,x.t]:[x.t,t];
+      return short.length>=2&&short.every(tok=>long.some(l=>_tokMatch(tok,l)));
+    });
+    return alt.length>1?null:subset[0];
+  }
   if(subset.length>1){
     subset.sort((a,b)=>Math.abs(a.t.length-t.length)-Math.abs(b.t.length-t.length));
-    if(Math.abs(subset[0].t.length-t.length)<Math.abs(subset[1].t.length-t.length))return subset[0].e;
+    if(Math.abs(subset[0].t.length-t.length)<Math.abs(subset[1].t.length-t.length))return subset[0];
     return null; // genuinely ambiguous — don't guess
   }
   // Same first and last word
   const fl=idx.filter(x=>x.t.length>=2&&t.length>=2&&x.t[0]===t[0]&&x.t[x.t.length-1]===t[t.length-1]);
-  return fl.length===1?fl[0].e:null;
+  if(fl.length===1)return fl[0];
+  if(fl.length>1)return null;
+  // Last resort: same words allowing a one-letter spelling difference (only if exactly one employee fits)
+  const fz=idx.filter(x=>{
+    const [short,long]=t.length<=x.t.length?[t,x.t]:[x.t,t];
+    return short.length>=2&&short.every(tok=>long.some(l=>_tokMatch(tok,l)));
+  });
+  return fz.length===1?fz[0]:null;
+}
+function findEmpByName(name,index){const m=matchEmpByName(name,index);return m?m.e:null;}
+function findEmpKeyByName(name,index){const m=matchEmpByName(name,index);return m?m.key:null;}
+// The one name a leave record should be filed under: the Employee Records spelling if we can match it
+function leaveGroupName(name,index){const m=matchEmpByName(name,index);return(m&&m.e&&m.e.name)?m.e.name:(name||'Unknown');}
+function leaveBelongsTo(l,empName,index){return l.empName===empName||leaveGroupName(l.empName,index)===empName;}
+// Number of days on a leave record (handles half days, which store 0.5)
+function leaveDaysOf(l){
+  const d=parseFloat(l.days);
+  if(d>0)return d;
+  return l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:0;
 }
 
 // Single shared gratuity/EOSB formula — used by the Salary tab live figure, the Reports Excel, and the PDF.
@@ -1816,7 +1921,7 @@ window.doLogout=function(){
 //   staffShared/...       upcoming birthdays/anniversaries and the department leave calendar
 // The check is repeated every time employee/leave data changes, so access is switched off by
 // itself when someone becomes Inactive, is moved to Leavers, or their exit date has passed.
-let _mirrorLoaded={employees:false,leave:false,leavers:false,staffMap:false};
+let _mirrorLoaded={employees:false,leave:false,leavers:false,staffMap:false,compLeave:false};
 let _mirrorTimer=null,_mirrorBusy=false,_mirrorCache=null;
 function scheduleStaffMirrorSync(){
   if(currentRole!=='admin')return;
@@ -1859,7 +1964,7 @@ function staffAccessState(empKey,e,todayStr){
 }
 async function syncStaffMirrors(){
   if(currentRole!=='admin')return;
-  if(!(_mirrorLoaded.employees&&_mirrorLoaded.leave&&_mirrorLoaded.leavers&&_mirrorLoaded.staffMap))return;
+  if(!(_mirrorLoaded.employees&&_mirrorLoaded.leave&&_mirrorLoaded.leavers&&_mirrorLoaded.staffMap&&_mirrorLoaded.compLeave))return;
   if(_mirrorBusy){scheduleStaffMirrorSync();return;}
   _mirrorBusy=true;
   try{
@@ -1885,13 +1990,21 @@ async function syncStaffMirrors(){
 
     // 2. Each active staff member's own safe copy (nothing else about them or anyone else)
     const newView={};
+    const compMirrorFor=(k)=>{
+      if(window._compLoadFailed)return((_mirrorCache.view[k])||{})._comp;
+      const ents=compEntriesFor(k);
+      if(!ents.length)return undefined;
+      const tot=compTotals(ents);
+      ents.sort((a,b)=>(b[1].date||'')<(a[1].date||'')?-1:(b[1].date||'')>(a[1].date||'')?1:(b[1].ts||0)-(a[1].ts||0));
+      return{b:tot.bal,e:tot.earned,t:tot.taken,h:ents.slice(0,100).map(([ck,c])=>({d:c.date||'',k:c.kind||'',h:parseFloat(c.hours)||0,c:c.category||'',n:String(c.note||'').slice(0,300)}))};
+    };
     activeKeys.forEach(k=>{
       const e=DB.employees[k];
       const myName=normName(e.name);
       const hist=[],byType={};
       Object.values(DB.leave||{}).forEach(l=>{
         if(normName(l.empName)!==myName)return;
-        const d=l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:0;
+        const d=leaveDaysOf(l);
         hist.push({t:l.type||'',f:l.from||'',to:l.to||'',d,s:l.status||''});
         if(l.status==='Approved'){const ty=l.type||'Other';byType[ty]=(byType[ty]||0)+d;}
       });
@@ -1906,7 +2019,8 @@ async function syncStaffMirrors(){
         additionalApproverKey:e.additionalApproverKey,additionalApproverName:e.additionalApproverName,
         canViewOrgChart:!!e.canViewOrgChart,
         deptSlug:slugDept(e.dept),
-        _leave:{bt:Object.entries(byType).map(([t,d])=>({t,d})),h:hist.slice(0,80)}
+        _leave:{bt:Object.entries(byType).map(([t,d])=>({t,d})),h:hist.slice(0,80)},
+        _comp:compMirrorFor(k)
       });
     });
     for(const k of Object.keys(newView)){
@@ -1948,7 +2062,7 @@ async function syncStaffMirrors(){
       const emp=findEmpByName(l.empName,nameIdx);
       if(!emp)return;
       const slug=slugDept(emp.dept);
-      (sh.leave[slug]=sh.leave[slug]||{})[lk]={n:l.empName,f:l.from,t:l.to};
+      (sh.leave[slug]=sh.leave[slug]||{})[lk]={n:l.empName+(l.type==='Half Day Leave'?' (half day)':''),f:l.from,t:l.to};
     });
     for(const part of ['birthdays','anniversaries','leave']){
       const nv=prune(sh[part]);
@@ -2078,7 +2192,7 @@ function applyCEOMode(){
   // Employee Portal Access (credential management), which stays admin-only
   // regardless of role, per explicit instruction.
   const style=document.createElement('style');
-  style.textContent=`#navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }`;
+  style.textContent=`#navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }`;
   document.head.appendChild(style);
   document.getElementById('syncStatus').textContent='● CEO — Full View, Read-Only';
 }
@@ -2133,6 +2247,7 @@ function initEmployeeListeners(empKey,uid){
     DB.employees={[empKey]:view}; // keep just this one record locally
     renderMyInfo(view);
     renderMyLeaveBalance(view);
+    renderMyComp(view);
     renderMyLeaveHistory();
     if(view.deptSlug&&_staffDeptSub!==view.deptSlug){
       _staffDeptSub=view.deptSlug;
@@ -2218,6 +2333,18 @@ function renderMyLeaveBalance(e){
   if(others.length)html+='<div style="font-size:12px;color:#555;">'+others.map(([k,v])=>`${esc(k)}: <strong>${v}d</strong>`).join(' &nbsp;•&nbsp; ')+'</div>';
   document.getElementById('empLeaveBalance').innerHTML=html;
 }
+function renderMyComp(e){
+  const card=document.getElementById('empCompCard');if(!card)return;
+  const c=(e&&e._comp)||null;
+  const tot=c?{bal:+c.b||0,e:+c.e||0,t:+c.t||0}:{bal:0,e:0,t:0};
+  document.getElementById('empCompSummary').innerHTML=`<div style="display:flex;gap:26px;flex-wrap:wrap;">
+    ${compStatBox('Balance available',tot.bal,tot.bal<0?'#c0392b':'#1A7A6E')}${compStatBox('Earned so far',tot.e,'#1C3557')}${compStatBox('Taken so far',tot.t,'#8e44ad')}</div>`;
+  const rows=c?Object.values(c.h||{}):[];
+  document.getElementById('empCompBody').innerHTML=rows.length?rows.map(x=>{
+    const label=Object.values(COMP_UNITS).find(u=>u.h===x.h);
+    return`<tr><td>${fmt(x.d)}</td><td><span class="badge ${x.k==='taken'?'badge-pending':'badge-approved'}">${x.k==='taken'?'Taken':'Earned'}</span></td><td>${esc(label?label.label:(x.h+' hrs'))}</td><td style="font-size:12px;">${esc(x.c||'—')}</td><td style="font-size:12px;">${esc(x.n||'—')}</td></tr>`;
+  }).join(''):'<tr><td colspan="5"><div class="empty-state"><p>No compensatory leave recorded yet</p></div></td></tr>';
+}
 function renderMyLeaveHistory(){
   const e=DB.employees[currentEmpKey];if(!e)return;
   const rows=Object.values((e._leave&&e._leave.h)||{});
@@ -2244,13 +2371,14 @@ window.openAdjustLeave=function(key){
 };
 window.saveLeaveAdjustment=async function(){
   const key=currentAdjustKey;const r=DB.leaveRequests[key];
-  const newStart=v('alStart'),newEnd=v('alEnd'),reason=v('alReason');
+  const isHalfAdj=r.leaveType==='Half Day Leave';
+  const newStart=v('alStart'),newEnd=isHalfAdj?v('alStart'):v('alEnd'),reason=v('alReason');
   if(!newStart||!newEnd){alert('Please set both dates.');return;}
-  const newDays=Math.ceil((new Date(newEnd)-new Date(newStart))/86400000)+1;
-  if(newDays<1){alert('End date must be on or after start date.');return;}
+  const newDays=isHalfAdj?0.5:Math.ceil((new Date(newEnd)-new Date(newStart))/86400000)+1;
+  if(newDays<0.5){alert('End date must be on or after start date.');return;}
   const oldDays=r.totalDays;
   // Restore the old deduction, then apply the new one — net effect is just the difference
-  if(r.leaveType==='Annual Leave'){
+  if(r.leaveType==='Annual Leave'||isHalfAdj){
     const emp=DB.employees[r.empKey];
     if(emp&&emp.annualLeaveBalance!=null){
       const restored=parseFloat(emp.annualLeaveBalance)+oldDays;
@@ -2269,7 +2397,7 @@ window.cancelApprovedLeave=async function(){
   const key=currentAdjustKey;const r=DB.leaveRequests[key];
   if(!confirm(`Cancel ${r.empName}'s ${r.leaveType} (${fmt(r.startDate)}–${fmt(r.endDate)}) entirely? Their leave balance will be restored.`))return;
   const reason=v('alReason');
-  if(r.leaveType==='Annual Leave'){
+  if(r.leaveType==='Annual Leave'||r.leaveType==='Half Day Leave'){
     const emp=DB.employees[r.empKey];
     if(emp&&emp.annualLeaveBalance!=null){
       const restored=parseFloat(emp.annualLeaveBalance)+r.totalDays;
@@ -2364,13 +2492,14 @@ window.renderHRReviewQueue=function(){
     }).join('');
   }
 };
-function reqDays(r){return Math.ceil((new Date(r.endDate)-new Date(r.startDate))/86400000)+1;}
+function reqDays(r){return r.leaveType==='Half Day Leave'?0.5:Math.ceil((new Date(r.endDate)-new Date(r.startDate))/86400000)+1;}
 window.completeHRReview=function(key){
   const r=DB.leaveRequests[key];
   if(!r.lineManagerKey){alert('This employee has no Line Manager set. Please add one in Employee Records first.');return;}
   const comments=v('hrc_'+key);
   const realDays=reqDays(r);
-  if(!(realDays>=1&&realDays<=366)){alert('The dates on this request are not valid. Please reject it and ask the employee to submit again.');return;}
+  if(!(realDays>=0.5&&realDays<=366)){alert('The dates on this request are not valid. Please reject it and ask the employee to submit again.');return;}
+  if(r.leaveType==='Half Day Leave'&&r.startDate!==r.endDate){alert('A half-day request must be for a single date. Please reject it and ask the employee to submit again.');return;}
   const fixed=realDays!==r.totalDays;
   set(ref(db,'leaveRequests/'+key),{...r,totalDays:realDays,stage:'Line Manager Approval',hrReviewedBy:adminName,hrReviewedAt:Date.now(),hrComments:comments}).then(()=>{
     logAudit('HR Review Completed',r.empName,(comments||'')+(fixed?' [days corrected from '+r.totalDays+' to '+realDays+']':''));
@@ -2396,10 +2525,11 @@ window.syncApprovedLeaveRequests=function(){
       set(newLeaveRef,{
         empName:r.empName,type:r.leaveType,from:r.startDate,to:r.endDate,
         status:'Approved',approvedBy:r.lineManagerName||'Line Manager',
-        reason:r.reason,ts:Date.now(),source:'Employee Self-Service Request'
+        reason:r.reason,ts:Date.now(),source:'Employee Self-Service Request',
+        ...(r.leaveType==='Half Day Leave'?{days:'0.5'}:{})
       });
       const emp=Object.entries(DB.employees).find(([ek,e])=>ek===r.empKey);
-      if(emp&&r.leaveType==='Annual Leave'&&emp[1].annualLeaveBalance!=null){
+      if(emp&&(r.leaveType==='Annual Leave'||r.leaveType==='Half Day Leave')&&emp[1].annualLeaveBalance!=null){
         const newBal=Math.max(0,parseFloat(emp[1].annualLeaveBalance)-r.totalDays);
         set(ref(db,'employees/'+r.empKey+'/annualLeaveBalance'),newBal);
       }
@@ -2570,6 +2700,8 @@ window.decideLeaveApproval=async function(key,role,approve){
 };
 window.openLeaveRequestForm=function(){
   sv('lrStart','');sv('lrEnd','');sv('lrDays','');sv('lrReason','');
+  const _lt=document.getElementById('lrType');if(_lt)_lt.selectedIndex=0;
+  updateLeaveFormVisibility();
   sv('lrNativeAddress','');sv('lrNativeContact','');sv('lrReliever','');sv('lrRemarks','');
   document.getElementById('lrExtraFields').style.display='none';
   document.getElementById('leaveReqModal').classList.add('open');
@@ -2578,23 +2710,33 @@ window.openLeaveRequestForm=function(){
 // Annual/Sick/Emergency leave longer than 2 days.
 window.updateLeaveFormVisibility=function(){
   const type=v('lrType');
-  const from=v('lrStart'),to=v('lrEnd');
-  const days=(from&&to)?Math.ceil((new Date(to)-new Date(from))/86400000)+1:0;
+  const half=type==='Half Day Leave';
+  const sw=document.getElementById('lrSessionWrap'),ew=document.getElementById('lrEndWrap'),sl=document.getElementById('lrStartLabel');
+  if(sw)sw.style.display=half?'':'none';
+  if(ew)ew.style.display=half?'none':'';
+  if(sl)sl.textContent=half?'Date':'Start Date';
+  const from=v('lrStart'),to=half?from:v('lrEnd');
+  const days=half?(from?0.5:0):((from&&to)?Math.ceil((new Date(to)-new Date(from))/86400000)+1:0);
   const needsExtra=['Annual Leave','Sick Leave','Emergency Leave'].includes(type)&&days>2;
   document.getElementById('lrExtraFields').style.display=needsExtra?'block':'none';
 };
 window.calcLRDays=function(){
-  const from=v('lrStart'),to=v('lrEnd');
-  if(!from||!to){sv('lrDays','');return;}
+  const half=v('lrType')==='Half Day Leave';
+  const from=v('lrStart'),to=half?v('lrStart'):v('lrEnd');
+  if(!from||!to){sv('lrDays','');updateLeaveFormVisibility();return;}
+  if(half){sv('lrDays','0.5 day (half day)');updateLeaveFormVisibility();return;}
   const d=Math.ceil((new Date(to)-new Date(from))/86400000)+1;
   sv('lrDays',d>0?d+' day'+(d>1?'s':''):'Invalid dates');
   updateLeaveFormVisibility();
 };
 window.submitLeaveRequest=async function(){
-  const leaveType=v('lrType'),startDate=v('lrStart'),endDate=v('lrEnd'),reason=v('lrReason');
-  if(!startDate||!endDate){alert('Please select both a start and end date.');return;}
-  const totalDays=Math.ceil((new Date(endDate)-new Date(startDate))/86400000)+1;
-  if(totalDays<1){alert('End date must be on or after the start date.');return;}
+  const leaveType=v('lrType'),startDate=v('lrStart');
+  const half=leaveType==='Half Day Leave';
+  const endDate=half?startDate:v('lrEnd');
+  const reason=half?('['+v('lrSession')+'] '+v('lrReason')).trim():v('lrReason');
+  if(!startDate||!endDate){alert(half?'Please select the date.':'Please select both a start and end date.');return;}
+  const totalDays=half?0.5:Math.ceil((new Date(endDate)-new Date(startDate))/86400000)+1;
+  if(totalDays<0.5){alert('End date must be on or after the start date.');return;}
   const e=DB.employees[currentEmpKey];
   const needsExtra=['Annual Leave','Sick Leave','Emergency Leave'].includes(leaveType)&&totalDays>2;
   const record={
@@ -2624,7 +2766,7 @@ function applyPROMode(){
   style.textContent=`
     .nav-item[onclick*="'loans'"] { display: none !important; }
     .nav-item[onclick*="'settlement'"] { display: none !important; }
-    #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }
+    #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }
     button[onclick*="openEmpModal"], button[onclick="delEmp"], button[onclick*="delEmp("] { display: none !important; }
   `;
   document.head.appendChild(style);
@@ -2743,6 +2885,16 @@ function initListeners(){
       if(pg&&pg.classList.contains('active'))renderPortalAccess();
       scheduleStaffMirrorSync();
     });
+    // Compensatory leave: Dev and Darleendy only
+    onValue(ref(db,'compLeave'),snap=>{
+      DB.compLeave=snap.val()||{};
+      window._compLoadFailed=false;
+      _mirrorLoaded.compLeave=true;
+      const pg=document.getElementById('page-comp');
+      if(pg&&pg.classList.contains('active'))renderCompPage();
+      if(document.getElementById('compDetailModal').classList.contains('open')&&window._compDetailKey)openCompDetail(window._compDetailKey);
+      scheduleStaffMirrorSync();
+    },()=>{window._compLoadFailed=true;_mirrorLoaded.compLeave=true;scheduleStaffMirrorSync();});
   }
   document.getElementById('syncStatus').textContent='● Live';
   document.getElementById('syncStatus').style.color='#4caf50';
@@ -2758,6 +2910,7 @@ window.closeMobileSidebar=function(){
   document.getElementById('mobileSidebarOverlay').classList.remove('mobile-open');
 };
 window.showPage=function(page,el){
+  if(page==='comp'&&currentRole!=='admin')return; // Dev and Darleendy only
   closeMobileSidebar(); // so picking a page doesn't leave the drawer covering the content on mobile
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -2779,6 +2932,7 @@ window.showPage=function(page,el){
     setTimeout(()=>buildEmpDropdown('stEmpSel'),100);
   }
   if(page==='portalaccess')renderPortalAccess();
+  if(page==='comp')renderCompPage();
   if(page==='policyimport')renderPolicyImportList();
   if(page==='leaveapprovals')renderHRReviewQueue();
   if(page==='orgchart')renderOrgChart();
@@ -2870,7 +3024,7 @@ function updateDash(){
         const found=findEmpByName(l.empName,nameIndex);
         if(!found)unlinked.add(l.empName||'(blank)');
         const emp=found||{};
-        const totalDays=l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:'—';
+        const totalDays=(l.from&&l.to)?leaveDaysOf(l):'—';
         const isActiveNow=l.from<=todayStr&&l.to>=todayStr;
         const missing='<span style="color:#c0392b;font-size:11px;font-style:italic;" title="This leave record\'s name does not match any employee in Employee Records">not linked</span>';
         return`<tr>
@@ -3247,27 +3401,32 @@ function renderLeave(data){
   const tbody=document.getElementById('leaveBody');
   if(!rows.length){tbody.innerHTML='<tr><td colspan="8"><div class="empty-state"><div class="icon">📅</div><p>No leave records.</p></div></td></tr>';return;}
 
-  // Group by employee
+  // Group by employee — one line per real person, even if older records spell the name slightly differently
+  const nameIdx=buildNameIndex();
   const grouped={};
   rows.forEach(([k,l])=>{
-    const name=l.empName||'Unknown';
+    const name=leaveGroupName(l.empName,nameIdx);
     if(!grouped[name]) grouped[name]=[];
     grouped[name].push([k,l]);
   });
+  const noteEl=document.getElementById('leaveUnlinkedNote');
+  if(noteEl){
+    const loose=[...new Set(Object.values(DB.leave).filter(l=>!matchEmpByName(l.empName,nameIdx)).map(l=>l.empName||'(blank)'))];
+    noteEl.innerHTML=loose.length?'<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:7px;padding:8px 12px;font-size:12px;color:#8a6d00;margin-bottom:10px;">⚠ '+loose.length+' name'+(loose.length>1?'s':'')+' on leave records do not match anyone in Employee Records, so they are listed separately: <strong>'+loose.slice(0,8).map(esc).join(', ')+(loose.length>8?' …':'')+'</strong>. Open the record and correct the spelling to merge it.</div>':'';
+  }
 
   let html2='';
   Object.entries(grouped).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([empName,empRows])=>{
-    const totalDays=empRows.reduce((s,[k,l])=>{
-      if(l.days) return s+parseFloat(l.days);
-      return s+(l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:0);
-    },0);
+    const totalDays=empRows.reduce((s,[k,l])=>s+leaveDaysOf(l),0);
     const types=[...new Set(empRows.map(([k,l])=>l.type))];
+    const alsoAs=[...new Set(empRows.map(([k,l])=>l.empName||'').filter(n=>n&&n!==empName))];
     
     // Employee summary row - clickable
     html2+=`<tr style="background:#f0f4ff;cursor:pointer;" onclick="openLeaveSummary('${esc(empName)}')">
       <td colspan="5">
         <strong style="color:#1C3557;">${esc(empName)}</strong>
         <span style="font-size:11px;color:#888;margin-left:10px;">${empRows.length} records · ${totalDays} days total</span>
+        ${alsoAs.length?`<span style="font-size:10px;color:#b7791f;margin-left:8px;" title="These records were typed with a slightly different spelling and are shown together here">(also filed as: ${alsoAs.slice(0,3).map(esc).join(', ')})</span>`:''}
         <span style="font-size:11px;color:#2563A8;margin-left:8px;">${types.slice(0,3).map(t=>`<span class="leave-tag" style="font-size:10px;">${esc(t)}</span>`).join(' ')}</span>
       </td>
       <td colspan="3" style="text-align:right;">
@@ -3279,7 +3438,8 @@ function renderLeave(data){
 }
 window.filterLeave=function(){
   const q=v('leaveSearch').toLowerCase(),type=document.getElementById('leaveTypeF').value,status=document.getElementById('leaveStatusF').value;
-  const filtered=Object.entries(DB.leave).filter(([k,l])=>(!q||l.empName?.toLowerCase().includes(q))&&(!type||l.type===type)&&(!status||l.status===status));
+  const fIdx=buildNameIndex();
+  const filtered=Object.entries(DB.leave).filter(([k,l])=>(!q||(l.empName||'').toLowerCase().includes(q)||leaveGroupName(l.empName,fIdx).toLowerCase().includes(q))&&(!type||l.type===type)&&(!status||l.status===status));
   renderLeave(filtered);
 };
 window.openLeaveModal=function(){
@@ -3296,10 +3456,130 @@ window.editLeave=function(key){const l=DB.leave[key];sv('lvEmp',l.empName);sv('l
 window.saveLeave=function(){
   const data={empName:v('lvEmp'),type:v('lvType'),status:v('lvStatus'),from:v('lvFrom'),to:v('lvTo'),approvedBy:v('lvApproved'),notes:v('lvNotes'),ts:Date.now()};
   if(!data.empName){alert('Employee name required');return;}
+  if(data.type==='Half Day Leave'){data.to=data.from;data.days='0.5';}
   const key=v('lvKey');const op=key?set(ref(db,'leave/'+key),data):set(push(ref(db,'leave')),data);
   op.then(()=>{logAudit(key?'Edit Leave':'Add Leave',data.empName,data.type+' '+data.from+' to '+data.to);closeModal('leaveModal');showAlert('leave-alert','Leave saved!');});
 };
 window.delLeave=function(key){if(!confirm('Delete?'))return;remove(ref(db,'leave/'+key)).then(()=>showAlert('leave-alert','Deleted.'));};
+
+
+// ── COMPENSATORY LEAVE ────────────────────────────────────────────────────────
+// Recorded by hand by Dev / Darleendy only. Counted in hours (1 day = COMP_DAY_HOURS hours).
+const COMP_DAY_HOURS=8;
+const COMP_UNITS={h1:{label:'1 hour',h:1},h2:{label:'2 hours',h:2},h3:{label:'3 hours',h:3},half:{label:'Half day',h:COMP_DAY_HOURS/2},full:{label:'Full day',h:COMP_DAY_HOURS}};
+function fmtCompHours(h){
+  const neg=h<0;h=Math.abs(h);
+  const d=Math.floor(h/COMP_DAY_HOURS+1e-9);
+  const r=Math.round((h-d*COMP_DAY_HOURS)*100)/100;
+  const parts=[];
+  if(d)parts.push(d+(d===1?' day':' days'));
+  if(r)parts.push(r+(r===1?' hr':' hrs'));
+  return (neg&&parts.length?'-':'')+(parts.join(' ')||'0');
+}
+function compEntriesFor(empKey){return Object.entries(DB.compLeave||{}).filter(([k,c])=>c&&c.empKey===empKey);}
+function compTotals(entries){
+  let earned=0,taken=0;
+  entries.forEach(([k,c])=>{const h=parseFloat(c.hours)||0;if(c.kind==='taken')taken+=h;else if(c.kind==='earned')earned+=h;});
+  return{earned,taken,bal:earned-taken};
+}
+function compStatBox(label,h,color){
+  return`<div><div style="color:#888;font-size:11px;">${esc(label)}</div><div style="font-weight:700;font-size:18px;color:${color};">${esc(fmtCompHours(h))}</div><div style="font-size:11px;color:#999;">${Math.round(h*100)/100} hrs</div></div>`;
+}
+window.renderCompPage=function(){
+  const body=document.getElementById('compBody');if(!body)return;
+  const q=(v('compSearch')||'').toLowerCase();
+  const byEmp={};
+  Object.entries(DB.compLeave||{}).forEach(([k,c])=>{if(c&&c.empKey)(byEmp[c.empKey]=byEmp[c.empKey]||[]).push([k,c]);});
+  const rows=Object.entries(byEmp).map(([ek,ents])=>{
+    const e=DB.employees[ek];
+    return{ek,name:(e&&e.name)||ents[0][1].empName||ek,empId:e&&e.empId,tot:compTotals(ents),last:ents.map(([k,c])=>c.date||'').sort().pop()};
+  }).filter(r=>!q||r.name.toLowerCase().includes(q)||String(r.empId||'').toLowerCase().includes(q))
+    .sort((a,b)=>a.name.localeCompare(b.name));
+  body.innerHTML=rows.length?rows.map(r=>`<tr style="cursor:pointer;" data-k="${esc(r.ek)}" onclick="openCompDetail(this.dataset.k)">
+    <td><strong>${esc(r.name)}</strong>${r.empId?'<br><span style="font-size:11px;color:#888;">'+esc(r.empId)+'</span>':''}</td>
+    <td>${esc(fmtCompHours(r.tot.earned))}</td><td>${esc(fmtCompHours(r.tot.taken))}</td>
+    <td style="font-weight:700;color:${r.tot.bal<0?'#c0392b':'#1A7A6E'};">${esc(fmtCompHours(r.tot.bal))}</td>
+    <td>${r.last?fmt(r.last):'—'}</td>
+    <td><button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" data-k="${esc(r.ek)}" onclick="event.stopPropagation();openCompDetail(this.dataset.k)">📋 View</button>
+        <button class="btn btn-sm btn-primary" data-k="${esc(r.ek)}" onclick="event.stopPropagation();openCompModal('',this.dataset.k)">+ Add</button></td>
+  </tr>`).join(''):'<tr><td colspan="6"><div class="empty-state"><div class="icon">⏱️</div><p>No compensatory leave entries yet. Click “+ Add Entry” to record one.</p></div></td></tr>';
+};
+window.compKindChanged=function(){
+  const w=document.getElementById('compCatWrap');
+  if(w)w.style.display=v('compKind')==='earned'?'':'none';
+};
+window.openCompModal=function(entryKey,empKey){
+  if(currentRole!=='admin')return;
+  buildEmpDropdown('compEmpSel');
+  const c=entryKey?DB.compLeave[entryKey]:null;
+  sv('compKey',entryKey||'');
+  if(c){
+    selectEmpByKey('compEmpSel',c.empKey);
+    if(!v('compEmpSel').startsWith(c.empKey+'|')){alert('This entry belongs to an employee who is no longer in Employee Records, so it cannot be edited. If it is wrong, delete it.');return;}
+    sv('compKind',c.kind);sv('compDate',c.date);sv('compUnit',c.unit);
+    sv('compCat',c.category||'Other');sv('compNote',c.note||'');
+  }else{
+    selectEmpByKey('compEmpSel',empKey||'');
+    sv('compKind','earned');sv('compDate',localDateStr(new Date()));sv('compUnit','h1');
+    sv('compCat','Worked late night / extra hours');sv('compNote','');
+  }
+  compKindChanged();
+  closeModal('compDetailModal');
+  document.getElementById('compModal').classList.add('open');
+};
+window.saveCompEntry=async function(){
+  if(currentRole!=='admin')return;
+  const key=v('compKey');
+  const p=parseEmpSelect(v('compEmpSel'));
+  if(!p.key){alert('Please select an employee.');return;}
+  const date=v('compDate');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){alert('Please choose the date.');return;}
+  const kind=v('compKind'),unit=v('compUnit'),u=COMP_UNITS[unit];
+  if(!u||(kind!=='earned'&&kind!=='taken')){alert('Please choose the entry type and amount.');return;}
+  if(kind==='taken'){
+    const cur=compTotals(compEntriesFor(p.key).filter(([k])=>k!==key));
+    if(cur.bal-u.h<0&&!confirm('This takes the balance below zero (current balance: '+fmtCompHours(cur.bal)+'). Save anyway?'))return;
+  }
+  const data={empKey:p.key,empName:p.name,date,kind,unit,hours:u.h,
+    category:kind==='earned'?v('compCat'):'',note:v('compNote').trim().slice(0,300),by:adminName,ts:Date.now()};
+  try{
+    await set(key?ref(db,'compLeave/'+key):push(ref(db,'compLeave')),data);
+  }catch(err){alert('Could not save: '+((err&&err.code)||(err&&err.message)||'unknown error'));return;}
+  logAudit(key?'Edit Compensatory Leave':'Add Compensatory Leave',p.name,(kind==='earned'?'Earned ':'Taken ')+u.label+' on '+date);
+  closeModal('compModal');
+  showAlert('comp-alert','Saved. The employee will see it in their portal shortly.');
+  if(document.getElementById('compDetailModal').classList.contains('open'))openCompDetail(p.key);
+  renderCompPage();
+};
+window.openCompDetail=function(empKey){
+  if(currentRole!=='admin')return;
+  window._compDetailKey=empKey;
+  const e=DB.employees[empKey];
+  const ents=compEntriesFor(empKey).sort((a,b)=>(b[1].date||'')<(a[1].date||'')?-1:(b[1].date||'')>(a[1].date||'')?1:(b[1].ts||0)-(a[1].ts||0));
+  const tot=compTotals(ents);
+  document.getElementById('compDetailName').textContent='⏱️ '+((e&&e.name)||(ents[0]&&ents[0][1].empName)||'Employee');
+  document.getElementById('compDetailStats').innerHTML=compStatBox('Earned',tot.earned,'#1C3557')+compStatBox('Taken',tot.taken,'#8e44ad')+compStatBox('Balance',tot.bal,tot.bal<0?'#c0392b':'#1A7A6E');
+  document.getElementById('compDetailBody').innerHTML=ents.length?ents.map(([k,c])=>`<tr>
+    <td>${fmt(c.date)}</td>
+    <td><span class="badge ${c.kind==='taken'?'badge-pending':'badge-approved'}">${c.kind==='taken'?'Taken':'Earned'}</span></td>
+    <td>${esc((COMP_UNITS[c.unit]||{}).label||c.hours+' hrs')}</td>
+    <td style="font-size:12px;">${esc(c.category||'—')}</td>
+    <td style="font-size:12px;max-width:180px;">${esc(c.note||'—')}</td>
+    <td style="font-size:11px;color:#888;">${esc(c.by||'')}</td>
+    <td style="white-space:nowrap;"><button class="btn btn-sm btn-primary" data-k="${esc(k)}" onclick="openCompModal(this.dataset.k)">Edit</button> <button class="btn btn-sm btn-danger" data-k="${esc(k)}" onclick="deleteCompEntry(this.dataset.k)">Del</button></td>
+  </tr>`).join(''):'<tr><td colspan="7" style="text-align:center;color:#999;padding:14px;">No entries</td></tr>';
+  document.getElementById('compDetailAdd').onclick=()=>openCompModal('',empKey);
+  document.getElementById('compDetailModal').classList.add('open');
+};
+window.deleteCompEntry=async function(key){
+  if(currentRole!=='admin')return;
+  const c=DB.compLeave[key];if(!c)return;
+  if(!confirm('Delete this entry? The employee\'s balance will change.'))return;
+  try{await remove(ref(db,'compLeave/'+key));}catch(err){alert('Could not delete: '+((err&&err.code)||'unknown error'));return;}
+  logAudit('Delete Compensatory Leave',c.empName||'',(c.kind==='earned'?'Earned ':'Taken ')+((COMP_UNITS[c.unit]||{}).label||'')+' on '+c.date);
+  openCompDetail(c.empKey);
+  renderCompPage();
+};
 
 // ── SALARY ────────────────────────────────────────────────────────────────────
 function renderSal(data){
@@ -3931,6 +4211,7 @@ window.openEditLeave=function(key){
 window.saveEditedLeave=function(){
   const key=v('elKey');if(!key)return;
   const data={empName:v('elEmp'),type:v('elType'),status:v('elStatus'),from:v('elFrom'),to:v('elTo'),days:v('elDays'),approvedBy:v('elApproved'),notes:v('elNotes'),ts:DB.leave[key]?.ts||Date.now()};
+  if(data.type==='Half Day Leave'){data.days='0.5';data.to=data.from;}
   set(ref(db,'leave/'+key),data).then(()=>{
     logAudit('Edit Leave',data.empName,`${data.type} ${data.from} ${data.days}d`);
     closeModal('editLeaveModal');
@@ -3947,9 +4228,11 @@ window.saveLeaveFromSummary=function(){
   const fromDate=v('alsFrom'),toDate=v('alsTo');
   const explicitDays=v('alsDays');
   let days=explicitDays;
+  const isHalfAdd=v('alsType')==='Half Day Leave';
+  if(isHalfAdd&&!days)days='0.5';
   if(!days&&fromDate&&toDate) days=String(Math.ceil((new Date(toDate)-new Date(fromDate))/86400000)+1);
   if(!days) days='1';
-  const data={empName,type:v('alsType'),status:v('alsStatus'),from:fromDate,to:toDate,days,approvedBy:v('alsApproved'),notes:v('alsNotes'),ts:Date.now()};
+  const data={empName,type:v('alsType'),status:v('alsStatus'),from:fromDate,to:(isHalfAdd&&!toDate)?fromDate:toDate,days,approvedBy:v('alsApproved'),notes:v('alsNotes'),ts:Date.now()};
   if(!fromDate){alert('From date required');return;}
   set(push(ref(db,'leave')),data).then(()=>{
     logAudit('Add Leave',empName,`${data.type} ${data.from} ${data.days}d`);
@@ -3969,7 +4252,8 @@ window.saveAdjustment=function(){
   });
 };
 function renderAdjustments(empName){
-  const adjs=Object.entries(DB.leaveAdjustments||{}).filter(([k,a])=>a.empName===empName).sort((a,b)=>b[1].ts-a[1].ts);
+  const adjIdx=buildNameIndex();
+  const adjs=Object.entries(DB.leaveAdjustments||{}).filter(([k,a])=>leaveBelongsTo(a,empName,adjIdx)).sort((a,b)=>b[1].ts-a[1].ts);
   const el=document.getElementById('adjList');if(!el)return;
   el.innerHTML=adjs.length?
     '<div style="font-size:12px;font-weight:700;color:#1C3557;margin-bottom:6px;">Existing Adjustments:</div>'+
@@ -5303,8 +5587,9 @@ window.runProfileReport=function(){
   XLSX.utils.book_append_sheet(wb,ws2,'Salary History');
 
   // ── SHEET 3: Leave History ────────────────────────────────────────────────
+  const _pIdx=buildNameIndex();
   const leaveRows=Object.values(DB.leave)
-    .filter(l=>l.empName===emp.name)
+    .filter(l=>leaveBelongsTo(l,emp.name,_pIdx))
     .sort((a,b)=>a.from>b.from?1:-1);
 
   const lv=[['LEAVE HISTORY — '+emp.name],[''],
@@ -5504,7 +5789,8 @@ window.runProfilePDF=async function(){
   y+=4;
 
   // ── Section 5: Leave Summary ──────────────────────────────────────────────
-  const leaveRows=Object.values(DB.leave).filter(l=>l.empName===emp.name).sort((a,b)=>a.from>b.from?1:-1);
+  const _pIdx2=buildNameIndex();
+  const leaveRows=Object.values(DB.leave).filter(l=>leaveBelongsTo(l,emp.name,_pIdx2)).sort((a,b)=>a.from>b.from?1:-1);
   checkPage(30);
   sectionHdr('5.  LEAVE HISTORY  ('+leaveRows.length+' records)');
   if(leaveRows.length){
@@ -6025,7 +6311,7 @@ window.runReportPDF=function(type){
       subtitle:'All recorded leave, by type, department and employee',
       filename:'CK_Leave_Summary_Report',
       columns:[{label:'Employee',width:36},{label:'Leave Type',width:26},{label:'From',width:22},{label:'To',width:22},{label:'Days',width:14},{label:'Status',width:18},{label:'Approved By',width:24}],
-      rows:rows.map(l=>{const d=l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:'';return[l.empName,l.type,l.from,l.to,d,l.status,l.approvedBy];}),
+      rows:rows.map(l=>{const d=l.from&&l.to?leaveDaysOf(l):'';return[l.empName,l.type,l.from,l.to,d,l.status,l.approvedBy];}),
       summaryLines:[`Total Leave Records: ${rows.length}`,...Object.entries(byType).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k}: ${v} records`)]
     });
   } else if(type==='loans'){
@@ -6423,19 +6709,20 @@ window.openLeaveSummary=function(empName){
 };
 
 function refreshLeaveSummary(empName){
+  const lsIdx=buildNameIndex();
   const empLeave=Object.values(DB.leave)
-    .filter(l=>l.empName===empName)
+    .filter(l=>leaveBelongsTo(l,empName,lsIdx))
     .sort((a,b)=>a.from>b.from?1:-1);
-  const emp=Object.values(DB.employees).find(e=>e.name===empName);
+  const emp=Object.values(DB.employees).find(e=>e.name===empName)||findEmpByName(empName,lsIdx);
   const entitled=parseFloat(emp?.annualLeaveEnt||30);
   let alDays=0,slDays=0,wfhDays=0;
   empLeave.forEach(l=>{
-    const d=l.days?parseFloat(l.days):(l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:0);
-    if(l.type==='Annual Leave'||l.type==='Emergency Leave'||l.type==='Hajj Leave'||l.type==='Compassionate Leave'||l.type==='Maternity Leave'||l.type==='Paternity Leave') alDays+=d;
+    const d=leaveDaysOf(l);
+    if(l.type==='Annual Leave'||l.type==='Half Day Leave'||l.type==='Emergency Leave'||l.type==='Hajj Leave'||l.type==='Compassionate Leave'||l.type==='Maternity Leave'||l.type==='Paternity Leave') alDays+=d;
     else if(l.type==='Sick Leave') slDays+=d;
     else if(l.type==='Work From Home') wfhDays+=d;
   });
-  const adjs=Object.values(DB.leaveAdjustments||{}).filter(a=>a.empName===empName&&a.year===String(new Date().getFullYear()));
+  const adjs=Object.values(DB.leaveAdjustments||{}).filter(a=>leaveBelongsTo(a,empName,lsIdx)&&a.year===String(new Date().getFullYear()));
   const adjTotal=adjs.reduce((s,a)=>s+parseFloat(a.days||0),0);
   const totalUsed=alDays+wfhDays;
   const balance=entitled+adjTotal-totalUsed;
@@ -6447,11 +6734,11 @@ function refreshLeaveSummary(empName){
   document.getElementById('lsBalBar').style.background=balance<5?'#e74c3c':balance<10?'#e67e22':'#1A7A6E';
   document.getElementById('lsSickUsed').textContent=slDays.toFixed(1);
   document.getElementById('lsWFHUsed').textContent=wfhDays.toFixed(1);
-  const colors={'Annual Leave':'#2563A8','Sick Leave':'#e74c3c','Work From Home':'#8e44ad','Emergency Leave':'#e67e22','Hajj Leave':'#1A7A6E','Compassionate Leave':'#8e44ad','Maternity Leave':'#e91e8c','Paternity Leave':'#1A7A6E','Unpaid Leave':'#888','Other':'#555'};
+  const colors={'Annual Leave':'#2563A8','Half Day Leave':'#16a085','Sick Leave':'#e74c3c','Work From Home':'#8e44ad','Emergency Leave':'#e67e22','Hajj Leave':'#1A7A6E','Compassionate Leave':'#8e44ad','Maternity Leave':'#e91e8c','Paternity Leave':'#1A7A6E','Unpaid Leave':'#888','Other':'#555'};
   const tbody=document.getElementById('lsHistBody');
   if(!empLeave.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#999;padding:16px;">No records</td></tr>';return;}
   tbody.innerHTML=empLeave.map(l=>{
-    const d=l.days?parseFloat(l.days):(l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:'—');
+    const d=leaveDaysOf(l)||'—';
     const color=colors[l.type]||'#1C3557';
     const key=Object.entries(DB.leave).find(([k,v])=>v===l)?.[0]||'';
     return`<tr>
