@@ -172,10 +172,12 @@ tr:hover td{background:#fafbfc;}
     </div>
     <h1>CK | HR Portal</h1>
     <p>CK Architecture Interiors &amp; CKC Building Contracting</p>
-    <input type="text" id="loginUser" placeholder="Admin Username">
-    <input type="password" id="loginPass" placeholder="Password">
+    <input type="text" id="loginUser" placeholder="Username or company email" autocomplete="username" autocapitalize="none" spellcheck="false">
+    <input type="password" id="loginPass" placeholder="Password" autocomplete="current-password">
     <button id="loginBtn" onclick="doLogin()">Sign In</button>
-    <div id="loginError">Invalid username or password.</div>
+    <div id="loginError">Incorrect username/email or password.</div>
+    <div id="loginInfo" style="color:#1A7A6E;font-size:13px;margin-top:10px;display:none;line-height:1.5;"></div>
+    <div style="margin-top:16px;"><a href="#" onclick="forgotPassword();return false;" style="color:#2563A8;font-size:13px;text-decoration:none;">Forgot password?</a></div>
   </div>
 </div>
 
@@ -951,12 +953,19 @@ tr:hover td{background:#fafbfc;}
 
       <!-- REPORTS -->
       <div id="page-portalaccess" class="page">
-        <div class="page-header"><h2>🔑 Employee Portal Access</h2><p>Set up self-service login for employees — they'll be able to view their own documents/expiry and submit leave requests. Visible only to Dev and Darleendy.</p></div>
+        <div class="page-header"><h2>🔑 Employee Portal Access</h2><p>Give staff their own login to the HR portal. They sign in with their company email and choose their own password from an emailed link — nobody in HR ever sees or sets a staff password. Visible only to Dev and Darleendy.</p></div>
         <div class="card">
-          <input class="search-box" type="text" id="portalSearch" placeholder="🔍 Search employee..." oninput="renderPortalAccess()" style="margin-bottom:14px;">
+          <div style="background:#f5f7fa;border-radius:8px;padding:12px 14px;font-size:12.5px;color:#444;line-height:1.7;margin-bottom:14px;">
+            <strong>How it works</strong><br>
+            1. The employee needs a <strong>Company Email</strong> in Employee Records.<br>
+            2. Click <strong>Create login &amp; email setup link</strong>. They receive an email and choose their own password.<br>
+            3. If they forget it later, they tap <em>Forgot password?</em> on the login page (or you click <em>Resend password email</em>).<br>
+            4. Access switches off by itself when an employee is marked <em>Inactive</em>, is moved to Leavers, or their exit date passes. You can also turn it off yourself at any time.
+          </div>
+          <input class="search-box" type="text" id="portalSearch" placeholder="🔍 Search employee or email..." oninput="renderPortalAccess()" style="margin-bottom:14px;">
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Employee</th><th>Login Username</th><th>Password</th><th>Portal Access</th><th>Action</th></tr></thead>
+              <thead><tr><th>Employee</th><th>Company Email</th><th>Login Status</th><th>Actions</th></tr></thead>
               <tbody id="portalAccessBody"></tbody>
             </table>
           </div>
@@ -1553,9 +1562,9 @@ tr:hover td{background:#fafbfc;}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set as _fbSet, push, get, remove as _fbRemove, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-import { getAuth, signInWithEmailAndPassword, signInAnonymously, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set as _fbSet, push, get, remove as _fbRemove, onValue, query, orderByChild, equalTo } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getAuth, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, sendPasswordResetEmail, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const FC = {
   apiKey:"AIzaSyA_NToPyXvchX3XrApN937DpDcWOoJ7LTY",
@@ -1619,14 +1628,14 @@ function setSilent(...args){
   if(currentRole==='ceo')return Promise.resolve();
   return _fbSet(...args);
 }
-let DB={employees:{},leave:{},salary:{},loans:{},repayments:{},assets:{},holidays:{},announcements:{},policies:{},audit:{},flightAllowance:{},leavers:{},leaveAdjustments:{},docHistory:{},leaveRequests:{}};
+let DB={employees:{},leave:{},salary:{},loans:{},repayments:{},assets:{},holidays:{},announcements:{},policies:{},audit:{},flightAllowance:{},leavers:{},leaveAdjustments:{},docHistory:{},leaveRequests:{},staffMap:{},sharedBdays:{},sharedAnnis:{},deptLeave:{}};
 let activeLoanKey=null;
 
 // ── HELPERS ──────────────────────────────────────────────────────────────────
 function v(id){const e=document.getElementById(id);return e?e.value.trim():'';}
 function sv(id,val){const e=document.getElementById(id);if(e)e.value=val||'';}
 function showAlert(id,msg,type='success'){const e=document.getElementById(id);if(!e)return;e.className='alert alert-'+type;e.textContent=msg;e.style.display='block';setTimeout(()=>e.style.display='none',3500);}
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 // ── Name matching ────────────────────────────────────────────────────────────
 // Leave records only store the employee's name as text (no ID link), so small
 // differences from the Employee Master (case, extra spaces, punctuation, a
@@ -1690,72 +1699,378 @@ async function logAudit(action,record,detail=''){
 }
 
 // ── LOGIN ─────────────────────────────────────────────────────────────────────
-window.doLogin=async function(){
-  const u=v('loginUser').toLowerCase(), p=v('loginPass');
-  const email=u+'@ckhr.internal';
-  const btn=document.getElementById('loginBtn');
-  if(btn){btn.disabled=true;btn.textContent='Signing In...';}
+// Two kinds of people sign in here:
+//  • The 4 admin accounts (dev / darleendy / kashif / cem) — typed as a short username.
+//  • Staff — typed as their company email address. Each has their own Firebase account whose
+//    password only they know (set from an emailed link). They are mapped to their employee
+//    record through staffMap/<uid>, which only Dev and Darleendy can write.
+function showLoginError(msg){
+  const el=document.getElementById('loginError');
+  const info=document.getElementById('loginInfo');if(info)info.style.display='none';
+  el.textContent=msg;el.style.display='block';
+}
+function showLoginInfo(msg){
   document.getElementById('loginError').style.display='none';
+  const info=document.getElementById('loginInfo');
+  if(info){info.textContent=msg;info.style.display='block';}
+}
+function loginErrorMessage(err){
+  const c=(err&&err.code)||'';
+  if(c==='auth/too-many-requests')return 'Too many attempts. Please wait a few minutes, or use "Forgot password?".';
+  if(c==='auth/network-request-failed')return 'No internet connection. Please check your connection and try again.';
+  if(c==='auth/user-disabled')return 'This account has been switched off. Please contact HR.';
+  return 'Incorrect username/email or password.';
+}
+window.doLogin=async function(){
+  const raw=v('loginUser').toLowerCase(), p=v('loginPass');
+  const email=raw.includes('@')?raw:raw+'@ckhr.internal';
+  const btn=document.getElementById('loginBtn');
+  document.getElementById('loginError').style.display='none';
+  const infoEl=document.getElementById('loginInfo');if(infoEl)infoEl.style.display='none';
+  if(!raw||!p){showLoginError('Please enter your username or company email, and your password.');return;}
+  if(btn){btn.disabled=true;btn.textContent='Signing In...';}
   try{
-    await signInWithEmailAndPassword(auth,email,p);
+    // Keep the sign-in only for this browser tab/app session: closing it signs the person out,
+    // so nobody can pick up a staff member's session on a shared phone or computer afterwards.
+    try{await setPersistence(auth,browserSessionPersistence);}catch(e){}
+    const cred=await signInWithEmailAndPassword(auth,email,p);
     const acct=ACCOUNTS[email];
-    if(!acct){ // shouldn't happen if only the 4 accounts exist in Firebase, but guard anyway
-      await signOut(auth);
-      document.getElementById('loginError').textContent='This account is not recognized by the portal.';
-      document.getElementById('loginError').style.display='block';
-      return;
-    }
-    currentAdmin=acct.username; currentRole=acct.role;
-    adminName=acct.name; adminTitle=acct.title||'HR Department'; adminSignName=acct.signName||acct.name;
-    document.getElementById('adminNameDisplay').textContent=adminName;
-    document.getElementById('loginScreen').style.display='none';
-    document.getElementById('app').style.display='block';
-    document.getElementById('dashDate').textContent=new Date().toLocaleDateString('en-AE',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-    const badgeText={admin:'ADMIN',ceo:'CEO VIEW',pro:'PRO'}[currentRole]||'ADMIN';
-    const badgeColor={admin:'#C9A84C',ceo:'#1A7A6E',pro:'#8e44ad'}[currentRole]||'#C9A84C';
-    document.getElementById('adminBadge').textContent=badgeText;
-    document.getElementById('adminBadge').style.background=badgeColor;
-    if(currentRole==='ceo')applyCEOMode();
-    if(currentRole==='pro')applyPROMode();
-    initListeners();
-  }catch(adminErr){
-    // Not one of the 4 admin accounts — try matching an employee's self-service login instead
-    try{
-      await signInAnonymously(auth);
-      const snap=await get(ref(db,'employees'));
-      const all=snap.val()||{};
-      const match=Object.entries(all).find(([k,e])=>e.portalEnabled&&(e.loginUsername||'').toLowerCase()===u&&e.loginPassword===p);
-      if(!match){
-        await signOut(auth);
-        document.getElementById('loginError').textContent='Incorrect username or password.';
-        document.getElementById('loginError').style.display='block';
-        return;
-      }
-      const [empKey,empRec]=match;
-      currentAdmin=u; currentRole='employee'; currentEmpKey=empKey;
-      adminName=empRec.name; adminTitle=empRec.desig||''; adminSignName=empRec.name;
+    if(acct){
+      currentAdmin=acct.username; currentRole=acct.role;
+      adminName=acct.name; adminTitle=acct.title||'HR Department'; adminSignName=acct.signName||acct.name;
       document.getElementById('adminNameDisplay').textContent=adminName;
       document.getElementById('loginScreen').style.display='none';
       document.getElementById('app').style.display='block';
-      document.getElementById('adminBadge').textContent='MY PORTAL';
-      document.getElementById('adminBadge').style.background='#2563A8';
-      initEmployeeListeners(empKey);
-      applyEmployeeMode();
-    }catch(empErr){
-      document.getElementById('loginError').textContent='Incorrect username or password.';
-      document.getElementById('loginError').style.display='block';
+      document.getElementById('dashDate').textContent=new Date().toLocaleDateString('en-AE',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+      const badgeText={admin:'ADMIN',ceo:'CEO VIEW',pro:'PRO'}[currentRole]||'ADMIN';
+      const badgeColor={admin:'#C9A84C',ceo:'#1A7A6E',pro:'#8e44ad'}[currentRole]||'#C9A84C';
+      document.getElementById('adminBadge').textContent=badgeText;
+      document.getElementById('adminBadge').style.background=badgeColor;
+      if(currentRole==='ceo')applyCEOMode();
+      if(currentRole==='pro')applyPROMode();
+      initListeners();
+    }else{
+      await startStaffSession(cred.user);
     }
+  }catch(err){
+    console.error('Login failed',err&&err.code);
+    showLoginError(loginErrorMessage(err));
   }finally{
     if(btn){btn.disabled=false;btn.textContent='Sign In';}
   }
 };
+// A staff member has signed in with their own Firebase account. Check that HR has linked it to
+// an employee record and that access is switched on, then open their self-service page.
+async function startStaffSession(user){
+  let m=null;
+  try{const s=await get(ref(db,'staffMap/'+user.uid));m=s.val();}catch(e){m=null;}
+  if(!m||m.enabled!==true){
+    await signOut(auth).catch(()=>{});
+    showLoginError(m&&m.enabled===false?'Your portal access is switched off. Please contact HR.':'Your account is not set up for the HR portal yet. Please contact HR.');
+    return;
+  }
+  let view=null;
+  try{const s=await get(ref(db,'staffView/'+m.empKey));view=s.val();}catch(e){view=null;}
+  if(!view){
+    await signOut(auth).catch(()=>{});
+    showLoginError('Your profile is not ready yet. Please contact HR.');
+    return;
+  }
+  currentAdmin=user.email||''; currentRole='employee'; currentEmpKey=m.empKey;
+  adminName=view.name||''; adminTitle=view.desig||''; adminSignName=view.name||'';
+  initEmployeeListeners(m.empKey,user.uid);
+  applyEmployeeMode();
+}
+// "Forgot password?" — Firebase emails a reset link to the address typed. Nobody in HR is involved
+// and the page never reveals whether an email has an account.
+window.forgotPassword=async function(){
+  const raw=v('loginUser').toLowerCase();
+  if(!raw.includes('@')){showLoginError('Type your company email address in the first box, then tap "Forgot password?" again.');return;}
+  if(raw.endsWith('@ckhr.internal')){showLoginError('This kind of account cannot be reset by email. Please contact Dev.');return;}
+  try{await sendPasswordResetEmail(auth,raw);}
+  catch(err){
+    const c=(err&&err.code)||'';
+    if(c==='auth/invalid-email'){showLoginError('That does not look like a valid email address.');return;}
+    if(c==='auth/too-many-requests'){showLoginError('Too many attempts. Please wait a few minutes and try again.');return;}
+    if(c==='auth/network-request-failed'){showLoginError('No internet connection. Please try again.');return;}
+  }
+  showLoginInfo('If this email has a portal login, a password reset link has been sent to it. Please check your inbox (and spam folder).');
+};
 window.doLogout=function(){
-  signOut(auth).catch(()=>{});
-  document.getElementById('loginScreen').style.display='flex';
+  _staffUnsubs.forEach(f=>{try{f();}catch(e){}});_staffUnsubs=[];
+  currentAdmin='';currentRole='';currentEmpKey='';adminName='';adminTitle='';adminSignName='';
   document.getElementById('app').style.display='none';
   document.getElementById('employeePortal').style.display='none';
-  currentAdmin='';currentRole='';currentEmpKey='';adminName='';adminTitle='';adminSignName='';
+  document.getElementById('loginScreen').style.display='flex';
   sv('loginUser',''); sv('loginPass','');
+  // Sign out, then reload the page so nothing from this session stays in the browser's memory
+  signOut(auth).catch(()=>{}).finally(()=>{location.reload();});
+};
+
+
+// ── STAFF SELF-SERVICE: access switch + safe copies of data ───────────────────────────────────
+// Staff can NOT read the employee, leave, salary or loan tables at all. Instead, whichever of
+// Dev/Darleendy has the portal open keeps three small "safe copy" areas up to date:
+//   staffMap/<uid>        who each staff login belongs to, and whether it is switched on
+//   staffView/<empKey>    only the details that employee is allowed to see about themselves
+//   staffShared/...       upcoming birthdays/anniversaries and the department leave calendar
+// The check is repeated every time employee/leave data changes, so access is switched off by
+// itself when someone becomes Inactive, is moved to Leavers, or their exit date has passed.
+let _mirrorLoaded={employees:false,leave:false,leavers:false,staffMap:false};
+let _mirrorTimer=null,_mirrorBusy=false,_mirrorCache=null;
+function scheduleStaffMirrorSync(){
+  if(currentRole!=='admin')return;
+  clearTimeout(_mirrorTimer);
+  _mirrorTimer=setTimeout(()=>{syncStaffMirrors().catch(err=>console.error('Staff data sync failed',err));},2000);
+}
+function z2(n){return String(n).padStart(2,'0');}
+function localDateStr(d){return d.getFullYear()+'-'+z2(d.getMonth()+1)+'-'+z2(d.getDate());}
+function parseYMD(s){
+  const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(s||''));
+  return m?{y:+m[1],m:+m[2],d:+m[3]}:null;
+}
+function slugDept(d){return (String(d||'').toLowerCase().replace(/[^a-z0-9]/g,''))||'none';}
+function prune(x){
+  if(Array.isArray(x)){const a=x.map(prune).filter(i=>i!==undefined);return a.length?a:undefined;}
+  if(x&&typeof x==='object'){const o={};Object.keys(x).forEach(k=>{const p=prune(x[k]);if(p!==undefined)o[k]=p;});return Object.keys(o).length?o:undefined;}
+  if(x===undefined||x===null)return undefined;
+  return x;
+}
+function stable(x){
+  if(Array.isArray(x))return '['+x.map(stable).join(',')+']';
+  if(x&&typeof x==='object')return '{'+Object.keys(x).sort().map(k=>JSON.stringify(k)+':'+stable(x[k])).join(',')+'}';
+  return JSON.stringify(x);
+}
+// Is this employee a current member of staff (used for the company-wide lists)?
+function isCurrentEmployee(empKey,e,todayStr){
+  if(!e||e.status==='Inactive')return false;
+  if(Object.values(DB.leavers||{}).some(l=>l.sourceEmpKey===empKey))return false;
+  if(e.exitDate&&e.exitDate<todayStr)return false;
+  return true;
+}
+// Should this employee's portal login be switched on right now?
+function staffAccessState(empKey,e,todayStr){
+  if(!e)return{on:false,why:'Employee record no longer exists'};
+  if(e.portalEnabled!==true)return{on:false,why:'Switched off by HR'};
+  if(e.status==='Inactive')return{on:false,why:'Employee is marked Inactive'};
+  if(Object.values(DB.leavers||{}).some(l=>l.sourceEmpKey===empKey))return{on:false,why:'Employee is in Leavers'};
+  if(e.exitDate&&e.exitDate<todayStr)return{on:false,why:'Exit date has passed'};
+  return{on:true,why:''};
+}
+async function syncStaffMirrors(){
+  if(currentRole!=='admin')return;
+  if(!(_mirrorLoaded.employees&&_mirrorLoaded.leave&&_mirrorLoaded.leavers&&_mirrorLoaded.staffMap))return;
+  if(_mirrorBusy){scheduleStaffMirrorSync();return;}
+  _mirrorBusy=true;
+  try{
+    if(!_mirrorCache){
+      const [a,b]=await Promise.all([get(ref(db,'staffView')),get(ref(db,'staffShared'))]);
+      _mirrorCache={view:a.val()||{},shared:b.val()||{}};
+    }
+    const now=new Date();
+    const todayStr=localDateStr(now);
+    const today0=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+
+    // 1. Switch each staff login on/off according to the employee's current status
+    const activeKeys=new Set();
+    for(const [uid,m] of Object.entries(DB.staffMap||{})){
+      const e=DB.employees[m.empKey];
+      const st=staffAccessState(m.empKey,e,todayStr);
+      if(st.on)activeKeys.add(m.empKey);
+      if((m.enabled===true)!==st.on){
+        await set(ref(db,'staffMap/'+uid+'/enabled'),st.on);
+        logAudit(st.on?'Portal Access Switched On':'Portal Access Switched Off',(e&&e.name)||m.empKey,st.on?'':st.why);
+      }
+    }
+
+    // 2. Each active staff member's own safe copy (nothing else about them or anyone else)
+    const newView={};
+    activeKeys.forEach(k=>{
+      const e=DB.employees[k];
+      const myName=normName(e.name);
+      const hist=[],byType={};
+      Object.values(DB.leave||{}).forEach(l=>{
+        if(normName(l.empName)!==myName)return;
+        const d=l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:0;
+        hist.push({t:l.type||'',f:l.from||'',to:l.to||'',d,s:l.status||''});
+        if(l.status==='Approved'){const ty=l.type||'Other';byType[ty]=(byType[ty]||0)+d;}
+      });
+      hist.sort((a,b)=>(b.f>a.f?1:b.f<a.f?-1:0));
+      newView[k]=prune({
+        empId:e.empId,name:e.name,dept:e.dept,desig:e.desig,entity:e.entity,
+        passport:e.passport,passExp:e.passExp,visa:e.visa,visaExp:e.visaExp,
+        eid:e.eid,eidExp:e.eidExp,lab:e.lab,labExp:e.labExp,
+        annualLeaveBalance:e.annualLeaveBalance,
+        lineManagerKey:e.lineManagerKey,lineManagerName:e.lineManagerName,
+        needsAdditionalApproval:!!e.needsAdditionalApproval,
+        additionalApproverKey:e.additionalApproverKey,additionalApproverName:e.additionalApproverName,
+        canViewOrgChart:!!e.canViewOrgChart,
+        deptSlug:slugDept(e.dept),
+        _leave:{bt:Object.entries(byType).map(([t,d])=>({t,d})),h:hist.slice(0,80)}
+      });
+    });
+    for(const k of Object.keys(newView)){
+      if(stable(newView[k])!==stable(prune(_mirrorCache.view[k]))){
+        await _fbSet(ref(db,'staffView/'+k),newView[k]);
+        _mirrorCache.view[k]=newView[k];
+      }
+    }
+    for(const k of Object.keys(_mirrorCache.view)){
+      if(!newView[k]){await _fbRemove(ref(db,'staffView/'+k));delete _mirrorCache.view[k];}
+    }
+
+    // 3. Company-wide lists, kept small on purpose: only the next few weeks, and birthdays as day + month only
+    const sh={birthdays:{},anniversaries:{},leave:{}};
+    const milestones=[5,10,15,20,25,30];
+    const nameIdx=buildNameIndex();
+    Object.entries(DB.employees).forEach(([k,e])=>{
+      if(!isCurrentEmployee(k,e,todayStr))return;
+      const dob=parseYMD(e.dob);
+      if(dob){
+        for(const yr of [today0.getFullYear(),today0.getFullYear()+1]){
+          const du=Math.round((new Date(yr,dob.m-1,dob.d)-today0)/86400000);
+          if(du>=0&&du<=40){sh.birthdays[k]={n:e.name,d:e.dept||'',md:z2(dob.m)+'-'+z2(dob.d)};break;}
+        }
+      }
+      const jn=parseYMD(e.join);
+      if(jn){
+        for(const yr of [today0.getFullYear(),today0.getFullYear()+1]){
+          const years=yr-jn.y;
+          if(!milestones.includes(years))continue;
+          const du=Math.round((new Date(yr,jn.m-1,jn.d)-today0)/86400000);
+          if(du>=0&&du<=75){sh.anniversaries[k]={n:e.name,d:e.dept||'',years,date:yr+'-'+z2(jn.m)+'-'+z2(jn.d)};break;}
+        }
+      }
+    });
+    const horizon=localDateStr(new Date(today0.getFullYear(),today0.getMonth(),today0.getDate()+120));
+    Object.entries(DB.leave||{}).forEach(([lk,l])=>{
+      if(l.status!=='Approved'||!l.to||l.to<todayStr||!l.from||l.from>horizon)return;
+      const emp=findEmpByName(l.empName,nameIdx);
+      if(!emp)return;
+      const slug=slugDept(emp.dept);
+      (sh.leave[slug]=sh.leave[slug]||{})[lk]={n:l.empName,f:l.from,t:l.to};
+    });
+    for(const part of ['birthdays','anniversaries','leave']){
+      const nv=prune(sh[part]);
+      if(stable(nv)!==stable(prune(_mirrorCache.shared[part]))){
+        if(nv===undefined)await _fbRemove(ref(db,'staffShared/'+part));
+        else await _fbSet(ref(db,'staffShared/'+part),nv);
+        _mirrorCache.shared[part]=nv;
+      }
+    }
+  }finally{
+    _mirrorBusy=false;
+  }
+}
+
+// ── Portal Access screen (Dev / Darleendy) ─────────────────────────────────────────────────────
+function randomStaffPassword(){
+  const a='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+  const b=new Uint32Array(28);crypto.getRandomValues(b);
+  // Throw-away password nobody ever sees; the staff member chooses their own from the emailed link
+  return Array.from(b,x=>a[x%a.length]).join('')+'Aa1!';
+}
+function getSecondaryAuth(){
+  // A second, separate Firebase app instance, so creating a staff account never signs the admin out
+  const existing=getApps().find(a=>a.name==='staffCreator');
+  return getAuth(existing||initializeApp(FC,'staffCreator'));
+}
+window.renderPortalAccess=function(){
+  const body=document.getElementById('portalAccessBody');
+  if(!body)return;
+  const q=(v('portalSearch')||'').toLowerCase();
+  const todayStr=localDateStr(new Date());
+  const rows=Object.entries(DB.employees)
+    .filter(([k,e])=>!q||(e.name||'').toLowerCase().includes(q)||(e.email||'').toLowerCase().includes(q))
+    .sort((a,b)=>(a[1].name||'').localeCompare(b[1].name||''));
+  body.innerHTML=rows.map(([k,e])=>{
+    const email=(e.email||'').trim();
+    let status='',actions='';
+    if(!email){
+      status='<span style="color:#c0392b;font-weight:600;">No company email on record</span><br><span style="font-size:11px;color:#888;">Add it in Employee Records first</span>';
+    }else if(!e.portalUid&&e.status==='Inactive'){
+      status='<span style="color:#888;">Inactive employee — no login</span>';
+    }else if(!e.portalUid){
+      status='<span style="color:#888;">No login yet</span>';
+      actions=`<button class="btn btn-sm btn-primary" onclick="createStaffLogin('${k}')">Create login &amp; email setup link</button>`;
+    }else{
+      const st=staffAccessState(k,e,todayStr);
+      status=st.on?'<span class="badge badge-approved">Active</span>':`<span class="badge badge-inactive">Off</span><br><span style="font-size:11px;color:#888;">${esc(st.why)}</span>`;
+      if(e.portalEmail&&e.portalEmail.toLowerCase()!==email.toLowerCase())status+=`<br><span style="font-size:11px;color:#c0392b;">Login still uses the old email ${esc(e.portalEmail)}</span>`;
+      const on=e.portalEnabled===true;
+      actions=`<button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="resendStaffEmail('${k}')">Resend password email</button>
+        <button class="btn btn-sm ${on?'btn-danger':'btn-primary'}" onclick="toggleStaffAccess('${k}',${on?'false':'true'})">${on?'Turn access off':'Turn access on'}</button>`;
+    }
+    return`<tr>
+      <td><strong>${esc(e.name||'')}</strong><br><span style="font-size:11px;color:#888;">${esc(e.empId||'')} — ${esc(e.dept||'')}</span></td>
+      <td style="font-size:12px;">${esc(email||'—')}</td>
+      <td>${status}</td>
+      <td>${actions}</td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="4"><div class="empty-state"><p>No employees found</p></div></td></tr>';
+};
+window.createStaffLogin=async function(key){
+  if(currentRole!=='admin')return;
+  const e=DB.employees[key];
+  if(!e)return;
+  const email=(e.email||'').trim().toLowerCase();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)||email.endsWith('@ckhr.internal')){alert('This employee does not have a valid company email on record. Please add it in Employee Records first.');return;}
+  if(e.status==='Inactive'){alert('This employee is marked Inactive, so a portal login cannot be created.');return;}
+  const clash=Object.entries(DB.employees).find(([k,x])=>k!==key&&(x.portalEmail||'').toLowerCase()===email);
+  if(clash){alert('That email is already linked to '+clash[1].name+'. Each employee needs their own email address.');return;}
+  if(!confirm('Create a portal login for '+e.name+' using '+email+'?\n\nThey will receive an email with a link to choose their own password. Nobody in HR will ever see or set it.'))return;
+  const sAuth=getSecondaryAuth();
+  let uid;
+  try{
+    const cred=await createUserWithEmailAndPassword(sAuth,email,randomStaffPassword());
+    uid=cred.user.uid;
+    await signOut(sAuth).catch(()=>{});
+  }catch(err){
+    try{await signOut(sAuth);}catch(x){}
+    if(err&&err.code==='auth/email-already-in-use')alert('A login for '+email+' already exists in Firebase but is not linked to this employee.\n\nOpen Firebase > Authentication > Users, find that email, delete the user, then click "Create login" again.');
+    else alert('Could not create the login: '+((err&&err.message)||(err&&err.code)||'unknown error'));
+    return;
+  }
+  try{
+    await set(ref(db,'staffMap/'+uid),{empKey:key,enabled:true,email,createdAt:Date.now(),createdBy:adminName});
+    await set(ref(db,'employees/'+key+'/portalUid'),uid);
+    await set(ref(db,'employees/'+key+'/portalEmail'),email);
+    await set(ref(db,'employees/'+key+'/portalEnabled'),true);
+    // The old design stored a readable username/password on the record; make sure none is left behind
+    await _fbRemove(ref(db,'employees/'+key+'/loginPassword')).catch(()=>{});
+    await _fbRemove(ref(db,'employees/'+key+'/loginUsername')).catch(()=>{});
+    logAudit('Portal Login Created',e.name,email);
+  }catch(err){
+    alert('The login was created, but saving the link failed: '+((err&&err.message)||err)+'\n\nPlease tell Claude before doing anything else.');
+    return;
+  }
+  clearTimeout(_mirrorTimer);
+  try{await syncStaffMirrors();}catch(err){console.error(err);}
+  let mailOk=true;
+  try{await sendPasswordResetEmail(auth,email);}catch(err){mailOk=false;console.error(err);}
+  renderPortalAccess();
+  alert(mailOk?('Done. '+e.name+' has been sent an email at '+email+' with a link to choose their password.\n\nAsk them to check their spam folder if it does not arrive within a few minutes.'):('The login for '+e.name+' was created, but the email could not be sent right now.\n\nClick "Resend password email" in a moment.'));
+};
+window.resendStaffEmail=async function(key){
+  if(currentRole!=='admin')return;
+  const e=DB.employees[key];
+  if(!e||!e.portalEmail)return;
+  if(!confirm('Send a password email to '+e.portalEmail+'?'))return;
+  try{
+    await sendPasswordResetEmail(auth,e.portalEmail);
+    logAudit('Portal Password Email Sent',e.name,e.portalEmail);
+    alert('Email sent to '+e.portalEmail+'. Ask them to check their spam folder if needed.');
+  }catch(err){alert('Could not send the email: '+((err&&err.code)||(err&&err.message)||'unknown error'));}
+};
+window.toggleStaffAccess=async function(key,on){
+  if(currentRole!=='admin')return;
+  const e=DB.employees[key];if(!e)return;
+  if(!confirm((on?'Turn portal access ON for ':'Turn portal access OFF for ')+e.name+'?'))return;
+  await set(ref(db,'employees/'+key+'/portalEnabled'),on);
+  logAudit(on?'Portal Access Turned On':'Portal Access Turned Off',e.name,'');
+  clearTimeout(_mirrorTimer);
+  try{await syncStaffMirrors();}catch(err){console.error(err);}
+  renderPortalAccess();
 };
 
 function applyCEOMode(){
@@ -1796,39 +2111,59 @@ function renderEmpOrgChart(){
     else pdfLink.style.display='none';
   }
 }
-function initEmployeeListeners(empKey){
-  onValue(ref(db,'employees/'+empKey),snap=>{
-    const e=snap.val()||{};
-    DB.employees={[empKey]:e}; // keep just this one record locally
-    renderMyInfo(e);
-    renderMyLeaveBalance(e);
-    renderEmpOrgChart(); // re-check in case org chart data already arrived before this did
-  });
-  onValue(ref(db,'leave'),snap=>{
-    DB.leave=snap.val()||{};
+let _staffUnsubs=[], _staffDeptSub='', _staffOrgSub=false;
+// Called if the database stops letting this staff member read their own data — i.e. HR switched
+// their access off (or they became Inactive / a leaver) while they were signed in.
+function staffAccessLost(){
+  if(currentRole!=='employee')return;
+  currentRole='';
+  alert('Your portal access is no longer active. If you think this is a mistake, please contact HR.');
+  doLogout();
+}
+function initEmployeeListeners(empKey,uid){
+  const core=(r,cb)=>{_staffUnsubs.push(onValue(r,cb,staffAccessLost));};
+  const optional=(r,cb)=>{_staffUnsubs.push(onValue(r,cb,()=>{}));};
+  _staffDeptSub='';_staffOrgSub=false;
+  // Watch my own login switch: the moment HR (or the automatic check) turns it off, sign me out
+  if(uid)core(ref(db,'staffMap/'+uid),snap=>{const m=snap.val();if(!m||m.enabled!==true)staffAccessLost();});
+  // My own details + leave summary (a safe copy kept up to date by HR's portal)
+  core(ref(db,'staffView/'+empKey),snap=>{
+    const view=snap.val();
+    if(!view){staffAccessLost();return;}
+    DB.employees={[empKey]:view}; // keep just this one record locally
+    renderMyInfo(view);
+    renderMyLeaveBalance(view);
     renderMyLeaveHistory();
-  });
-  onValue(ref(db,'leaveRequests'),snap=>{
-    DB.leaveRequests=snap.val()||{};
-    renderMyLeaveRequests();
-    renderMyApprovals();
-  });
-  onValue(ref(db,'holidays'),snap=>{DB.holidays=snap.val()||{};});
-  // Full employee list — needed for company-wide birthdays/anniversaries and seeing
-  // who in the same department is on leave. Kept in a separate variable (DB.allEmployees)
-  // so it doesn't disturb the existing single-record DB.employees used elsewhere.
-  onValue(ref(db,'employees'),snap=>{
-    DB.allEmployees=snap.val()||{};
-    renderEmpBirthdaysAnniversaries();
+    if(view.deptSlug&&_staffDeptSub!==view.deptSlug){
+      _staffDeptSub=view.deptSlug;
+      optional(ref(db,'staffShared/leave/'+view.deptSlug),s=>{DB.deptLeave=s.val()||{};renderEmpDeptLeave();});
+    }
+    if(view.canViewOrgChart&&!_staffOrgSub){
+      _staffOrgSub=true;
+      optional(ref(db,'orgChart'),s=>{DB.empOrgChartData=s.val()||{};renderEmpOrgChart();});
+    }
+    renderEmpOrgChart();
     renderEmpDeptLeave();
   });
-  onValue(ref(db,'announcements'),snap=>{DB.announcements=snap.val()||{};renderEmpAnnouncements();});
-  onValue(ref(db,'policies'),snap=>{DB.policies=snap.val()||{};renderEmpPolicies();});
-  onValue(ref(db,'orgChart'),snap=>{
-    DB.empOrgChartData=snap.val()||{};
-    renderEmpOrgChart();
-  });
-  onValue(ref(db,'ceoMessage'),snap=>{
+  // My leave requests, plus requests waiting on me as a line manager / additional approver.
+  // The database only allows these three exact lookups for a staff login.
+  const lrParts={own:{},lm:{},addl:{}};
+  const mergeLR=()=>{
+    DB.leaveRequests=Object.assign({},lrParts.addl,lrParts.lm,lrParts.own);
+    renderMyLeaveRequests();
+    renderMyApprovals();
+  };
+  const lookup=(field,part)=>core(query(ref(db,'leaveRequests'),orderByChild(field),equalTo(empKey)),s=>{lrParts[part]=s.val()||{};mergeLR();});
+  lookup('empKey','own');
+  lookup('lineManagerKey','lm');
+  lookup('additionalApproverKey','addl');
+  // Company-wide content and low-sensitivity shared lists
+  optional(ref(db,'holidays'),snap=>{DB.holidays=snap.val()||{};});
+  optional(ref(db,'staffShared/birthdays'),snap=>{DB.sharedBdays=snap.val()||{};renderEmpBirthdaysAnniversaries();});
+  optional(ref(db,'staffShared/anniversaries'),snap=>{DB.sharedAnnis=snap.val()||{};renderEmpBirthdaysAnniversaries();});
+  optional(ref(db,'announcements'),snap=>{DB.announcements=snap.val()||{};renderEmpAnnouncements();});
+  optional(ref(db,'policies'),snap=>{DB.policies=snap.val()||{};renderEmpPolicies();});
+  optional(ref(db,'ceoMessage'),snap=>{
     const m=snap.val()||{};
     const card=document.getElementById('empCEOMsgCard');
     if(!card)return;
@@ -1870,16 +2205,13 @@ function renderMyInfo(e){
   document.getElementById('empMyInfo').innerHTML=rows.map(([l,val])=>`<div><div style="color:#888;font-size:11px;">${esc(l)}</div><div style="font-weight:600;">${esc(val||'—')}</div></div>`).join('');
 }
 function renderMyLeaveBalance(e){
+  const lv=e._leave||{};
   const byType={};
-  Object.values(DB.leave||{}).forEach(l=>{
-    if(normName(l.empName)!==normName(e.name)||l.status!=='Approved')return;
-    const d=l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:0;
-    byType[l.type||'Other']=(byType[l.type||'Other']||0)+d;
-  });
+  Object.values(lv.bt||{}).forEach(x=>{byType[x.t]=x.d;});
   const annualUsed=byType['Annual Leave']||0;
-  const annualBalance=e.annualLeaveBalance!=null?e.annualLeaveBalance:'—';
+  const annualBalance=(e.annualLeaveBalance!=null&&e.annualLeaveBalance!=='')?e.annualLeaveBalance:'—';
   let html=`<div style="display:flex;gap:24px;margin-bottom:12px;">
-    <div><div style="color:#888;font-size:11px;">Annual Leave Balance</div><div style="font-weight:700;font-size:18px;color:#1A7A6E;">${annualBalance}</div></div>
+    <div><div style="color:#888;font-size:11px;">Annual Leave Balance</div><div style="font-weight:700;font-size:18px;color:#1A7A6E;">${esc(annualBalance)}</div></div>
     <div><div style="color:#888;font-size:11px;">Annual Leave Taken (this record)</div><div style="font-weight:700;font-size:18px;">${annualUsed}</div></div>
   </div>`;
   const others=Object.entries(byType).filter(([k])=>k!=='Annual Leave');
@@ -1888,10 +2220,9 @@ function renderMyLeaveBalance(e){
 }
 function renderMyLeaveHistory(){
   const e=DB.employees[currentEmpKey];if(!e)return;
-  const rows=Object.values(DB.leave||{}).filter(l=>normName(l.empName)===normName(e.name)).sort((a,b)=>b.from>a.from?1:-1);
+  const rows=Object.values((e._leave&&e._leave.h)||{});
   document.getElementById('empLeaveHistory').innerHTML=rows.length?rows.map(l=>{
-    const d=l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:'—';
-    return`<tr><td>${esc(l.type)}</td><td>${fmt(l.from)}</td><td>${fmt(l.to)}</td><td>${d}</td><td>${esc(l.status)}</td></tr>`;
+    return`<tr><td>${esc(l.t)}</td><td>${fmt(l.f)}</td><td>${fmt(l.to)}</td><td>${l.d||'—'}</td><td>${esc(l.s)}</td></tr>`;
   }).join(''):'<tr><td colspan="5"><div class="empty-state"><p>No leave history yet</p></div></td></tr>';
 }
 function describeLeaveStage(r){
@@ -2002,7 +2333,7 @@ window.renderHRReviewQueue=function(){
       <td><strong>${esc(r.empName)}</strong></td>
       <td>${esc(r.leaveType)}</td>
       <td>${fmt(r.startDate)} – ${fmt(r.endDate)}</td>
-      <td>${r.totalDays}</td>
+      <td>${reqDays(r)}${reqDays(r)!==r.totalDays?'<br><span style="color:#c0392b;font-size:10px;font-weight:700;">⚠ staff entered '+esc(r.totalDays)+'</span>':''}</td>
       <td style="font-size:11px;max-width:180px;">${esc(r.reason||'—')}${r.attachmentName?'<br>📎 '+esc(r.attachmentName):''}
         ${r.nativeAddress?'<br><strong>Address:</strong> '+esc(r.nativeAddress):''}
         ${r.nativeContact?'<br><strong>Contact:</strong> '+esc(r.nativeContact):''}
@@ -2033,12 +2364,16 @@ window.renderHRReviewQueue=function(){
     }).join('');
   }
 };
+function reqDays(r){return Math.ceil((new Date(r.endDate)-new Date(r.startDate))/86400000)+1;}
 window.completeHRReview=function(key){
   const r=DB.leaveRequests[key];
   if(!r.lineManagerKey){alert('This employee has no Line Manager set. Please add one in Employee Records first.');return;}
   const comments=v('hrc_'+key);
-  set(ref(db,'leaveRequests/'+key),{...r,stage:'Line Manager Approval',hrReviewedBy:adminName,hrReviewedAt:Date.now(),hrComments:comments}).then(()=>{
-    logAudit('HR Review Completed',r.empName,comments||'');
+  const realDays=reqDays(r);
+  if(!(realDays>=1&&realDays<=366)){alert('The dates on this request are not valid. Please reject it and ask the employee to submit again.');return;}
+  const fixed=realDays!==r.totalDays;
+  set(ref(db,'leaveRequests/'+key),{...r,totalDays:realDays,stage:'Line Manager Approval',hrReviewedBy:adminName,hrReviewedAt:Date.now(),hrComments:comments}).then(()=>{
+    logAudit('HR Review Completed',r.empName,(comments||'')+(fixed?' [days corrected from '+r.totalDays+' to '+realDays+']':''));
   });
 };
 window.rejectLeaveRequest=function(key,atStage){
@@ -2108,28 +2443,24 @@ function renderEmpBirthdaysAnniversaries(){
   const anniEl=document.getElementById('empAnniList');
   if(!bdayEl&&!anniEl)return;
   const now=new Date();
-  const all=Object.values(DB.allEmployees||{});
+  const today0=new Date(now.getFullYear(),now.getMonth(),now.getDate());
   const birthdays=[],annis=[];
-  all.forEach(e=>{
-    if(e.dob){
-      const dob=new Date(e.dob);
-      [now.getFullYear(),now.getFullYear()+1].forEach(yr=>{
-        const occursOn=new Date(yr,dob.getMonth(),dob.getDate());
-        const daysUntil=Math.round((occursOn-now)/86400000);
-        if(daysUntil>=0&&daysUntil<=10)birthdays.push({name:e.name,dept:e.dept,occursOn,daysUntil});
-      });
-    }
-    if(e.join){
-      const join=new Date(e.join);
-      const milestones=[5,10,15,20,25,30];
-      [now.getFullYear(),now.getFullYear()+1].forEach(yr=>{
-        const years=yr-join.getFullYear();
-        if(!milestones.includes(years))return;
-        const occursOn=new Date(yr,join.getMonth(),join.getDate());
-        const daysUntil=Math.round((occursOn-now)/86400000);
-        if(daysUntil>=0&&daysUntil<=45)annis.push({name:e.name,dept:e.dept,years,occursOn,daysUntil});
-      });
-    }
+  // Birthdays are shared as day + month only (no year), for the next few weeks
+  Object.values(DB.sharedBdays||{}).forEach(b=>{
+    const [mm,dd]=String(b.md||'').split('-').map(Number);
+    if(!mm||!dd)return;
+    [today0.getFullYear(),today0.getFullYear()+1].forEach(yr=>{
+      const occursOn=new Date(yr,mm-1,dd);
+      const daysUntil=Math.round((occursOn-today0)/86400000);
+      if(daysUntil>=0&&daysUntil<=10)birthdays.push({name:b.n,dept:b.d,occursOn,daysUntil});
+    });
+  });
+  Object.values(DB.sharedAnnis||{}).forEach(a=>{
+    const p=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(a.date||''));
+    if(!p)return;
+    const occursOn=new Date(+p[1],+p[2]-1,+p[3]);
+    const daysUntil=Math.round((occursOn-today0)/86400000);
+    if(daysUntil>=0&&daysUntil<=45)annis.push({name:a.n,dept:a.d,years:a.years,occursOn,daysUntil});
   });
   birthdays.sort((a,b)=>a.daysUntil-b.daysUntil);
   annis.sort((a,b)=>a.daysUntil-b.daysUntil);
@@ -2146,15 +2477,14 @@ function renderEmpBirthdaysAnniversaries(){
 }
 function renderEmpDeptLeave(){
   const el=document.getElementById('empDeptLeave');if(!el)return;
-  const myDept=DB.employees[currentEmpKey]?.dept;
-  if(!myDept){el.innerHTML='<div class="empty-state"><p>Department not set on your profile yet</p></div>';return;}
-  const deptNames=new Set(Object.values(DB.allEmployees||{}).filter(e=>e.dept===myDept).map(e=>e.name));
-  const today=new Date().toISOString().split('T')[0];
-  const onLeave=Object.values(DB.leave||{}).filter(l=>l.status==='Approved'&&l.to&&l.to>=today&&deptNames.has(l.empName)).sort((a,b)=>a.from>b.from?1:-1);
+  const me=DB.employees[currentEmpKey];
+  if(!me||!me.dept){el.innerHTML='<div class="empty-state"><p>Department not set on your profile yet</p></div>';return;}
+  const today=localDateStr(new Date());
+  const onLeave=Object.values(DB.deptLeave||{}).filter(l=>l.t&&l.t>=today).sort((a,b)=>a.f>b.f?1:-1);
   el.innerHTML=onLeave.length?onLeave.map(l=>{
-    const isActiveNow=l.from<=today&&l.to>=today;
+    const isActiveNow=l.f<=today&&l.t>=today;
     return`<div style="padding:7px 0;border-bottom:1px solid #f0f0f0;font-size:13px;">
-      <strong>${esc(l.empName)}</strong> — ${fmt(l.from)} to ${fmt(l.to)}
+      <strong>${esc(l.n)}</strong> — ${fmt(l.f)} to ${fmt(l.t)}
       ${isActiveNow?'<span class="badge badge-pending" style="margin-left:6px;">On Leave Now</span>':'<span class="badge" style="background:#e8f0fb;color:#2563A8;margin-left:6px;">Upcoming</span>'}
     </div>`;
   }).join(''):'<div class="empty-state"><p>No one in your department is on leave right now or soon</p></div>';
@@ -2374,6 +2704,7 @@ function initListeners(){
   tables.forEach(t=>{
     onValue(ref(db,t),snap=>{
       DB[t]=snap.val()||{};
+      if(Object.prototype.hasOwnProperty.call(_mirrorLoaded,t)){_mirrorLoaded[t]=true;scheduleStaffMirrorSync();}
       if(t==='employees'){renderEmp();updateDash();if(document.getElementById('uaeBody')&&window.renderUAE){try{renderUAE();}catch(err){}}
       // Refresh any employee dropdowns that are visible
       const sel=document.getElementById('profileEmpSel');
@@ -2393,15 +2724,26 @@ function initListeners(){
       if(t==='leaveAdjustments'){}// handled via refreshLeaveSummary
       if(t==='docHistory'){if(typeof renderDocHistory==='function')renderDocHistory();}
       if(t==='leaveRequests'){
-        if(typeof renderMyLeaveRequests==='function')renderMyLeaveRequests();
-        if(typeof renderHRReviewQueue==='function')renderHRReviewQueue();
-        if(typeof renderMyApprovals==='function')renderMyApprovals();
-        if(currentRole==='admin'&&typeof syncApprovedLeaveRequests==='function')syncApprovedLeaveRequests();
+        const safe=(f)=>{try{f();}catch(err){console.error('Leave requests screen error',err);}};
+        if(typeof renderMyLeaveRequests==='function')safe(renderMyLeaveRequests);
+        if(typeof renderHRReviewQueue==='function')safe(renderHRReviewQueue);
+        if(typeof renderMyApprovals==='function')safe(renderMyApprovals);
+        if(currentRole==='admin'&&typeof syncApprovedLeaveRequests==='function')safe(syncApprovedLeaveRequests);
       }
       if(t==='ceoMessage'&&typeof loadCEOMessageForm==='function')loadCEOMessageForm();
       if(t==='orgChart'&&typeof renderOrgChart==='function')renderOrgChart();
     });
   });
+  // Dev and Darleendy also watch the staff-login list, and keep the staff "safe copies" up to date
+  if(currentRole==='admin'){
+    onValue(ref(db,'staffMap'),snap=>{
+      DB.staffMap=snap.val()||{};
+      _mirrorLoaded.staffMap=true;
+      const pg=document.getElementById('page-portalaccess');
+      if(pg&&pg.classList.contains('active'))renderPortalAccess();
+      scheduleStaffMirrorSync();
+    });
+  }
   document.getElementById('syncStatus').textContent='● Live';
   document.getElementById('syncStatus').style.color='#4caf50';
 }
@@ -2782,39 +3124,6 @@ window.applyPolicyImport=async function(){
   alert('Done. '+toApply.length+' policies published — check the Policies page.');
 };
 
-window.renderPortalAccess=function(){
-  const body=document.getElementById('portalAccessBody');
-  if(!body)return;
-  const q=(v('portalSearch')||'').toLowerCase();
-  const rows=Object.entries(DB.employees)
-    .filter(([k,e])=>!q||e.name?.toLowerCase().includes(q))
-    .sort((a,b)=>a[1].name?.localeCompare(b[1].name||'')||0);
-  body.innerHTML=rows.map(([k,e])=>{
-    const suggested=suggestUsername(e.name,e.empId);
-    return`<tr>
-      <td><strong>${esc(e.name||'')}</strong><br><span style="font-size:11px;color:#888;">${esc(e.empId||'')} — ${esc(e.dept||'')}</span></td>
-      <td><input type="text" id="pu_${k}" value="${esc(e.loginUsername||suggested)}" style="width:130px;padding:6px 8px;border:1px solid #ddd;border-radius:5px;font-size:12px;"></td>
-      <td><input type="text" id="pp_${k}" value="${esc(e.loginPassword||'')}" placeholder="set a password" style="width:130px;padding:6px 8px;border:1px solid #ddd;border-radius:5px;font-size:12px;"></td>
-      <td><label style="font-size:12px;"><input type="checkbox" id="pe_${k}" ${e.portalEnabled?'checked':''}> Enabled</label></td>
-      <td><button class="btn btn-sm btn-primary" onclick="savePortalAccess('${k}')">Save</button></td>
-    </tr>`;
-  }).join('');
-};
-window.savePortalAccess=function(key){
-  const username=v('pu_'+key).toLowerCase().trim();
-  const password=v('pp_'+key).trim();
-  const enabled=document.getElementById('pe_'+key).checked;
-  if(!username||!password){alert('Please set both a username and a password before enabling access.');return;}
-  // Make sure this username isn't already used by a different employee
-  const clash=Object.entries(DB.employees).find(([k,e])=>k!==key&&(e.loginUsername||'').toLowerCase()===username);
-  if(clash){alert('That username is already used by '+clash[1].name+'. Please choose a different one.');return;}
-  const emp=DB.employees[key];
-  set(ref(db,'employees/'+key),{...emp,loginUsername:username,loginPassword:password,portalEnabled:enabled}).then(()=>{
-    logAudit('Update Portal Access',emp.name,enabled?'Access enabled':'Access disabled');
-    alert('Saved.');
-  });
-};
-
 window.editEmp=function(key,uaeMode){
   const e=DB.employees[key];
   empModalUAE=!!uaeMode;
@@ -2884,6 +3193,7 @@ window.saveEmp=function(){
     clIT:v('clIT'),clAccess:v('clAccess'),clUniform:v('clUniform'),clAssets:v('clAssets'),
     family:familyRows
   };
+  delete data.loginPassword;delete data.loginUsername; // old plain-text login design — never kept any more
   if(!data.name){alert('Employee name required');return;}
   const key=editKeyForSave;
   const op=key?set(ref(db,'employees/'+key),data):set(push(ref(db,'employees')),data);
