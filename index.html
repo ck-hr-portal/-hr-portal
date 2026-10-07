@@ -423,6 +423,7 @@ tr:hover td{background:#fafbfc;}
       <div class="nav-section">Workforce</div>
       <div class="nav-item" onclick="showPage('employees',this)"><span class="icon">👥</span>Employee Records</div>
       <div class="nav-item" onclick="showPage('uaenationals',this)"><span class="icon">🇦🇪</span>UAE Nationals</div>
+      <div class="nav-item" id="navWorkforce" onclick="showPage('workforce',this)"><span class="icon">📈</span>Workforce Summary</div>
       <div class="nav-item" onclick="showPage('leave',this)"><span class="icon">📅</span>Leave Register</div>
       <div class="nav-item" id="navComp" onclick="showPage('comp',this)"><span class="icon">⏱️</span>Compensatory Leave</div>
       <div class="nav-item" onclick="showPage('salary',this)"><span class="icon">💰</span>Salary &amp; Promotions</div>
@@ -532,6 +533,28 @@ tr:hover td{background:#fafbfc;}
       </div>
 
       <!-- UAE NATIONALS -->
+      <div id="page-workforce" class="page">
+        <div class="page-header"><h2>📈 Workforce Summary</h2><p>Headcount by department, category, skill level and trade, with PDF and Excel download</p></div>
+        <div class="card">
+          <div class="toolbar" style="flex-wrap:wrap;gap:10px;">
+            <select id="wfEntity" onchange="renderWorkforce()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="">Both Entities</option><option>CK Architecture Interiors</option><option>CKC Building Contracting</option></select>
+            <select id="wfDept" onchange="renderWorkforce()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="">All Departments</option></select>
+            <select id="wfGrade" onchange="renderWorkforce()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="">All Categories</option><option>White Collar</option><option>Labour</option><option>Not classified</option></select>
+            <select id="wfStatus" onchange="renderWorkforce()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="current">Current staff</option><option value="all">All records (incl. inactive)</option><option value="inactive">Inactive only</option></select>
+            <button class="btn btn-primary" onclick="downloadWorkforcePDF()">📄 Download PDF</button>
+            <button class="btn btn-gold" onclick="downloadWorkforceExcel()">📊 Download Excel</button>
+          </div>
+          <div id="wfFilterNote" style="font-size:11px;color:#888;margin-top:8px;"></div>
+        </div>
+        <div class="stats-row" id="wfStats" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));"></div>
+        <div class="card"><div class="card-title">By department</div><div id="wfDeptTable"></div></div>
+        <div class="card"><div class="card-title">Labour by trade</div><div id="wfTradeTable"></div></div>
+        <div class="card"><div class="card-title">Staff list</div><div id="wfList" style="max-height:520px;overflow:auto;"></div></div>
+        <div class="card" id="wfSetupCard"><div class="card-title">Set skill levels in bulk</div>
+          <p style="font-size:12px;color:#666;margin:0 0 10px;">Skill level (Skilled, Semi-Skilled, Unskilled) is not recorded yet for labour staff. Pick a level for a trade and click <strong>Apply</strong>: it is set for everyone in that trade who does not have one yet. Anyone already set is left alone. To change one person, open their record in Employee Records.</p>
+          <div id="wfSetupBody"></div>
+        </div>
+      </div>
       <div id="page-uaenationals" class="page">
         <div class="page-header"><h2>🇦🇪 UAE National Employees</h2><p>Emirati staff — separate salary arrangements, GPSSA pension, Emiratisation compliance</p></div>
         <div class="stats-row">
@@ -1182,6 +1205,7 @@ tr:hover td{background:#fafbfc;}
         <div class="form-group"><label>Date of Joining</label><input type="date" id="eJoin"></div>
         <div class="form-group"><label>Contract Type</label><select id="eContract"><option>Permanent</option><option>Limited</option><option>Unlimited</option><option>Freelance</option></select></div>
         <div class="form-group"><label>Grade</label><select id="eGrade"><option>White Collar</option><option>Labour</option></select></div>
+        <div class="form-group"><label>Skill Level (Labour only)</label><select id="eSkill"><option value="">— not set —</option><option>Skilled</option><option>Semi-Skilled</option><option>Unskilled</option></select></div>
         <div class="form-group"><label>Project / Site</label><input type="text" id="eSite"></div>
         <div class="form-group"><label>Mobile</label><input type="text" id="eMobile"></div>
         <div class="form-group"><label>Company Email</label><input type="email" id="eEmail"></div>
@@ -2898,7 +2922,7 @@ function initListeners(){
     onValue(ref(db,t),snap=>{
       DB[t]=snap.val()||{};
       if(Object.prototype.hasOwnProperty.call(_mirrorLoaded,t)){_mirrorLoaded[t]=true;scheduleStaffMirrorSync();}
-      if(t==='employees'){renderEmp();updateDash();if(document.getElementById('uaeBody')&&window.renderUAE){try{renderUAE();}catch(err){}}
+      if(t==='employees'){renderEmp();updateDash();if(document.getElementById('page-workforce')&&document.getElementById('page-workforce').classList.contains('active'))renderWorkforce();if(document.getElementById('uaeBody')&&window.renderUAE){try{renderUAE();}catch(err){}}
       // Refresh any employee dropdowns that are visible
       const sel=document.getElementById('profileEmpSel');
       if(sel&&sel.options.length<=1) buildEmpDropdown('profileEmpSel');
@@ -2971,6 +2995,7 @@ window.showPage=function(page,el){
   if(page==='flight'){renderFlight();updateFlightStats();}
   if(page==='leavers')renderLeavers();
   if(page==='uaenationals')renderUAE();
+  if(page==='workforce')renderWorkforce();
   if(page==='birthdays')renderBirthdays();
   if(page==='reports'){
     document.getElementById('reportOutput').style.display='none';
@@ -2987,6 +3012,276 @@ window.showPage=function(page,el){
   if(page==='policyimport')renderPolicyImportList();
   if(page==='leaveapprovals')renderHRReviewQueue();
   if(page==='orgchart')renderOrgChart();
+};
+
+// ── WORKFORCE SUMMARY (headcount by department / category / skill level / trade, with PDF + Excel) ──
+const WF_SKILLS=['Skilled','Semi-Skilled','Unskilled'];
+function wfGradeOf(e){const g=String(e.grade||'').trim().toLowerCase();return g==='white collar'?'White Collar':g==='labour'?'Labour':'Not classified';}
+// Job groups for labour staff, worked out from the designation text (so "Joinery Carpenter", "Gypsum Carpenter" and "Shuttering Carpenter" all count as Carpenter)
+function wfTradeOf(e){
+  const d=String(e.desig||'').toLowerCase();
+  const rules=[['helper','Helper'],['foreman','Foreman / Chargehand / Supervisor'],['chargehand','Foreman / Chargehand / Supervisor'],['supervisor','Foreman / Chargehand / Supervisor'],
+    ['carpent','Carpenter'],['spray','Spray Painter'],['painter','Painter'],['mason','Mason'],['electric','Electrician'],['plumb','Plumber'],['scaffold','Scaffolder'],
+    ['steel fixer','Steel Fixer'],['weld','Welder'],['crane','Crane Operator'],['duct','AC Ductman / Technician'],['ac technician','AC Ductman / Technician'],['upholster','Upholsterer'],['machine','Machine Operator'],['driver','Driver'],['watchman','Watchman']];
+  const hit=rules.find(([k])=>d.includes(k));
+  return hit?hit[1]:'Other labour';
+}
+function wfEntShort(e){return e.entity==='CKC Building Contracting'?'CKC':e.entity==='CK Architecture Interiors'?'CK':(e.entity||'—');}
+function wfRows(){
+  const ent=v('wfEntity'),dep=v('wfDept'),gr=v('wfGrade'),st=v('wfStatus')||'current';
+  return Object.entries(DB.employees||{}).map(([k,e])=>{
+    const grade=wfGradeOf(e);
+    return{k,e,grade,dept:String(e.dept||'').trim()||'(No department)',ent:wfEntShort(e),
+      trade:grade==='Labour'?wfTradeOf(e):'—',
+      skill:grade==='Labour'?(WF_SKILLS.includes(e.skillLevel)?e.skillLevel:'Not set'):'—'};
+  }).filter(r=>{
+    if(ent&&r.e.entity!==ent)return false;
+    if(dep&&r.dept!==dep)return false;
+    if(gr&&r.grade!==gr)return false;
+    if(st==='current'&&r.e.status==='Inactive')return false;
+    if(st==='inactive'&&r.e.status!=='Inactive')return false;
+    return true;
+  });
+}
+function wfTally(rows){
+  const t={total:rows.length,wc:0,lab:0,unc:0,sk:0,semi:0,unsk:0,skNot:0};
+  rows.forEach(r=>{
+    if(r.grade==='White Collar')t.wc++;else if(r.grade==='Labour')t.lab++;else t.unc++;
+    if(r.grade==='Labour'){if(r.skill==='Skilled')t.sk++;else if(r.skill==='Semi-Skilled')t.semi++;else if(r.skill==='Unskilled')t.unsk++;else t.skNot++;}
+  });
+  return t;
+}
+function wfFilterText(){
+  const ent=v('wfEntity'),dep=v('wfDept'),gr=v('wfGrade'),st=v('wfStatus')||'current';
+  return 'Entity: '+(ent||'Both entities')+'  |  Department: '+(dep||'All departments')+'  |  Category: '+(gr||'All')+'  |  Status: '+(st==='all'?'All records':st==='inactive'?'Inactive only':'Current staff');
+}
+function wfData(){
+  const rows=wfRows(),T=wfTally(rows);
+  const depts=[...new Set(rows.map(r=>r.dept))].sort((a,b)=>a.localeCompare(b));
+  const deptHead=['Department','Total','White Collar','Labour'].concat(T.unc?['Not classified']:[]).concat(['Skilled','Semi-Skilled','Unskilled','Skill not set']);
+  const deptLine=(n,t)=>[n,t.total,t.wc,t.lab].concat(T.unc?[t.unc]:[]).concat([t.sk,t.semi,t.unsk,t.skNot]);
+  const deptRows=depts.map(d=>deptLine(d,wfTally(rows.filter(r=>r.dept===d))));
+  deptRows.push(deptLine('Total',T));
+  const lab=rows.filter(r=>r.grade==='Labour');
+  const trades=[...new Set(lab.map(r=>r.trade))].map(n=>({n,t:wfTally(lab.filter(r=>r.trade===n))})).sort((a,b)=>b.t.total-a.t.total||a.n.localeCompare(b.n));
+  const tradeHead=['Trade','Total','Skilled','Semi-Skilled','Unskilled','Skill not set'];
+  const tradeRows=trades.map(x=>[x.n,x.t.total,x.t.sk,x.t.semi,x.t.unsk,x.t.skNot]);
+  if(trades.length)tradeRows.push(['Total labour',T.lab,T.sk,T.semi,T.unsk,T.skNot]);
+  const order={'White Collar':0,'Labour':1,'Not classified':2};
+  const sorted=rows.slice().sort((a,b)=>a.dept.localeCompare(b.dept)||order[a.grade]-order[b.grade]||String(a.e.name||'').localeCompare(String(b.e.name||'')));
+  const listHead=['#','Emp ID','Name','Designation','Department','Entity','Category','Skill Level','Nationality','Site / Project','Joined'];
+  const listRows=sorted.map((r,i)=>[i+1,r.e.empId||'',r.e.name||'',r.e.desig||'',r.dept,r.ent,r.grade,r.skill,r.e.nationality||'',r.e.site||'',r.e.join?fmt(r.e.join):'']);
+  return{rows,T,deptHead,deptRows,tradeHead,tradeRows,listHead,listRows,filters:wfFilterText()};
+}
+function wfHtmlTable(head,rows,totalLast,leftCols){
+  const left=leftCols||1;
+  return '<div class="table-wrap"><table><thead><tr>'+head.map((h,i)=>'<th'+(i>=left?' style="text-align:center;"':'')+'>'+esc(h)+'</th>').join('')+'</tr></thead><tbody>'+
+    rows.map((r,ri)=>{const tot=totalLast&&ri===rows.length-1;
+      return '<tr'+(tot?' style="background:#eef2f8;font-weight:700;"':'')+'>'+r.map((c,i)=>'<td'+(i>=left?' style="text-align:center;"':'')+'>'+esc(c)+'</td>').join('')+'</tr>';}).join('')+
+    '</tbody></table></div>';
+}
+window.renderWorkforce=function(){
+  const sel=document.getElementById('wfDept');if(!sel)return;
+  const keep=sel.value;
+  const depts=[...new Set(Object.values(DB.employees||{}).map(e=>String(e.dept||'').trim()||'(No department)'))].sort((a,b)=>a.localeCompare(b));
+  sel.innerHTML='<option value="">All Departments</option>'+depts.map(d=>'<option value="'+esc(d)+'"'+(d===keep?' selected':'')+'>'+esc(d)+'</option>').join('');
+  const D=wfData(),T=D.T;
+  const card=(n,l,c)=>'<div class="stat-card" style="border-left-color:'+c+';"><div class="stat-num">'+n+'</div><div class="stat-label">'+l+'</div></div>';
+  let cards=card(T.total,'Total Headcount','#1C3557')+card(T.wc,'White Collar','#2563A8')+card(T.lab,'Labour','#C9A84C')+card(T.sk,'Skilled','#1A7A6E')+card(T.semi,'Semi-Skilled','#1A7A6E')+card(T.unsk,'Unskilled','#1A7A6E');
+  if(T.skNot)cards+=card(T.skNot,'Labour: skill not set','#e67e22');
+  if(T.unc)cards+=card(T.unc,'No category set','#e67e22');
+  document.getElementById('wfStats').innerHTML=cards;
+  document.getElementById('wfFilterNote').textContent=D.filters;
+  document.getElementById('wfDeptTable').innerHTML=D.rows.length?wfHtmlTable(D.deptHead,D.deptRows,true,1):'<p style="color:#999;padding:10px;">No staff match these filters.</p>';
+  document.getElementById('wfTradeTable').innerHTML=D.tradeRows.length?wfHtmlTable(D.tradeHead,D.tradeRows,true,1):'<p style="color:#999;padding:10px;">No labour staff in this selection.</p>';
+  document.getElementById('wfList').innerHTML=D.listRows.length?wfHtmlTable(D.listHead,D.listRows,false,11):'<p style="color:#999;padding:10px;">No staff match these filters.</p>';
+  wfRenderSetup();
+};
+// One-time helper: set the skill level for everyone in a trade at once (only for staff who don't have one yet)
+window._wfSetupGroups=[];
+function wfRenderSetup(){
+  const card=document.getElementById('wfSetupCard'),body=document.getElementById('wfSetupBody');
+  if(!card||!body)return;
+  if(currentRole==='ceo'||currentRole==='employee'){card.style.display='none';return;}
+  card.style.display='';
+  const lab=Object.entries(DB.employees||{}).filter(([k,e])=>wfGradeOf(e)==='Labour'&&e.status!=='Inactive');
+  const groups={};
+  lab.forEach(([k,e])=>{const t=wfTradeOf(e);(groups[t]=groups[t]||[]).push([k,e]);});
+  const list=Object.entries(groups).sort((a,b)=>b[1].length-a[1].length||a[0].localeCompare(b[0]));
+  window._wfSetupGroups=list;
+  if(!list.length){body.innerHTML='<p style="color:#999;">No labour staff found.</p>';return;}
+  body.innerHTML='<div class="table-wrap"><table><thead><tr><th>Trade</th><th style="text-align:center;">Staff</th><th style="text-align:center;">Skill level already set</th><th>Set skill level</th><th></th></tr></thead><tbody>'+
+    list.map(([t,arr],i)=>{
+      const set_=arr.filter(([k,e])=>WF_SKILLS.includes(e.skillLevel)).length;
+      return '<tr><td>'+esc(t)+'</td><td style="text-align:center;">'+arr.length+'</td><td style="text-align:center;">'+set_+'</td>'+
+      '<td><select id="wfSk_'+i+'" style="padding:6px 9px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="">— choose —</option>'+WF_SKILLS.map(s=>'<option>'+s+'</option>').join('')+'</select></td>'+
+      '<td><button class="btn btn-sm btn-primary" onclick="wfApplySkill('+i+')">Apply</button></td></tr>';}).join('')+'</tbody></table></div>';
+}
+window.wfApplySkill=async function(i){
+  const g=window._wfSetupGroups[i];if(!g)return;
+  const val=v('wfSk_'+i);
+  if(!val){alert('Please choose a skill level first.');return;}
+  const targets=g[1].filter(([k,e])=>!WF_SKILLS.includes(e.skillLevel));
+  if(!targets.length){alert('Everyone in "'+g[0]+'" already has a skill level. Change individual people in Employee Records.');return;}
+  if(!confirm('Set "'+val+'" for '+targets.length+' '+g[0]+' staff who do not have a skill level yet? (Anyone already set is left alone.)'))return;
+  try{
+    for(const [k] of targets)await set(ref(db,'employees/'+k+'/skillLevel'),val);
+    logAudit('Skill Level Set',g[0],targets.length+' staff set to '+val);
+  }catch(err){alert('Could not save ('+((err&&err.code)||(err&&err.message)||'unknown error')+'). Please refresh and try again.');}
+  renderWorkforce();
+};
+function wfLoadScript(src,ready){
+  return new Promise((resolve,reject)=>{
+    if(ready())return resolve();
+    const s=document.createElement('script');s.src=src;s.onload=()=>ready()?resolve():reject(new Error('not ready'));s.onerror=reject;document.head.appendChild(s);
+  });
+}
+function wfFileName(ext){
+  const dep=v('wfDept')||'All-Departments';
+  return 'CK_Workforce_Summary_'+dep.replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'')+'_'+new Date().toISOString().slice(0,10)+'.'+ext;
+}
+window.downloadWorkforcePDF=async function(){
+  const D=wfData();
+  if(!D.rows.length){alert('No staff match these filters.');return;}
+  try{
+    await wfLoadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',()=>!!window.jspdf);
+    await wfLoadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js',()=>!!(window.jspdf&&window.jspdf.jsPDF&&window.jspdf.jsPDF.API.autoTable));
+  }catch(e){alert('Could not load the PDF tools. Please check the internet connection and try again.');return;}
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const W=297,H=210,m=12;
+  const NAVY=[28,53,87],GOLD=[201,168,76];
+  const [ckLogo,ckcLogo]=await Promise.all([loadImageAsDataURL('ck_logo.png'),loadImageAsDataURL('ckc_logo.png')]);
+  const logoH=10;
+  const today=new Date().toLocaleDateString('en-AE',{day:'2-digit',month:'long',year:'numeric'});
+  const drawn=new Set();
+  function drawHeader(){
+    const p=doc.internal.getCurrentPageInfo().pageNumber;
+    if(drawn.has(p))return;drawn.add(p);
+    if(ckcLogo)doc.addImage(ckcLogo.dataUrl,'PNG',m,7,logoH*(ckcLogo.w/ckcLogo.h),logoH);
+    if(ckLogo)doc.addImage(ckLogo.dataUrl,'PNG',W-m-logoH*(ckLogo.w/ckLogo.h),7,logoH*(ckLogo.w/ckLogo.h),logoH);
+    doc.setFont('helvetica','bold');doc.setFontSize(16);doc.setTextColor(...NAVY);
+    doc.text('Workforce Summary Report',W/2,13,{align:'center'});
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(110,110,110);
+    doc.text(D.filters,W/2,18.5,{align:'center'});
+    doc.setDrawColor(...NAVY);doc.setLineWidth(0.7);doc.line(m,22,W-m,22);
+    doc.setDrawColor(...GOLD);doc.setLineWidth(0.7);doc.line(m,23.2,m+40,23.2);
+  }
+  drawHeader();
+  // summary cards
+  const T=D.T;
+  const cards=[['Total headcount',T.total,NAVY],['White Collar',T.wc,[37,99,168]],['Labour',T.lab,GOLD],['Skilled',T.sk,[26,122,110]],['Semi-Skilled',T.semi,[26,122,110]],['Unskilled',T.unsk,[26,122,110]]];
+  if(T.skNot)cards.push(['Labour: skill not set',T.skNot,[230,126,34]]);
+  if(T.unc)cards.push(['No category set',T.unc,[230,126,34]]);
+  const gap=3,cw=(W-2*m-gap*(cards.length-1))/cards.length,cy=28,ch=18;
+  cards.forEach((c,i)=>{
+    const x=m+i*(cw+gap);
+    doc.setFillColor(250,251,253);doc.setDrawColor(222,226,232);doc.setLineWidth(0.3);doc.roundedRect(x,cy,cw,ch,1.5,1.5,'FD');
+    doc.setFillColor(...c[2]);doc.rect(x,cy,1.6,ch,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(16);doc.setTextColor(...NAVY);doc.text(String(c[1]),x+5,cy+9.5);
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(110,110,110);doc.text(c[0],x+5,cy+14.5);
+  });
+  const common=(extra)=>Object.assign({
+    theme:'grid',margin:{left:m,right:m,top:28,bottom:16},
+    styles:{font:'helvetica',fontSize:8,cellPadding:1.7,lineColor:[222,226,232],lineWidth:0.2,textColor:[40,40,40],valign:'middle'},
+    headStyles:{fillColor:NAVY,textColor:255,fontStyle:'bold',halign:'center'},
+    alternateRowStyles:{fillColor:[247,249,252]},
+    didDrawPage:()=>drawHeader()
+  },extra);
+  const section=(title,y)=>{doc.setFont('helvetica','bold');doc.setFontSize(10.5);doc.setTextColor(...NAVY);doc.text(title,m,y);};
+  const totalStyle=(n)=>(d)=>{if(d.section==='body'&&d.row.index===n-1){d.cell.styles.fontStyle='bold';d.cell.styles.fillColor=[232,236,243];}};
+  let y=cy+ch+9;
+  section('By department',y);
+  doc.autoTable(common({startY:y+2,head:[D.deptHead],body:D.deptRows,
+    styles:{font:'helvetica',fontSize:7.5,cellPadding:1.1,lineColor:[222,226,232],lineWidth:0.2,textColor:[40,40,40],valign:'middle'},
+    columnStyles:Object.fromEntries(D.deptHead.map((h,i)=>[i,i===0?{halign:'left',cellWidth:55}:{halign:'center'}])),
+    didParseCell:totalStyle(D.deptRows.length)}));
+  if(D.tradeRows.length){
+    y=doc.lastAutoTable.finalY+9;
+    if(y>H-50){doc.addPage();drawHeader();y=34;}
+    section('Labour by trade',y);
+    doc.autoTable(common({startY:y+2,head:[D.tradeHead],body:D.tradeRows,
+      columnStyles:Object.fromEntries(D.tradeHead.map((h,i)=>[i,i===0?{halign:'left',cellWidth:70}:{halign:'center'}])),
+      didParseCell:totalStyle(D.tradeRows.length)}));
+  }
+  doc.addPage();drawHeader();
+  section('Staff list ('+D.listRows.length+')',34);
+  doc.autoTable(common({startY:37,head:[D.listHead],body:D.listRows,
+    styles:{font:'helvetica',fontSize:7.5,cellPadding:1.5,lineColor:[222,226,232],lineWidth:0.2,textColor:[40,40,40],valign:'middle'},
+    margin:{left:m,right:m,top:28,bottom:16},
+    columnStyles:{0:{cellWidth:8,halign:'center'},1:{cellWidth:18},2:{cellWidth:40},3:{cellWidth:42},4:{cellWidth:28},5:{cellWidth:12,halign:'center'},6:{cellWidth:22},7:{cellWidth:22},8:{cellWidth:24},9:{cellWidth:34},10:{cellWidth:20}}}));
+  const n=doc.getNumberOfPages();
+  for(let i=1;i<=n;i++){
+    doc.setPage(i);
+    doc.setDrawColor(200,200,200);doc.setLineWidth(0.3);doc.line(m,H-11,W-m,H-11);
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(140,140,140);
+    doc.text('CK Architecture Interiors LLC  |  CKC Building Contracting LLC  —  HR  |  Confidential',m,H-6.5);
+    doc.text('Generated '+today,W/2,H-6.5,{align:'center'});
+    doc.text('Page '+i+' of '+n,W-m,H-6.5,{align:'right'});
+  }
+  doc.save(wfFileName('pdf'));
+};
+window.downloadWorkforceExcel=async function(){
+  const D=wfData();
+  if(!D.rows.length){alert('No staff match these filters.');return;}
+  try{await wfLoadScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js',()=>!!window.ExcelJS);}
+  catch(e){alert('Could not load the Excel tools. Please check the internet connection and try again.');return;}
+  const wb=new ExcelJS.Workbook();wb.creator='CK HR Portal';wb.created=new Date();
+  const NAVY='FF1C3557',GOLD='FFC9A84C',BAND='FFF5F7FA',TOT='FFE8ECF3',LINE='FFDDE1E7';
+  const thin={style:'thin',color:{argb:LINE}};
+  const border={top:thin,left:thin,bottom:thin,right:thin};
+  const today=new Date().toLocaleDateString('en-AE',{day:'2-digit',month:'long',year:'numeric'});
+  const title=(ws,text,cols)=>{
+    ws.mergeCells(1,1,1,cols);const c=ws.getCell(1,1);c.value=text;c.font={name:'Calibri',size:16,bold:true,color:{argb:NAVY}};c.alignment={vertical:'middle'};ws.getRow(1).height=26;
+    ws.mergeCells(2,1,2,cols);const s=ws.getCell(2,1);s.value=D.filters+'   |   Generated '+today;s.font={name:'Calibri',size:9,color:{argb:'FF6E6E6E'}};
+    ws.getRow(3).height=4;for(let i=1;i<=cols;i++)ws.getCell(3,i).fill={type:'pattern',pattern:'solid',fgColor:{argb:i<=3?GOLD:NAVY}};
+  };
+  const writeTable=(ws,r0,head,rows,opt)=>{
+    const hr=ws.getRow(r0);head.forEach((h,i)=>{const c=hr.getCell(i+1);c.value=h;c.font={name:'Calibri',size:10,bold:true,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}};c.alignment={horizontal:i<opt.left?'left':'center',vertical:'middle',wrapText:true};c.border=border;});
+    hr.height=22;
+    rows.forEach((r,ri)=>{
+      const row=ws.getRow(r0+1+ri),tot=opt.totalLast&&ri===rows.length-1;
+      r.forEach((val,i)=>{const c=row.getCell(i+1);c.value=val;c.font={name:'Calibri',size:10,bold:tot};c.border=border;
+        c.alignment={horizontal:(i<opt.left)?'left':'center',vertical:'middle'};
+        if(tot)c.fill={type:'pattern',pattern:'solid',fgColor:{argb:TOT}};else if(ri%2===1)c.fill={type:'pattern',pattern:'solid',fgColor:{argb:BAND}};});
+    });
+    return r0+rows.length+1;
+  };
+  // Sheet 1: summary
+  const ws=wb.addWorksheet('Summary',{views:[{showGridLines:false}]});
+  const T=D.T;
+  const ncols=Math.max(D.deptHead.length,6);
+  title(ws,'Workforce Summary Report',ncols);
+  const kp=[['Total headcount',T.total],['White Collar',T.wc],['Labour',T.lab],['Skilled',T.sk],['Semi-Skilled',T.semi],['Unskilled',T.unsk]];
+  if(T.skNot)kp.push(['Labour: skill not set',T.skNot]);
+  if(T.unc)kp.push(['No category set',T.unc]);
+  let r=5;
+  kp.forEach((k,i)=>{
+    const lc=ws.getCell(r,i+1),vc=ws.getCell(r+1,i+1);
+    lc.value=k[0];lc.font={name:'Calibri',size:9,color:{argb:'FF6E6E6E'}};lc.alignment={horizontal:'center',wrapText:true};lc.border={top:thin,left:thin,right:thin};lc.fill={type:'pattern',pattern:'solid',fgColor:{argb:BAND}};
+    vc.value=k[1];vc.font={name:'Calibri',size:18,bold:true,color:{argb:NAVY}};vc.alignment={horizontal:'center',vertical:'middle'};vc.border={bottom:thin,left:thin,right:thin};vc.fill={type:'pattern',pattern:'solid',fgColor:{argb:BAND}};
+  });
+  ws.getRow(r).height=26;ws.getRow(r+1).height=30;
+  r+=3;
+  const st=(t)=>{const c=ws.getCell(r,1);c.value=t;c.font={name:'Calibri',size:12,bold:true,color:{argb:NAVY}};r++;};
+  st('By department');
+  r=writeTable(ws,r,D.deptHead,D.deptRows,{left:1,totalLast:true})+2;
+  if(D.tradeRows.length){st('Labour by trade');r=writeTable(ws,r,D.tradeHead,D.tradeRows,{left:1,totalLast:true})+1;}
+  ws.getColumn(1).width=38;for(let i=2;i<=ncols;i++)ws.getColumn(i).width=15;
+  ws.pageSetup={orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0};
+  // Sheet 2: staff list
+  const wl=wb.addWorksheet('Staff List',{views:[{showGridLines:false,state:'frozen',ySplit:5}]});
+  title(wl,'Workforce Summary Report — Staff List',D.listHead.length);
+  wl.getRow(4).height=6;
+  writeTable(wl,5,D.listHead,D.listRows,{left:99,totalLast:false});
+  const widths=[5,12,30,32,22,9,15,14,16,22,14];
+  widths.forEach((w,i)=>wl.getColumn(i+1).width=w);
+  D.listRows.forEach((row,i)=>{[2,3,4,5,9,10].forEach(ci=>{wl.getRow(6+i).getCell(ci).alignment={horizontal:'left',vertical:'middle'};});});
+  wl.autoFilter={from:{row:5,column:1},to:{row:5+D.listRows.length,column:D.listHead.length}};
+  wl.pageSetup={orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0,printTitlesRow:'5:5'};
+  const buf=await wb.xlsx.writeBuffer();
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  a.download=wfFileName('xlsx');document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
 };
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
@@ -3210,7 +3505,7 @@ window.openEmpModal=function(){
    'lPassport','lVisa','lEid','lLab','lOffer','lContract','lEdu','lOther',
    'eExitReason'].forEach(id=>sv(id,''));
   ['eJoin','eDob','ePassExp','eVisaExp','eEidExp','eLabExp','eExitDate'].forEach(id=>sv(id,''));
-  sv('eStatus','Active'); sv('eEntity','CK Architecture Interiors'); sv('eContract','Permanent'); sv('eGrade','White Collar');
+  sv('eStatus','Active'); sv('eEntity','CK Architecture Interiors'); sv('eContract','Permanent'); sv('eGrade','White Collar'); sv('eSkill','');
   sv('eExitType',''); sv('eNotice',''); sv('eExitInt',''); sv('eSettle',''); sv('eRehire','');
   sv('clIT',''); sv('clAccess',''); sv('clUniform',''); sv('clAssets','');
   document.getElementById('eEditKey').value='';
@@ -3335,7 +3630,7 @@ window.editEmp=function(key,uaeMode){
   document.getElementById('empModalTitle').textContent=uaeMode?'Edit UAE National':'Edit Employee';
   sv('eId',e.empId);sv('eName',e.name);sv('eDept',e.dept);sv('eDesig',e.desig);
   sv('eEntity',e.entity);sv('eNat',e.nationality);sv('eGender',e.gender);sv('eDob',e.dob);
-  sv('eJoin',e.join);sv('eContract',e.contract);sv('eGrade',e.grade);sv('eSite',e.site);
+  sv('eJoin',e.join);sv('eContract',e.contract);sv('eGrade',e.grade);sv('eSkill',e.skillLevel||'');sv('eSite',e.site);
   sv('eMobile',e.mobile);sv('eEmail',e.email);sv('eManager',e.manager);sv('eStatus',e.status);sv('eRemarks',e.remarks);
   buildEmpDropdown('eLineManager');selectEmpByKey('eLineManager',e.lineManagerKey);
   buildEmpDropdown('eAdditionalApprover');selectEmpByKey('eAdditionalApprover',e.additionalApproverKey);
@@ -3376,7 +3671,7 @@ window.saveEmp=function(){
     ...existingRecord,
     empId:v('eId'),name:v('eName'),dept:v('eDept'),desig:v('eDesig'),entity:v('eEntity'),
     nationality:v('eNat'),gender:v('eGender'),dob:v('eDob'),join:v('eJoin'),
-    contract:v('eContract'),grade:v('eGrade'),site:v('eSite'),mobile:v('eMobile'),
+    contract:v('eContract'),grade:v('eGrade'),skillLevel:v('eSkill'),site:v('eSite'),mobile:v('eMobile'),
     email:v('eEmail'),manager:v('eManager'),status:v('eStatus'),remarks:v('eRemarks'),
     lineManagerKey:parseEmpSelect(v('eLineManager')).key,
     lineManagerName:parseEmpSelect(v('eLineManager')).name,
