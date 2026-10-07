@@ -580,6 +580,7 @@ tr:hover td{background:#fafbfc;}
               <option>CK Architecture Interiors</option>
               <option>CKC Building Contracting</option>
             </select>
+            <button class="btn btn-primary" onclick="markAllUAEWhiteCollar()">✔ Mark all UAE Nationals as White Collar</button>
             <button class="btn btn-gold" onclick="runReport('uaenationals')">📥 Download Excel</button>
             <button class="btn" style="background:#8e44ad;color:#fff;" onclick="runReportPDF('uaenationals')">📄 PDF</button>
           </div>
@@ -756,6 +757,7 @@ tr:hover td{background:#fafbfc;}
       <div id="page-leavers" class="page">
         <div class="page-header"><h2>🚪 Leavers & Gratuity Register</h2><p>Separate register for ex-staff — January 2025 onwards. Active employees not affected.</p></div>
         <div class="alert alert-success" id="leavers-alert"></div>
+        <div id="leaversMissingNote"></div>
         <div class="stats-row">
           <div class="stat-card"><div class="stat-num" id="lv-total">—</div><div class="stat-label">Total Leavers</div></div>
           <div class="stat-card gold"><div class="stat-num" id="lv-gratuity">—</div><div class="stat-label">Total Gratuity Paid (AED)</div></div>
@@ -3287,7 +3289,7 @@ window.downloadWorkforceExcel=async function(){
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 function updateDash(){
   const emps=Object.values(DB.employees);
-  document.getElementById('s-emp').textContent=emps.length;
+  document.getElementById('s-emp').textContent=emps.filter(e=>e.status!=='Inactive').length;
   if(typeof renderAdminMyApprovals==='function')renderAdminMyApprovals();
   if(currentRole==='admin'){
     const hrCard=document.getElementById('dashHRReviewCard');
@@ -4445,7 +4447,19 @@ window.saveFlightPayment=function(){
 };
 
 // ── LEAVERS & GRATUITY ───────────────────────────────────────────────────────
+function _inactiveNotInLeavers(){
+  const have=new Set(Object.values(DB.leavers||{}).map(l=>l.sourceEmpKey).filter(Boolean));
+  return Object.entries(DB.employees||{}).filter(([k,e])=>e.status==='Inactive'&&!have.has(k));
+}
+window.addInactiveToLeavers=async function(){
+  const list=_inactiveNotInLeavers();if(!list.length)return;
+  if(!confirm('Add '+list.length+' Inactive employee'+(list.length>1?'s':'')+' to Leavers & Gratuity?\n\n'+list.map(([k,e])=>'• '+(e.name||k)).join('\n')+'\n\nExit date, exit type and gratuity are taken from their employee record (edit the employee to complete these).'))return;
+  try{for(const [k,e] of list)await syncToLeaversIfInactive(k,e);}
+  catch(err){alert('Could not save ('+((err&&err.code)||(err&&err.message)||'unknown error')+'). Please refresh and try again.');}
+};
 window.renderLeavers=function(){
+  const _mn=document.getElementById('leaversMissingNote');
+  if(_mn){const _m=_inactiveNotInLeavers();_mn.innerHTML=_m.length?'<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:7px;padding:8px 12px;font-size:12px;color:#8a6d00;margin-bottom:10px;">⚠ '+_m.length+' employee'+(_m.length>1?'s are':' is')+' marked Inactive but not yet in this register: <strong>'+_m.map(([k,e])=>esc(e.name||k)).join(', ')+'</strong>. <button class="btn btn-sm btn-primary" style="margin-left:6px;" onclick="addInactiveToLeavers()">Add to Leavers</button></div>':'';}
   const q=v('leaverSearch').toLowerCase();
   const yearF=document.getElementById('leaverYearF')?.value||'';
   const gratF=document.getElementById('leaverGratF')?.value||'';
@@ -4531,6 +4545,21 @@ window.deleteLeaver=function(key){
 };
 
 // ── UAE NATIONALS ─────────────────────────────────────────────────────────────
+window.setUAEGrade=async function(key,val){
+  const e=DB.employees[key];if(!e||!val)return;
+  try{await set(ref(db,'employees/'+key),{...e,grade:val});logAudit('Grade Updated',e.name,'Grade set to '+val);}
+  catch(err){alert('Could not save ('+((err&&err.code)||(err&&err.message)||'unknown error')+'). Please refresh and try again.');}
+};
+window.markAllUAEWhiteCollar=async function(){
+  const list=Object.entries(DB.employees||{}).filter(([k,e])=>isUAENational(e)&&e.grade!=='White Collar');
+  if(!list.length){alert('All UAE Nationals are already marked White Collar.');return;}
+  if(!confirm('Mark '+list.length+' UAE National employee'+(list.length>1?'s':'')+' as White Collar?\n\n'+list.slice(0,15).map(([k,e])=>'• '+(e.name||k)+' (now: '+(e.grade||'not set')+')').join('\n')+(list.length>15?'\n…and '+(list.length-15)+' more':'')))return;
+  try{
+    for(const [k,e] of list)await set(ref(db,'employees/'+k),{...e,grade:'White Collar'});
+    logAudit('Grade Updated','UAE Nationals',list.length+' employee(s) marked White Collar');
+    alert('Done. '+list.length+' employee(s) marked White Collar.');
+  }catch(err){alert('Stopped part-way ('+((err&&err.code)||(err&&err.message)||'unknown error')+'). Please refresh and run it again.');}
+};
 window.renderUAE=function(){
   const q=v('uaeSearch').toLowerCase();
   const entityF=document.getElementById('uaeEntityF')?.value||'';
@@ -4563,7 +4592,7 @@ window.renderUAE=function(){
     <td>${esc(e.dept||'')}</td>
     <td>${esc(e.desig||'')}</td>
     <td style="font-size:11px;">${esc(e.entity||'')}</td>
-    <td>${esc(e.grade||'')}</td>
+    <td><select onchange="setUAEGrade('${e._key}',this.value)" style="padding:4px 6px;border:1.5px solid ${e.grade?'#e0e0e0':'#e67e22'};border-radius:6px;font-size:12px;"><option value=""${e.grade?'':' selected'}>Not set</option><option${e.grade==='White Collar'?' selected':''}>White Collar</option><option${e.grade==='Labour'?' selected':''}>Labour</option></select></td>
     <td>AED ${parseFloat(e.basicSalary||0).toLocaleString('en-AE',{minimumFractionDigits:0})}</td>
     <td>AED ${parseFloat(e.grossSalary||0).toLocaleString('en-AE',{minimumFractionDigits:0})}</td>
     <td><span class="badge badge-${(e.status||'active').toLowerCase().split(' ').join('-')}">${esc(e.status||'Active')}</span></td>
