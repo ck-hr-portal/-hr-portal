@@ -197,6 +197,7 @@ tr:hover td{background:#fafbfc;}
     </div>
   </div>
   <div style="max-width:1100px;margin:80px auto 40px;padding:0 24px;">
+    <div id="empFestive"></div>
     <div class="card" id="empCEOMsgCard" style="display:none;background:#fff;border-top:3px solid #C9A84C;">
       <div style="display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap;">
         <img id="empCEOMsgPhoto" src="" style="display:none;width:140px;height:140px;border-radius:50%;object-fit:cover;border:3px solid #C9A84C;flex-shrink:0;box-shadow:0 2px 10px rgba(0,0,0,0.12);">
@@ -459,6 +460,7 @@ tr:hover td{background:#fafbfc;}
       <!-- DASHBOARD -->
       <div id="page-dashboard" class="page active">
         <div class="page-header"><h2>Dashboard</h2><p id="dashDate"></p></div>
+        <div id="dashFestive"></div>
         <div class="stats-row">
           <div class="stat-card"><div class="stat-num" id="s-emp">—</div><div class="stat-label">Total Employees</div></div>
           <div class="stat-card gold"><div class="stat-num" id="s-leave">—</div><div class="stat-label">On Leave Today</div></div>
@@ -835,8 +837,12 @@ tr:hover td{background:#fafbfc;}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
           <div class="card" id="annFormCard"><div class="card-title" id="annFormTitle">+ New Announcement</div>
             <input type="hidden" id="annEditKey" value="">
-            <div class="form-group"><label>Title</label><input type="text" id="annTitle"></div>
-            <div class="form-group" style="margin-top:10px;"><label>Message</label><textarea id="annMsg" rows="6"></textarea><p style="font-size:11px;color:#888;margin-top:4px;">Tip: start a line with <strong>Label:</strong> to bold it automatically. Start a line with <strong>- </strong> to make it a bullet point. Press Enter for a new line — it will display exactly as typed.</p></div>
+            <div class="form-group"><label>Title</label><input type="text" id="annTitle" oninput="annPreview()"></div>
+            <div class="form-group" style="margin-top:10px;"><label>Message</label><textarea id="annMsg" rows="6" oninput="annPreview()"></textarea><p style="font-size:11px;color:#888;margin-top:4px;">Tip: start a line with <strong>Label:</strong> to bold it automatically. Start a line with <strong>- </strong> to make it a bullet point. Press Enter for a new line — it will display exactly as typed.</p></div>
+            <div class="form-group" style="margin-top:10px;"><label>🎉 Festive theme (optional)</label>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;"><select id="annTheme" onchange="annThemeChanged(true)" style="flex:1;min-width:180px;"><option value="">None — normal announcement</option><option value="diwali">🪔 Diwali</option><option value="christmas">🎄 Christmas</option><option value="newyear">🎆 New Year</option><option value="eid">🌙 Eid</option><option value="ramadan">🕌 Ramadan</option><option value="uae">🏛️ UAE National Day</option><option value="celebration">🎉 General celebration / Congratulations</option></select><button type="button" class="btn btn-sm" style="background:#fff8e1;color:#8a6d00;" onclick="annThemeChanged(true)">✨ Suggest greeting text</button></div>
+              <p style="font-size:11px;color:#888;margin-top:4px;">Pick a theme and the title and message are filled in for you (you can edit them). Staff see a decorated greeting card instead of plain text.</p>
+              <div id="annPreview"></div></div>
             <div class="form-group" style="margin-top:10px;"><label>Category</label><select id="annCat"><option>General</option><option>HR Policy</option><option>Safety</option><option>Event</option><option>Urgent</option></select></div>
             <div class="form-grid" style="margin-top:10px;">
               <div class="form-group"><label>Live From</label><input type="date" id="annStart"></div>
@@ -2332,12 +2338,13 @@ function initEmployeeListeners(empKey,uid){
 function renderEmpAnnouncements(){
   const el=document.getElementById('empAnnList');if(!el)return;
   const today=new Date().toISOString().split('T')[0];
-  const list=Object.values(DB.announcements||{}).filter(a=>!a.expiryDate||a.expiryDate>=today).sort((a,b)=>b.ts-a.ts);
+  renderFestiveBanners();
+  const list=Object.values(DB.announcements||{}).filter(a=>(!a.expiryDate||a.expiryDate>=today)&&!ANN_THEMES[a.theme]).sort((a,b)=>b.ts-a.ts);
   el.innerHTML=list.length?list.map(a=>`<div style="padding:9px 0;border-bottom:1px solid #f0f0f0;">
     <strong style="font-size:13px;">${esc(a.title)}</strong>
     <div style="font-size:12px;color:#555;margin:3px 0;line-height:1.6;">${formatAnnouncementText(a.message)}</div>
     <span style="font-size:11px;color:#888;">${esc(a.category||'')} · ${esc(a.by||'')} · ${new Date(a.ts).toLocaleDateString()}</span>
-  </div>`).join(''):'<div class="empty-state"><p>No announcements.</p></div>';
+  </div>`).join(''):(Object.values(DB.announcements||{}).some(a=>(!a.expiryDate||a.expiryDate>=today)&&ANN_THEMES[a.theme])?'<div class="empty-state"><p>No other announcements.</p></div>':'<div class="empty-state"><p>No announcements.</p></div>');
 }
 function renderEmpPolicies(){
   const el=document.getElementById('empPolList');if(!el)return;
@@ -3358,7 +3365,8 @@ function updateDash(){
   // Announcements
   const todayStr2=new Date().toISOString().split('T')[0];
   const anns=Object.values(DB.announcements).filter(a=>!a.expiryDate||a.expiryDate>=todayStr2).sort((a,b)=>b.ts-a.ts).slice(0,3);
-  document.getElementById('d-ann').innerHTML=anns.length?anns.map(a=>`<div style="padding:7px 0;border-bottom:1px solid #f0f0f0;"><strong style="font-size:13px;">${esc(a.title)}</strong><br><span style="font-size:11px;color:#888;">${esc(a.category)} · ${new Date(a.ts).toLocaleDateString()}</span></div>`).join(''):'<div class="empty-state"><p>No announcements</p></div>';
+  renderFestiveBanners();
+  document.getElementById('d-ann').innerHTML=anns.length?anns.map(a=>`<div style="padding:7px 0;border-bottom:1px solid #f0f0f0;"><strong style="font-size:13px;">${ANN_THEMES[a.theme]?ANN_THEMES[a.theme].emoji+' ':''}${esc(a.title)}</strong><br><span style="font-size:11px;color:#888;">${esc(a.category)} · ${new Date(a.ts).toLocaleDateString()}</span></div>`).join(''):'<div class="empty-state"><p>No announcements</p></div>';
   // Expiries
   const expList=[];
   emps.forEach(e=>[{f:'passExp',l:'Passport'},{f:'visaExp',l:'Visa'},{f:'eidExp',l:'Emirates ID'},{f:'labExp',l:'Labour Card'}].forEach(({f,l})=>{
@@ -5259,13 +5267,86 @@ function formatRichText(text){
   return html;
 }
 const formatAnnouncementText=formatRichText; // kept as an alias — existing calls still work unchanged
+// ── FESTIVE ANNOUNCEMENT THEMES (self-contained artwork, no external images) ──
+const _festYear=(()=>{const d=new Date();return d.getMonth()>=9?d.getFullYear()+1:d.getFullYear();})();
+function _burst(cx,cy,col,r1,r2,n){let s='';for(let i=0;i<n;i++){const a=i*2*Math.PI/n,x1=cx+Math.cos(a)*r1,y1=cy+Math.sin(a)*r1,x2=cx+Math.cos(a)*r2,y2=cy+Math.sin(a)*r2;s+='<line x1="'+x1.toFixed(1)+'" y1="'+y1.toFixed(1)+'" x2="'+x2.toFixed(1)+'" y2="'+y2.toFixed(1)+'" stroke="'+col+'" stroke-width="2.4" stroke-linecap="round"/><circle cx="'+(cx+Math.cos(a)*(r2+5)).toFixed(1)+'" cy="'+(cy+Math.sin(a)*(r2+5)).toFixed(1)+'" r="1.8" fill="'+col+'"/>';}return s+'<circle cx="'+cx+'" cy="'+cy+'" r="3" fill="'+col+'"/>';}
+function _sparkle(x,y,r,c){return '<path d="M'+x+' '+(y-r)+' Q'+x+' '+y+' '+(x+r)+' '+y+' Q'+x+' '+y+' '+x+' '+(y+r)+' Q'+x+' '+y+' '+(x-r)+' '+y+' Q'+x+' '+y+' '+x+' '+(y-r)+'Z" fill="'+c+'"/>';}
+function _diya(x,y,sc){return '<g transform="translate('+x+' '+y+') scale('+sc+')"><circle cx="0" cy="-18" r="30" fill="rgba(255,200,80,.22)"/><path d="M-27 0 Q0 30 27 0 Z" fill="#b45309" stroke="#ffd166" stroke-width="2"/><ellipse cx="0" cy="0" rx="27" ry="5" fill="#7c2d12" stroke="#ffd166" stroke-width="1.5"/><path d="M0 -3 C-10 -18 -3 -30 0 -42 C3 -30 10 -18 0 -3Z" fill="#ffb703"/><path d="M0 -4 C-5 -14 -1 -22 0 -28 C1 -22 5 -14 0 -4Z" fill="#fff3b0"/></g>';}
+function _lantern(x,y,sc,c){return '<g transform="translate('+x+' '+y+') scale('+sc+')"><line x1="0" y1="-30" x2="0" y2="-18" stroke="#ffd166" stroke-width="2"/><circle cx="0" cy="12" r="26" fill="rgba(255,210,100,.18)"/><path d="M-9 -18 L9 -18 L12 -10 L-12 -10Z" fill="#ffd166"/><path d="M-12 -10 Q-18 8 -12 26 L12 26 Q18 8 12 -10Z" fill="'+c+'" stroke="#ffd166" stroke-width="2"/><path d="M-5 -8 Q-8 8 -5 24 M5 -8 Q8 8 5 24" stroke="#ffd166" stroke-width="1.2" fill="none" opacity=".8"/><rect x="-10" y="26" width="20" height="4" rx="2" fill="#ffd166"/><ellipse cx="0" cy="10" rx="3.5" ry="6" fill="#fff3b0"/></g>';}
+function _crescent(x,y,sc){return '<g transform="translate('+x+' '+y+') scale('+sc+')"><circle cx="6" cy="0" r="50" fill="rgba(255,225,130,.14)"/><mask id="crm"><rect x="-90" y="-90" width="200" height="200" fill="#fff"/><circle cx="22" cy="-9" r="29" fill="#000"/></mask><circle cx="0" cy="0" r="36" fill="#ffd166" mask="url(#crm)"/>'+_sparkle(36,-22,8,'#fff3b0')+'</g>';}
+function _mosque(f){return '<g fill="'+(f||'rgba(0,0,0,.32)')+'"><rect x="0" y="136" width="260" height="24"/><rect x="18" y="86" width="8" height="52"/><path d="M16 86 L22 70 L28 86Z"/><rect x="236" y="92" width="8" height="46"/><path d="M234 92 L240 76 L246 92Z"/><rect x="70" y="112" width="120" height="26"/><path d="M82 112 A48 48 0 0 1 178 112Z"/><rect x="127" y="52" width="6" height="14"/><path d="M122 66 Q130 40 138 66Z"/><path d="M60 138 L60 122 A12 12 0 0 1 84 122 L84 138Z"/><path d="M176 138 L176 122 A12 12 0 0 1 200 122 L200 138Z"/></g>';}
+const ANN_THEMES={
+  diwali:{label:'Diwali',emoji:'🪔',bg:'linear-gradient(120deg,#ff9f1c 0%,#ff6b35 50%,#d62839 100%)',fg:'#fff',accent:'#fff3b0',
+    title:'Happy Diwali!',msg:'Wishing you and your family a Diwali filled with light, joy and prosperity.\nMay the festival of lights bring happiness and good fortune to every home.\nFrom all of us at CK Architecture Interiors and CKC Building Contracting.',
+    art:()=>'<svg viewBox="0 0 260 160" preserveAspectRatio="xMaxYMid meet" width="100%" height="100%">'+_sparkle(30,30,9,'#fff3b0')+_sparkle(120,22,6,'#fff')+_sparkle(244,128,7,'#fff3b0')+'<g transform="translate(205 52)">'+[0,45,90,135].map(a=>'<ellipse cx="0" cy="-17" rx="6" ry="14" fill="'+(a%90?'#fff3b0':'#ffd6e0')+'" transform="rotate('+a+')"/><ellipse cx="0" cy="-17" rx="6" ry="14" fill="'+(a%90?'#fff3b0':'#ffd6e0')+'" transform="rotate('+(a+180)+')"/>').join('')+'<circle r="8" fill="#ffb703"/><circle r="30" fill="none" stroke="#fff3b0" stroke-width="1.2" stroke-dasharray="2 4"/></g>'+_diya(55,128,1)+_diya(130,138,1.15)+_diya(205,128,1)+'</svg>'},
+  christmas:{label:'Merry Christmas',emoji:'🎄',bg:'linear-gradient(120deg,#f4fbff 0%,#dff1fb 55%,#cfeadf 100%)',fg:'#1f2937',accent:'#b3202a',border:'#d62828',
+    title:'Merry Christmas!',msg:'Wishing you and your family a joyful and peaceful Christmas.\nThank you for all your hard work this year.\nFrom all of us at CK Architecture Interiors and CKC Building Contracting.',
+    art:()=>'<svg viewBox="0 0 260 160" preserveAspectRatio="xMaxYMid meet" width="100%" height="100%">'+[[20,20],[60,12],[110,30],[150,14],[240,22],[30,100],[125,95],[250,90],[100,150],[170,60]].map(p=>'<circle cx="'+p[0]+'" cy="'+p[1]+'" r="3" fill="#fff" stroke="#bcd9ec" stroke-width=".8"/>').join('')+
+      '<g><circle cx="62" cy="96" r="27" fill="#f6c9a0"/><circle cx="53" cy="90" r="2.6" fill="#333"/><circle cx="71" cy="90" r="2.6" fill="#333"/><circle cx="46" cy="99" r="5" fill="#f4a3a0" opacity=".7"/><circle cx="78" cy="99" r="5" fill="#f4a3a0" opacity=".7"/><path d="M36 98 Q62 160 88 98 Q76 114 62 112 Q48 114 36 98Z" fill="#fff" stroke="#d6e4ee"/><circle cx="54" cy="104" r="8" fill="#fff" stroke="#d6e4ee"/><circle cx="70" cy="104" r="8" fill="#fff" stroke="#d6e4ee"/><circle cx="62" cy="97" r="4.2" fill="#e8998d"/><path d="M33 72 L62 16 L91 72Z" fill="#d62828"/><circle cx="62" cy="14" r="8" fill="#fff" stroke="#d6e4ee"/><rect x="28" y="64" width="68" height="15" rx="7.5" fill="#fff" stroke="#d6e4ee"/></g>'+
+      '<g><polygon points="190,34 162,78 218,78" fill="#2d8a4e"/><polygon points="190,56 157,104 223,104" fill="#237a42"/><polygon points="190,82 150,134 230,134" fill="#1b6b38"/><rect x="183" y="134" width="14" height="16" fill="#7a4a21"/>'+_sparkle(190,30,9,'#f5b700')+'<circle cx="178" cy="70" r="4" fill="#ef233c"/><circle cx="200" cy="92" r="4.5" fill="#ffd166"/><circle cx="172" cy="108" r="4.5" fill="#4cc9f0"/><circle cx="206" cy="120" r="4" fill="#ef233c"/><circle cx="184" cy="124" r="3.6" fill="#ffd166"/></g></svg>'},
+  newyear:{label:'Happy New Year',emoji:'🎆',bg:'linear-gradient(120deg,#7c3aed 0%,#db2777 55%,#f59e0b 100%)',fg:'#fff',accent:'#fff3b0',
+    title:'Happy New Year '+_festYear+'!',msg:'Wishing you a year of good health, happiness and success.\nThank you for being part of our team — here is to a great year ahead.\nFrom all of us at CK Architecture Interiors and CKC Building Contracting.',
+    art:()=>'<svg viewBox="0 0 260 160" preserveAspectRatio="xMaxYMid meet" width="100%" height="100%">'+_burst(70,56,'#fff3b0',10,28,12)+_burst(188,44,'#ffffff',9,24,10)+_burst(150,104,'#a5f3fc',8,22,10)+[[20,110,'#fff3b0'],[100,20,'#fff'],[236,100,'#a5f3fc'],[40,30,'#fde68a'],[222,20,'#fff3b0'],[110,130,'#fff'],[250,60,'#fde68a']].map((p,i)=>'<rect x="'+p[0]+'" y="'+p[1]+'" width="7" height="3.5" fill="'+p[2]+'" transform="rotate('+(i*37)+' '+p[0]+' '+p[1]+')"/>').join('')+'<text x="252" y="152" text-anchor="end" font-size="32" font-weight="800" fill="#fff" font-family="Georgia,serif">'+_festYear+'</text></svg>'},
+  eid:{label:'Eid Mubarak',emoji:'🌙',bg:'linear-gradient(120deg,#e6fbf5 0%,#f6f3dc 55%,#fbeab8 100%)',fg:'#134e4a',accent:'#0f766e',border:'#0f766e',
+    title:'Eid Mubarak!',msg:'Wishing you and your family a blessed and joyful Eid.\nMay this occasion bring peace, happiness and togetherness.\nFrom all of us at CK Architecture Interiors and CKC Building Contracting.',
+    art:()=>'<svg viewBox="0 0 260 160" preserveAspectRatio="xMaxYMid meet" width="100%" height="100%">'+_sparkle(30,28,7,'#e0a800')+_sparkle(150,20,5,'#e0a800')+_sparkle(240,70,6,'#e0a800')+_mosque('rgba(15,118,110,.38)')+_crescent(96,50,1)+_lantern(40,60,.9,'#dd6b20')+_lantern(228,42,.8,'#0e7490')+'</svg>'},
+  ramadan:{label:'Ramadan Kareem',emoji:'🕌',bg:'linear-gradient(120deg,#ede9fe 0%,#fae8ff 50%,#fde7c0 100%)',fg:'#3b1d7a',accent:'#7e22ce',border:'#7e22ce',
+    title:'Ramadan Kareem',msg:'Wishing you and your family a blessed and peaceful Ramadan.\nPlease note the working hours during Ramadan as communicated by HR.\nFrom all of us at CK Architecture Interiors and CKC Building Contracting.',
+    art:()=>'<svg viewBox="0 0 260 160" preserveAspectRatio="xMaxYMid meet" width="100%" height="100%">'+_sparkle(24,24,6,'#e0a800')+_sparkle(120,14,5,'#e0a800')+_sparkle(244,92,6,'#e0a800')+_sparkle(200,20,4,'#e0a800')+_mosque('rgba(91,33,182,.34)')+_crescent(92,48,1.05)+_lantern(36,64,.95,'#9333ea')+_lantern(222,52,.85,'#dd6b20')+'</svg>'},
+  uae:{label:'UAE National Day',emoji:'🏛️',bg:'linear-gradient(120deg,#ffffff 0%,#f1f5f9 100%)',fg:'#111827',accent:'#00732f',border:'#ce1126',
+    title:'Happy UAE National Day!',msg:'Proud to celebrate this special day with the nation we are privileged to work in.\nWishing everyone a joyful National Day.\nFrom all of us at CK Architecture Interiors and CKC Building Contracting.',
+    art:()=>'<svg viewBox="0 0 260 160" preserveAspectRatio="xMaxYMid meet" width="100%" height="100%"><rect x="104" y="18" width="5" height="130" rx="2.5" fill="#94a3b8"/><circle cx="106.5" cy="16" r="5" fill="#ffd166"/><g transform="skewY(-4)"><rect x="109" y="30" width="26" height="72" fill="#ce1126"/><rect x="135" y="30" width="96" height="24" fill="#00732f"/><rect x="135" y="54" width="96" height="24" fill="#ffffff" stroke="#e2e8f0"/><rect x="135" y="78" width="96" height="24" fill="#111111"/></g>'+_burst(40,50,'#00732f',6,16,8)+_burst(60,118,'#ce1126',6,15,8)+'<rect x="0" y="150" width="260" height="10" fill="#00732f"/><rect x="0" y="154" width="260" height="3" fill="#fff"/><rect x="0" y="157" width="260" height="3" fill="#111"/></svg>'},
+  celebration:{label:'Celebration',emoji:'🎉',bg:'linear-gradient(120deg,#be185d 0%,#e11d48 50%,#f59e0b 100%)',fg:'#fff',accent:'#fff3b0',
+    title:'Congratulations!',msg:'A big thank you and well done to everyone involved.\nYour hard work and commitment make us proud.',
+    art:()=>'<svg viewBox="0 0 260 160" preserveAspectRatio="xMaxYMid meet" width="100%" height="100%">'+[[60,70,'#fde047','#a16207'],[110,52,'#38bdf8','#075985'],[165,74,'#a78bfa','#5b21b6'],[215,56,'#4ade80','#166534']].map((b,i)=>'<path d="M'+b[0]+' '+(b[1]+30)+' Q'+(b[0]+(i%2?8:-8))+' '+(b[1]+60)+' '+b[0]+' '+(b[1]+88)+'" stroke="rgba(255,255,255,.7)" fill="none" stroke-width="1.5"/><ellipse cx="'+b[0]+'" cy="'+b[1]+'" rx="21" ry="26" fill="'+b[2]+'"/><ellipse cx="'+(b[0]-7)+'" cy="'+(b[1]-9)+'" rx="5" ry="8" fill="rgba(255,255,255,.45)"/><path d="M'+(b[0]-4)+' '+(b[1]+26)+' L'+(b[0]+4)+' '+(b[1]+26)+' L'+b[0]+' '+(b[1]+32)+'Z" fill="'+b[3]+'"/>').join('')+[[20,20,'#fff3b0'],[90,14,'#fff'],[140,22,'#fde047'],[240,24,'#fff'],[30,120,'#fff'],[250,120,'#fff3b0'],[130,130,'#fde047']].map((p,i)=>'<rect x="'+p[0]+'" y="'+p[1]+'" width="7" height="3.5" fill="'+p[2]+'" transform="rotate('+(i*41)+' '+p[0]+' '+p[1]+')"/>').join('')+'</svg>'}
+};
+// One card that looks festive when a theme is chosen
+function annCard(a,opts){
+  opts=opts||{};
+  const T=ANN_THEMES[a.theme];
+  if(!T)return '';
+  const footer=opts.footer||'';
+  return '<div class="fest-card" style="'+(T.border?'border-left:7px solid '+T.border+';':'')+'">'+
+    '<div class="fest-head"><img src="ckc_logo.png" alt="CKC Building Contracting"><span class="fest-div"></span><img src="ck_logo.png" alt="CK Architecture Interiors">'+
+    (opts.dismissKey?'<button class="fest-x" title="Hide this greeting for now" onclick="dismissFest(\''+opts.dismissKey+'\')">✕</button>':'')+'</div>'+
+    '<div class="fest-body" style="background:'+T.bg+';color:'+T.fg+';">'+
+    '<div class="fest-art">'+T.art()+'</div>'+
+    '<div class="fest-text"><div style="font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:'+T.accent+';font-weight:700;">'+T.emoji+' '+T.label+'</div>'+
+    '<div style="font-size:22px;font-weight:800;margin:4px 0 6px;font-family:Georgia,\'Times New Roman\',serif;line-height:1.2;">'+esc(a.title||'')+'</div>'+
+    '<div style="font-size:13px;line-height:1.55;">'+formatAnnouncementText(a.message)+'</div>'+
+    (footer?'<div style="font-size:11px;opacity:.75;margin-top:6px;">'+footer+'</div>':'')+'</div></div></div>';
+}
+window.dismissFest=function(key){try{localStorage.setItem('festHide_'+key,'1');}catch(e){}renderFestiveBanners();};
+function _festHidden(key){try{return localStorage.getItem('festHide_'+key)==='1';}catch(e){return false;}}
+// Shows ONLY the newest themed greeting that is inside its Live From – Live Until dates; vanishes by itself afterwards
+function renderFestiveBanners(){
+  const t=new Date().toISOString().split('T')[0];
+  const live=Object.entries(DB.announcements||{}).filter(([k,a])=>ANN_THEMES[a.theme]&&(!a.expiryDate||a.expiryDate>=t)&&(!a.startDate||a.startDate<=t)&&!_festHidden(k)).sort((a,b)=>(b[1].ts||0)-(a[1].ts||0));
+  const html=live.length?annCard(live[0][1],{footer:esc(live[0][1].by||'')+' · until '+fmt(live[0][1].expiryDate),dismissKey:live[0][0]}):'';
+  ['empFestive','dashFestive'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=html;});
+}
+const _festCss='.fest-card{position:relative;overflow:hidden;border-radius:14px;margin-bottom:12px;box-shadow:0 4px 14px rgba(0,0,0,.12);background:#fff;}.fest-head{display:flex;align-items:center;gap:14px;background:#fff;padding:8px 18px;border-bottom:2px solid #C9A84C;position:relative;}.fest-head img{height:30px;width:auto;display:block;}.fest-div{width:1px;height:24px;background:#d9d9d9;}.fest-body{position:relative;padding:14px 20px;min-height:116px;}.fest-art{position:absolute;top:0;right:0;bottom:0;width:min(42%,260px);pointer-events:none;}.fest-text{position:relative;max-width:60%;}.fest-x{position:absolute;top:50%;right:10px;transform:translateY(-50%);z-index:3;border:none;background:#f1f1f1;color:#666;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:11px;line-height:22px;padding:0;}.fest-x:hover{background:#e2e2e2;}@media(max-width:760px){.fest-text{max-width:100%;}.fest-art{opacity:.2;width:70%;}}';
+(()=>{const st=document.createElement('style');st.textContent=_festCss;document.head.appendChild(st);})();
+window.annThemeChanged=function(fill){
+  const key=v('annTheme');const T=ANN_THEMES[key];
+  if(fill&&T){
+    if(!v('annTitle')||confirm('Replace the current title and message with the suggested '+T.label+' greeting?')){sv('annTitle',T.title);sv('annMsg',T.msg);sv('annCat','Event');}
+  }
+  annPreview();
+};
+window.annPreview=function(){
+  const el=document.getElementById('annPreview');if(!el)return;
+  const key=v('annTheme');
+  el.innerHTML=ANN_THEMES[key]?'<div style="font-size:11px;color:#888;margin:8px 0 4px;">Preview — this is how staff will see it:</div>'+annCard({theme:key,title:v('annTitle')||'Your title here',message:v('annMsg')||'Your message here',by:adminName},{footer:esc(adminName||'')}):'';
+};
+
 // Only Dev and Darleendy can publish/edit/delete — same restriction already enforced
 // at the database level; this just keeps the buttons from appearing for anyone else.
 function canManageAnnouncements(){return currentRole==='admin';}
 window.saveAnn=function(){
   const editKey=v('annEditKey');
   const data={
-    title:v('annTitle'),message:v('annMsg'),category:v('annCat'),
+    title:v('annTitle'),message:v('annMsg'),category:v('annCat'),theme:v('annTheme')||'',
     startDate:v('annStart')||new Date().toISOString().split('T')[0],
     expiryDate:v('annExpiry'),
     by:adminName,ts:editKey?DB.announcements[editKey]?.ts||Date.now():Date.now(),
@@ -5282,7 +5363,7 @@ window.saveAnn=function(){
 };
 window.editAnn=function(key){
   const a=DB.announcements[key];
-  sv('annEditKey',key);sv('annTitle',a.title);sv('annMsg',a.message);sv('annCat',a.category);
+  sv('annEditKey',key);sv('annTitle',a.title);sv('annMsg',a.message);sv('annCat',a.category);sv('annTheme',a.theme||'');annPreview();
   sv('annStart',a.startDate||'');sv('annExpiry',a.expiryDate||'');
   document.getElementById('annFormTitle').textContent='✏️ Editing Announcement';
   document.getElementById('annSaveBtn').textContent='Save Changes';
@@ -5290,7 +5371,7 @@ window.editAnn=function(key){
   window.scrollTo(0,0);
 };
 window.cancelAnnEdit=function(){
-  sv('annEditKey','');sv('annTitle','');sv('annMsg','');sv('annStart','');sv('annExpiry','');
+  sv('annEditKey','');sv('annTitle','');sv('annMsg','');sv('annStart','');sv('annExpiry','');sv('annTheme','');annPreview();
   document.getElementById('annFormTitle').textContent='+ New Announcement';
   document.getElementById('annSaveBtn').textContent='Publish';
   document.getElementById('annCancelBtn').style.display='none';
@@ -5301,7 +5382,7 @@ function renderAnn(){
   const all=Object.entries(DB.announcements||{});
   const live=all.filter(([k,a])=>!a.expiryDate||a.expiryDate>=today).sort((a,b)=>b[1].ts-a[1].ts);
   const expired=all.filter(([k,a])=>a.expiryDate&&a.expiryDate<today).sort((a,b)=>b[1].expiryDate.localeCompare(a[1].expiryDate));
-  document.getElementById('annList').innerHTML=live.length?live.map(([k,a])=>`<div style="padding:9px 0;border-bottom:1px solid #f0f0f0;">
+  document.getElementById('annList').innerHTML=live.length?live.map(([k,a])=>ANN_THEMES[a.theme]?`<div style="margin-bottom:10px;">${annCard(a,{footer:esc(a.category)+' · '+esc(a.by)+' · Live '+fmt(a.startDate)+' – '+fmt(a.expiryDate)})}${canManage?`<div style="text-align:right;margin:-6px 0 6px;"><button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="editAnn('${k}')">Edit</button> <button class="btn btn-sm btn-danger" onclick="if(confirm('Delete this announcement?')){remove(ref(window._db,'announcements/${k}'));logAudit('Delete Announcement','${esc(a.title)}','')}">✕</button></div>`:''}</div>`:`<div style="padding:9px 0;border-bottom:1px solid #f0f0f0;">
     <div style="display:flex;justify-content:space-between;align-items:start;">
       <strong style="font-size:13px;">${esc(a.title)}</strong>
       ${canManage?`<span><button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="editAnn('${k}')">Edit</button> <button class="btn btn-sm btn-danger" onclick="if(confirm('Delete this announcement?')){remove(ref(window._db,'announcements/${k}'));logAudit('Delete Announcement','${esc(a.title)}','')}">✕</button></span>`:''}
@@ -5319,6 +5400,7 @@ function renderAnn(){
     <span style="font-size:11px;color:#888;">${esc(a.category)} · ${esc(a.by)} · Was live ${fmt(a.startDate)} – ${fmt(a.expiryDate)}</span>
   </div>`).join(''):'<div class="empty-state"><p>No expired announcements yet.</p></div>';
   window._db=db; window.logAudit=logAudit;
+  renderFestiveBanners();
 }
 
 // ── BIRTHDAYS ─────────────────────────────────────────────────────────────────
