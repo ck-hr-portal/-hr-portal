@@ -5322,7 +5322,7 @@ function _festHidden(key){try{return localStorage.getItem('festHide_'+key)==='1'
 function renderFestiveBanners(){
   const t=new Date().toISOString().split('T')[0];
   const live=Object.entries(DB.announcements||{}).filter(([k,a])=>ANN_THEMES[a.theme]&&(!a.expiryDate||a.expiryDate>=t)&&(!a.startDate||a.startDate<=t)&&!_festHidden(k)).sort((a,b)=>(b[1].ts||0)-(a[1].ts||0));
-  const html=live.length?annCard(live[0][1],{footer:esc(live[0][1].by||'')+' · until '+fmt(live[0][1].expiryDate),dismissKey:live[0][0]}):'';
+  const html=live.length?annCard(live[0][1],{footer:'HR Department · until '+fmt(live[0][1].expiryDate),dismissKey:live[0][0]}):'';
   ['empFestive','dashFestive'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=html;});
 }
 const _festCss='.fest-card{position:relative;overflow:hidden;border-radius:14px;margin-bottom:12px;box-shadow:0 4px 14px rgba(0,0,0,.12);background:#fff;}.fest-head{display:flex;align-items:center;gap:14px;background:#fff;padding:8px 18px;border-bottom:2px solid #C9A84C;position:relative;}.fest-head img{height:30px;width:auto;display:block;}.fest-div{width:1px;height:24px;background:#d9d9d9;}.fest-body{position:relative;padding:14px 20px;min-height:116px;}.fest-art{position:absolute;top:0;right:0;bottom:0;width:min(42%,260px);pointer-events:none;}.fest-text{position:relative;max-width:60%;}.fest-x{position:absolute;top:50%;right:10px;transform:translateY(-50%);z-index:3;border:none;background:#f1f1f1;color:#666;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:11px;line-height:22px;padding:0;}.fest-x:hover{background:#e2e2e2;}@media(max-width:760px){.fest-text{max-width:100%;}.fest-art{opacity:.2;width:70%;}}';
@@ -5337,7 +5337,7 @@ window.annThemeChanged=function(fill){
 window.annPreview=function(){
   const el=document.getElementById('annPreview');if(!el)return;
   const key=v('annTheme');
-  el.innerHTML=ANN_THEMES[key]?'<div style="font-size:11px;color:#888;margin:8px 0 4px;">Preview — this is how staff will see it:</div>'+annCard({theme:key,title:v('annTitle')||'Your title here',message:v('annMsg')||'Your message here',by:adminName},{footer:esc(adminName||'')}):'';
+  el.innerHTML=ANN_THEMES[key]?'<div style="font-size:11px;color:#888;margin:8px 0 4px;">Preview — this is how staff will see it:</div>'+annCard({theme:key,title:v('annTitle')||'Your title here',message:v('annMsg')||'Your message here',by:adminName},{footer:'HR Department'}):'';
 };
 
 // Only Dev and Darleendy can publish/edit/delete — same restriction already enforced
@@ -5382,7 +5382,7 @@ function renderAnn(){
   const all=Object.entries(DB.announcements||{});
   const live=all.filter(([k,a])=>!a.expiryDate||a.expiryDate>=today).sort((a,b)=>b[1].ts-a[1].ts);
   const expired=all.filter(([k,a])=>a.expiryDate&&a.expiryDate<today).sort((a,b)=>b[1].expiryDate.localeCompare(a[1].expiryDate));
-  document.getElementById('annList').innerHTML=live.length?live.map(([k,a])=>ANN_THEMES[a.theme]?`<div style="margin-bottom:10px;">${annCard(a,{footer:esc(a.category)+' · '+esc(a.by)+' · Live '+fmt(a.startDate)+' – '+fmt(a.expiryDate)})}${canManage?`<div style="text-align:right;margin:-6px 0 6px;"><button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="editAnn('${k}')">Edit</button> <button class="btn btn-sm btn-danger" onclick="if(confirm('Delete this announcement?')){remove(ref(window._db,'announcements/${k}'));logAudit('Delete Announcement','${esc(a.title)}','')}">✕</button></div>`:''}</div>`:`<div style="padding:9px 0;border-bottom:1px solid #f0f0f0;">
+  document.getElementById('annList').innerHTML=live.length?live.map(([k,a])=>ANN_THEMES[a.theme]?`<div style="margin-bottom:10px;">${annCard(a,{footer:'HR Department · Live '+fmt(a.startDate)+' – '+fmt(a.expiryDate)})}${canManage?`<div style="text-align:right;margin:-6px 0 6px;"><button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="editAnn('${k}')">Edit</button> <button class="btn btn-sm btn-danger" onclick="if(confirm('Delete this announcement?')){remove(ref(window._db,'announcements/${k}'));logAudit('Delete Announcement','${esc(a.title)}','')}">✕</button></div>`:''}</div>`:`<div style="padding:9px 0;border-bottom:1px solid #f0f0f0;">
     <div style="display:flex;justify-content:space-between;align-items:start;">
       <strong style="font-size:13px;">${esc(a.title)}</strong>
       ${canManage?`<span><button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="editAnn('${k}')">Edit</button> <button class="btn btn-sm btn-danger" onclick="if(confirm('Delete this announcement?')){remove(ref(window._db,'announcements/${k}'));logAudit('Delete Announcement','${esc(a.title)}','')}">✕</button></span>`:''}
