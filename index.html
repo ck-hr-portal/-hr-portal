@@ -546,7 +546,7 @@ tr:hover td{background:#fafbfc;}
           </div>
           <div id="wfFilterNote" style="font-size:11px;color:#888;margin-top:8px;"></div>
         </div>
-        <div class="stats-row" id="wfStats" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));"></div>
+        <div id="wfStats" style="margin-bottom:18px;"></div>
         <div class="card"><div class="card-title">By department</div><div id="wfDeptTable"></div></div>
         <div class="card"><div class="card-title">Labour by trade</div><div id="wfTradeTable"></div></div>
         <div class="card"><div class="card-title">Staff list</div><div id="wfList" style="max-height:520px;overflow:auto;"></div></div>
@@ -3060,13 +3060,13 @@ function wfFilterText(){
 function wfData(){
   const rows=wfRows(),T=wfTally(rows);
   const depts=[...new Set(rows.map(r=>r.dept))].sort((a,b)=>a.localeCompare(b));
-  const deptHead=['Department','Total','White Collar','Labour'].concat(T.unc?['Not classified']:[]).concat(['Skilled','Semi-Skilled','Unskilled','Skill not set']);
+  const deptHead=['Department','Total','White Collar','Labour'].concat(T.unc?['Not classified']:[]).concat(['Labour: Skilled','Labour: Semi-Skilled','Labour: Unskilled','Labour: Skill not recorded']);
   const deptLine=(n,t)=>[n,t.total,t.wc,t.lab].concat(T.unc?[t.unc]:[]).concat([t.sk,t.semi,t.unsk,t.skNot]);
   const deptRows=depts.map(d=>deptLine(d,wfTally(rows.filter(r=>r.dept===d))));
   deptRows.push(deptLine('Total',T));
   const lab=rows.filter(r=>r.grade==='Labour');
   const trades=[...new Set(lab.map(r=>r.trade))].map(n=>({n,t:wfTally(lab.filter(r=>r.trade===n))})).sort((a,b)=>b.t.total-a.t.total||a.n.localeCompare(b.n));
-  const tradeHead=['Trade','Total','Skilled','Semi-Skilled','Unskilled','Skill not set'];
+  const tradeHead=['Trade (Labour)','Total','Skilled','Semi-Skilled','Unskilled','Skill not recorded'];
   const tradeRows=trades.map(x=>[x.n,x.t.total,x.t.sk,x.t.semi,x.t.unsk,x.t.skNot]);
   if(trades.length)tradeRows.push(['Total labour',T.lab,T.sk,T.semi,T.unsk,T.skNot]);
   const order={'White Collar':0,'Labour':1,'Not classified':2};
@@ -3082,16 +3082,32 @@ function wfHtmlTable(head,rows,totalLast,leftCols){
       return '<tr'+(tot?' style="background:#eef2f8;font-weight:700;"':'')+'>'+r.map((c,i)=>'<td'+(i>=left?' style="text-align:center;"':'')+'>'+esc(c)+'</td>').join('')+'</tr>';}).join('')+
     '</tbody></table></div>';
 }
+// Plain-English summary tiles shared by the screen, the PDF and the Excel (so all three read the same)
+function wfKpis(T){
+  const top=[
+    {n:T.total,l:'Total Employees',sub:'Everyone in this selection',c:'#1C3557',rgb:[28,53,87],xl:'FF1C3557'},
+    {n:T.wc,l:'White Collar',sub:'Office & management staff',c:'#2563A8',rgb:[37,99,168],xl:'FF2563A8'},
+    {n:T.lab,l:'Labour',sub:'Site & workshop workers',c:'#C9A84C',rgb:[201,168,76],xl:'FFC9A84C'}];
+  if(T.unc)top.push({n:T.unc,l:'Category not assigned',sub:'Set White Collar / Labour in record',c:'#e67e22',rgb:[230,126,34],xl:'FFE67E22'});
+  const skill=[
+    {n:T.sk,l:'Skilled',sub:'Labour workers',c:'#C9A84C',rgb:[201,168,76],xl:'FFC9A84C'},
+    {n:T.semi,l:'Semi-Skilled',sub:'Labour workers',c:'#C9A84C',rgb:[201,168,76],xl:'FFC9A84C'},
+    {n:T.unsk,l:'Unskilled',sub:'Labour workers',c:'#C9A84C',rgb:[201,168,76],xl:'FFC9A84C'}];
+  if(T.skNot)skill.push({n:T.skNot,l:'Skill not yet recorded',sub:'Labour workers',c:'#e67e22',rgb:[230,126,34],xl:'FFE67E22'});
+  const title='Labour workers by skill level  ('+T.lab+' workers in total — White Collar staff are not graded by skill)';
+  return{top,skill,title};
+}
 window.renderWorkforce=function(){
   const sel=document.getElementById('wfDept');if(!sel)return;
   const keep=sel.value;
   const depts=[...new Set(Object.values(DB.employees||{}).map(e=>String(e.dept||'').trim()||'(No department)'))].sort((a,b)=>a.localeCompare(b));
   sel.innerHTML='<option value="">All Departments</option>'+depts.map(d=>'<option value="'+esc(d)+'"'+(d===keep?' selected':'')+'>'+esc(d)+'</option>').join('');
   const D=wfData(),T=D.T;
-  const card=(n,l,c)=>'<div class="stat-card" style="border-left-color:'+c+';"><div class="stat-num">'+n+'</div><div class="stat-label">'+l+'</div></div>';
-  let cards=card(T.total,'Total Headcount','#1C3557')+card(T.wc,'White Collar','#2563A8')+card(T.lab,'Labour','#C9A84C')+card(T.sk,'Skilled','#1A7A6E')+card(T.semi,'Semi-Skilled','#1A7A6E')+card(T.unsk,'Unskilled','#1A7A6E');
-  if(T.skNot)cards+=card(T.skNot,'Labour: skill not set','#e67e22');
-  if(T.unc)cards+=card(T.unc,'No category set','#e67e22');
+  const K=wfKpis(T);
+  const card=(k,bg)=>'<div class="stat-card" style="border-left-color:'+k.c+';'+(bg?'background:#fffdf5;':'')+'"><div class="stat-num">'+k.n+'</div><div class="stat-label" style="font-weight:600;color:#444;">'+k.l+'</div><div style="font-size:11px;color:#888;margin-top:2px;">'+k.sub+'</div></div>';
+  const grid='display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;';
+  let cards='<div style="'+grid+'">'+K.top.map(k=>card(k,false)).join('')+'</div>'+
+    '<div style="margin-top:16px;padding:12px 14px 14px;border:1.5px solid #ecdca8;border-radius:12px;background:#fdf8e8;"><div style="font-size:13px;font-weight:700;color:#8a6d00;margin-bottom:10px;">⬇ '+K.title+'</div><div style="'+grid+'">'+K.skill.map(k=>card(k,true)).join('')+'</div></div>';
   document.getElementById('wfStats').innerHTML=cards;
   document.getElementById('wfFilterNote').textContent=D.filters;
   document.getElementById('wfDeptTable').innerHTML=D.rows.length?wfHtmlTable(D.deptHead,D.deptRows,true,1):'<p style="color:#999;padding:10px;">No staff match these filters.</p>';
@@ -3172,17 +3188,22 @@ window.downloadWorkforcePDF=async function(){
   drawHeader();
   // summary cards
   const T=D.T;
-  const cards=[['Total headcount',T.total,NAVY],['White Collar',T.wc,[37,99,168]],['Labour',T.lab,GOLD],['Skilled',T.sk,[26,122,110]],['Semi-Skilled',T.semi,[26,122,110]],['Unskilled',T.unsk,[26,122,110]]];
-  if(T.skNot)cards.push(['Labour: skill not set',T.skNot,[230,126,34]]);
-  if(T.unc)cards.push(['No category set',T.unc,[230,126,34]]);
-  const gap=3,cw=(W-2*m-gap*(cards.length-1))/cards.length,cy=28,ch=18;
-  cards.forEach((c,i)=>{
-    const x=m+i*(cw+gap);
-    doc.setFillColor(250,251,253);doc.setDrawColor(222,226,232);doc.setLineWidth(0.3);doc.roundedRect(x,cy,cw,ch,1.5,1.5,'FD');
-    doc.setFillColor(...c[2]);doc.rect(x,cy,1.6,ch,'F');
-    doc.setFont('helvetica','bold');doc.setFontSize(16);doc.setTextColor(...NAVY);doc.text(String(c[1]),x+5,cy+9.5);
-    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(110,110,110);doc.text(c[0],x+5,cy+14.5);
-  });
+  const K=wfKpis(T);
+  const drawCard=(k,x,cy,cw,ch,fill)=>{
+    doc.setFillColor(...fill);doc.setDrawColor(222,226,232);doc.setLineWidth(0.3);doc.roundedRect(x,cy,cw,ch,1.5,1.5,'FD');
+    doc.setFillColor(...k.rgb);doc.rect(x,cy,1.6,ch,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(16);doc.setTextColor(...NAVY);doc.text(String(k.n),x+5,cy+8);
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(60,60,60);doc.text(k.l,x+5,cy+12.2);
+    doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(120,120,120);doc.text(k.sub,x+5,cy+15.4);
+  };
+  const gap=3,cy=27,ch=17;
+  const cw1=(W-2*m-gap*(K.top.length-1))/K.top.length;
+  K.top.forEach((k,i)=>drawCard(k,m+i*(cw1+gap),cy,cw1,ch,[250,251,253]));
+  const py=cy+ch+4,ph=27;
+  doc.setFillColor(253,248,232);doc.setDrawColor(236,220,168);doc.setLineWidth(0.3);doc.roundedRect(m,py,W-2*m,ph,2,2,'FD');
+  doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(138,109,0);doc.text(K.title,m+3,py+5.5);
+  const cw2=(W-2*m-6-gap*(K.skill.length-1))/K.skill.length;
+  K.skill.forEach((k,i)=>drawCard(k,m+3+i*(cw2+gap),py+8,cw2,ch,[255,255,255]));
   const common=(extra)=>Object.assign({
     theme:'grid',margin:{left:m,right:m,top:28,bottom:16},
     styles:{font:'helvetica',fontSize:8,cellPadding:1.7,lineColor:[222,226,232],lineWidth:0.2,textColor:[40,40,40],valign:'middle'},
@@ -3192,7 +3213,7 @@ window.downloadWorkforcePDF=async function(){
   },extra);
   const section=(title,y)=>{doc.setFont('helvetica','bold');doc.setFontSize(10.5);doc.setTextColor(...NAVY);doc.text(title,m,y);};
   const totalStyle=(n)=>(d)=>{if(d.section==='body'&&d.row.index===n-1){d.cell.styles.fontStyle='bold';d.cell.styles.fillColor=[232,236,243];}};
-  let y=cy+ch+9;
+  let y=py+ph+9;
   section('By department',y);
   doc.autoTable(common({startY:y+2,head:[D.deptHead],body:D.deptRows,
     styles:{font:'helvetica',fontSize:7.5,cellPadding:1.1,lineColor:[222,226,232],lineWidth:0.2,textColor:[40,40,40],valign:'middle'},
@@ -3254,17 +3275,24 @@ window.downloadWorkforceExcel=async function(){
   const T=D.T;
   const ncols=Math.max(D.deptHead.length,6);
   title(ws,'Workforce Summary Report',ncols);
-  const kp=[['Total headcount',T.total],['White Collar',T.wc],['Labour',T.lab],['Skilled',T.sk],['Semi-Skilled',T.semi],['Unskilled',T.unsk]];
-  if(T.skNot)kp.push(['Labour: skill not set',T.skNot]);
-  if(T.unc)kp.push(['No category set',T.unc]);
+  const K=wfKpis(T);
+  const tile=(k,row,col,fillArgb)=>{
+    const vc=ws.getCell(row,col),lc=ws.getCell(row+1,col),sc=ws.getCell(row+2,col);
+    const fill={type:'pattern',pattern:'solid',fgColor:{argb:fillArgb}};
+    vc.value=k.n;vc.font={name:'Calibri',size:20,bold:true,color:{argb:NAVY}};vc.alignment={horizontal:'center',vertical:'middle'};vc.border={top:{style:'thick',color:{argb:k.xl}},left:thin,right:thin};vc.fill=fill;
+    lc.value=k.l;lc.font={name:'Calibri',size:10,bold:true,color:{argb:'FF3C3C3C'}};lc.alignment={horizontal:'center',vertical:'middle',wrapText:true};lc.border={left:thin,right:thin};lc.fill=fill;
+    sc.value=k.sub;sc.font={name:'Calibri',size:8,color:{argb:'FF787878'}};sc.alignment={horizontal:'center',vertical:'middle',wrapText:true};sc.border={bottom:thin,left:thin,right:thin};sc.fill=fill;
+  };
   let r=5;
-  kp.forEach((k,i)=>{
-    const lc=ws.getCell(r,i+1),vc=ws.getCell(r+1,i+1);
-    lc.value=k[0];lc.font={name:'Calibri',size:9,color:{argb:'FF6E6E6E'}};lc.alignment={horizontal:'center',wrapText:true};lc.border={top:thin,left:thin,right:thin};lc.fill={type:'pattern',pattern:'solid',fgColor:{argb:BAND}};
-    vc.value=k[1];vc.font={name:'Calibri',size:18,bold:true,color:{argb:NAVY}};vc.alignment={horizontal:'center',vertical:'middle'};vc.border={bottom:thin,left:thin,right:thin};vc.fill={type:'pattern',pattern:'solid',fgColor:{argb:BAND}};
-  });
-  ws.getRow(r).height=26;ws.getRow(r+1).height=30;
-  r+=3;
+  K.top.forEach((k,i)=>{tile({...k},r,i+1,BAND);});
+  r+=4;
+  const gt=ws.getCell(r,1);gt.value=K.title;gt.font={name:'Calibri',size:11,bold:true,color:{argb:'FF8A6D00'}};
+  for(let ci=1;ci<=Math.max(K.skill.length,4);ci++){ws.getCell(r,ci).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFDF8E8'}};}
+  r+=1;
+  K.skill.forEach((k,i)=>{tile({...k},r,i+1,'FFFFFFFF');});
+  ws.getRow(5).height=30;ws.getRow(6).height=24;ws.getRow(7).height=18;
+  ws.getRow(r).height=30;ws.getRow(r+1).height=24;ws.getRow(r+2).height=18;
+  r+=4;
   const st=(t)=>{const c=ws.getCell(r,1);c.value=t;c.font={name:'Calibri',size:12,bold:true,color:{argb:NAVY}};r++;};
   st('By department');
   r=writeTable(ws,r,D.deptHead,D.deptRows,{left:1,totalLast:true})+2;
