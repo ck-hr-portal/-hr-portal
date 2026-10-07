@@ -2872,7 +2872,7 @@ function applyPROFieldLock(){
 }
 
 function getAnniversaries(){
-  const now=new Date();const emps=Object.values(DB.employees);
+  const now=new Date();const emps=Object.values(DB.employees).filter(e=>e.status!=='Inactive');
   const milestones=[5,10,15,20,25,30];
   const results=[];
   emps.forEach(e=>{
@@ -3288,8 +3288,8 @@ window.downloadWorkforceExcel=async function(){
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 function updateDash(){
-  const emps=Object.values(DB.employees);
-  document.getElementById('s-emp').textContent=emps.filter(e=>e.status!=='Inactive').length;
+  const emps=Object.values(DB.employees).filter(e=>e.status!=='Inactive');
+  document.getElementById('s-emp').textContent=emps.length;
   if(typeof renderAdminMyApprovals==='function')renderAdminMyApprovals();
   if(currentRole==='admin'){
     const hrCard=document.getElementById('dashHRReviewCard');
@@ -3310,7 +3310,8 @@ function updateDash(){
     }
   }
   const today=new Date().toISOString().split('T')[0];
-  const onLeave=Object.values(DB.leave).filter(l=>l.status==='Approved'&&l.from<=today&&l.to>=today).length;
+  const _lvIdx=buildNameIndex();const _lvLive=l=>{const m=matchEmpByName(l.empName,_lvIdx);return !(m&&m.e&&m.e.status==='Inactive');};
+  const onLeave=Object.values(DB.leave).filter(l=>l.status==='Approved'&&l.from<=today&&l.to>=today&&_lvLive(l)).length;
   document.getElementById('s-leave').textContent=onLeave;
   const now=new Date(),in30=new Date();in30.setDate(in30.getDate()+30);
   let expC=0;
@@ -3319,7 +3320,7 @@ function updateDash(){
   const m=now.getMonth();
   document.getElementById('s-bday').textContent=emps.filter(e=>e.dob&&new Date(e.dob).getMonth()===m).length;
   // Data Quality Check — flag employees missing fields required for Gratuity/Flight Allowance/reports
-  const dq=Object.entries(DB.employees).filter(([k,e])=>(e.status==='Active'||!e.status)).map(([k,e])=>{
+  const dq=Object.entries(DB.employees).filter(([k,e])=>e.status!=='Inactive').map(([k,e])=>{
     const missing=[];
     if(!e.join)missing.push('Join Date');
     if(!e.basicSalary&&!e.basic)missing.push('Basic Salary');
@@ -3365,7 +3366,7 @@ function updateDash(){
     const todayStr=now.toISOString().split('T')[0];
     const nameIndex=buildNameIndex();
     const unlinked=new Set();
-    const onLeave=Object.values(DB.leave).filter(l=>l.status==='Approved'&&l.to&&l.to>=todayStr).sort((a,b)=>a.from>b.from?1:-1);
+    const _lvIdx2=buildNameIndex();const onLeave=Object.values(DB.leave).filter(l=>{const m=matchEmpByName(l.empName,_lvIdx2);return l.status==='Approved'&&l.to&&l.to>=todayStr&&!(m&&m.e&&m.e.status==='Inactive');}).sort((a,b)=>a.from>b.from?1:-1);
     const onLeaveBody=document.getElementById('d-onleave');
     if(onLeaveBody){
       onLeaveBody.innerHTML=onLeave.length?onLeave.map(l=>{
@@ -4086,9 +4087,11 @@ function renderLoans(data){
   const rows=data||Object.entries(DB.loans).sort((a,b)=>b[1].ts-a[1].ts);
   const tbody=document.getElementById('loanBody');
   if(!rows.length){tbody.innerHTML='<tr><td colspan="10"><div class="empty-state"><div class="icon">🏦</div><p>No loans recorded.</p></div></td></tr>';return;}
+  const _lnIdx=buildNameIndex();
   tbody.innerHTML=rows.map(([k,l])=>{
     const paid=Object.values(DB.repayments).filter(r=>r.loanKey===k).reduce((s,r)=>s+parseFloat(r.amt||0),0);
     const outstanding=Math.max(0,parseFloat(l.amount||0)-paid);
+    const _m=matchEmpByName(l.empName,_lnIdx);const _left=!!(_m&&_m.e&&_m.e.status==='Inactive');
     const pct=l.amount?Math.min(100,Math.round(paid/l.amount*100)):0;
     let status=l.status||'';
     const amountCents=Math.round(parseFloat(l.amount||0)*100);
@@ -4098,7 +4101,7 @@ function renderLoans(data){
       setSilent(ref(db,'loans/'+k+'/status'),'Fully Repaid');
     }
     return`<tr>
-      <td><strong>${esc(l.empName||'')}</strong></td>
+      <td><strong>${esc(l.empName||'')}</strong>${_left?' <span class="badge badge-inactive" style="font-size:10px;">Left</span>':''}</td>
       <td>AED ${parseFloat(l.amount||0).toLocaleString()}</td>
       <td style="font-size:11px;">${esc(l.purpose||'')}</td>
       <td>${fmt(l.dateApproved)}</td>
@@ -4109,12 +4112,29 @@ function renderLoans(data){
       <td><span class="badge badge-${status==='Active'?'pending':status==='Fully Repaid'?'approved':'inactive'}">${esc(status)}</span></td>
       <td>
         <button class="btn btn-sm btn-teal" onclick="showRepay('${k}','${esc(l.empName||'')}')">Payments</button>
+        ${(currentRole==='admin'&&outstanding>0&&status!=='Fully Repaid')?`<button class="btn btn-sm btn-gold" onclick="markLoanRecovered('${k}')">✔ Mark recovered</button>`:''}
         <button class="btn btn-sm btn-primary" onclick="editLoan('${k}')">Edit</button>
         <button class="btn btn-sm btn-danger" onclick="delLoan('${k}')">Del</button>
       </td>
     </tr>`;
   }).join('');
 }
+window.markLoanRecovered=async function(key){
+  if(currentRole!=='admin'){alert('Only Dev and Darleendy can do this.');return;}
+  const l=DB.loans[key];if(!l)return;
+  const paid=Object.values(DB.repayments).filter(r=>r.loanKey===key).reduce((s,r)=>s+parseFloat(r.amt||0),0);
+  const out=Math.round((parseFloat(l.amount||0)-paid)*100)/100;
+  if(out<=0){alert('Nothing outstanding on this loan.');return;}
+  if(!confirm('Mark the remaining AED '+out.toLocaleString()+' of '+(l.empName||'this employee')+"'s loan as RECOVERED?\n\nThis adds a payment of AED "+out.toLocaleString()+' and closes the loan as Fully Repaid. (If only part was recovered, press Cancel and use Payments instead.)'))return;
+  const note=prompt('How was it recovered? (this is saved on the record)','Recovered in Final Settlement');
+  if(note===null)return;
+  try{
+    await set(push(ref(db,'repayments')),{loanKey:key,month:'Recovered (manual)',amt:String(out),wps:'No',notes:note||'Recovered in Final Settlement',by:adminName,ts:Date.now()});
+    await set(ref(db,'loans/'+key+'/status'),'Fully Repaid');
+    logAudit('Loan Marked Recovered',l.empName||'','AED '+out+' — '+(note||'Recovered in Final Settlement'));
+    showAlert('loan-alert','Loan marked as recovered.');
+  }catch(err){alert('Could not save ('+((err&&err.code)||(err&&err.message)||'unknown error')+'). Please refresh and try again.');}
+};
 window.filterLoans=function(){const q=v('loanSearch').toLowerCase(),status=document.getElementById('loanStatusF').value;renderLoans(Object.entries(DB.loans).filter(([k,l])=>(!q||l.empName?.toLowerCase().includes(q))&&(!status||l.status===status)));};
 window.openLoanModal=function(){
   ['loEmp','loEmpKey','loAmt','loDate','loDeduct','loInst','loApproved','loPurpose','loNotes'].forEach(id=>sv(id,''));
@@ -4207,7 +4227,7 @@ window.delAsset=function(key){if(!confirm('Delete?'))return;remove(ref(db,'asset
 // ── FLIGHT ALLOWANCE ──────────────────────────────────────────────────────
 function getFlightData(){
   const now=new Date();
-  const emps=Object.values(DB.employees).filter(e=>e.join&&e.name);
+  const emps=Object.values(DB.employees).filter(e=>e.join&&e.name&&e.status!=='Inactive');
   const result=[];
 
   emps.forEach(e=>{
@@ -4564,6 +4584,7 @@ window.renderUAE=function(){
   const q=v('uaeSearch').toLowerCase();
   const entityF=document.getElementById('uaeEntityF')?.value||'';
   const emps=Object.entries(DB.employees).map(([k,e])=>({...e,_key:k})).filter(e=>{
+    if(e.status==='Inactive')return false;
     const nat=(e.nationality||'').toLowerCase();
     const isUAE=nat.includes('emirati')||nat.includes('uae')||nat==='united arab emirates'||nat.includes('u.a.e');
     return isUAE;
@@ -4603,7 +4624,7 @@ window.renderUAE=function(){
 // ── DEPARTMENT CHART ──────────────────────────────────────────────────────────
 let deptChartInstance=null;
 function renderDeptChart(){
-  const emps=Object.values(DB.employees);
+  const emps=Object.values(DB.employees).filter(e=>e.status!=='Inactive');
   if(!emps.length) return;
   const deptMap={};
   emps.forEach(e=>{
@@ -4728,7 +4749,7 @@ function renderExpiry(){
   const docF=document.getElementById('expDocF')?.value||'';
   const now=new Date();
   const rows=[];
-  Object.values(DB.employees).forEach(e=>{
+  Object.values(DB.employees).filter(e=>e.status!=='Inactive').forEach(e=>{
     [{f:'passExp',l:'Passport'},{f:'visaExp',l:'Visa'},{f:'eidExp',l:'Emirates ID'},{f:'labExp',l:'Labour Card'}].forEach(({f,l})=>{
       if(!e[f])return;
       if(docF&&l!==docF)return;
@@ -5274,7 +5295,7 @@ function renderAnn(){
 
 // ── BIRTHDAYS ─────────────────────────────────────────────────────────────────
 function renderBirthdays(){
-  const now=new Date(),emps=Object.values(DB.employees);
+  const now=new Date(),emps=Object.values(DB.employees).filter(e=>e.status!=='Inactive');
   const m=now.getMonth();
   const thisMonth=emps.filter(e=>e.dob&&new Date(e.dob).getMonth()===m);
   const next30=new Date();next30.setDate(next30.getDate()+30);
@@ -6357,7 +6378,7 @@ window.runGratuityPDF=async function(entity){
   const today=now.toLocaleDateString('en-AE',{day:'2-digit',month:'long',year:'numeric'});
   const pageW=297;const margin=12;const contentW=pageW-margin*2;
   
-  let emps=Object.values(DB.employees).filter(e=>e.join&&(e.status==='Active'||!e.status));
+  let emps=Object.values(DB.employees).filter(e=>e.join&&e.status!=='Inactive');
   let entityLabel='CK ARCHITECTURE INTERIORS LLC  |  CKC BUILDING CONTRACTING LLC';
   let filename='Gratuity_EOSB_Report_All';
   if(entity==='ck'){emps=emps.filter(e=>e.entity&&e.entity.includes('Architecture'));entityLabel='CK ARCHITECTURE INTERIORS LLC';filename='Gratuity_EOSB_Report_CK_Architecture';}
@@ -6708,7 +6729,7 @@ window.runReportPDF=function(type){
   const today=now.toLocaleDateString('en-AE',{day:'2-digit',month:'long',year:'numeric'});
 
   if(type==='headcount'){
-    const active=emps.filter(e=>e.status==='Active'||!e.status);
+    const active=emps.filter(e=>e.status!=='Inactive');
     const byDept={};active.forEach(e=>{byDept[e.dept||'Unknown']=(byDept[e.dept||'Unknown']||0)+1;});
     generateReportPDF({
       title:'HEADCOUNT REPORT',
@@ -6720,7 +6741,7 @@ window.runReportPDF=function(type){
     });
   } else if(type==='expiry'){
     const rows=[];
-    emps.forEach(e=>{
+    emps.filter(e=>e.status!=='Inactive').forEach(e=>{
       [{f:'passExp',l:'Passport'},{f:'visaExp',l:'Visa'},{f:'eidExp',l:'Emirates ID'},{f:'labExp',l:'Labour Card'}].forEach(({f,l})=>{
         if(!e[f])return;
         const dl=daysLeft(e[f]);
@@ -6748,7 +6769,7 @@ window.runReportPDF=function(type){
       filename:'CK_Leavers_Turnover_Report',
       columns:[{label:'Name',width:40},{label:'Department',width:26},{label:'Entity',width:34},{label:'Last Working Day',width:26},{label:'Exit Type',width:24},{label:'Reason',width:32}],
       rows:leavers.map(e=>[e.name,e.dept,e.entity,e.exitDate,e.exitType,e.exitReason]),
-      summaryLines:[`Total Headcount: ${emps.length}`,`Active: ${emps.filter(e=>e.status==='Active'||!e.status).length}`,`Leavers: ${leavers.length}`,`Turnover %: ${emps.length?(leavers.length/emps.length*100).toFixed(1)+'%':'—'}`]
+      summaryLines:[`Total Headcount: ${emps.length}`,`Active: ${emps.filter(e=>e.status!=='Inactive').length}`,`Leavers: ${leavers.length}`,`Turnover %: ${emps.length?(leavers.length/emps.length*100).toFixed(1)+'%':'—'}`]
     });
   } else if(type==='newhires'){
     const rows=emps.filter(e=>e.join).sort((a,b)=>b.join>a.join?1:-1);
@@ -6835,11 +6856,11 @@ window.runReport=function(type){
       ['HEADCOUNT REPORT — Generated: '+today],[''],
       ['Employee ID','Full Name','Department','Designation','Entity','Nationality','Gender','Grade','Employment Type','Join Date','Status','MOL Salary (AED)','Gross Salary (AED)','Basic Salary (AED)','Site / Project']
     ];
-    emps.filter(e=>e.status==='Active'||!e.status).forEach(e=>ws_data.push([e.empId,e.name,e.dept,e.desig,e.entity,e.nationality,e.gender,e.grade,e.contract,e.join,e.status||'Active',e.molSalary||'',e.grossSalary,e.basicSalary,e.site]));
+    emps.filter(e=>e.status!=='Inactive').forEach(e=>ws_data.push([e.empId,e.name,e.dept,e.desig,e.entity,e.nationality,e.gender,e.grade,e.contract,e.join,e.status||'Active',e.molSalary||'',e.grossSalary,e.basicSalary,e.site]));
     ws_data.push(['']);
     ws_data.push(['SUMMARY']);
-    const byDept={};emps.forEach(e=>{byDept[e.dept||'Unknown']=(byDept[e.dept||'Unknown']||0)+1;});
-    ws_data.push(['Total Active',emps.filter(e=>e.status==='Active'||!e.status).length]);
+    const byDept={};emps.filter(e=>e.status!=='Inactive').forEach(e=>{byDept[e.dept||'Unknown']=(byDept[e.dept||'Unknown']||0)+1;});
+    ws_data.push(['Total Active',emps.filter(e=>e.status!=='Inactive').length]);
     Object.entries(byDept).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>ws_data.push([k,v]));
   } else if(type==='gratuity'||type==='gratuity_ck'||type==='gratuity_ckc'){
     // Filter by entity if needed
@@ -6859,7 +6880,7 @@ window.runReport=function(type){
     ];
     let totalEOSB=0,totalBasic=0;
     const ckTotal={eosb:0,count:0};const ckcTotal={eosb:0,count:0};
-    gratEmps.filter(e=>e.join&&(e.status==='Active'||!e.status)).forEach(e=>{
+    gratEmps.filter(e=>e.join&&e.status!=='Inactive').forEach(e=>{
       const result=calcEOSB(e);
       if(!result||result.uae||result.years<1)return;
       const years=result.years,eosb=result.eosb;
@@ -6884,7 +6905,7 @@ window.runReport=function(type){
       ['Employee ID','Full Name','Department','Entity','Document','Expiry Date','Days Left','Status']
     ];
     const rows=[];
-    emps.forEach(e=>{
+    emps.filter(e=>e.status!=='Inactive').forEach(e=>{
       [{f:'passExp',l:'Passport'},{f:'visaExp',l:'Visa'},{f:'eidExp',l:'Emirates ID'},{f:'labExp',l:'Labour Card'}].forEach(({f,l})=>{
         if(!e[f])return;
         const dl=daysLeft(e[f]);
@@ -6910,7 +6931,7 @@ window.runReport=function(type){
     ws_data.push(['']);
     ws_data.push(['TURNOVER ANALYSIS']);
     ws_data.push(['Total Headcount',emps.length]);
-    ws_data.push(['Active',emps.filter(e=>e.status==='Active'||!e.status).length]);
+    ws_data.push(['Active',emps.filter(e=>e.status!=='Inactive').length]);
     ws_data.push(['Leavers',leavers.length]);
     ws_data.push(['Turnover %',emps.length?(leavers.length/emps.length*100).toFixed(1)+'%':'—']);
   } else if(type==='newhires'){
@@ -7023,6 +7044,7 @@ window.runReport=function(type){
   } else if(type==='uaenationals'){
     filename='CK_UAE_Nationals_Report';sheetname='UAE Nationals';
     const uaeEmps=Object.values(DB.employees).filter(e=>{
+      if(e.status==='Inactive')return false;
       const nat=(e.nationality||'').toLowerCase();
       return nat.includes('emirati')||nat.includes('uae')||nat==='united arab emirates';
     });
