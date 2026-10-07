@@ -1532,7 +1532,7 @@ tr:hover td{background:#fafbfc;}
 <div class="modal-overlay" id="fixNamesModal">
   <div class="modal" style="max-width:760px;">
     <div class="modal-header"><h3>Fix names on leave records</h3><span class="modal-close" onclick="closeModal('fixNamesModal')">&times;</span></div>
-    <p style="font-size:12px;color:#666;margin:0 0 10px;">These names on leave records do not match anyone in Employee Records. Pick the right employee and click <strong>Apply</strong>: every leave record under that spelling is renamed to the employee's exact name, so it joins their record. Leave days, dates and status are not touched.</p>
+    <p style="font-size:12px;color:#666;margin:0 0 10px;">These names on leave records do not match anyone in Employee Records. Pick the right employee and click <strong>Apply</strong>: every leave record under that spelling is renamed to the employee's exact name, so it joins their record. Leave days, dates and status are not touched. For people who have left and should no longer appear here, use <strong>Remove from register</strong> (their Leavers &amp; Gratuity record is not affected).</p>
     <div id="fixNamesBody"></div>
   </div>
 </div>
@@ -3760,19 +3760,53 @@ function _bestEmpGuess(name){
   });
   return bs>=1?best:'';
 }
+
+function _inLeavers(name){
+  const t=normName(name).split(' ').filter(Boolean);if(!t.length)return false;
+  return Object.values(DB.leavers||{}).some(l=>{
+    const lt=normName(l.name||'').split(' ').filter(Boolean);if(!lt.length)return false;
+    const sc=t.filter(x=>lt.some(y=>_tokMatch(x,y))).length;
+    return sc>=Math.min(2,t.length,lt.length);
+  });
+}
+window.removeFromRegister=async function(i){
+  const list=window._fixNameList||[];
+  const items=i===-1?list:[list[i]].filter(Boolean);
+  if(!items.length)return;
+  const names=new Set(items.map(it=>it.name||''));
+  const recs=Object.entries(DB.leave||{}).filter(([k,l])=>names.has(l.empName||''));
+  if(!recs.length){renderFixNames();return;}
+  const notLeavers=items.filter(it=>!_inLeavers(it.name)).map(it=>it.name||'(blank)');
+  let msg='Remove '+recs.length+' leave record'+(recs.length>1?'s':'')+' for '+items.length+' name'+(items.length>1?'s':'')+' from the Leave Register?\n\n'+items.map(it=>'• '+(it.name||'(blank)')+' ('+it.count+')').join('\n')+'\n\nLeavers & Gratuity records are NOT touched. A backup file will download first.';
+  if(notLeavers.length)msg+='\n\n⚠ Not found in Leavers & Gratuity: '+notLeavers.join(', ')+'.\nIf any of these is a current employee with a misspelt name, use Apply (fix the name) instead.';
+  if(!confirm(msg))return;
+  try{
+    const backup={removedOn:new Date().toISOString(),records:Object.fromEntries(recs)};
+    const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='leave-register-removed-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+    for(const [k] of recs)await remove(ref(db,'leave/'+k));
+    logAudit('Leave Register Cleanup','Leave Register',recs.length+' record(s) removed for: '+[...names].map(n=>n||'(blank)').join(', '));
+  }catch(err){
+    alert('Could not remove ('+((err&&err.code)||(err&&err.message)||'unknown error')+'). Please refresh and try again.');
+  }
+  renderFixNames();
+};
 window.openFixNames=function(){renderFixNames();document.getElementById('fixNamesModal').classList.add('open');};
 function renderFixNames(){
   const list=_unmatchedLeaveNames();window._fixNameList=list;
   const body=document.getElementById('fixNamesBody');if(!body)return;
   if(!list.length){body.innerHTML='<div style="padding:16px;text-align:center;color:#1A7A6E;font-weight:600;">All names now match Employee Records.</div>';return;}
   const emps=Object.entries(DB.employees||{}).sort((a,b)=>(a[1].name||'').localeCompare(b[1].name||''));
-  body.innerHTML='<table style="width:100%;"><thead><tr><th style="text-align:left;">Name on leave records</th><th>Records</th><th style="text-align:left;">Correct employee</th><th></th></tr></thead><tbody>'+
+  body.innerHTML='<table style="width:100%;"><thead><tr><th style="text-align:left;">Name on leave records</th><th>Records</th><th style="text-align:left;">Correct employee</th><th></th><th>In Leavers?</th><th></th></tr></thead><tbody>'+
   list.map((it,i)=>{
     const guess=_bestEmpGuess(it.name);
     return '<tr><td style="font-weight:600;">'+esc(it.name||'(blank name)')+'</td><td style="text-align:center;">'+it.count+'</td>'+
     '<td><select id="fixSel_'+i+'" style="width:100%;"><option value="">— choose employee —</option>'+emps.map(([k,e])=>'<option value="'+esc(k)+'"'+(k===guess?' selected':'')+'>'+esc(e.name||'')+'</option>').join('')+'</select></td>'+
-    '<td><button class="btn btn-sm btn-primary" onclick="applyFixName('+i+')">Apply</button></td></tr>';
-  }).join('')+'</tbody></table>';
+    '<td><button class="btn btn-sm btn-primary" onclick="applyFixName('+i+')">Apply</button></td>'+
+    '<td style="text-align:center;font-size:12px;">'+(_inLeavers(it.name)?'<span style="color:#1A7A6E;font-weight:600;">Yes</span>':'<span style="color:#b7791f;">No</span>')+'</td>'+
+    '<td><button class="btn btn-sm btn-danger" onclick="removeFromRegister('+i+')">Remove from register</button></td></tr>';
+  }).join('')+'</tbody></table>'+
+  '<div style="margin-top:12px;padding-top:10px;border-top:1px solid #eee;display:flex;gap:10px;align-items:center;flex-wrap:wrap;"><button class="btn btn-danger" onclick="removeFromRegister(-1)">Remove ALL listed names from register</button><span style="font-size:11px;color:#777;">Only the leave register entries are removed. Leavers &amp; Gratuity records are never touched. A backup file downloads first.</span></div>';
 }
 window.applyFixName=async function(i){
   const it=window._fixNameList[i];if(!it)return;
