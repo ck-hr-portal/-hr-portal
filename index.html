@@ -2267,15 +2267,16 @@ const BOT_CSS=`
 .hb-in button{border:0;background:#C9A84C;color:#fff;font-weight:700;padding:0 16px;cursor:pointer}
 .hb-go{display:inline-block;margin-top:6px;background:#e3f2fd;color:#1565c0;border:0;border-radius:6px;padding:4px 9px;font-size:12px;cursor:pointer}
 `;
-const BOT_CHIPS=['My leave balance','How do I apply for leave?','Status of my leave request','Who is on leave today?','Next public holiday','My document expiry dates','Who is my line manager?','Help'];
+const BOT_CHIPS=['My leave balance','How do I apply for leave?','Status of my leave request','Who is on leave today?','Next public holiday','Current announcements','My document expiry dates','Who is my line manager?','Help'];
 function botNorm(s){return String(s||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();}
 function botHas(q,words){return words.some(w=>(' '+q+' ').includes(' '+w+' ')||(w.length>4&&q.includes(w)));}
 function botDaysLeft(d){if(!d)return null;const t=new Date(d);if(isNaN(t))return null;const n=new Date();n.setHours(0,0,0,0);return Math.round((t-n)/86400000);}
 function botGo(id){const el=document.getElementById(id);if(el){document.getElementById('hbPanel').classList.remove('open');el.scrollIntoView({behavior:'smooth',block:'center'});}}
 window.botGo=botGo;
 function botPolicySearch(q){
-  const stop=new Set(['the','a','an','is','are','of','to','for','my','me','i','do','does','what','how','can','about','policy','policies','please','tell','on','in','and','or','it','we','our','get','have','need','want','know','there','any']);
-  const toks=q.split(' ').filter(w=>w.length>2&&!stop.has(w));
+  const stop=new Set(['the','a','an','is','are','of','to','for','my','me','i','do','does','what','how','can','about','policy','policies','please','tell','on','in','and','or','it','we','our','get','have','need','want','know','there','any','recent','latest','company','rules','rule','allowed','from','with','you','this','that','which','who','when','where','does','give','show','list','all','some','hr','whats','also','kindly','details','detail','regarding','related','guideline','guidelines','procedure']);
+  const base=q.split(' ').filter(w=>w.length>2&&!stop.has(w));
+  const toks=[...new Set(base.concat(base.filter(w=>w.length>4&&w.endsWith('s')).map(w=>w.slice(0,-1))))];
   if(!toks.length)return[];
   const out=[];
   Object.entries(DB.policies||{}).forEach(([k,p])=>{
@@ -2355,6 +2356,42 @@ function botDirMatch(cand){
   if(cand.includes('dev')){const pref=list.filter(p=>/mandrekar/i.test(p.n));if(pref.length)list=pref;}
   return{available:true,list,fuzzy};
 }
+const BOT_SYNONYMS={flight:'air ticket tickets airfare travel',ticket:'air flight airfare travel',tickets:'air flight airfare travel',air:'ticket flight airfare',airfare:'air ticket flight',vacation:'annual leave',sick:'sick medical',maternity:'maternity parental',paternity:'paternity parental',resign:'resignation notice termination',resignation:'resignation notice termination',quit:'resignation notice termination',notice:'notice resignation',salary:'salary payroll wps',pay:'salary payroll',overtime:'overtime working hours',probation:'probation probationary',dress:'dress code uniform',uniform:'dress code uniform',gratuity:'gratuity end of service',loan:'loan advance',advance:'loan advance',attendance:'attendance late punctuality working hours',timing:'working hours attendance',timings:'working hours attendance',hours:'working hours',car:'vehicle transport',transport:'transport vehicle',insurance:'medical insurance',medical:'medical insurance sick',visa:'visa residency',harassment:'conduct harassment',conduct:'code of conduct',phone:'mobile phone',mobile:'mobile phone',wfh:'work from home remote',remote:'work from home remote'};
+function botExpand(raw){
+  const q=botNorm(raw);const extra=[];
+  q.split(' ').forEach(w=>{if(BOT_SYNONYMS[w])extra.push(BOT_SYNONYMS[w]);});
+  return q+' '+extra.join(' ');
+}
+function botPolicyIntent(raw){
+  const q=botNorm(raw);
+  return /\b(policy|policies|rule|rules|guideline|guidelines|procedure|procedures|eligible|eligibility|entitled|entitlement|entitlements|notice period|process for|as per|do i get|will i get|how many sick|how many annual)\b/.test(q);
+}
+function botPolicyList(){
+  const rows=Object.values(DB.policies||{}).sort((a,b)=>String(a.category||'').localeCompare(String(b.category||''))||String(a.name||'').localeCompare(String(b.name||'')));
+  if(!rows.length)return'No policies have been published yet.';
+  return`<b>${rows.length} policies are published:</b><br>`+rows.slice(0,25).map(p=>`• ${esc(p.name)}${p.category?' <small>('+esc(p.category)+')</small>':''}`).join('<br>')+(rows.length>25?`<br><small>…and ${rows.length-25} more</small>`:'')+'<br><small>Ask about a topic, for example "air ticket policy", and I\'ll show the relevant part.</small>';
+}
+function botAnnouncements(admin){
+  const today=new Date().toISOString().split('T')[0];
+  let rows=Object.values(DB.announcements||{}).filter(a=>a&&a.title);
+  if(!admin)rows=rows.filter(a=>(!a.expiryDate||a.expiryDate>=today)&&(!a.startDate||a.startDate<=today));
+  rows.sort((a,b)=>(b.ts||0)-(a.ts||0));
+  if(!rows.length)return admin?'No announcements have been posted yet.':'There are no announcements right now.';
+  const clip=t=>{const x=String(t||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();return x.length>170?x.slice(0,170)+'…':x;};
+  const live=a=>!a.expiryDate||a.expiryDate>=today;
+  return`<b>${admin?'Recent announcements':'Current announcements'}${rows.length>5?' (latest 5 of '+rows.length+')':''}:</b><br>`+rows.slice(0,5).map(a=>`<div style="margin-top:6px;"><b>${esc(a.title)}</b>${admin?(live(a)?' <small style="color:#1A7A6E">● live</small>':' <small style="color:#999">expired</small>'):''}<br><small>${esc(a.category||'')}${a.category?' · ':''}${a.ts?new Date(a.ts).toLocaleDateString('en-AE',{day:'2-digit',month:'short',year:'numeric'}):''}${a.expiryDate?' · until '+fmt(a.expiryDate):''}</small>${a.message?'<br><span style="color:#444">'+esc(clip(a.message))+'</span>':''}</div>`).join('')+(admin?'<br><button class="hb-go" onclick="showPage(\'announcements\')">Open Announcements</button>':'<br><button class="hb-go" onclick="botGo(\'empAnnList\')">Go to Announcements</button>');
+}
+function botHolidayList(){
+  const today=new Date().toISOString().split('T')[0];
+  const up=Object.values(DB.holidays||{}).filter(h=>h.date&&h.date>=today).sort((a,b)=>a.date>b.date?1:-1);
+  if(!up.length)return'No upcoming holidays have been added yet.';
+  return`<b>Upcoming holidays (${up.length}):</b><br>`+up.slice(0,15).map(h=>`• <b>${esc(h.name)}</b> — ${fmt(h.date)}${h.type?' <small>('+esc(h.type)+')</small>':''}`).join('<br>')+(up.length>15?`<br><small>…and ${up.length-15} more</small>`:'');
+}
+function botPolicyAnswer(raw,adminMode){
+  const hits=botPolicySearch(botExpand(raw));
+  if(!hits.length)return null;
+  return'From the company policies:'+botPolicyHtml(hits)+(adminMode?'<br><button class="hb-go" onclick="showPage(\'policies\')">Open Policies</button>':'<br><button class="hb-go" onclick="botGo(\'empPolList\')">Open the Policies section</button><br><small>This is a quick search. The full policy is the official answer.</small>');
+}
 function botStaffAnswer(raw){
   const q=botSyn(raw);
   const e=DB.employees[currentEmpKey]||{};
@@ -2365,6 +2402,10 @@ function botStaffAnswer(raw){
   if(botHas(q,['hi','hello','hey','salam','good morning','good afternoon','good evening'])&&q.split(' ').length<4)return'Hello'+(first?' '+first:'')+'! 👋 I can help with your leave, holidays, your document dates, who is on leave, and company policies.';
   if(botHas(q,['thanks','thank you','thx','shukran']))return'You\'re welcome! Anything else?';
   if(botHas(q,['help','what can you do','what can i ask','menu','options']))return'You can ask me things like:<br>• My leave balance<br>• Status of my leave request<br>• How do I apply for leave?<br>• Is <i>name</i> on leave? When is he/she back?<br>• Who is on leave today?<br>• My visa / Emirates ID expiry<br>• Next public holiday<br>• Anything in a company policy (e.g. "probation period")';
+  if(/\b(what|which|list|all|available|show|have)\b.*\bpolic(y|ies)\b/.test(botNorm(raw))&&/\bpolicies\b/.test(botNorm(raw))&&!/\b(for|on|about|regarding)\b/.test(botNorm(raw)))return botPolicyList();
+  if(botPolicyIntent(raw)){const pa=botPolicyAnswer(raw,false);if(pa)return pa;}
+  if(/\b(announcement|announcements|notice|notices|news|circular|circulars)\b/.test(q))return botAnnouncements(false);
+  if(/\b(holiday|holidays)\b/.test(q)&&/\b(all|list|full|this year|year|calendar|upcoming|every)\b/.test(q))return botHolidayList();
   // 1. confidential topics: never answered here, for anyone
   if(botHas(q,['salary','payslip','pay slip','wps','bonus','increment','deduction','loan','noc','experience letter','salary certificate','resign','resignation','gratuity','final settlement','complaint','grievance','medical insurance','insurance card','bank','iban','overtime pay','performance rating','flight','commission','allowance','allowances','asset','assets']))
     return'Sorry, I can\'t help with that here. Salary, increments and promotions, gratuity, loans, allowances and other confidential matters are handled only by the HR Department. '+hr;
@@ -2454,10 +2495,9 @@ function botStaffAnswer(raw){
   if(botHas(q,['team','colleague','colleagues','department','dept'])&&botHas(q,['leave','off','away']))return'You can see your department\'s leave in the <b>My Department — Who\'s on Leave</b> card. Or just ask me "who is on leave today?".<br><button class="hb-go" onclick="botGo(\'empDeptLeave\')">Go to section</button>';
   if(botHas(q,['birthday','birthdays','anniversary','anniversaries']))return'Upcoming birthdays and work anniversaries are shown in the cards on this page.<br><button class="hb-go" onclick="botGo(\'empBdayList\')">Go to section</button>';
   if(botHas(q,['contact hr','hr contact','talk to hr','speak to hr','human resources','who is hr','hr department','hr office','email hr','call hr']))return'For anything I can\'t answer, please contact the HR Department directly (in person, by phone or by your usual company email).';
-  if(botHas(q,['announcement','announcements','news','notice']))return'Company announcements are shown at the top of this page.<br><button class="hb-go" onclick="botGo(\'empAnnList\')">Go to Announcements</button>';
   if(botHas(q,['org chart','organization chart','organisation chart']))return'If you have access, the Organizational Chart is shown further down this page.<br><button class="hb-go" onclick="botGo(\'empOrgChartCard\')">Go to section</button>';
-  const hits=botPolicySearch(q);
-  if(hits.length)return'From the company policies:'+botPolicyHtml(hits)+'<br><button class="hb-go" onclick="botGo(\'empPolList\')">Open the Policies section</button><br><small>This is a quick search. The full policy is the official answer.</small>';
+  const pa2=botPolicyAnswer(raw,false);
+  if(pa2)return pa2;
   return'Sorry, I couldn\'t find an answer to <i>“'+esc(String(raw).slice(0,80))+'”</i>. '+hr+'<br><small>I can help with: your leave balance and requests, whether a colleague is on leave, your document dates, holidays and company policies. Type <b>help</b> for examples.</small>';
 }
 
@@ -2499,14 +2539,14 @@ function botInit(){
 
 // ── ADMIN HELP BOT (same rule-based idea; answers from the full records) ─────
 // ── v4 admin bot ─────────────────────────────────────────────────────────────
-const BOT_ADMIN_CHIPS=['Headcount','Who is on leave today?','Pending leave approvals','Documents expiring in 30 days','Loans outstanding','Flight allowance due','Birthdays next 7 days','Help'];
+const BOT_ADMIN_CHIPS=['Headcount','Who is on leave today?','Pending leave approvals','Documents expiring in 30 days','Loans outstanding','Flight allowance due','Recent announcements','Birthdays next 7 days','Help'];
 const BOT_STOP=new Set(('the a an is are was were of to for my me i do does did what whats how when who whos whom which where about tell show give get find lookup look up check please can could would should and or it we our us you your his her their him them this that these those there here have has had much many any some all list full details detail info information on in at by with from as be been being today now current currently month week year next last upcoming staff employee employees person people member name names '
  +'leave leaves balance balances bal remaining left days day date dates entitlement entitled taken used take '
  +'birthday birthdays bday bdays birth dob born anniversary anniversaries joined join joining doj service tenure '
  +'visa passport expiry expire expires expiring expired renew renewal emirates eid labour labor card document documents '
  +'manager line supervisor reports report reporting approver department dept designation position role title job grade nationality entity company status '
  +'mobile phone contact email number numbers on probation policy policies holiday holidays headcount total count strength pending approval approvals request requests '
- +'salary increment loan gratuity flight asset outstanding paid due overdue history record records latest recent summary payroll basic gross allowance allowances compoff comp hours amount monthly deduction deductions recovered repaid payment payments eosb everyone anyone anybody somebody working worked work still yet ever never also only just really very more less than then if so not no yes ok okay hello hi hey help').split(' '));
+ +'salary increment loan gratuity flight asset outstanding paid due overdue history record records latest recent summary payroll basic gross allowance allowances compoff comp hours amount monthly deduction deductions recovered repaid payment payments eosb everyone anyone anybody somebody working worked work still yet ever never also only just really very more less than then if so not no yes ok okay hello hi hey help announcement announcements notice notices news circular circulars hr rules rule guideline guidelines procedure process ticket tickets air airfare travel dress code uniform attendance hours timing timings overtime resignation maternity eligible eligibility allowed recent latest regarding related').split(' '));
 function botAdminActive(){return Object.values(DB.employees||{}).filter(e=>e&&e.status!=='Inactive');}
 function botCount(arr,fn){const m={};arr.forEach(x=>{const k=fn(x)||'Not set';m[k]=(m[k]||0)+1;});return Object.entries(m).sort((a,b)=>b[1]-a[1]);}
 function botLev1(a,b){if(a===b)return true;if(Math.abs(a.length-b.length)>1)return false;let i=0,j=0,d=0;while(i<a.length&&j<b.length){if(a[i]===b[j]){i++;j++;continue;}if(++d>1)return false;if(a.length>b.length)i++;else if(a.length<b.length)j++;else{i++;j++;}}return d+(a.length-i)+(b.length-j)<=1;}
@@ -2645,10 +2685,14 @@ function botAdminAnswer(raw){
   if(botHas(q,['hi','hello','hey','good morning','good afternoon','good evening'])&&q.split(' ').length<4)return'Hello'+(adminName?' '+esc(String(adminName).split(' ')[0]):'')+'! Ask me about an employee by name (salary, gratuity, loans, flight allowance, leave balance, visa…) or about the company: headcount, who is on leave, loans, payroll, expiries.';
   if(botHas(q,['thanks','thank you','thx']))return'You\'re welcome!';
   if(botHas(q,['help','what can you do','what can i ask','menu','options']))return'Examples:<br>• <i>Salary of Anna</i> · <i>Anna gratuity</i> · <i>Anna loan</i> · <i>Anna flight allowance</i><br>• <i>Leave balance of Anna</i> · <i>Anna visa expiry</i> · <i>Anna assets</i><br>• <i>Headcount</i> · <i>Headcount of CK</i> · <i>Headcount of Finance</i><br>• <i>Who is on leave today?</i> · <i>Pending approvals</i><br>• <i>Total loans outstanding</i> · <i>Flight allowance due</i> · <i>Total payroll</i><br>• <i>Increments this year</i> · <i>Assets not returned</i> · <i>Total gratuity liability</i>';
+  if(/\b(announcement|announcements|notice|notices|news|circular|circulars)\b/.test(q))return botAnnouncements(true);
+  if(/\bpolicies\b/.test(botNorm(raw))&&/\b(what|which|list|all|available|show|have)\b/.test(botNorm(raw))&&!/\b(for|on|about|regarding)\b/.test(botNorm(raw)))return botPolicyList();
+  if(/\b(holiday|holidays)\b/.test(q)&&/\b(all|list|full|this year|year|calendar|upcoming|every)\b/.test(q))return botHolidayList();
   const dept=botDeptOf(q),ent=botEntOf(q);
   const dropT=new Set();[dept,ent].forEach(x=>botNorm(x).split(' ').forEach(t=>dropT.add(t)));
   const f=botFindEmps(q,dropT);
   const hasPerson=f.list.length>0;
+  if(!hasPerson&&botPolicyIntent(raw)){const pa=botPolicyAnswer(raw,true);if(pa)return pa;}
   const poolAll=botAdminActive();
   const pool=poolAll.filter(e=>(!dept||e.dept===dept)&&(!ent||e.entity===ent));
   const scope=(dept||ent)?` in ${esc([dept,ent].filter(Boolean).join(' / '))}`:'';
@@ -2745,8 +2789,8 @@ function botAdminAnswer(raw){
   const toks=q.split(' ').filter(w=>w.length>2&&!BOT_STOP.has(w));
   if(toks.length){const lv=Object.values(DB.leavers||{}).filter(l=>toks.every(t=>normName(l.name).split(' ').some(w=>w.startsWith(t))));
     if(lv.length===1){const l=lv[0];return`<b>${esc(l.name)}</b> <small>${esc(l.empId||'')} · Leaver</small><br>${esc(l.desig||'')} · ${esc(l.dept||'')}<br>Joined ${fmt(l.joinDate)}, left ${fmt(l.endDate)}${l.exitType?' ('+esc(l.exitType)+')':''}<br>Gratuity recorded: ${botMoney(l.gratuity)}${l.settle?'<br>Settlement: '+esc(l.settle):''}`;}}
-  const ph=botPolicySearch(q);
-  if(ph.length)return'From the policies:'+botPolicyHtml(ph)+'<br><button class="hb-go" onclick="showPage(\'policies\')">Open Policies</button>';
+  const pa3=botPolicyAnswer(raw,true);
+  if(pa3)return pa3;
   return'Sorry, I couldn\'t find an answer to <i>“'+esc(String(raw).slice(0,80))+'”</i>. Try the employee\'s name with what you need, for example:<br>• salary of Anna<br>• Anna gratuity / Anna loan / Anna flight allowance<br>• leave balance of Anna<br>or company questions: headcount of CK, who is on leave, total loans outstanding, flight allowance due, total payroll.<br><small>Type <b>help</b> for more examples.</small>';
 }
 
