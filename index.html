@@ -2292,6 +2292,7 @@ function botSnippet(m){
   return(s>0?'…':'')+raw.slice(s,s+220)+(raw.length>s+220?'…':'');
 }
 function botAnswer(raw){
+  if(currentRole!=='employee')return botAdminAnswer(raw);
   const q=botNorm(raw);
   const e=DB.employees[currentEmpKey]||{};
   const hr='Please check with the HR Department directly.';
@@ -2355,7 +2356,8 @@ window.botToggle=function(){
   const p=document.getElementById('hbPanel');p.classList.toggle('open');
   if(p.classList.contains('open')){
     const log=document.getElementById('hbLog');
-    if(!log.children.length){const e=DB.employees[currentEmpKey]||{};botAdd('bot','Hi'+(e.name?' '+esc(String(e.name).split(' ')[0]):'')+'! I\'m the HR help assistant. I answer from your own portal information and the company policies. I\'m not a person and I can\'t see salary details, so for those please ask HR.');}
+    if(!log.children.length){if(currentRole!=='employee'){botAdd('bot','Hi'+(adminName?' '+esc(String(adminName).split(' ')[0]):'')+'! I\'m the HR assistant for the team. I read the live employee, leave and policy records, so my answers are only as current as the portal. I don\'t cover salary, loans or settlements.');return;}
+    const e=DB.employees[currentEmpKey]||{};botAdd('bot','Hi'+(e.name?' '+esc(String(e.name).split(' ')[0]):'')+'! I\'m the HR help assistant. I answer from your own portal information and the company policies. I\'m not a person and I can\'t see salary details, so for those please ask HR.');}
     setTimeout(()=>{const i=document.getElementById('hbInput');if(i)i.focus();},50);
   }
 };
@@ -2366,9 +2368,105 @@ function botInit(){
   w.innerHTML=`<button id="hbBtn" onclick="botToggle()">💬 HR Help</button>
   <div id="hbPanel"><div class="hb-head"><div><b>HR Help Assistant</b><small>Answers from your portal &amp; company policies</small></div><button onclick="botToggle()" aria-label="Close">×</button></div>
   <div id="hbLog"></div>
-  <div class="hb-chips">${BOT_CHIPS.map(c=>`<button class="hb-chip" onclick="botAsk(this.textContent)">${c}</button>`).join('')}</div>
+  <div class="hb-chips">${(currentRole==='employee'?BOT_CHIPS:BOT_ADMIN_CHIPS).map(c=>`<button class="hb-chip" onclick="botAsk(this.textContent)">${c}</button>`).join('')}</div>
   <div class="hb-in"><input id="hbInput" placeholder="Type your question…" onkeydown="if(event.key==='Enter')botAsk()"><button onclick="botAsk()">Send</button></div></div>`;
-  while(w.firstChild)document.getElementById('employeePortal').appendChild(w.firstChild);
+  const host=currentRole==='employee'?document.getElementById('employeePortal'):document.body;
+  while(w.firstChild)host.appendChild(w.firstChild);
+}
+
+// ── ADMIN HELP BOT (same rule-based idea; answers from the full records) ─────
+const BOT_ADMIN_CHIPS=['How many staff do we have?','Who is on leave today?','Pending leave approvals','Documents expiring in 30 days','Birthdays this month','Staff on probation','Next public holiday','Search the policies'];
+function botAdminActive(){return Object.values(DB.employees||{}).filter(e=>e&&e.status!=='Inactive');}
+function botCount(arr,fn){const m={};arr.forEach(x=>{const k=fn(x)||'Not set';m[k]=(m[k]||0)+1;});return Object.entries(m).sort((a,b)=>b[1]-a[1]);}
+function botFindEmps(q){
+  const stop=new Set(['the','a','an','is','are','of','to','for','my','me','i','do','does','what','how','when','who','whos','whats','about','tell','show','details','detail','info','information','on','in','and','or','it','visa','passport','expiry','expire','expires','leave','balance','manager','line','joined','join','date','department','dept','designation','status','emirates','labour','card','employee','staff','find','lookup','look','up','has','have','his','her','their','much','many','days','get','give','please']);
+  const toks=q.split(' ').filter(w=>w.length>1&&!stop.has(w));
+  if(!toks.length)return[];
+  const res=[];
+  Object.entries(DB.employees||{}).forEach(([k,e])=>{
+    const n=normName((e.name||'')+' '+(e.empId||''));const nt=n.split(' ');
+    if(toks.every(t=>nt.some(x=>x===t||(t.length>=3&&x.startsWith(t)))))res.push({k,e});
+  });
+  return res.slice(0,6);
+}
+function botEmpCard(e,k,q){
+  const yrs=e.join?((new Date()-new Date(e.join))/(365.25*86400000)).toFixed(1):null;
+  const L=[['Passport','passExp'],['Visa','visaExp'],['Emirates ID','eidExp'],['Labour Card','labExp']];
+  const docs=L.filter(([,f])=>e[f]).map(([l,f])=>{const n=botDaysLeft(e[f]);return`${l} ${fmt(e[f])}${n!=null&&n<0?' <b style="color:#c0392b">(expired)</b>':n!=null&&n<=60?` <b style="color:#e67e22">(${n}d)</b>`:''}`;});
+  let on='';
+  const today=new Date().toISOString().split('T')[0],nm=normName(e.name);
+  const cur=Object.values(DB.leave||{}).find(l=>l.status==='Approved'&&normName(l.empName)===nm&&l.from<=today&&l.to>=today);
+  if(cur)on=`<br>🌴 On ${esc(cur.type||'leave')} until ${fmt(cur.to)}`;
+  return`<div style="margin-top:6px;"><b>${esc(e.name)}</b> <small>${esc(e.empId||'')}</small>${e.status==='Inactive'?' <b style="color:#c0392b">(Inactive)</b>':''}<br>${esc(e.desig||'—')} · ${esc(e.dept||'—')}<br>${esc(e.entity||'')}${e.grade?' · '+esc(e.grade):''}${e.nationality?' · '+esc(e.nationality):''}<br>`
+   +(e.join?`Joined ${fmt(e.join)}${yrs?' ('+yrs+' yrs)':''}<br>`:'')
+   +(e.lineManagerName?`Line manager: ${esc(e.lineManagerName)}<br>`:'')
+   +(e.annualLeaveBalance!=null&&e.annualLeaveBalance!==''?`Annual leave balance: <b>${esc(e.annualLeaveBalance)}</b> days<br>`:'')
+   +(docs.length?docs.join(' · '):'No document dates recorded')+on+`</div>`;
+}
+function botAdminAnswer(raw){
+  const q=botNorm(raw);
+  const today=new Date().toISOString().split('T')[0];
+  const act=botAdminActive();
+  const list=a=>a.map(x=>'• '+x).join('<br>');
+  const more=(a,n)=>a.length>n?`<br><small>…and ${a.length-n} more</small>`:'';
+  if(!q)return'Please type your question, or tap one of the buttons below.';
+  if(botHas(q,['hi','hello','hey','good morning','good afternoon','good evening']))return'Hello'+(adminName?' '+esc(String(adminName).split(' ')[0]):'')+'! Ask me about headcount, leave, document expiry, approvals, birthdays or any employee by name.';
+  if(botHas(q,['thanks','thank you','thx']))return'You\'re welcome!';
+  if(botHas(q,['salary','salaries','payroll','loan','loans','gratuity','settlement','bank','iban','payslip','wps']))
+    return'I don\'t answer salary, loan or settlement questions here. Please use the Salary, Loans and Final Settlement pages directly.';
+  // headcount
+  if(botHas(q,['headcount','how many','total staff','how many staff','how many employees','number of staff','number of employees','strength','manpower'])&&!botHas(q,['leave','probation','expir','birthday'])){
+    const lv=Object.values(DB.leavers||{}).length,ina=Object.values(DB.employees||{}).length-act.length;
+    const ent=botCount(act,e=>e.entity),gr=botCount(act,e=>e.grade),dep=botCount(act,e=>e.dept).slice(0,6);
+    const uae=act.filter(isUAENational).length;
+    if(botHas(q,['uae','emirati','national','nationals']))return`UAE Nationals (active): <b>${uae}</b> of ${act.length}.`;
+    return`<b>${act.length}</b> active staff (Inactive staff are not counted).<br>By company: ${ent.map(([k,v])=>esc(k)+' '+v).join(', ')}<br>By grade: ${gr.map(([k,v])=>esc(k)+' '+v).join(', ')}<br>UAE Nationals: ${uae}<br>Largest departments: ${dep.map(([k,v])=>esc(k)+' '+v).join(', ')}<br>${lv} in Leavers &amp; Gratuity${ina?`, ${ina} marked Inactive`:''}.`;}
+  // on leave
+  if(botHas(q,['on leave','who is off','who is away','away today','off today','leave today','absent','upcoming leave','next leave','who is on'])){
+    const nm=Object.values(DB.employees||{}).reduce((m,e)=>{m[normName(e.name)]=e;return m;},{});
+    const rows=Object.values(DB.leave||{}).filter(l=>l.status==='Approved'&&l.to&&l.to>=today&&!(nm[normName(l.empName)]&&nm[normName(l.empName)].status==='Inactive')).sort((a,b)=>a.from>b.from?1:-1);
+    const now=rows.filter(l=>l.from<=today),soon=rows.filter(l=>l.from>today&&l.from<=new Date(Date.now()+7*864e5).toISOString().split('T')[0]);
+    let h=now.length?`<b>On leave today (${now.length}):</b><br>`+list(now.slice(0,12).map(l=>`${esc(l.empName)} — ${esc(l.type||'')} until ${fmt(l.to)}`))+more(now,12):'Nobody is on approved leave today.';
+    if(soon.length)h+=`<br><br><b>Starting in the next 7 days (${soon.length}):</b><br>`+list(soon.slice(0,8).map(l=>`${esc(l.empName)} — ${esc(l.type||'')}, ${fmt(l.from)} to ${fmt(l.to)}`))+more(soon,8);
+    return h;}
+  // pending approvals
+  if(botHas(q,['pending','approval','approvals','waiting','requests','request','to approve','hr review'])&&!botHas(q,['expir'])){
+    const all=Object.values(DB.leaveRequests||{}).filter(r=>r.status!=='Rejected'&&r.status!=='Approved'&&r.status!=='Cancelled');
+    if(!all.length)return'There are no leave requests waiting for a decision.';
+    const by=botCount(all,r=>r.stage);
+    return`<b>${all.length}</b> leave request(s) still open (${by.map(([k,v])=>esc(k)+': '+v).join(', ')}):<br>`+list(all.slice(0,8).map(r=>`${esc(r.empName||r.employeeName||'')} — ${esc(r.leaveType||'')}, ${fmt(r.startDate)} to ${fmt(r.endDate)} <i>(${esc(r.stage||r.status||'')})</i>`))+more(all,8);}
+  // expiry
+  if(botHas(q,['expir','expiry','expires','expiring','renew','renewal','visa','passport','emirates id','labour card','labor card','document','documents'])&&!botFindEmps(q).length){
+    const m=q.match(/(\d{1,3})\s*(day|days|d)\b/);const span=m?Math.min(365,+m[1]):(q.includes('90')?90:q.includes('60')?60:30);
+    const f=q.includes('visa')?['visaExp']:q.includes('passport')?['passExp']:(q.includes('emirates')||/\beid\b/.test(q))?['eidExp']:(q.includes('labour')||q.includes('labor'))?['labExp']:['passExp','visaExp','eidExp','labExp'];
+    const nmF={passExp:'Passport',visaExp:'Visa',eidExp:'Emirates ID',labExp:'Labour Card'};
+    const out=[];act.forEach(e=>f.forEach(k=>{const n=botDaysLeft(e[k]);if(n!=null&&n<=span)out.push({n,t:`${esc(e.name)} — ${nmF[k]} ${n<0?'<b style="color:#c0392b">expired '+(-n)+'d ago</b>':fmt(e[k])+' ('+n+'d)'}`});}));
+    out.sort((a,b)=>a.n-b.n);
+    return out.length?`<b>${out.length}</b> document(s) expired or expiring within ${span} days:<br>`+list(out.slice(0,12).map(o=>o.t))+more(out,12)+'<br><button class="hb-go" onclick="showPage(\'expiry\')">Open Expiry Alerts</button>':`Nothing has expired or expires within ${span} days.`;}
+  // birthdays / anniversaries
+  if(botHas(q,['birthday','birthdays','anniversary','anniversaries'])){
+    const nowD=new Date(),mo=nowD.getMonth();
+    if(q.includes('anniversar')){
+      const r=act.filter(e=>e.join&&new Date(e.join).getMonth()===mo&&new Date(e.join).getFullYear()<nowD.getFullYear()).sort((a,b)=>new Date(a.join).getDate()-new Date(b.join).getDate());
+      return r.length?`<b>Work anniversaries this month (${r.length}):</b><br>`+list(r.slice(0,12).map(e=>`${esc(e.name)} — ${nowD.getFullYear()-new Date(e.join).getFullYear()} yrs, ${new Date(e.join).getDate()} ${nowD.toLocaleString('en',{month:'short'})}`))+more(r,12):'No work anniversaries this month.';}
+    const r=act.filter(e=>e.dob&&new Date(e.dob).getMonth()===mo).sort((a,b)=>new Date(a.dob).getDate()-new Date(b.dob).getDate());
+    return r.length?`<b>Birthdays this month (${r.length}):</b><br>`+list(r.slice(0,15).map(e=>`${esc(e.name)} — ${new Date(e.dob).getDate()} ${nowD.toLocaleString('en',{month:'short'})}`))+more(r,15):'No birthdays this month.';}
+  if(botHas(q,['probation','probationary','new joiners','new joiner','new hires'])){
+    const r=Object.values(DB.employees||{}).filter(e=>e.status==='On Probation');
+    if(q.includes('joiner')||q.includes('hire')){const c=new Date(Date.now()-90*864e5).toISOString().split('T')[0];const j=act.filter(e=>e.join&&e.join>=c).sort((a,b)=>a.join<b.join?1:-1);return j.length?`<b>Joined in the last 90 days (${j.length}):</b><br>`+list(j.slice(0,12).map(e=>`${esc(e.name)} — ${esc(e.desig||'')}, ${fmt(e.join)}`))+more(j,12):'Nobody joined in the last 90 days.';}
+    return r.length?`<b>On probation (${r.length}):</b><br>`+list(r.slice(0,15).map(e=>`${esc(e.name)} — ${esc(e.desig||'')}${e.join?', joined '+fmt(e.join):''}`))+more(r,15):'Nobody is marked On Probation.';}
+  if(botHas(q,['leaver','leavers','left the company','resigned','exited','terminated'])){
+    const r=Object.values(DB.leavers||{});return`<b>${r.length}</b> people in Leavers &amp; Gratuity.<br><button class="hb-go" onclick="showPage('leavers')">Open Leavers</button>`;}
+  if(botHas(q,['holiday','holidays','public holiday','eid','national day'])&&!botFindEmps(q).length){
+    const up=Object.values(DB.holidays||{}).filter(h=>h.date&&h.date>=today).sort((a,b)=>a.date>b.date?1:-1).slice(0,3);
+    return up.length?'Upcoming holidays:<br>'+list(up.map(h=>`<b>${esc(h.name)}</b> — ${fmt(h.date)}${h.type?' ('+esc(h.type)+')':''}`)):'No upcoming holidays have been added yet.';}
+  // employee lookup by name
+  const hits=botFindEmps(q);
+  if(hits.length===1)return'Here is what I have:'+botEmpCard(hits[0].e,hits[0].k,q);
+  if(hits.length>1)return`I found ${hits.length} people. Please add more of the name:<br>`+list(hits.map(h=>esc(h.e.name)+' <small>'+esc(h.e.empId||'')+'</small>'));
+  const ph=botPolicySearch(q);
+  if(ph.length)return'I found these in the policies:<br>'+ph.map(m=>{const s=botSnippet(m);return`<div style="margin-top:6px;"><b>${esc(m.p.name)}</b>${s?'<br><span style="color:#555">'+esc(s)+'</span>':''}</div>`;}).join('')+'<br><button class="hb-go" onclick="showPage(\'policies\')">Open Policies</button>';
+  return'Sorry, I can\'t answer that one. I can help with: headcount, who is on leave, pending approvals, expiring documents, birthdays and anniversaries, probation and new joiners, leavers, holidays, policies, or details of any employee (just type the name).';
 }
 
 function applyEmployeeMode(){
@@ -3055,6 +3153,7 @@ function parseEmpSelect(val){
 
 const ref_db=(path)=>ref(db,path);
 function initListeners(){
+  try{botInit();}catch(e){}
   const tables=['employees','leave','salary','loans','repayments','assets','holidays','announcements','policies','audit','flightAllowance','leavers','leaveAdjustments','docHistory','leaveRequests','ceoMessage','orgChart','pendingHires','finalSettlements'];
   tables.forEach(t=>{
     onValue(ref(db,t),snap=>{
