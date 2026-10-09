@@ -2615,7 +2615,9 @@ function botPersonAnswer(q,found){
     const cur=lv.filter(l=>l.from<=today&&l.to>=today),up=lv.filter(l=>l.from>today),past=lv.filter(l=>l.to<today).slice(-3).reverse();
     cur.forEach(l=>add(`<b>On leave now:</b> ${esc(l.type||'Leave')}, until ${fmt(l.to)} — back on <b>${fmt(botNextDay(l.to))}</b>`));
     if(up.length){add(`<b>Next leave: ${fmt(up[0].from)} to ${fmt(up[0].to)}</b> (${esc(up[0].type||'Leave')}, ${leaveDaysOf(up[0])} days) — back on ${fmt(botNextDay(up[0].to))}`);up.slice(1,5).forEach(l=>add(`Then: ${fmt(l.from)} to ${fmt(l.to)} (${esc(l.type||'Leave')}, ${leaveDaysOf(l)} days)`));}
-    else if(!cur.length)add('<b>No upcoming approved leave</b> is recorded');
+    else if(!cur.length){add('<b>No upcoming approved leave</b> is recorded for '+esc(e.name));
+      const dg=botLeaveDiag(k,e);
+      add(dg.length?'Leave Register entries with a similar name: '+dg.map(l=>`“${esc(l.empName)}” ${esc(l.type||'')} ${fmt(l.from)}–${fmt(l.to)} <b>(${esc(l.status||'no status')})</b>`).join('; ')+'. Only <b>Approved</b> leave is counted.':'No Leave Register entry was found under a similar name. If his leave was entered, check the name spelling in the Leave Register.');}
     const pend=Object.values(DB.leaveRequests||{}).filter(r=>r.empKey===k&&r.status!=='Approved'&&r.status!=='Rejected'&&r.status!=='Cancelled');
     pend.forEach(r=>add(`Pending request: ${esc(r.leaveType||'')}, ${fmt(r.startDate)} to ${fmt(r.endDate)} <i>(${esc(r.stage||r.status||'')})</i>`));
     if(past.length)add('Recent leave: '+past.map(l=>`${fmt(l.from)}–${fmt(l.to)} ${esc(l.type||'')}`).join(' · '));
@@ -2720,8 +2722,20 @@ function botRosterOK(f,deptList,ent){
     &&(!f.uae||isUAENational(e));
 }
 function botLeavesOf(k,e){
-  const idx=buildNameIndex();const toks=normName(e.name).split(' ').filter(Boolean);
-  return Object.values(DB.leave||{}).filter(l=>{const n=normName(l.empName);if(!toks.some(t=>n.includes(t)))return false;const m=matchEmpByName(l.empName,idx);return m&&m.key===k;});
+  const idx=buildNameIndex();const et=normName(e.name).split(' ').filter(Boolean);
+  const all=Object.values(DB.leave||{});
+  const strict=all.filter(l=>{const n=normName(l.empName);if(!et.some(t=>n.includes(t)))return false;const m=matchEmpByName(l.empName,idx);return m&&m.key===k;});
+  if(strict.length)return strict;
+  // looser: same first name and (same last name, or every word of the register name is in the employee's name, or a first name nobody else has)
+  const firstCount=Object.values(DB.employees||{}).filter(x=>normName(x.name).split(' ')[0]===et[0]).length;
+  return all.filter(l=>{const rt=normName(l.empName).split(' ').filter(Boolean);if(!rt.length||rt[0]!==et[0])return false;
+    if(rt.length===1)return firstCount===1;
+    return rt[rt.length-1]===et[et.length-1]||rt.every(t=>et.includes(t));});
+}
+function botLeaveDiag(k,e){
+  const et=normName(e.name).split(' ').filter(Boolean);const first=et[0],last=et[et.length-1];
+  const rows=Object.values(DB.leave||{}).filter(l=>{const n=normName(l.empName).split(' ');return n.includes(first)||n.includes(last);});
+  return rows.sort((a,b)=>(b.from||'')>(a.from||'')?1:-1).slice(0,4);
 }
 function botAdminAnswer(raw){
   const q=botSyn(raw);
