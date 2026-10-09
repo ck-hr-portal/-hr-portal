@@ -2080,11 +2080,12 @@ async function syncStaffMirrors(){
     }
 
     // 3. Company-wide lists, kept small on purpose: only the next few weeks, and birthdays as day + month only
-    const sh={birthdays:{},anniversaries:{},leave:{},leaveAll:{}};
+    const sh={birthdays:{},anniversaries:{},leave:{},leaveAll:{},directory:{}};
     const milestones=[5,10,15,20,25,30];
     const nameIdx=buildNameIndex();
     Object.entries(DB.employees).forEach(([k,e])=>{
       if(!isCurrentEmployee(k,e,todayStr))return;
+      if(e.name)sh.directory[k]={n:e.name,d:e.dept||''}; // name + department only, for the staff help bot
       const dob=parseYMD(e.dob);
       if(dob){
         for(const yr of [today0.getFullYear(),today0.getFullYear()+1]){
@@ -2111,7 +2112,7 @@ async function syncStaffMirrors(){
       (sh.leave[slug]=sh.leave[slug]||{})[lk]={n:l.empName+(l.type==='Half Day Leave'?' (half day)':''),f:l.from,t:l.to};
       if(emp.status!=='Inactive')sh.leaveAll[lk]={n:l.empName+(l.type==='Half Day Leave'?' (half day)':''),d:emp.dept||'',f:l.from,t:l.to}; // name, dept and dates only: never the type of leave
     });
-    for(const part of ['birthdays','anniversaries','leave','leaveAll']){
+    for(const part of ['birthdays','anniversaries','leave','leaveAll','directory']){
       const nv=prune(sh[part]);
       if(stable(nv)!==stable(prune(_mirrorCache.shared[part]))){
         if(nv===undefined)await _fbRemove(ref(db,'staffShared/'+part));
@@ -2327,7 +2328,7 @@ function botLeaveEntries(){
 function botStaffKnownNames(){
   const s=new Set();
   const add=n=>botNorm(String(n||'').replace(/\(half day\)/i,'')).split(' ').forEach(t=>{if(t.length>2)s.add(t);});
-  Object.values(DB.leaveAll||{}).forEach(x=>add(x.n));Object.values(DB.deptLeave||{}).forEach(x=>add(x.n));
+  Object.values(DB.directory||{}).forEach(x=>add(x.n));Object.values(DB.leaveAll||{}).forEach(x=>add(x.n));Object.values(DB.deptLeave||{}).forEach(x=>add(x.n));
   Object.values(DB.sharedBdays||{}).forEach(x=>add(x.n));Object.values(DB.sharedAnnis||{}).forEach(x=>add(x.n));
   const me=DB.employees[currentEmpKey]||{};botNorm(me.name||'').split(' ').forEach(t=>s.delete(t));
   return s;
@@ -2337,6 +2338,22 @@ function botLeaveLine(x){
   const nm=esc(x.n);
   if(x.f<=today)return`<b>${nm}</b>${x.d?' <small>('+esc(x.d)+')</small>':''} — on leave, ends <b>${fmt(x.t)}</b>, back on <b>${fmt(botNextDay(x.t))}</b>`;
   return`<b>${nm}</b>${x.d?' <small>('+esc(x.d)+')</small>':''} — leave ${fmt(x.f)} to ${fmt(x.t)}, back on <b>${fmt(botNextDay(x.t))}</b>`;
+}
+function botDirMatch(cand){
+  const dir=DB.directory&&Object.keys(DB.directory).length?Object.values(DB.directory):null;
+  if(!dir)return{available:false,list:[],fuzzy:false};
+  const run=fz=>{
+    const res=[];
+    dir.forEach(p=>{const nt=botNorm(p.n).split(' ').filter(Boolean);let sc=0;
+      cand.forEach(c=>{if(nt.some(w=>w===c||(c.length>=3&&w.startsWith(c))||(fz&&c.length>=4&&w.length>=4&&botLev1(w,c))))sc++;});
+      if(sc>0)res.push({p,sc});});
+    const mx=Math.max(0,...res.map(r=>r.sc));
+    return res.filter(r=>r.sc===mx).map(r=>r.p);
+  };
+  let list=run(false),fuzzy=false;
+  if(!list.length){list=run(true);fuzzy=list.length>0;}
+  if(cand.includes('dev')){const pref=list.filter(p=>/mandrekar/i.test(p.n));if(pref.length)list=pref;}
+  return{available:true,list,fuzzy};
 }
 function botStaffAnswer(raw){
   const q=botSyn(raw);
@@ -2365,10 +2382,22 @@ function botStaffAnswer(raw){
     const stopW=new Set(['is','on','leave','today','when','will','be','back','return','returning','who','what','the','of','off','away','from','to','work','coming','out','office','absent','available','he','she','they','my','me','in','team','department','dept','any','one','anyone','somebody','someone','are','there','does','did','this','week','now','currently','right','tomorrow','check','if','please','tell','status','sir','madam','mr','ms','mrs','dr','sick','annual','back','return','returns','returned','returning']);
     let cand=qt.filter(t=>t.length>2&&!stopW.has(t)&&!/^\d+$/.test(t));
     if(cand.length&&!mineOnly){
+      const dm=botDirMatch(cand);
+      const eq=(a,b)=>botNorm(String(a).replace(/\(half day\)/i,''))===botNorm(b);
+      if(dm.available){
+        if(!dm.list.length){const who=cand.map(c=>c.charAt(0).toUpperCase()+c.slice(1)).join(' ');return`I couldn't find a colleague named <b>${esc(who)}</b>. Please check the spelling.`;}
+        const lines=dm.list.slice(0,6).map(p=>{
+          const mine=ent.filter(x=>eq(x.n,p.n)).sort((a,b)=>a.f>b.f?1:-1);
+          const cur=mine.find(x=>x.f<=today&&x.t>=today),nxt=mine.find(x=>x.f>today);
+          if(cur)return botLeaveLine({n:p.n,d:p.d,f:cur.f,t:cur.t});
+          return`<b>${esc(p.n)}</b> <small>(${esc(p.d)})</small> — <b>not on leave today</b>`+(nxt?`<br><small>Next leave: ${fmt(nxt.f)} to ${fmt(nxt.t)}, back on ${fmt(botNextDay(nxt.t))}</small>`:'');});
+        return(dm.fuzzy?'<small>Closest match:</small><br>':'')+(dm.list.length>1?`<b>${dm.list.length} colleagues match:</b><br>`:'')+lines.join('<br>')+(dm.list.length>6?'<br><small>…add more of the name to narrow it down</small>':'')+note;
+      }
       const hits=ent.filter(x=>{const nt=botNorm(String(x.n).replace(/\(half day\)/i,'')).split(' ');return cand.every(c=>nt.some(w=>w===c||w.startsWith(c)));});
-      if(hits.length)return(hits.length>1?`<b>${hits.length} matches:</b><br>`:'')+hits.slice(0,6).map(botLeaveLine).join('<br>')+note;
+      let hh=hits;if(cand.includes('dev')){const pref=hits.filter(x=>/mandrekar/i.test(x.n));if(pref.length)hh=pref;}
+      if(hh.length)return(hh.length>1?`<b>${hh.length} matches:</b><br>`:'')+hh.slice(0,6).map(botLeaveLine).join('<br>')+note;
       const who=cand.map(c=>c.charAt(0).toUpperCase()+c.slice(1)).join(' ');
-      return`I don't see <b>${esc(who)}</b> on approved leave right now or in the coming weeks. If you think they should be, please check with HR.`+note;
+      return`No approved leave found for <b>${esc(who)}</b> today or in the next few months.<br><small>If you expected a result, please check the spelling of the name or ask HR.</small>`+note;
     }
     let rows=ent;
     if(mineOnly)rows=ent.filter(x=>!x.d||x.d===(e.dept||''));
@@ -2384,6 +2413,18 @@ function botStaffAnswer(raw){
   const ofOtherReal=ofOther&&!BOT_LEAVE_WORDS.has(ofOther[2])&&!/^(leave|policy|policies|holiday|holidays|apply|annual|sick|visa|work|office|hr|company|staff)$/.test(ofOther[2]);
   if(ownTopic&&(otherNamed||ofOtherReal||/\b(his|her|their)\b|\w+ s (balance|visa|passport|manager|birthday)\b/.test(q))&&!/\bmy\b|\bmine\b|\bmyself\b/.test(q))
     return'Sorry, I can only share <b>your own</b> details. Information about other employees is confidential. You can ask me whether a colleague is on leave and when they are back.';
+  if(DB.directory&&Object.keys(DB.directory).length&&/\bwho is\b|\bwho s\b|\bhow many\b/.test(q)&&!/\b(leave|leaves|days|day|sick|annual|holiday|holidays|policy|policies|balance|entitled|hours|years)\b/.test(q)){
+    const stopW2=new Set(['who','is','s','the','of','a','an','how','many','we','have','are','there','in','our','company','here','do','does','named','called','name','people','person','staff','employees','colleagues','with','any','my','me']);
+    const cand2=qt.filter(t=>t.length>2&&!stopW2.has(t)&&!/^\d+$/.test(t));
+    if(cand2.length){const dm=botDirMatch(cand2);
+      if(!dm.list.length)return`I couldn't find a colleague named <b>${esc(cand2.map(c=>c.charAt(0).toUpperCase()+c.slice(1)).join(' '))}</b>. Please check the spelling.`;
+      if(/\bhow many\b/.test(q))return`<b>${dm.list.length}</b> colleague(s) match “${esc(cand2.join(' '))}”:<br>`+dm.list.slice(0,12).map(p=>`• ${esc(p.n)} <small>(${esc(p.d)})</small>`).join('<br>')+(dm.list.length>12?`<br><small>…and ${dm.list.length-12} more</small>`:'');
+      return(dm.fuzzy?'<small>Closest match:</small><br>':'')+dm.list.slice(0,6).map(p=>`<b>${esc(p.n)}</b> — ${esc(p.d||'department not set')}`).join('<br>')+'<br><small>For anything else about a colleague, please ask HR. I can tell you if they are on leave.</small>';}
+  }
+  if(!/\bmy\b|\bmine\b|\bmyself\b/.test(q)&&/\b(details|detail|info|information|profile|contact|number|email|mobile|phone|extension|address|whatsapp|where does .* live|who is)\b/.test(q)&&!/\b(holiday|policy|policies|leave|hr|balance)\b/.test(q))
+    return'Sorry, I can only share <b>your own</b> details. For a colleague\'s contact details or information please ask the HR Department. I can tell you whether a colleague is on leave and when they are back.';
+  if(/\b(how many|how much|count|total|number of|headcount)\b/.test(q)&&!/\b(leave|leaves|days|day|sick|annual|holiday|holidays|policy|policies|balance|entitled|hours|years)\b/.test(q))
+    return'I can\'t count or list staff here. I only show <b>your own</b> details and whether a colleague is on leave. For staff numbers or colleague information please ask the HR Department.';
   // 4. my own information
   if(/\bcompoff\b|\bcompensatory\b/.test(q)||/\bcomp\b/.test(q)){const c=e._comp;return c?`Your compensatory leave: <b>${+c.b||0}</b> available, ${+c.e||0} earned, ${+c.t||0} taken. Full details are in the <b>My Compensatory Leave</b> section.<br><button class="hb-go" onclick="botGo('empCompCard')">Go to section</button>`:'No compensatory leave is recorded for you yet.';}
   const asksEntitle=botHas(q,['entitled','entitlement','entitlements','allowed','per year','eligible','how many sick','how many annual','how many days of','do i get','will i get','carry forward','carry over']);
@@ -2417,7 +2458,7 @@ function botStaffAnswer(raw){
   if(botHas(q,['org chart','organization chart','organisation chart']))return'If you have access, the Organizational Chart is shown further down this page.<br><button class="hb-go" onclick="botGo(\'empOrgChartCard\')">Go to section</button>';
   const hits=botPolicySearch(q);
   if(hits.length)return'From the company policies:'+botPolicyHtml(hits)+'<br><button class="hb-go" onclick="botGo(\'empPolList\')">Open the Policies section</button><br><small>This is a quick search. The full policy is the official answer.</small>';
-  return'Sorry, I don\'t have an answer for that. '+hr+'<br><small>Try: "my leave balance", "is Ahmed on leave?", "my visa expiry", "next holiday", or a policy keyword such as "probation".</small>';
+  return'Sorry, I couldn\'t find an answer to <i>“'+esc(String(raw).slice(0,80))+'”</i>. '+hr+'<br><small>I can help with: your leave balance and requests, whether a colleague is on leave, your document dates, holidays and company policies. Type <b>help</b> for examples.</small>';
 }
 
 function botAnswer(raw){return currentRole==='employee'?botStaffAnswer(raw):botAdminAnswer(raw);}
@@ -2487,6 +2528,7 @@ function botFindEmps(q,dropToks){
   };
   let list=run(false),fuzzy=false;
   if(!list.length){list=run(true);fuzzy=list.length>0;}
+  if(toks.includes('dev')){const pref=list.filter(r=>/mandrekar/i.test(r.e.name||''));if(pref.length)list=pref;} // everyone knows Devanand Mandrekar as "Dev"
   return{list,toks,fuzzy};
 }
 function botDeptOf(q){
@@ -2693,6 +2735,9 @@ function botAdminAnswer(raw){
   if(!hasPerson&&/\b(holiday|holidays)\b|public holiday/.test(q)){
     const up=Object.values(DB.holidays||{}).filter(h=>h.date&&h.date>=today).sort((a,b)=>a.date>b.date?1:-1).slice(0,3);
     return up.length?'Upcoming holidays:<br>'+list(up.map(h=>`<b>${esc(h.name)}</b> — ${fmt(h.date)}${h.type?' ('+esc(h.type)+')':''}`)):'No upcoming holidays have been added yet.';}
+  if(hasPerson&&/\bhow many\b/.test(q)&&!/\b(leave|days|loan|salary)\b/.test(q)){
+    const nm=f.toks.map(t=>t.charAt(0).toUpperCase()+t.slice(1)).join(' ');
+    return`<b>${f.list.length}</b> employee(s) match “${esc(nm)}”:<br>`+list(f.list.slice(0,12).map(h=>`${esc(h.e.name)} <small>${esc(h.e.empId||'')} · ${esc(h.e.dept||'')}${h.e.status==='Inactive'?' · Inactive':''}</small>`))+more(f.list,12);}
   if(f.list.length===1)return(f.fuzzy?`<small>Closest match:</small><br>`:'')+botPersonAnswer(q,f.list[0]);
   if(f.list.length>1){
     const topicQ=q.split(' ').filter(w=>!f.toks.includes(w)).join(' ');
@@ -2702,7 +2747,7 @@ function botAdminAnswer(raw){
     if(lv.length===1){const l=lv[0];return`<b>${esc(l.name)}</b> <small>${esc(l.empId||'')} · Leaver</small><br>${esc(l.desig||'')} · ${esc(l.dept||'')}<br>Joined ${fmt(l.joinDate)}, left ${fmt(l.endDate)}${l.exitType?' ('+esc(l.exitType)+')':''}<br>Gratuity recorded: ${botMoney(l.gratuity)}${l.settle?'<br>Settlement: '+esc(l.settle):''}`;}}
   const ph=botPolicySearch(q);
   if(ph.length)return'From the policies:'+botPolicyHtml(ph)+'<br><button class="hb-go" onclick="showPage(\'policies\')">Open Policies</button>';
-  return'Sorry, I didn\'t understand that. Try the employee\'s name with what you need, for example:<br>• salary of Anna<br>• Anna gratuity / Anna loan / Anna flight allowance<br>• leave balance of Anna<br>or company questions: headcount of CK, who is on leave, total loans outstanding, flight allowance due, total payroll.<br><small>Type <b>help</b> for more examples.</small>';
+  return'Sorry, I couldn\'t find an answer to <i>“'+esc(String(raw).slice(0,80))+'”</i>. Try the employee\'s name with what you need, for example:<br>• salary of Anna<br>• Anna gratuity / Anna loan / Anna flight allowance<br>• leave balance of Anna<br>or company questions: headcount of CK, who is on leave, total loans outstanding, flight allowance due, total payroll.<br><small>Type <b>help</b> for more examples.</small>';
 }
 
 function applyEmployeeMode(){
@@ -2784,6 +2829,7 @@ function initEmployeeListeners(empKey,uid){
   // Company-wide content and low-sensitivity shared lists
   optional(ref(db,'holidays'),snap=>{DB.holidays=snap.val()||{};});
   _staffUnsubs.push(onValue(ref(db,'staffShared/leaveAll'),snap=>{DB.leaveAll=snap.val()||{};},()=>{DB.leaveAll=null;})); // company-wide leave (name, dept, dates). Needs the updated rules; falls back to own department without them
+  _staffUnsubs.push(onValue(ref(db,'staffShared/directory'),snap=>{DB.directory=snap.val()||{};},()=>{DB.directory=null;})); // names + departments of current staff
   optional(ref(db,'staffShared/birthdays'),snap=>{DB.sharedBdays=snap.val()||{};renderEmpBirthdaysAnniversaries();});
   optional(ref(db,'staffShared/anniversaries'),snap=>{DB.sharedAnnis=snap.val()||{};renderEmpBirthdaysAnniversaries();});
   optional(ref(db,'announcements'),snap=>{DB.announcements=snap.val()||{};renderEmpAnnouncements();});
