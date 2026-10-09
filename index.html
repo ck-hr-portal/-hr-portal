@@ -453,6 +453,7 @@ tr:hover td{background:#fafbfc;}
       <div class="nav-section">Reports</div>
       <div class="nav-item" onclick="showPage('reports',this)"><span class="icon">📈</span>Reports &amp; Downloads</div>
       <div class="nav-item" onclick="showPage('auditlog',this)"><span class="icon">🔍</span>Audit Log</div>
+      <div class="nav-item" id="navBackup" onclick="showPage('backup',this)"><span class="icon">💾</span>Data Backup</div>
     </div>
 
     <div class="main">
@@ -461,6 +462,7 @@ tr:hover td{background:#fafbfc;}
       <div id="page-dashboard" class="page active">
         <div class="page-header"><h2>Dashboard</h2><p id="dashDate"></p></div>
         <div id="dashFestive"></div>
+        <div id="backupBanner"></div>
         <div class="stats-row">
           <div class="stat-card"><div class="stat-num" id="s-emp">—</div><div class="stat-label">Total Employees</div></div>
           <div class="stat-card gold"><div class="stat-num" id="s-leave">—</div><div class="stat-label">On Leave Today</div></div>
@@ -613,6 +615,40 @@ tr:hover td{background:#fafbfc;}
             <table><thead><tr><th>Employee</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th>Approved By</th><th>Actions</th></tr></thead>
             <tbody id="leaveBody"></tbody></table>
           </div>
+        </div>
+      </div>
+
+      <!-- DATA BACKUP (Dev and Darleendy only) -->
+      <div id="page-backup" class="page">
+        <div class="page-header"><h2>Data Backup</h2><p>Dev and Darleendy take a full copy of the portal data every week and keep it on the company server. This page shows when the last one was done.</p></div>
+        <div class="card" style="margin-bottom:14px;">
+          <div id="bkStatus" style="font-size:14px;line-height:1.6;"></div>
+        </div>
+        <div class="card" id="bkTake" style="margin-bottom:14px;">
+          <h3 style="margin:0 0 6px;font-size:15px;">1. Take a backup now</h3>
+          <p style="font-size:12.5px;color:#666;margin:0 0 12px;">The backup contains salaries, loans, IDs and personal details. A password is strongly recommended. <b>Keep the password safe: without it the file cannot be opened, and nobody can recover it for you.</b></p>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;max-width:560px;">
+            <div class="form-group"><label>Password (min 8 characters)</label><input type="password" id="bkPw" autocomplete="new-password"></div>
+            <div class="form-group"><label>Repeat password</label><input type="password" id="bkPw2" autocomplete="new-password"></div>
+          </div>
+          <div style="margin-top:12px;"><button class="btn btn-primary" id="bkRunBtn" onclick="runBackup()">💾 Download backup now</button></div>
+          <div id="bkMsg" style="margin-top:12px;font-size:13px;line-height:1.55;"></div>
+        </div>
+        <div class="card" id="bkCheck" style="margin-bottom:14px;">
+          <h3 style="margin:0 0 6px;font-size:15px;">2. Check or unlock a backup file</h3>
+          <p style="font-size:12.5px;color:#666;margin:0 0 12px;">Pick a saved backup to confirm it opens and see what is inside. For a password-protected file, type its password first. After checking, you can save an unlocked copy, which is what the Firebase console needs for a restore.</p>
+          <div class="form-group" style="max-width:280px;"><label>Password (only for protected files)</label><input type="password" id="bkCheckPw" autocomplete="off"></div>
+          <div style="margin-top:12px;"><button class="btn btn-gold" onclick="document.getElementById('bkFile').click()">📂 Choose a backup file…</button><input type="file" id="bkFile" accept=".json,application/json" style="display:none" onchange="checkBackupFile(this)"></div>
+          <div id="bkCheckMsg" style="margin-top:12px;font-size:13px;line-height:1.55;"></div>
+        </div>
+        <div class="card">
+          <h3 style="margin:0 0 6px;font-size:15px;">What is and is not in the backup</h3>
+          <ul style="font-size:12.5px;color:#555;line-height:1.7;margin:0 0 0 18px;padding:0;">
+            <li><b>Included:</b> employees, leave and leave adjustments, salary, loans and repayments, assets, flight allowance, leavers, document history, holidays, announcements, policies, audit log, leave requests, CEO message, org chart, pending hires, final settlements, staff login links and compensatory leave.</li>
+            <li><b>Not included:</b> the staff login accounts themselves (emails and passwords are held by Firebase Authentication), and the staff "safe copies", which the portal rebuilds on its own.</li>
+            <li><b>Weekly:</b> the dashboard shows a reminder when the last backup is 7 or more days old.</li>
+            <li><b>Restore:</b> Firebase console, Realtime Database, the three-dot menu, Import JSON. Practise on a spare test project first, never straight onto the live data.</li>
+          </ul>
         </div>
       </div>
 
@@ -1950,6 +1986,7 @@ window.forgotPassword=async function(){
 window.doLogout=function(){
   _staffUnsubs.forEach(f=>{try{f();}catch(e){}});_staffUnsubs=[];
   currentAdmin='';currentRole='';currentEmpKey='';adminName='';adminTitle='';adminSignName='';
+  try{_backupLast=null;_bkUnlocked=null;const bb=document.getElementById('backupBanner');if(bb)bb.innerHTML='';}catch(e){}
   document.getElementById('app').style.display='none';
   document.getElementById('employeePortal').style.display='none';
   document.getElementById('loginScreen').style.display='flex';
@@ -2240,7 +2277,7 @@ function applyCEOMode(){
   // Employee Portal Access (credential management), which stays admin-only
   // regardless of role, per explicit instruction.
   const style=document.createElement('style');
-  style.textContent=`#navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }`;
+  style.textContent=`#bkTake, #bkCheck, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #backupBanner, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }`;
   document.head.appendChild(style);
   document.getElementById('syncStatus').textContent='● CEO — Full View, Read-Only';
 }
@@ -3516,7 +3553,7 @@ function applyPROMode(){
   style.textContent=`
     .nav-item[onclick*="'loans'"] { display: none !important; }
     .nav-item[onclick*="'settlement'"] { display: none !important; }
-    #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }
+    #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #navBackup, #backupBanner, #page-backup, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }
     button[onclick*="openEmpModal"], button[onclick="delEmp"], button[onclick*="delEmp("] { display: none !important; }
   `;
   document.head.appendChild(style);
@@ -3590,6 +3627,131 @@ function parseEmpSelect(val){
   return {key: parts[0]||'', empId: parts[1]||'', name: parts[2]||''};
 }
 
+// ── DATA BACKUP (Dev and Darleendy only) ─────────────────────────────────────
+// Downloads one file with all portal data. Optional password: the file is locked with AES-256 in this
+// browser, so the password never leaves the computer. Nothing here changes any portal data.
+const BACKUP_NODES=['employees','leave','leaveAdjustments','salary','loans','repayments','assets','flightAllowance','leavers','docHistory','holidays','announcements','policies','audit','leaveRequests','ceoMessage','orgChart','pendingHires','finalSettlements','staffMap','compLeave'];
+const BACKUP_DUE_DAYS=7;
+let _backupLast=null,_backupRulesOk=true,_backupBusy=false,_bkUnlocked=null,_bkUnlockedName='';
+function bkLocalLast(){try{return JSON.parse(localStorage.getItem('ckhr_last_backup')||'null');}catch(e){return null;}}
+function bkLastRecord(){const a=_backupLast,b=bkLocalLast();if(a&&b)return String(a.at||'')>=String(b.at||'')?a:b;return a||b;}
+function bkDaysAgo(rec){if(!rec||!rec.at)return null;const t=new Date(rec.at).getTime();if(isNaN(t))return null;return Math.max(0,Math.floor((Date.now()-t)/86400000));}
+function bkWhen(iso){try{return new Date(iso).toLocaleString('en-AE',{weekday:'short',day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return iso||'';}}
+function bkEsc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function renderBackupBanner(){
+  const el=document.getElementById('backupBanner');if(!el)return;
+  if(currentRole!=='admin'){el.innerHTML='';return;}
+  const rec=bkLastRecord(),days=bkDaysAgo(rec);
+  if(rec&&days!==null&&days<BACKUP_DUE_DAYS){el.innerHTML='';return;}
+  const late=(days===null)||days>=14;
+  const msg=(days===null)?'No backup has been recorded yet. Please take one now.':'Weekly backup is due. The last backup was '+days+' day'+(days===1?'':'s')+' ago ('+bkWhen(rec.at)+').';
+  el.innerHTML='<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:11px 15px;margin-bottom:14px;border-radius:9px;font-size:13.5px;'+(late?'background:#fce4e4;color:#a02020;border:1px solid #ef9a9a;':'background:#fff4dc;color:#7a5a00;border:1px solid #f0d28a;')+'"><span style="flex:1;min-width:200px;">💾 '+msg+'</span><button class="btn btn-primary" style="padding:6px 14px;" onclick="showPage(\'backup\',document.getElementById(\'navBackup\'))">Open Data Backup</button></div>';
+}
+function renderBackupPage(){
+  const el=document.getElementById('bkStatus');if(!el)return;
+  if(currentRole!=='admin'&&currentRole!=='ceo'){el.innerHTML='';return;}
+  const rec=currentRole==='ceo'?_backupLast:bkLastRecord(),days=bkDaysAgo(rec);
+  let html;
+  if(!rec||days===null){html='<b>No backup recorded yet.</b> Take the first one below.';}
+  else{
+    const due=days>=BACKUP_DUE_DAYS;
+    html='<b>Last backup:</b> '+bkWhen(rec.at)+(rec.by?' by '+bkEsc(rec.by):'')+' · '+(rec.encrypted?'password-protected':'<span style="color:#a02020;">not password-protected</span>')+(rec.kb?' · about '+bkEsc(rec.kb)+' KB':'')+'<br>'
+      +'<b style="color:'+(due?'#a02020':'#1A7A6E')+';">'+(due?'Backup is due ('+days+' days ago).':(days===0?'Done today.':days+' day'+(days===1?'':'s')+' ago. Next one is due within '+(BACKUP_DUE_DAYS-days)+' day'+((BACKUP_DUE_DAYS-days)===1?'':'s')+'.'))+'</b>';
+  }
+  if(!_backupRulesOk&&currentRole==='admin')html+='<br><span style="font-size:12px;color:#7a5a00;">The shared backup record is not available yet (the updated Firebase rules have not been published), so this reminder only reflects backups taken on this computer.</span>';
+  el.innerHTML=html;
+}
+function bkMsg(id,text,kind){const el=document.getElementById(id);if(!el)return;el.style.color=kind==='err'?'#a02020':kind==='ok'?'#1A7A6E':'#444';el.innerHTML=text;}
+function bkCount(v){if(v==null)return 0;if(typeof v==='object')return Object.keys(v).length;return 1;}
+async function bkDeriveKey(pw,salt,iter){const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt:salt,iterations:iter,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);}
+function bkB64(buf){const b=new Uint8Array(buf);let s='';const C=0x8000;for(let i=0;i<b.length;i+=C)s+=String.fromCharCode.apply(null,b.subarray(i,i+C));return btoa(s);}
+function bkUnB64(s){const bin=atob(s);const b=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)b[i]=bin.charCodeAt(i);return b;}
+async function bkEncrypt(text,pw,meta){
+  const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)),iter=250000;
+  const key=await bkDeriveKey(pw,salt,iter);
+  const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv:iv},key,new TextEncoder().encode(text));
+  return {format:'ckhr-backup-encrypted',version:1,cipher:'AES-256-GCM',kdf:'PBKDF2-SHA256',iterations:iter,createdAt:meta.createdAt,createdBy:meta.createdBy,salt:bkB64(salt),iv:bkB64(iv),data:bkB64(ct)};
+}
+async function bkDecrypt(obj,pw){
+  const key=await bkDeriveKey(pw,bkUnB64(obj.salt),obj.iterations||250000);
+  try{const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:bkUnB64(obj.iv)},key,bkUnB64(obj.data));return new TextDecoder().decode(pt);}
+  catch(e){throw new Error('wrong-password');}
+}
+function bkDownload(name,text){
+  const blob=new Blob([text],{type:'application/json'});const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},4000);
+}
+function bkStamp(d){const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
+window.runBackup=async function(){
+  if(currentRole!=='admin'||_backupBusy)return;
+  const pw=document.getElementById('bkPw').value,pw2=document.getElementById('bkPw2').value;
+  if(pw||pw2){
+    if(pw!==pw2){bkMsg('bkMsg','The two passwords do not match.','err');return;}
+    if(pw.length<8){bkMsg('bkMsg','Please use at least 8 characters for the password.','err');return;}
+    if(!(window.crypto&&crypto.subtle)){bkMsg('bkMsg','This browser cannot lock the file with a password. Use a current Chrome or Edge.','err');return;}
+  }else if(!confirm('No password was entered.\n\nAnyone who gets this file can read every salary, loan and personal detail.\n\nDownload WITHOUT a password?'))return;
+  _backupBusy=true;const btn=document.getElementById('bkRunBtn');if(btn)btn.disabled=true;
+  bkMsg('bkMsg','Collecting the data, please wait…');
+  try{
+    const tree={},failed=[],counts={};
+    await Promise.all(BACKUP_NODES.map(async n=>{
+      try{const s=await get(ref(db,n));const val=s.val();counts[n]=bkCount(val);if(val!==null)tree[n]=val;}
+      catch(e){failed.push(n);}
+    }));
+    if(failed.length){bkMsg('bkMsg','The backup was stopped because these parts could not be read: <b>'+bkEsc(failed.join(', '))+'</b>. Nothing was downloaded. Please refresh and try again; if it repeats, tell Claude.','err');return;}
+    const now=new Date(),text=JSON.stringify(tree);
+    let fileText=text,fileName='CK-HR-Backup-'+bkStamp(now)+'.json';
+    if(pw){fileText=JSON.stringify(await bkEncrypt(text,pw,{createdAt:now.toISOString(),createdBy:adminName}));fileName='CK-HR-Backup-'+bkStamp(now)+'-LOCKED.json';}
+    bkDownload(fileName,fileText);
+    const rec={at:now.toISOString(),by:adminName,encrypted:!!pw,kb:Math.round(fileText.length/1024),parts:BACKUP_NODES.length};
+    try{localStorage.setItem('ckhr_last_backup',JSON.stringify(rec));}catch(e){}
+    let recorded=true;
+    try{await set(ref(db,'backupLog/last'),rec);}catch(e){recorded=false;}
+    try{await logAudit('Data backup','All data',(pw?'Password-protected':'No password')+', '+rec.kb+' KB');}catch(e){}
+    _backupLast=recorded?rec:_backupLast;renderBackupBanner();renderBackupPage();
+    document.getElementById('bkPw').value='';document.getElementById('bkPw2').value='';
+    const total=Object.values(counts).reduce((a,b)=>a+b,0);
+    bkMsg('bkMsg','✅ <b>'+bkEsc(fileName)+'</b> has been sent to your Downloads folder ('+rec.kb+' KB, '+BACKUP_NODES.length+' sections, '+total+' items).<br>Now: 1) check the file is really in your Downloads, 2) copy it to the company server, 3) delete it from Downloads.'+(pw?'<br>Keep the password safe. Without it the file cannot be opened.':'<br><span style="color:#a02020;">This file has no password. Store it only in a restricted folder.</span>')+(recorded?'':'<br><span style="color:#7a5a00;">Note: the backup could not be recorded in the portal (updated Firebase rules not published yet). The weekly reminder will only work on this computer until then.</span>'),'ok');
+  }catch(e){
+    console.error('Backup error',e);
+    bkMsg('bkMsg','The backup did not complete: '+bkEsc(e&&e.message?e.message:'unknown error')+'. Nothing was recorded.','err');
+  }finally{_backupBusy=false;if(btn)btn.disabled=false;}
+};
+window.checkBackupFile=async function(inp){
+  if(currentRole!=='admin')return;
+  const f=inp.files&&inp.files[0];inp.value='';_bkUnlocked=null;if(!f)return;
+  bkMsg('bkCheckMsg','Reading '+bkEsc(f.name)+'…');
+  try{
+    const obj=JSON.parse(await f.text());
+    let tree=obj,info='',wasLocked=false;
+    if(obj&&obj.format==='ckhr-backup-encrypted'){
+      wasLocked=true;
+      const pw=document.getElementById('bkCheckPw').value;
+      if(!pw){bkMsg('bkCheckMsg','This file is password-protected. Type its password in the box above, then choose the file again.','err');return;}
+      try{tree=JSON.parse(await bkDecrypt(obj,pw));}
+      catch(e){bkMsg('bkCheckMsg','That password does not open this file (or the file is damaged).','err');return;}
+      info='Created '+bkWhen(obj.createdAt)+(obj.createdBy?' by '+bkEsc(obj.createdBy):'')+'.<br>';
+    }
+    if(!tree||typeof tree!=='object'||Array.isArray(tree)){bkMsg('bkCheckMsg','This does not look like a portal backup file.','err');return;}
+    const keys=Object.keys(tree);
+    const known=keys.filter(k=>BACKUP_NODES.indexOf(k)>=0);
+    if(!known.length){bkMsg('bkCheckMsg','This does not look like a portal backup file. None of the expected sections were found.','err');return;}
+    const missing=BACKUP_NODES.filter(k=>!(k in tree));
+    const rows=BACKUP_NODES.filter(k=>k in tree).map(k=>'<tr><td style="padding:3px 28px 3px 0;color:#333;">'+bkEsc(k)+'</td><td style="padding:3px 0;color:#333;">'+((k==='ceoMessage'||k==='orgChart')?'present':bkCount(tree[k])+(bkCount(tree[k])===1?' item':' items'))+'</td></tr>').join('');
+    _bkUnlocked=tree;_bkUnlockedName=f.name.replace(/\.json$/i,'').replace(/-LOCKED$/i,'')+'-UNLOCKED.json';
+    bkMsg('bkCheckMsg','✅ <b>The file opens correctly.</b><br>'+info+'<table style="margin:8px 0;font-size:12.5px;border-collapse:collapse;">'+rows+'</table>'
+      +(missing.length?'<span style="color:#7a5a00;">Sections not in this file (they were empty when the backup was taken, or the file is incomplete): '+bkEsc(missing.join(', '))+'</span><br>':'')
+      +(wasLocked?'<button class="btn btn-gold" style="margin-top:8px;" onclick="saveUnlockedBackup()">Save an unlocked copy (for a restore)</button><div style="font-size:12px;color:#a02020;margin-top:6px;">The unlocked copy has NO password. Delete it as soon as the restore is finished.</div>':''),'ok');
+  }catch(e){
+    bkMsg('bkCheckMsg','Could not read this file. It may be damaged or not a backup file.','err');
+  }
+};
+window.saveUnlockedBackup=function(){
+  if(currentRole!=='admin'||!_bkUnlocked)return;
+  bkDownload(_bkUnlockedName,JSON.stringify(_bkUnlocked));
+};
+
 const ref_db=(path)=>ref(db,path);
 function initListeners(){
   try{botInit();}catch(e){}
@@ -3647,6 +3809,10 @@ function initListeners(){
       scheduleStaffMirrorSync();
     },()=>{window._compLoadFailed=true;_mirrorLoaded.compLeave=true;scheduleStaffMirrorSync();});
   }
+  // When the last backup was taken: Dev and Darleendy get the weekly reminder, Cem can see the status (view only)
+  if(currentRole==='admin'||currentRole==='ceo'){
+    onValue(ref(db,'backupLog/last'),snap=>{_backupLast=snap.val();_backupRulesOk=true;renderBackupBanner();renderBackupPage();},()=>{_backupLast=null;_backupRulesOk=false;renderBackupBanner();renderBackupPage();});
+  }
   document.getElementById('syncStatus').textContent='● Live';
   document.getElementById('syncStatus').style.color='#4caf50';
 }
@@ -3662,6 +3828,7 @@ window.closeMobileSidebar=function(){
 };
 window.showPage=function(page,el){
   if(page==='comp'&&currentRole!=='admin')return; // Dev and Darleendy only
+  if(page==='backup'&&currentRole!=='admin'&&currentRole!=='ceo')return; // Dev and Darleendy run it; Cem can view the status
   closeMobileSidebar(); // so picking a page doesn't leave the drawer covering the content on mobile
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -3685,6 +3852,7 @@ window.showPage=function(page,el){
   }
   if(page==='portalaccess')renderPortalAccess();
   if(page==='comp')renderCompPage();
+  if(page==='backup')renderBackupPage();
   if(page==='policyimport')renderPolicyImportList();
   if(page==='leaveapprovals')renderHRReviewQueue();
   if(page==='orgchart')renderOrgChart();
