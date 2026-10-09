@@ -2305,7 +2305,7 @@ function botPolicyHtml(hits){
 // ── v4 shared helpers ────────────────────────────────────────────────────────
 function botSyn(raw){
   let q=botNorm(raw);
-  const R=[[/\bhead ?counts?\b/g,'headcount'],[/\b(how many|total|number of|no of|count of) (staff|employees|people|workers|manpower)\b/g,'headcount'],[/\bstaff count\b|\bemployee count\b|\bmanpower\b|\bstrength\b/g,'headcount'],
+  const R=[[/\bhead ?counts?\b/g,'headcount'],[/\b(how many|total|number of|no of|count of) (staff|employees|people|manpower)\b/g,'headcount'],[/\bstaff count\b|\bemployee count\b|\bmanpower\b|\bstrength\b/g,'headcount'],
    [/\bb ?days?\b|\bbirth ?days?\b/g,'birthday'],[/\bdate of birth\b/g,'dob'],
    [/\beosb\b|\bend of service\b|\bend service\b|\bgratuities\b|\bseverance\b/g,'gratuity'],
    [/\bctc\b|\bsalaries\b|\bpackage\b|\bwages?\b|\bpay\b|\bearning\b|\bearnings\b|\bearns?\b/g,'salary'],
@@ -2546,14 +2546,14 @@ const BOT_STOP=new Set(('the a an is are was were of to for my me i do does did 
  +'visa passport expiry expire expires expiring expired renew renewal emirates eid labour labor card document documents '
  +'manager line supervisor reports report reporting approver department dept designation position role title job grade nationality entity company status '
  +'mobile phone contact email number numbers on probation policy policies holiday holidays headcount total count strength pending approval approvals request requests '
- +'salary increment loan gratuity flight asset outstanding paid due overdue history record records latest recent summary payroll basic gross allowance allowances compoff comp hours amount monthly deduction deductions recovered repaid payment payments eosb everyone anyone anybody somebody working worked work still yet ever never also only just really very more less than then if so not no yes ok okay hello hi hey help announcement announcements notice notices news circular circulars hr rules rule guideline guidelines procedure process ticket tickets air airfare travel dress code uniform attendance hours timing timings overtime resignation maternity eligible eligibility allowed recent latest regarding related').split(' '));
+ +'salary increment loan gratuity flight asset outstanding paid due overdue history record records latest recent summary payroll basic gross allowance allowances compoff comp hours amount monthly deduction deductions recovered repaid payment payments eosb everyone anyone anybody somebody working worked work still yet ever never also only just really very more less than then if so not no yes ok okay hello hi hey help announcement announcements notice notices news circular circulars hr rules rule guideline guidelines procedure process ticket tickets air airfare travel dress code uniform attendance hours timing timings overtime resignation maternity eligible eligibility allowed recent latest regarding related white collar blue skilled semi unskilled workers worker labour labor trade trades unused cost costs expense expenses spend budget names show display giving').split(' '));
 function botAdminActive(){return Object.values(DB.employees||{}).filter(e=>e&&e.status!=='Inactive');}
 function botCount(arr,fn){const m={};arr.forEach(x=>{const k=fn(x)||'Not set';m[k]=(m[k]||0)+1;});return Object.entries(m).sort((a,b)=>b[1]-a[1]);}
 function botLev1(a,b){if(a===b)return true;if(Math.abs(a.length-b.length)>1)return false;let i=0,j=0,d=0;while(i<a.length&&j<b.length){if(a[i]===b[j]){i++;j++;continue;}if(++d>1)return false;if(a.length>b.length)i++;else if(a.length<b.length)j++;else{i++;j++;}}return d+(a.length-i)+(b.length-j)<=1;}
 function botFindEmps(q,dropToks){
   const byId=Object.entries(DB.employees||{}).filter(([k,e])=>e.empId&&botNorm(e.empId).length>=4&&(' '+q+' ').includes(' '+botNorm(e.empId)+' ')).map(([k,e])=>({k,e,sc:9}));
   if(byId.length===1)return{list:byId,toks:botNorm(byId[0].e.empId).split(' '),fuzzy:false};
-  const toks=q.split(' ').filter(w=>w.length>1&&!/^\d+$/.test(w)&&!BOT_STOP.has(w)&&!(dropToks&&dropToks.has(w)));
+  const toks=q.split(' ').filter(w=>w.length>1&&!/^\d+$/.test(w)&&!BOT_STOP.has(w)&&!(w.length>4&&w.endsWith('s')&&BOT_STOP.has(w.slice(0,-1)))&&!(dropToks&&dropToks.has(w)));
   if(!toks.length)return{list:[],toks:[],fuzzy:false};
   const run=fuzzy=>{
     const res=[];
@@ -2609,6 +2609,17 @@ function botPersonAnswer(q,found){
   const L=[];const add=t=>L.push('• '+t);
   const has=ws=>ws.some(w=>new RegExp('\\b'+w+'\\b').test(q));
   let topic=false;
+  const sched=/\bnext leave\b|\bleave schedule\b|\bupcoming leave\b|\bleave plan\b|\bleave dates\b|\bleave history\b|\bwhen\b.*\bleave\b|\bplanned leave\b|\bscheduled leave\b|\bnext vacation\b|\bwhen (is|does|will)\b.*\b(go|going|off|away)\b/.test(q);
+  if(sched){topic=true;
+    const lv=botLeavesOf(k,e).filter(l=>l.status==='Approved'&&l.to).sort((a,b)=>a.from>b.from?1:-1);
+    const cur=lv.filter(l=>l.from<=today&&l.to>=today),up=lv.filter(l=>l.from>today),past=lv.filter(l=>l.to<today).slice(-3).reverse();
+    cur.forEach(l=>add(`<b>On leave now:</b> ${esc(l.type||'Leave')}, until ${fmt(l.to)} — back on <b>${fmt(botNextDay(l.to))}</b>`));
+    if(up.length){add(`<b>Next leave: ${fmt(up[0].from)} to ${fmt(up[0].to)}</b> (${esc(up[0].type||'Leave')}, ${leaveDaysOf(up[0])} days) — back on ${fmt(botNextDay(up[0].to))}`);up.slice(1,5).forEach(l=>add(`Then: ${fmt(l.from)} to ${fmt(l.to)} (${esc(l.type||'Leave')}, ${leaveDaysOf(l)} days)`));}
+    else if(!cur.length)add('<b>No upcoming approved leave</b> is recorded');
+    const pend=Object.values(DB.leaveRequests||{}).filter(r=>r.empKey===k&&r.status!=='Approved'&&r.status!=='Rejected'&&r.status!=='Cancelled');
+    pend.forEach(r=>add(`Pending request: ${esc(r.leaveType||'')}, ${fmt(r.startDate)} to ${fmt(r.endDate)} <i>(${esc(r.stage||r.status||'')})</i>`));
+    if(past.length)add('Recent leave: '+past.map(l=>`${fmt(l.from)}–${fmt(l.to)} ${esc(l.type||'')}`).join(' · '));
+  }
   if(has(['salary'])){topic=true;
     if(!botCanSeeMoney())add('Salary details are not available to your role.');
     else{
@@ -2644,11 +2655,11 @@ function botPersonAnswer(q,found){
   if(has(['asset'])){topic=true;const a=botAssetsOf(e);
     if(!a.length)add('No company assets recorded');else a.slice(0,8).forEach(x=>add(`${esc(x.item||'')} <small>(${esc(x.category||'')})</small> — ${esc(x.status||'')}${x.issueDate?', issued '+fmt(x.issueDate):''}${x.returnDate?', returned '+fmt(x.returnDate):''}`));}
   if(has(['compoff'])){topic=true;try{const t=compTotals(compEntriesFor(k));add(`Compensatory leave: balance <b>${fmtCompHours(t.bal)}</b> (earned ${fmtCompHours(t.earned)}, taken ${fmtCompHours(t.taken)})`);}catch(x){add('No compensatory leave recorded');}}
-  if((has(['leave','leaves','balance'])||/\bleave bal/.test(q))&&!has(['on leave'])&&!has(['request','requests'])){topic=true;
+  if(!sched&&(has(['leave','leaves','balance'])||/\bleave bal/.test(q))&&!has(['on leave'])&&!has(['request','requests'])){topic=true;
     const b=e.annualLeaveBalance;
     add(b!=null&&b!==''?`Annual leave balance: <b>${esc(b)} days</b>`+(e.annualLeaveEnt?` (entitlement ${esc(e.annualLeaveEnt)})`:''):'Annual leave balance: <b>not recorded</b>');
     const yr=String(new Date().getFullYear());const by={};
-    Object.values(DB.leave||{}).forEach(l=>{if(l.status==='Approved'&&normName(l.empName)===nm&&String(l.from||'').startsWith(yr)){const t=l.type||'Other';by[t]=(by[t]||0)+leaveDaysOf(l);}});
+    botLeavesOf(k,e).forEach(l=>{if(l.status==='Approved'&&String(l.from||'').startsWith(yr)){const t=l.type||'Other';by[t]=(by[t]||0)+leaveDaysOf(l);}});
     const bt=Object.entries(by);
     add(bt.length?`Approved leave taken in ${yr}: `+bt.map(([t,d])=>esc(t)+' '+d+'d').join(', '):`No approved leave recorded in ${yr}`);}
   if(has(['request','requests'])){topic=true;const rs=Object.values(DB.leaveRequests||{}).filter(r=>r.empKey===k).sort((a,b)=>(b.submittedAt||0)-(a.submittedAt||0)).slice(0,3);
@@ -2664,7 +2675,7 @@ function botPersonAnswer(q,found){
   else if(has(['expiry','expire','expires','expiring','document','documents','renew'])){topic=true;[['Passport','passExp'],['Visa','visaExp'],['Emirates ID','eidExp'],['Labour Card','labExp']].forEach(([l,f])=>add(fmtDoc(l,f)));}
   if(has(['manager','supervisor','approver','reporting'])||/\breports? to\b/.test(q)){topic=true;add(e.lineManagerName?`Line manager: <b>${esc(e.lineManagerName)}</b>`+(e.needsAdditionalApproval&&e.additionalApproverName?` · final approver <b>${esc(e.additionalApproverName)}</b>`:''):'Line manager: <b>not recorded</b>');}
   if(has(['joined','join','joining','doj','service','tenure','anniversary'])||/\bhow long\b/.test(q)){topic=true;if(e.join){const y=((new Date()-new Date(e.join))/(365.25*864e5));add(`Joined: <b>${fmt(e.join)}</b> (${y.toFixed(1)} years of service)`);}else add('Joining date: <b>not recorded</b>');}
-  if(/\bon leave\b|\baway\b|\boff today\b|\bleave today\b|\breturn\b|\bback\b/.test(q)){topic=true;const lv=Object.values(DB.leave||{}).filter(l=>l.status==='Approved'&&normName(l.empName)===nm);const cur=lv.find(l=>l.from<=today&&l.to>=today);const nxt=lv.filter(l=>l.from>today).sort((a,b)=>a.from>b.from?1:-1)[0];
+  if(!sched&&/\bon leave\b|\baway\b|\boff today\b|\bleave today\b|\breturn\b|\bback\b/.test(q)){topic=true;const lv=botLeavesOf(k,e).filter(l=>l.status==='Approved');const cur=lv.find(l=>l.from<=today&&l.to>=today);const nxt=lv.filter(l=>l.from>today).sort((a,b)=>a.from>b.from?1:-1)[0];
     add(cur?`On <b>${esc(cur.type||'leave')}</b> now — ends ${fmt(cur.to)}, back on <b>${fmt(botNextDay(cur.to))}</b>`:'Not on leave today');if(nxt)add(`Next leave: ${esc(nxt.type||'')} ${fmt(nxt.from)} to ${fmt(nxt.to)}`);}
   if(has(['designation','position','role','title','job'])){topic=true;add(`Designation: <b>${esc(e.desig||'not recorded')}</b>`);}
   if(has(['department','dept'])){topic=true;add(`Department: <b>${esc(e.dept||'not recorded')}</b>`);}
@@ -2675,6 +2686,42 @@ function botPersonAnswer(q,found){
   if(has(['mobile','phone','contact','email','call'])){topic=true;if(e.mobile)add('Mobile: <b>'+esc(e.mobile)+'</b>');if(e.email)add('Email: <b>'+esc(e.email)+'</b>');if(!e.mobile&&!e.email)add('No contact details recorded');}
   if(!topic)return botEmpCard(e,k);
   return head+'<br>'+L.join('<br>');
+}
+const BOT_GENERIC_DEPT=new Set(['department','dept','services','service','and','the','of','management','general','team','group','division','section','office','company']);
+function botDeptsOf(q){
+  const names=[...new Set(Object.values(DB.employees||{}).map(e=>e.dept).filter(Boolean))];
+  const full=names.filter(d=>{const n=botNorm(d);return n.length>=3&&(' '+q+' ').includes(' '+n+' ');});
+  if(full.length)return full;
+  const qt=new Set(q.split(' '));
+  const part=names.filter(d=>botNorm(d).split(' ').some(w=>w.length>=4&&!BOT_GENERIC_DEPT.has(w)&&(qt.has(w)||qt.has(w+'s'))));
+  if(part.length)return part;
+  if(qt.has('hr'))return names.filter(d=>/human resource|^hr$|\bhr\b/i.test(d));
+  return [];
+}
+function botRosterFilters(q){
+  const f={};
+  if(/\bwhite collar\b|\boffice staff\b/.test(q))f.grade='White Collar';
+  else if(/\blabou?rs?\b|\bblue collar\b|\bworkers?\b|\bsite staff\b/.test(q))f.grade='Labour';
+  if(/\bsemi ?skilled\b/.test(q))f.skill='Semi-Skilled';else if(/\bunskilled\b/.test(q))f.skill='Unskilled';else if(/\bskilled\b/.test(q))f.skill='Skilled';
+  const trades=[...new Set(Object.values(DB.employees||{}).filter(e=>wfGradeOf(e)==='Labour').map(e=>wfTradeOf(e)))].filter(t=>t!=='Other labour');
+  const toks=q.split(' ').map(w=>w.length>4&&w.endsWith('s')?w.slice(0,-1):w);
+  for(const t of trades){const kws=botNorm(t).split(' ').filter(w=>w.length>=5&&!['other','labour','chargehand'].includes(w)||w==='chargehand'||w==='ductman');if(kws.some(k=>toks.includes(k))){f.trade=t;if(!f.grade)f.grade='Labour';break;}}
+  const nats=[...new Set(Object.values(DB.employees||{}).map(e=>botNorm(e.nationality||'')).filter(n=>n.length>=4&&!/emirati|uae|united arab/.test(n)))];
+  const nat=nats.find(n=>(' '+q+' ').includes(' '+n+' '));if(nat)f.nat=nat;
+  if(/\buae nationals?\b|\bemiratis?\b/.test(q))f.uae=true;
+  return f;
+}
+function botRosterOK(f,deptList,ent){
+  return e=>(!deptList.length||deptList.includes(e.dept))&&(!ent||e.entity===ent)
+    &&(!f.grade||wfGradeOf(e)===f.grade)
+    &&(!f.skill||(wfGradeOf(e)==='Labour'&&e.skillLevel===f.skill))
+    &&(!f.trade||(wfGradeOf(e)==='Labour'&&wfTradeOf(e)===f.trade))
+    &&(!f.nat||botNorm(e.nationality||'')===f.nat)
+    &&(!f.uae||isUAENational(e));
+}
+function botLeavesOf(k,e){
+  const idx=buildNameIndex();const toks=normName(e.name).split(' ').filter(Boolean);
+  return Object.values(DB.leave||{}).filter(l=>{const n=normName(l.empName);if(!toks.some(t=>n.includes(t)))return false;const m=matchEmpByName(l.empName,idx);return m&&m.key===k;});
 }
 function botAdminAnswer(raw){
   const q=botSyn(raw);
@@ -2688,17 +2735,68 @@ function botAdminAnswer(raw){
   if(/\b(announcement|announcements|notice|notices|news|circular|circulars)\b/.test(q))return botAnnouncements(true);
   if(/\bpolicies\b/.test(botNorm(raw))&&/\b(what|which|list|all|available|show|have)\b/.test(botNorm(raw))&&!/\b(for|on|about|regarding)\b/.test(botNorm(raw)))return botPolicyList();
   if(/\b(holiday|holidays)\b/.test(q)&&/\b(all|list|full|this year|year|calendar|upcoming|every)\b/.test(q))return botHolidayList();
-  const dept=botDeptOf(q),ent=botEntOf(q);
+  const deptList=botDeptsOf(q),dept=deptList.join(' / '),ent=botEntOf(q);
+  const rf=botRosterFilters(q);
+  const rfOn=!!(rf.grade||rf.skill||rf.trade||rf.nat||rf.uae);
   const dropT=new Set();[dept,ent].forEach(x=>botNorm(x).split(' ').forEach(t=>dropT.add(t)));
   const f=botFindEmps(q,dropT);
   const hasPerson=f.list.length>0;
   if(!hasPerson&&botPolicyIntent(raw)){const pa=botPolicyAnswer(raw,true);if(pa)return pa;}
   const poolAll=botAdminActive();
-  const pool=poolAll.filter(e=>(!dept||e.dept===dept)&&(!ent||e.entity===ent));
+  const pool=poolAll.filter(e=>(!deptList.length||deptList.includes(e.dept))&&(!ent||e.entity===ent));
   const scope=(dept||ent)?` in ${esc([dept,ent].filter(Boolean).join(' / '))}`:'';
   const nmIdx=Object.values(DB.employees||{}).reduce((m,e)=>{m[normName(e.name)]=e;return m;},{});
-  const inScope=name=>{const e=nmIdx[normName(name)];return !(dept||ent)||(e&&(!dept||e.dept===dept)&&(!ent||e.entity===ent));};
-  if(/\bheadcount\b|\buae nationals?\b|\bemiratis?\b/.test(q)&&(!hasPerson||dept||ent||/\bheadcount\b/.test(q))){
+  const inScope=name=>{const e=nmIdx[normName(name)];return !(dept||ent)||(e&&(!deptList.length||deptList.includes(e.dept))&&(!ent||e.entity===ent));};
+  // ---- unused leave balance (company level) ----
+  if(!hasPerson&&/\b(unused|remaining|left|balance|balances|pending)\b/.test(q)&&/\bleaves?\b/.test(q)&&(/\bunused\b/.test(q)||/\b(how many|who|list|people|staff|employees|everyone|anyone|total|highest|most|lowest|least|more than|less than|above|below|over|under|average|headcount)\b/.test(q))&&!/\bon leave\b|\brequests?\b/.test(q)){
+    const ok=botRosterOK(rf,deptList,ent);
+    const rows=poolAll.filter(ok).map(e=>({e,b:parseFloat(e.annualLeaveBalance)})).filter(r=>!isNaN(r.b));
+    const noRec=poolAll.filter(ok).length-rows.length;
+    const mt=q.match(/(more than|above|over|greater than|at least)\s+(\d+)/),lt=q.match(/(less than|below|under|fewer than|at most)\s+(\d+)/);
+    let sel=rows.filter(r=>r.b>0);let cond='any unused annual leave';
+    if(mt){sel=rows.filter(r=>r.b>+mt[2]);cond='more than '+mt[2]+' days';}
+    else if(lt){sel=rows.filter(r=>r.b<+lt[2]);cond='less than '+lt[2]+' days';}
+    sel.sort((a,b)=>/lowest|least/.test(q)?a.b-b.b:b.b-a.b);
+    const tot=sel.reduce((s,r)=>s+r.b,0);
+    const sc=(dept||ent||rf.grade)?' in '+esc([dept,ent,rf.grade].filter(Boolean).join(' / ')):'';
+    return`<b>${sel.length}</b> of ${rows.length} staff${sc} have ${cond} (total ${Math.round(tot*10)/10} days, average ${sel.length?(Math.round(tot/sel.length*10)/10):0}).<br>`+list(sel.slice(0,10).map(r=>`${esc(r.e.name)} — <b>${r.b}</b> days <small>${esc(r.e.dept||'')}</small>`))+more(sel,10)+(noRec?`<br><small>${noRec} staff have no leave balance recorded, so they are not counted.</small>`:'')+'<br><small>Annual leave balance as recorded in Employee Records.</small>';
+  }
+  // ---- cost of a department / company / group ----
+  if(!hasPerson&&/\b(cost|costs|expense|expenses|spend|budget)\b/.test(q)){
+    if(!botCanSeeMoney())return'Cost details are not available to your role.';
+    const ok=botRosterOK(rf,deptList,ent);const rows=poolAll.filter(ok);
+    const g=e=>botN(e.grossSalary||e.gross),b=e=>botN(e.basicSalary);
+    const sum=(a,fn)=>a.reduce((s,e)=>s+fn(e),0);const tot=sum(rows,g),withG=rows.filter(e=>g(e)>0).length;
+    const sc=(dept||ent||rfOn)?' for '+esc([dept,ent,rf.grade,rf.trade,rf.skill,rf.nat,rf.uae?'UAE Nationals':''].filter(Boolean).join(' / ')):' (whole company)';
+    if(!rows.length)return'No active staff match that.';
+    const L=[`Monthly gross salary cost${sc}: <b>${botMoney(tot)}</b> for ${rows.length} active staff`,`Yearly (x12): <b>${botMoney(tot*12)}</b>`,`Monthly basic: ${botMoney(sum(rows,b))} · average gross per person: ${botMoney(withG?tot/withG:0)}`];
+    if(!rf.grade)L.push('By category: '+botCount(rows,e=>wfGradeOf(e)).map(([k])=>`${esc(k)} ${botMoney(sum(rows.filter(e=>wfGradeOf(e)===k),g))}`).join(' · '));
+    if(!deptList.length)L.push('Highest departments: '+botCount(rows,e=>e.dept).map(([k])=>[k,sum(rows.filter(e=>(e.dept||'Not set')===k),g)]).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>`${esc(k)} ${botMoney(v)}`).join(' · '));
+    return list(L)+(withG<rows.length?`<br><small>${rows.length-withG} staff have no gross salary recorded, so they are not in the total.</small>`:'')+'<br><small>Salary cost only (gross as recorded). It does not include gratuity, flight allowance, medical insurance, visa or other overheads.</small>';
+  }
+  // ---- list / count of staff by department, category, trade, skill, nationality, designation ----
+  const listIntent=/\b(names?|list|who|which|show|give|display|details|tell|all)\b/.test(q)||/\bhow many\b/.test(q)||/^(white collar|labou?r|blue collar)/.test(q);
+  let desigTok=null;
+  if(!hasPerson&&listIntent&&!rfOn&&!deptList.length&&!ent){
+    const noD=new Set(['name','names','staff','list','show','give','details','detail','leave','balance','status','grade','entity','company','department','people','employee','employees','officer']);
+    const dw=new Set();poolAll.forEach(e=>String(e.desig||'').toLowerCase().replace(/[^a-z ]/g,' ').split(' ').forEach(w=>{if(w.length>=4&&!noD.has(w))dw.add(w);}));
+    desigTok=q.split(' ').map(w=>w.length>4&&w.endsWith('s')?w.slice(0,-1):w).find(w=>w.length>=4&&dw.has(w)&&!dropT.has(w))||null;
+  }
+  if(!hasPerson&&listIntent&&(rfOn||deptList.length||desigTok)&&!/\bheadcount\b/.test(q)){
+    const ok=botRosterOK(rf,deptList,ent);
+    const rows=poolAll.filter(e=>ok(e)&&(!desigTok||String(e.desig||'').toLowerCase().includes(desigTok))).sort((a,b)=>String(a.dept||'').localeCompare(String(b.dept||''))||String(a.name||'').localeCompare(String(b.name||'')));
+    const what=[rf.grade,rf.skill,rf.trade,rf.nat,rf.uae?'UAE National':'',desigTok?desigTok+'s':''].filter(Boolean).join(' · ')||'staff';
+    const place=[dept,ent].filter(Boolean).join(' / ');
+    if(!rows.length)return`No active staff found for <b>${esc(what)}</b>${place?' in '+esc(place):''}.`;
+    const showTrade=rf.grade==='Labour'||/\b(trade|trades|skill|skills)\b/.test(q);
+    const lines=rows.slice(0,30).map(e=>{const lab=wfGradeOf(e)==='Labour';const bits=[esc(e.desig||'—')];if(showTrade&&lab){bits.push(esc(wfTradeOf(e)));bits.push(esc(e.skillLevel||'skill not set'));}if(deptList.length!==1)bits.push('<small>'+esc(e.dept||'')+'</small>');return`${esc(e.name)} — ${bits.join(' · ')}`;});
+    let sm='';
+    if(rows.length>8){const lab=rows.filter(e=>wfGradeOf(e)==='Labour');
+      if(!rf.grade)sm+='<br>'+botCount(rows,e=>wfGradeOf(e)).map(([k,v])=>esc(k)+' '+v).join(' · ');
+      if(lab.length>3&&!rf.trade)sm+='<br>By trade: '+botCount(lab,e=>wfTradeOf(e)).slice(0,6).map(([k,v])=>esc(k)+' '+v).join(' · ');}
+    return`<b>${rows.length}</b> ${esc(what)}${place?' in '+esc(place):''}${sm}<br>`+list(lines)+(rows.length>30?`<br><small>…and ${rows.length-30} more. Ask for a trade or category to narrow it, or open the Workforce Summary.</small><br><button class="hb-go" onclick="showPage('workforce')">Open Workforce Summary</button>`:'');
+  }
+  if(/\bheadcount\b|\buae nationals?\b|\bemiratis?\b/.test(q)&&(!hasPerson||dept||ent||/\bheadcount\b/.test(q))&&!(rf.grade||rf.skill||rf.trade||rf.nat)){
     const uae=pool.filter(isUAENational).length;
     if(/uae|emirati|national/.test(q))return`UAE Nationals${scope} (active): <b>${uae}</b> of ${pool.length}.`;
     const lv=Object.values(DB.leavers||{}).length,ina=Object.values(DB.employees||{}).length-poolAll.length;
