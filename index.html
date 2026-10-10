@@ -425,9 +425,11 @@ tr:hover td{background:#fafbfc;}
       <div class="nav-item" onclick="showPage('employees',this)"><span class="icon">👥</span>Employee Records</div>
       <div class="nav-item" onclick="showPage('uaenationals',this)"><span class="icon">🇦🇪</span>UAE Nationals</div>
       <div class="nav-item" id="navWorkforce" onclick="showPage('workforce',this)"><span class="icon">📈</span>Workforce Summary</div>
+      <div class="nav-item" id="navHeadcount" onclick="showPage('headcount',this)"><span class="icon">🕰️</span>Headcount History</div>
       <div class="nav-item" onclick="showPage('leave',this)"><span class="icon">📅</span>Leave Register</div>
       <div class="nav-item" id="navComp" onclick="showPage('comp',this)"><span class="icon">⏱️</span>Compensatory Leave</div>
       <div class="nav-item" onclick="showPage('salary',this)"><span class="icon">💰</span>Salary &amp; Promotions</div>
+      <div class="nav-item" id="navSimulator" onclick="showPage('simulator',this)"><span class="icon">🧮</span>Cost Simulator</div>
       <div class="nav-section">Finance</div>
       <div class="nav-item" onclick="showPage('loans',this)"><span class="icon">🏦</span>Employee Loans</div>
       <div class="nav-section">Assets</div>
@@ -463,6 +465,7 @@ tr:hover td{background:#fafbfc;}
         <div class="page-header"><h2>Dashboard</h2><p id="dashDate"></p></div>
         <div id="dashFestive"></div>
         <div id="backupBanner"></div>
+        <div id="greetCard" style="display:none;"></div>
         <div class="stats-row">
           <div class="stat-card"><div class="stat-num" id="s-emp">—</div><div class="stat-label">Total Employees</div></div>
           <div class="stat-card gold"><div class="stat-num" id="s-leave">—</div><div class="stat-label">On Leave Today</div></div>
@@ -616,6 +619,41 @@ tr:hover td{background:#fafbfc;}
             <tbody id="leaveBody"></tbody></table>
           </div>
         </div>
+      </div>
+
+      <!-- HEADCOUNT HISTORY (Dev and Darleendy only) -->
+      <div id="page-headcount" class="page">
+        <div class="page-header"><h2>Headcount History</h2><p>How many people you had on any past date, and how it changed month by month. Based on the joining dates and exit dates in Employee Records and Leavers.</p></div>
+        <div class="card" style="margin-bottom:14px;">
+          <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;">
+            <div class="form-group"><label>Headcount as at (end of this day)</label><input type="date" id="hhDate" onchange="renderHeadcountHistory()"></div>
+            <div class="form-group"><label>Company</label><select id="hhEntity" onchange="renderHeadcountHistory()"></select></div>
+            <button class="btn btn-gold" onclick="downloadHeadcountCSV()">⬇ Download monthly table (CSV)</button>
+          </div>
+          <div id="hhSnapshot" style="margin-top:16px;"></div>
+        </div>
+        <div class="card" style="margin-bottom:14px;"><h3 style="margin:0 0 10px;font-size:15px;">Last 24 months</h3><div id="hhTrend" style="overflow-x:auto;"></div></div>
+        <div class="card"><div id="hhNotes" style="font-size:12.5px;color:#666;line-height:1.65;"></div></div>
+      </div>
+
+      <!-- COST SIMULATOR (Dev and Darleendy only) -->
+      <div id="page-simulator" class="page">
+        <div class="page-header"><h2>Cost Simulator</h2><p>Test an increment before you propose it. This only calculates. Nothing is changed or saved anywhere.</p></div>
+        <div class="card" style="margin-bottom:14px;">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;max-width:900px;">
+            <div class="form-group"><label>Company</label><select id="smEntity" onchange="runSimulator()"></select></div>
+            <div class="form-group"><label>Department</label><select id="smDept" onchange="runSimulator()"></select></div>
+            <div class="form-group"><label>Grade</label><select id="smGrade" onchange="runSimulator()"><option value="">All grades</option><option>White Collar</option><option>Labour</option></select></div>
+            <div class="form-group"><label>Designation contains</label><input type="text" id="smDesig" placeholder="e.g. carpenter" oninput="runSimulator()"></div>
+            <div class="form-group"><label>Increase type</label><select id="smMode" onchange="runSimulator()"><option value="basicPct">% of basic salary</option><option value="grossPct">% of gross (total) salary</option><option value="fixed">Fixed AED per month</option></select></div>
+            <div class="form-group"><label id="smValLabel">Increase (%)</label><input type="number" id="smVal" min="0" step="0.5" value="5" oninput="runSimulator()"></div>
+            <div class="form-group"><label>Months it applies this year</label><input type="number" id="smMonths" min="1" max="12" value="12" oninput="runSimulator()"></div>
+            <div class="form-group" id="smBasicWrap" style="justify-content:flex-end;"><label style="display:flex;gap:8px;align-items:center;font-weight:500;"><input type="checkbox" id="smAlsoBasic" onchange="runSimulator()"> Fixed amount also raises basic salary</label></div>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:14px;"><div id="smResult"></div></div>
+        <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;"><h3 style="margin:0;font-size:15px;">Person by person</h3><button class="btn btn-gold" onclick="downloadSimulatorCSV()">⬇ Download (CSV)</button></div><div id="smTable" style="overflow-x:auto;"></div>
+          <p style="font-size:12px;color:#777;margin:10px 0 0;line-height:1.6;">How it is worked out: salary figures come from Employee Records. Staff with no gross salary recorded are left out of the totals. For "% of gross", basic salary is assumed to rise by the same percentage. Gratuity uses the portal's standard gratuity formula (basic salary, UAE nationals excluded) and shows the extra amount if everyone affected left today. For UAE nationals the extra is the employer pension contribution on the higher basic salary, per year. This is an estimate for planning, not a payroll figure.</p></div>
       </div>
 
       <!-- DATA BACKUP (Dev and Darleendy only) -->
@@ -1986,6 +2024,7 @@ window.forgotPassword=async function(){
 window.doLogout=function(){
   _staffUnsubs.forEach(f=>{try{f();}catch(e){}});_staffUnsubs=[];
   currentAdmin='';currentRole='';currentEmpKey='';adminName='';adminTitle='';adminSignName='';
+  try{_greeted=false;try{window.speechSynthesis&&window.speechSynthesis.cancel();}catch(e2){}const gc=document.getElementById('greetCard');if(gc){gc.style.display='none';gc.innerHTML='';}}catch(e){}
   try{_backupLast=null;_bkUnlocked=null;const bb=document.getElementById('backupBanner');if(bb)bb.innerHTML='';}catch(e){}
   document.getElementById('app').style.display='none';
   document.getElementById('employeePortal').style.display='none';
@@ -2277,7 +2316,7 @@ function applyCEOMode(){
   // Employee Portal Access (credential management), which stays admin-only
   // regardless of role, per explicit instruction.
   const style=document.createElement('style');
-  style.textContent=`#bkTake, #bkCheck, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #backupBanner, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }`;
+  style.textContent=`#navHeadcount, #navSimulator, #page-headcount, #page-simulator, #greetCard, #bkTake, #bkCheck, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #backupBanner, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }`;
   document.head.appendChild(style);
   document.getElementById('syncStatus').textContent='● CEO — Full View, Read-Only';
 }
@@ -3213,7 +3252,7 @@ window.renderHRReviewQueue=function(){
     return`<tr style="${escalated?'background:#fdecea;':''}">
       <td><strong>${esc(r.empName)}</strong></td>
       <td>${esc(r.leaveType)}</td>
-      <td>${fmt(r.startDate)} – ${fmt(r.endDate)}</td>
+      <td>${fmt(r.startDate)} – ${fmt(r.endDate)}${currentRole==='admin'?leaveCoverHtml(k,r):''}</td>
       <td>${reqDays(r)}${reqDays(r)!==r.totalDays?'<br><span style="color:#c0392b;font-size:10px;font-weight:700;">⚠ staff entered '+esc(r.totalDays)+'</span>':''}</td>
       <td style="font-size:11px;max-width:180px;">${esc(r.reason||'—')}${r.attachmentName?'<br>📎 '+esc(r.attachmentName):''}
         ${r.nativeAddress?'<br><strong>Address:</strong> '+esc(r.nativeAddress):''}
@@ -3553,7 +3592,7 @@ function applyPROMode(){
   style.textContent=`
     .nav-item[onclick*="'loans'"] { display: none !important; }
     .nav-item[onclick*="'settlement'"] { display: none !important; }
-    #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #navBackup, #backupBanner, #page-backup, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }
+    #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #navBackup, #backupBanner, #page-backup, #navHeadcount, #navSimulator, #page-headcount, #page-simulator, #greetCard, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }
     button[onclick*="openEmpModal"], button[onclick="delEmp"], button[onclick*="delEmp("] { display: none !important; }
   `;
   document.head.appendChild(style);
@@ -3752,6 +3791,286 @@ window.saveUnlockedBackup=function(){
   bkDownload(_bkUnlockedName,JSON.stringify(_bkUnlocked));
 };
 
+// ── LEAVE COVER CHECK (shown to Dev and Darleendy when reviewing a leave request) ──────────
+// Who else in the same department is already off on these dates. Reads only data the portal already holds.
+function leaveCoverInfo(reqKey,r){
+  const emp=DB.employees&&DB.employees[r.empKey];
+  if(!emp||!emp.dept)return null;
+  const dept=emp.dept;
+  const active=Object.entries(DB.employees||{}).filter(([k,e])=>e.status!=='Inactive'&&e.dept===dept);
+  const total=active.length;
+  const idx=buildNameIndex();
+  const start=r.startDate,end=r.endDate;
+  if(!start||!end||end<start)return {dept,total,others:[],peak:1,bad:true};
+  const others=[]; // {key,name,from,to}
+  const seen=new Set();
+  Object.values(DB.leave||{}).forEach(l=>{
+    if(l.status!=='Approved'||!l.from||!l.to||l.to<start||l.from>end)return;
+    const m=matchEmpByName(l.empName,idx);
+    if(!m||m.key===r.empKey||m.e.dept!==dept||m.e.status==='Inactive')return;
+    others.push({key:m.key,name:m.e.name,from:l.from,to:l.to});
+  });
+  Object.entries(DB.leaveRequests||{}).forEach(([k,q])=>{
+    if(k===reqKey||q.stage==='Completed'||q.status==='Rejected'||q.status==='Cancelled')return;
+    if(!q.startDate||!q.endDate||q.endDate<start||q.startDate>end)return;
+    const e2=DB.employees&&DB.employees[q.empKey];
+    if(!e2||q.empKey===r.empKey||e2.dept!==dept||e2.status==='Inactive')return;
+    others.push({key:q.empKey,name:e2.name,from:q.startDate,to:q.endDate,pending:true});
+  });
+  // busiest single day inside the requested dates (people off that day, including this request)
+  let peak=1;const d0=new Date(start+'T00:00:00Z'),d1=new Date(end+'T00:00:00Z');
+  const days=Math.min(366,Math.round((d1-d0)/86400000)+1);
+  for(let i=0;i<days;i++){
+    const ds=new Date(d0.getTime()+i*86400000).toISOString().slice(0,10);
+    const off=new Set(others.filter(o=>o.from<=ds&&o.to>=ds).map(o=>o.key));
+    if(off.size+1>peak)peak=off.size+1;
+  }
+  return {dept,total,others,peak,bad:false};
+}
+function leaveCoverHtml(reqKey,r){
+  let c;try{c=leaveCoverInfo(reqKey,r);}catch(e){return '';}
+  if(!c)return '<div style="font-size:11px;color:#888;margin-top:5px;">Cover check: no department on this employee\'s record.</div>';
+  if(c.bad)return '';
+  const left=c.total-c.peak;
+  const ratio=c.total?c.peak/c.total:1;
+  let col='#1A7A6E',bg='#e8f5e9',msg;
+  if(c.total<=1){col='#a02020';bg='#fce4e4';msg='Only person in '+esc(c.dept)+', nobody to cover.';}
+  else if(left<=0){col='#a02020';bg='#fce4e4';msg='Everyone in '+esc(c.dept)+' ('+c.total+') would be off on the busiest day.';}
+  else if(c.total===2){col='#7a5a00';bg='#fff4dc';msg='Busiest day: '+c.peak+' of '+c.total+' off in '+esc(c.dept)+', 1 left.';}
+  else if(left===1||ratio>=0.5){col='#a02020';bg='#fce4e4';msg='Busiest day: '+c.peak+' of '+c.total+' off in '+esc(c.dept)+', only '+left+' left.';}
+  else if(ratio>=0.34){col='#7a5a00';bg='#fff4dc';msg='Busiest day: '+c.peak+' of '+c.total+' off in '+esc(c.dept)+', '+left+' left.';}
+  else{msg='Cover is fine: busiest day '+c.peak+' of '+c.total+' off in '+esc(c.dept)+'.';}
+  const lst=c.others.slice(0,4).map(o=>esc(o.name)+' ('+fmt(o.from)+(o.to!==o.from?' – '+fmt(o.to):'')+(o.pending?', not yet approved':'')+')').join('; ');
+  return '<div style="font-size:11px;margin-top:6px;padding:5px 8px;border-radius:6px;background:'+bg+';color:'+col+';max-width:230px;line-height:1.5;">👥 '+msg+(lst?'<br><span style="color:#555;">Also off: '+lst+(c.others.length>4?' and '+(c.others.length-4)+' more':'')+'</span>':'')+'</div>';
+}
+
+// ── HEADCOUNT HISTORY (Dev and Darleendy only) ───────────────────────────────────────────
+function hhIsDate(s){return typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s);}
+function hhPeople(){
+  const people=[],noJoin=[],noExit=[];
+  const emps=DB.employees||{};
+  const leaverByKey={};
+  Object.values(DB.leavers||{}).forEach(l=>{if(l.sourceEmpKey)leaverByKey[l.sourceEmpKey]=l;});
+  const empIds=new Set(Object.values(emps).map(e=>String(e.empId||'').trim()).filter(Boolean));
+  Object.entries(emps).forEach(([k,e])=>{
+    const join=hhIsDate(e.join)?e.join:null;
+    let exit=null;
+    if(e.status==='Inactive'){
+      exit=hhIsDate(e.exitDate)?e.exitDate:(leaverByKey[k]&&hhIsDate(leaverByKey[k].endDate)?leaverByKey[k].endDate:null);
+      if(!exit){noExit.push(e.name||k);return;}
+    }
+    if(!join){noJoin.push(e.name||k);return;}
+    people.push({name:e.name,dept:e.dept||'No department',entity:e.entity||'Not set',join,exit});
+  });
+  // leavers added by hand that are not linked to an employee record
+  Object.values(DB.leavers||{}).forEach(l=>{
+    if(l.sourceEmpKey&&emps[l.sourceEmpKey])return;
+    if(l.empId&&empIds.has(String(l.empId).trim()))return;
+    const join=hhIsDate(l.joinDate)?l.joinDate:null,exit=hhIsDate(l.endDate)?l.endDate:null;
+    if(!join||!exit){(join?noExit:noJoin).push((l.name||'A leaver')+' (Leavers)');return;}
+    people.push({name:l.name,dept:l.dept||'No department',entity:l.entity||'Not set',join,exit});
+  });
+  return {people,noJoin,noExit};
+}
+function hhCountAt(people,ds){return people.filter(p=>p.join<=ds&&(!p.exit||p.exit>ds));}
+function hhMonthEnds(n){
+  const out=[],now=new Date();
+  for(let i=n-1;i>=0;i--){
+    const y=now.getFullYear(),m=now.getMonth()-i;
+    const first=new Date(Date.UTC(y,m,1)),last=new Date(Date.UTC(y,m+1,0));
+    out.push({label:first.toLocaleDateString('en-GB',{month:'short',year:'numeric',timeZone:'UTC'}),start:first.toISOString().slice(0,10),end:last.toISOString().slice(0,10)});
+  }
+  return out;
+}
+let _hhRows=[];
+window.initHeadcountPage=function(){
+  const d=document.getElementById('hhDate');if(d&&!d.value)d.value=new Date().toISOString().slice(0,10);
+  const ents=[...new Set(Object.values(DB.employees||{}).map(e=>e.entity).filter(Boolean))].sort();
+  const sel=document.getElementById('hhEntity');
+  if(sel){const cur=sel.value;sel.innerHTML='<option value="">Both companies</option>'+ents.map(e=>'<option>'+esc(e)+'</option>').join('');sel.value=ents.includes(cur)?cur:'';}
+  renderHeadcountHistory();
+};
+window.renderHeadcountHistory=function(){
+  if(currentRole!=='admin')return;
+  const snap=document.getElementById('hhSnapshot');if(!snap)return;
+  const {people,noJoin,noExit}=hhPeople();
+  const ent=document.getElementById('hhEntity').value;
+  const pool=ent?people.filter(p=>p.entity===ent):people;
+  const ds=document.getElementById('hhDate').value||new Date().toISOString().slice(0,10);
+  const todayS=new Date().toISOString().slice(0,10);
+  const at=hhCountAt(pool,ds),now=hhCountAt(pool,todayS);
+  const byDept={};at.forEach(p=>{byDept[p.dept]=(byDept[p.dept]||0)+1;});
+  const byEnt={};hhCountAt(people,ds).forEach(p=>{byEnt[p.entity]=(byEnt[p.entity]||0)+1;});
+  const diff=now.length-at.length;
+  snap.innerHTML='<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;">'
+    +'<div class="stat-card" style="min-width:170px;"><div class="stat-num">'+at.length+'</div><div class="stat-label">People at end of '+esc(fmt(ds))+(ent?' ('+esc(ent)+')':'')+'</div></div>'
+    +'<div class="stat-card gold" style="min-width:170px;"><div class="stat-num">'+now.length+'</div><div class="stat-label">People today</div></div>'
+    +'<div class="stat-card '+(diff<0?'red':'green')+'" style="min-width:170px;"><div class="stat-num">'+(diff>0?'+':'')+diff+'</div><div class="stat-label">Change since that date</div></div></div>'
+    +(ent?'':'<div style="font-size:13px;margin-bottom:10px;">'+Object.entries(byEnt).map(([k,v])=>'<b>'+esc(k)+':</b> '+v).join(' &nbsp;·&nbsp; ')+'</div>')
+    +'<table style="font-size:13px;border-collapse:collapse;min-width:260px;"><thead><tr><th style="text-align:left;padding:4px 24px 4px 0;">Department</th><th style="text-align:right;padding:4px 0;">People</th></tr></thead><tbody>'
+    +Object.entries(byDept).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).map(([k,v])=>'<tr><td style="padding:3px 24px 3px 0;">'+esc(k)+'</td><td style="text-align:right;padding:3px 0;">'+v+'</td></tr>').join('')
+    +'</tbody></table>';
+  const months=hhMonthEnds(24);
+  _hhRows=months.map(mo=>{
+    const prevEnd=new Date(new Date(mo.start+'T00:00:00Z').getTime()-86400000).toISOString().slice(0,10);
+    const joined=pool.filter(p=>p.join>=mo.start&&p.join<=mo.end).length;
+    const left=pool.filter(p=>p.exit&&p.exit>=mo.start&&p.exit<=mo.end).length;
+    return {label:mo.label,joined,left,count:hhCountAt(pool,mo.end).length,opening:hhCountAt(pool,prevEnd).length};
+  });
+  const mx=Math.max(1,..._hhRows.map(r=>r.count));
+  document.getElementById('hhTrend').innerHTML='<table style="font-size:13px;border-collapse:collapse;width:100%;min-width:520px;"><thead><tr><th style="text-align:left;padding:4px 10px;">Month</th><th style="text-align:right;padding:4px 10px;">Joined</th><th style="text-align:right;padding:4px 10px;">Left</th><th style="text-align:right;padding:4px 10px;">Headcount at month end</th><th style="width:34%;"></th></tr></thead><tbody>'
+    +_hhRows.slice().reverse().map(r=>'<tr style="border-top:1px solid #eee;"><td style="padding:5px 10px;">'+esc(r.label)+'</td><td style="text-align:right;padding:5px 10px;color:#1A7A6E;">'+(r.joined?'+'+r.joined:'0')+'</td><td style="text-align:right;padding:5px 10px;color:#a02020;">'+(r.left?'−'+r.left:'0')+'</td><td style="text-align:right;padding:5px 10px;font-weight:700;">'+r.count+'</td><td style="padding:5px 10px;"><div style="height:10px;border-radius:5px;background:#1C3557;width:'+Math.round(r.count/mx*100)+'%;"></div></td></tr>').join('')
+    +'</tbody></table>';
+  const notes=['A person is counted from their joining date until they leave. On their exit date they no longer count at the end of that day.'];
+  if(noJoin.length)notes.push('<b>'+noJoin.length+' record'+(noJoin.length>1?'s':'')+' left out because there is no valid joining date:</b> '+noJoin.slice(0,8).map(esc).join(', ')+(noJoin.length>8?' and '+(noJoin.length-8)+' more':'')+'.');
+  if(noExit.length)notes.push('<b>'+noExit.length+' inactive record'+(noExit.length>1?'s':'')+' left out because there is no exit date:</b> '+noExit.slice(0,8).map(esc).join(', ')+(noExit.length>8?' and '+(noExit.length-8)+' more':'')+'. Add the exit date in Employee Records and they will appear in the history.');
+  if(!noJoin.length&&!noExit.length)notes.push('Every record has the dates needed, so nothing was left out.');
+  document.getElementById('hhNotes').innerHTML=notes.map(n=>'<div style="margin-bottom:6px;">'+n+'</div>').join('');
+};
+window.downloadHeadcountCSV=function(){
+  if(currentRole!=='admin')return;
+  const rows=[['Month','Joined','Left','Headcount at month end']].concat(_hhRows.map(r=>[r.label,r.joined,r.left,r.count]));
+  simDownload('headcount-history-'+new Date().toISOString().slice(0,10)+'.csv',rows);
+};
+function simCsvCell(v){const s=String(v==null?'':v);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
+function simDownload(name,rows){
+  const text='﻿'+rows.map(r=>r.map(simCsvCell).join(',')).join('\r\n');
+  const blob=new Blob([text],{type:'text/csv'});const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},4000);
+}
+
+// ── COST SIMULATOR (Dev and Darleendy only) — calculates only, saves nothing ─────────────
+let _smRows=[];
+function smNum(x){const n=parseFloat(String(x==null?'':x).replace(/,/g,''));return isNaN(n)?0:n;}
+function smMoney(n){return 'AED '+Math.round(n).toLocaleString('en-AE');}
+window.initSimulatorPage=function(){
+  const emps=Object.values(DB.employees||{}).filter(e=>e.status!=='Inactive');
+  const fill=(id,first,vals)=>{const s=document.getElementById(id);if(!s)return;const cur=s.value;s.innerHTML='<option value="">'+first+'</option>'+vals.map(x=>'<option>'+esc(x)+'</option>').join('');s.value=vals.includes(cur)?cur:'';};
+  fill('smEntity','Both companies',[...new Set(emps.map(e=>e.entity).filter(Boolean))].sort());
+  fill('smDept','All departments',[...new Set(emps.map(e=>e.dept).filter(Boolean))].sort());
+  runSimulator();
+};
+window.runSimulator=function(){
+  if(currentRole!=='admin')return;
+  const res=document.getElementById('smResult');if(!res)return;
+  const mode=document.getElementById('smMode').value;
+  document.getElementById('smValLabel').textContent=mode==='fixed'?'Increase (AED per month, per person)':'Increase (%)';
+  document.getElementById('smBasicWrap').style.display=mode==='fixed'?'flex':'none';
+  const val=Math.max(0,smNum(document.getElementById('smVal').value));
+  let months=Math.round(smNum(document.getElementById('smMonths').value));if(!(months>=1))months=1;if(months>12)months=12;
+  const alsoBasic=document.getElementById('smAlsoBasic').checked;
+  const ent=document.getElementById('smEntity').value,dept=document.getElementById('smDept').value,grade=document.getElementById('smGrade').value,des=document.getElementById('smDesig').value.trim().toLowerCase();
+  const pool=Object.entries(DB.employees||{}).filter(([k,e])=>e.status!=='Inactive'
+    &&(!ent||e.entity===ent)&&(!dept||e.dept===dept)&&(!grade||String(e.grade||'').toLowerCase()===grade.toLowerCase())&&(!des||String(e.desig||'').toLowerCase().includes(des)));
+  let curM=0,newM=0,gratExtra=0,penExtra=0,counted=0;const noGross=[];_smRows=[];
+  pool.forEach(([k,e])=>{
+    const g=smNum(e.grossSalary||e.gross),b=smNum(e.basicSalary);
+    if(!g){noGross.push(e.name||k);return;}
+    let g2=g,b2=b;
+    if(mode==='basicPct'){b2=b*(1+val/100);g2=g+(b2-b);}
+    else if(mode==='grossPct'){g2=g*(1+val/100);b2=b*(1+val/100);}
+    else{g2=g+val;if(alsoBasic)b2=b+val;}
+    counted++;curM+=g;newM+=g2;
+    if(isUAENational(e)){const ps=smNum(e.pensionSalary)||b;const ps2=smNum(e.pensionSalary)?ps+(b2-b):b2;penExtra+=Math.max(0,ps2-ps)*GPSSA_EMPLOYER_PCT/100*12;}
+    else{const a=calcEOSB(e),c=calcEOSB({...e,basicSalary:String(b2)});if(a&&c)gratExtra+=Math.max(0,c.eosb-a.eosb);}
+    _smRows.push({name:e.name,dept:e.dept||'',desig:e.desig||'',entity:e.entity||'',cur:g,next:g2});
+  });
+  const extraM=newM-curM,extraY=extraM*months;
+  if(!pool.length){res.innerHTML='<div style="color:#777;font-size:14px;">No active staff match these choices.</div>';document.getElementById('smTable').innerHTML='';return;}
+  const tile=(t,n,sub)=>'<div style="flex:1;min-width:190px;background:#f6f8fb;border-radius:10px;padding:12px 14px;"><div style="font-size:12px;color:#666;">'+t+'</div><div style="font-size:21px;font-weight:700;color:#1C3557;margin:2px 0;">'+n+'</div><div style="font-size:11.5px;color:#777;">'+(sub||'')+'</div></div>';
+  res.innerHTML='<div style="display:flex;gap:12px;flex-wrap:wrap;">'
+    +tile('People affected',counted+' of '+pool.length,noGross.length?noGross.length+' with no gross salary recorded are left out':'All have a gross salary on record')
+    +tile('Monthly payroll now',smMoney(curM),'After: '+smMoney(newM))
+    +tile('Extra per month',smMoney(extraM),'Extra for '+months+' month'+(months>1?'s':'')+' this year: <b>'+smMoney(extraY)+'</b>')
+    +tile('Extra per full year',smMoney(extraM*12),'Once it runs for 12 months')
+    +tile('Extra gratuity if all left today',smMoney(gratExtra),penExtra?'Plus employer pension for UAE nationals: '+smMoney(penExtra)+' per year':'UAE nationals excluded (pension scheme)')
+    +'</div>'+(noGross.length?'<div style="font-size:12px;color:#7a5a00;margin-top:10px;">Left out (no gross salary): '+noGross.slice(0,10).map(esc).join(', ')+(noGross.length>10?' and '+(noGross.length-10)+' more':'')+'</div>':'');
+  _smRows.sort((a,b)=>a.name.localeCompare(b.name));
+  document.getElementById('smTable').innerHTML='<table style="font-size:12.5px;border-collapse:collapse;width:100%;min-width:620px;"><thead><tr><th style="text-align:left;padding:4px 8px;">Name</th><th style="text-align:left;padding:4px 8px;">Department</th><th style="text-align:left;padding:4px 8px;">Designation</th><th style="text-align:right;padding:4px 8px;">Gross now</th><th style="text-align:right;padding:4px 8px;">Gross after</th><th style="text-align:right;padding:4px 8px;">Extra / month</th></tr></thead><tbody>'
+    +_smRows.slice(0,300).map(r=>'<tr style="border-top:1px solid #eee;"><td style="padding:4px 8px;">'+esc(r.name)+'</td><td style="padding:4px 8px;">'+esc(r.dept)+'</td><td style="padding:4px 8px;">'+esc(r.desig)+'</td><td style="text-align:right;padding:4px 8px;">'+smMoney(r.cur)+'</td><td style="text-align:right;padding:4px 8px;">'+smMoney(r.next)+'</td><td style="text-align:right;padding:4px 8px;color:#1A7A6E;">+'+smMoney(r.next-r.cur).replace('AED ','')+'</td></tr>').join('')
+    +'</tbody></table>'+(_smRows.length>300?'<div style="font-size:12px;color:#777;margin-top:6px;">Showing the first 300. The download has everyone.</div>':'');
+};
+window.downloadSimulatorCSV=function(){
+  if(currentRole!=='admin')return;
+  const rows=[['Name','Company','Department','Designation','Gross now (AED/month)','Gross after (AED/month)','Extra per month (AED)']].concat(_smRows.map(r=>[r.name,r.entity,r.dept,r.desig,Math.round(r.cur),Math.round(r.next),Math.round(r.next-r.cur)]));
+  simDownload('cost-simulation-'+new Date().toISOString().slice(0,10)+'.csv',rows);
+};
+
+// ── LOGIN GREETING (Dev and Darleendy) — spoken with the browser's own voice, with a mute switch ──
+let _greeted=false,_greetText='';
+function greetVoiceOn(){try{return localStorage.getItem('ckhr_greet_voice')!=='off';}catch(e){return true;}}
+function greetCanSpeak(){return typeof window!=='undefined'&&'speechSynthesis' in window&&typeof SpeechSynthesisUtterance!=='undefined';}
+function greetFirstName(){const n=String(adminName||'').trim().split(/\s+/)[0]||'';return n;}
+function greetBuild(){
+  const hr=new Date().getHours();
+  const hello=hr<12?'Good morning':hr<17?'Good afternoon':'Good evening';
+  const today=new Date().toISOString().slice(0,10);
+  const idx=buildNameIndex();
+  const live=l=>{const m=matchEmpByName(l.empName,idx);return !(m&&m.e&&m.e.status==='Inactive');};
+  const offNow=Object.values(DB.leave||{}).filter(l=>l.status==='Approved'&&l.from<=today&&l.to>=today&&live(l));
+  const pending=Object.values(DB.leaveRequests||{}).filter(r=>r.stage==='HR Review'&&r.status!=='Rejected').length;
+  const act=Object.values(DB.employees||{}).filter(e=>e.status!=='Inactive');
+  const now=new Date(),in30=new Date();in30.setDate(in30.getDate()+30);
+  let exp=0;act.forEach(e=>['passExp','visaExp','eidExp','labExp'].forEach(f=>{if(e[f]){const d=new Date(e[f]);if(d>=now&&d<=in30)exp++;}}));
+  const md=today.slice(5);
+  const bdays=act.filter(e=>e.dob&&String(e.dob).slice(5,10)===md).map(e=>e.name);
+  const bk=bkLastRecord(),bd=bkDaysAgo(bk),backupDue=(bd===null)||bd>=BACKUP_DUE_DAYS;
+  const n=(c,one,many)=>c+' '+(c===1?one:many);
+  const lines=[],say=[];
+  if(offNow.length){lines.push('👥 '+n(offNow.length,'person is','people are')+' on leave today.');say.push(offNow.length===1?'One person is on leave today.':offNow.length+' people are on leave today.');}
+  else{lines.push('👥 Nobody is on leave today.');}
+  if(pending){lines.push('📝 '+n(pending,'leave request is','leave requests are')+' waiting for HR review.');say.push(pending===1?'One leave request is waiting for your review.':pending+' leave requests are waiting for your review.');}
+  if(exp){lines.push('⚠️ '+n(exp,'document expires','documents expire')+' within 30 days.');say.push(exp===1?'One document expires within thirty days.':exp+' documents expire within thirty days.');}
+  if(bdays.length){lines.push('🎂 Birthday today: '+bdays.slice(0,5).map(esc).join(', ')+(bdays.length>5?' and '+(bdays.length-5)+' more':'')+'.');say.push(bdays.length===1?'It is '+bdays[0].split(' ')[0]+'\'s birthday today.':bdays.length+' people have a birthday today.');}
+  if(backupDue){lines.push('💾 Your weekly data backup is due.');say.push('Your weekly data backup is due.');}
+  if(!say.length)say.push('Nothing needs your attention right now.');
+  const fn=greetFirstName();
+  const text=hello+(fn?', '+fn:'')+'. '+say.join(' ');
+  return {hello:hello+(fn?', '+esc(fn):''),lines,text};
+}
+function renderGreetCard(speak){
+  const el=document.getElementById('greetCard');if(!el)return;
+  if(currentRole!=='admin'){el.style.display='none';el.innerHTML='';return;}
+  const g=greetBuild();_greetText=g.text;
+  const can=greetCanSpeak(),on=greetVoiceOn();
+  el.style.display='block';
+  el.innerHTML='<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;padding:13px 16px;margin-bottom:14px;border-radius:10px;background:#f4f7fb;border:1px solid #d9e2ef;">'
+    +'<div style="flex:1;min-width:230px;"><div style="font-size:15px;font-weight:700;color:#1C3557;">'+g.hello+'</div><div style="font-size:13px;color:#444;line-height:1.7;margin-top:4px;">'+g.lines.join('<br>')+'</div></div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
+    +(can?((on?'<button class="btn btn-gold" style="padding:6px 12px;" onclick="greetReplay()">🔊 Play</button>':'')+'<button class="btn" id="greetMuteBtn" style="padding:6px 12px;background:#fff;border:1px solid #c9d3e3;" onclick="greetToggleVoice()">'+(on?'🔇 Mute voice':'🔈 Turn voice on')+'</button>'):'')
+    +'<button class="btn" style="padding:6px 10px;background:#fff;border:1px solid #c9d3e3;" title="Hide for now" onclick="document.getElementById(\'greetCard\').style.display=\'none\'">✕</button></div></div>';
+  if(speak&&can&&on)greetSpeak();
+}
+function greetSpeak(){
+  if(!greetCanSpeak())return;
+  try{
+    window.speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(_greetText);u.lang='en-GB';u.rate=0.97;
+    window.speechSynthesis.speak(u);
+  }catch(e){}
+}
+window.greetReplay=function(){if(currentRole!=='admin')return;renderGreetCard(false);greetSpeak();};
+window.greetToggleVoice=function(){
+  if(currentRole!=='admin')return;
+  const nowOn=greetVoiceOn();
+  try{localStorage.setItem('ckhr_greet_voice',nowOn?'off':'on');}catch(e){}
+  if(nowOn){try{window.speechSynthesis.cancel();}catch(e){}}
+  renderGreetCard(false);
+};
+function greetAfterLogin(){
+  if(_greeted||currentRole!=='admin')return;
+  _greeted=true;
+  // wait for the first data to arrive, then greet once for this sign-in
+  let tries=0;
+  const go=()=>{
+    tries++;
+    if(Object.keys(DB.employees||{}).length||tries>10){renderGreetCard(true);}
+    else setTimeout(go,800);
+  };
+  setTimeout(go,1500);
+}
+
 const ref_db=(path)=>ref(db,path);
 function initListeners(){
   try{botInit();}catch(e){}
@@ -3815,6 +4134,7 @@ function initListeners(){
   }
   document.getElementById('syncStatus').textContent='● Live';
   document.getElementById('syncStatus').style.color='#4caf50';
+  try{greetAfterLogin();}catch(e){}
 }
 
 // ── NAVIGATION ────────────────────────────────────────────────────────────────
@@ -3828,6 +4148,7 @@ window.closeMobileSidebar=function(){
 };
 window.showPage=function(page,el){
   if(page==='comp'&&currentRole!=='admin')return; // Dev and Darleendy only
+  if((page==='headcount'||page==='simulator')&&currentRole!=='admin')return; // Dev and Darleendy only
   if(page==='backup'&&currentRole!=='admin'&&currentRole!=='ceo')return; // Dev and Darleendy run it; Cem can view the status
   closeMobileSidebar(); // so picking a page doesn't leave the drawer covering the content on mobile
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -3853,6 +4174,8 @@ window.showPage=function(page,el){
   if(page==='portalaccess')renderPortalAccess();
   if(page==='comp')renderCompPage();
   if(page==='backup')renderBackupPage();
+  if(page==='headcount')initHeadcountPage();
+  if(page==='simulator')initSimulatorPage();
   if(page==='policyimport')renderPolicyImportList();
   if(page==='leaveapprovals')renderHRReviewQueue();
   if(page==='orgchart')renderOrgChart();
