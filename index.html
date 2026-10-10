@@ -197,6 +197,7 @@ tr:hover td{background:#fafbfc;}
     </div>
   </div>
   <div style="max-width:1100px;margin:80px auto 40px;padding:0 24px;">
+    <div id="empGreetCard"></div>
     <div id="empFestive"></div>
     <div class="card" id="empCEOMsgCard" style="display:none;background:#fff;border-top:3px solid #C9A84C;">
       <div style="display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap;">
@@ -1952,6 +1953,7 @@ function loginErrorMessage(err){
   return 'Incorrect username/email or password.';
 }
 window.doLogin=async function(){
+  try{greetUnlockSpeech();}catch(e){}
   const raw=v('loginUser').toLowerCase(), p=v('loginPass');
   const email=raw.includes('@')?raw:raw+'@ckhr.internal';
   const btn=document.getElementById('loginBtn');
@@ -2030,6 +2032,7 @@ window.doLogout=function(){
   _staffUnsubs.forEach(f=>{try{f();}catch(e){}});_staffUnsubs=[];
   currentAdmin='';currentRole='';currentEmpKey='';adminName='';adminTitle='';adminSignName='';
   try{const vt=document.getElementById('voiceToggleBtn');if(vt)vt.style.display='none';}catch(e){}
+  try{_staffGreetDismissed=false;_ceoGreetDismissed=false;const eg=document.getElementById('empGreetCard');if(eg){eg.innerHTML='';eg.style.display='none';}}catch(e){}
   try{_greeted=false;try{window.speechSynthesis&&window.speechSynthesis.cancel();}catch(e2){}const gc=document.getElementById('greetCard');if(gc){gc.style.display='none';gc.innerHTML='';}}catch(e){}
   try{_backupLast=null;_bkUnlocked=null;const bb=document.getElementById('backupBanner');if(bb)bb.innerHTML='';}catch(e){}
   document.getElementById('app').style.display='none';
@@ -2322,7 +2325,7 @@ function applyCEOMode(){
   // Employee Portal Access (credential management), which stays admin-only
   // regardless of role, per explicit instruction.
   const style=document.createElement('style');
-  style.textContent=`#voiceToggleBtn, .briefBtn, #navHeadcount, #navSimulator, #page-headcount, #page-simulator, #greetCard, #bkTake, #bkCheck, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #backupBanner, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }`;
+  style.textContent=`#voiceToggleBtn, .briefBtn, #navHeadcount, #navSimulator, #page-headcount, #page-simulator, #bkTake, #bkCheck, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #backupBanner, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }`;
   document.head.appendChild(style);
   document.getElementById('syncStatus').textContent='● CEO — Full View, Read-Only';
 }
@@ -3038,6 +3041,7 @@ function initEmployeeListeners(empKey,uid){
     if(!view){staffAccessLost();return;}
     DB.employees={[empKey]:view}; // keep just this one record locally
     renderMyInfo(view);
+    try{renderStaffGreeting();}catch(e){}
     renderMyLeaveBalance(view);
     renderMyComp(view);
     renderMyLeaveHistory();
@@ -3059,6 +3063,7 @@ function initEmployeeListeners(empKey,uid){
     DB.leaveRequests=Object.assign({},lrParts.addl,lrParts.lm,lrParts.own);
     renderMyLeaveRequests();
     renderMyApprovals();
+    try{renderStaffGreeting();}catch(e){}
   };
   const lookup=(field,part)=>core(query(ref(db,'leaveRequests'),orderByChild(field),equalTo(empKey)),s=>{lrParts[part]=s.val()||{};mergeLR();});
   lookup('empKey','own');
@@ -3070,7 +3075,7 @@ function initEmployeeListeners(empKey,uid){
   _staffUnsubs.push(onValue(ref(db,'staffShared/directory'),snap=>{DB.directory=snap.val()||{};},()=>{DB.directory=null;})); // names + departments of current staff
   optional(ref(db,'staffShared/birthdays'),snap=>{DB.sharedBdays=snap.val()||{};renderEmpBirthdaysAnniversaries();});
   optional(ref(db,'staffShared/anniversaries'),snap=>{DB.sharedAnnis=snap.val()||{};renderEmpBirthdaysAnniversaries();});
-  optional(ref(db,'announcements'),snap=>{DB.announcements=snap.val()||{};renderEmpAnnouncements();});
+  optional(ref(db,'announcements'),snap=>{DB.announcements=snap.val()||{};renderEmpAnnouncements();try{renderStaffGreeting();}catch(e){}});
   optional(ref(db,'policies'),snap=>{DB.policies=snap.val()||{};renderEmpPolicies();});
   optional(ref(db,'ceoMessage'),snap=>{
     const m=snap.val()||{};
@@ -4086,6 +4091,62 @@ window.downloadSimulatorCSV=function(){
   simDownload('cost-simulation-'+new Date().toISOString().slice(0,10)+'.csv',rows);
 };
 
+// ── ONE VOICE FOR EVERYONE: a clear British/US woman's voice where the device has one; iPhone unlock; speak-on-first-tap fallback ──
+const GREET_FEMALE_VOICES=['Google UK English Female','Serena','Kate','Samantha','Microsoft Hazel','Microsoft Susan','Microsoft Libby','Hazel','Susan','Karen','Moira','Tessa','Microsoft Zira','Zira','Google US English','Fiona','Victoria'];
+const GREET_MALE_VOICE_RX=/\b(daniel|oliver|alex|fred|arthur|rishi|aaron|gordon|thomas|david|george|mark|james|male|ryan|guy|liam|rocko)\b/i;
+let _greetVoice=null,_greetVoiceTried=false;
+function greetPickVoice(){
+  try{
+    const vs=window.speechSynthesis.getVoices()||[];
+    if(!vs.length)return null;
+    if(_greetVoice&&vs.indexOf(_greetVoice)>=0)return _greetVoice;
+    const en=vs.filter(v=>/^en([-_]|$)/i.test(v.lang||''));
+    const notMale=v=>!GREET_MALE_VOICE_RX.test(v.name||'')||/female/i.test(v.name||'');
+    let pick=null;
+    for(const nm of GREET_FEMALE_VOICES){
+      pick=en.find(v=>(v.name||'').toLowerCase().indexOf(nm.toLowerCase())===0&&notMale(v));
+      if(pick)break;
+    }
+    if(!pick)pick=en.find(v=>/female/i.test(v.name||''));
+    _greetVoice=pick||null;
+    return _greetVoice;
+  }catch(e){return null;}
+}
+try{if('speechSynthesis' in window&&window.speechSynthesis.addEventListener)window.speechSynthesis.addEventListener('voiceschanged',()=>{_greetVoice=null;greetPickVoice();});}catch(e){}
+let _pendingGreet=null;
+function greetUtter(text){
+  const u=new SpeechSynthesisUtterance(text);
+  const v=greetPickVoice();
+  if(v){u.voice=v;u.lang=v.lang||'en-GB';}else u.lang='en-GB';
+  u.rate=0.97;
+  return u;
+}
+// auto=true: this was not triggered by a tap. iPhones silently block that, so if nothing starts, keep it and say it on the first tap.
+function greetSayText(text,auto){
+  if(!greetCanSpeak()||!text)return false;
+  try{
+    window.speechSynthesis.cancel();
+    const u=greetUtter(text);let started=false;
+    u.onstart=()=>{started=true;if(_pendingGreet===text)_pendingGreet=null;};
+    window.speechSynthesis.speak(u);
+    if(auto)setTimeout(()=>{if(!started){_pendingGreet=text;try{window.speechSynthesis.cancel();}catch(e){}}},2500);
+    else _pendingGreet=null;
+    return true;
+  }catch(e){return false;}
+}
+function greetUnlockSpeech(){ // called from a real tap (Sign In) so iPhones allow speech later in the session
+  if(!greetCanSpeak())return;
+  try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;window.speechSynthesis.speak(u);}catch(e){}
+}
+document.addEventListener('click',()=>{
+  if(!_pendingGreet||!greetVoiceOn())return;
+  const t=_pendingGreet;_pendingGreet=null;greetSayText(t,false);
+},true);
+document.addEventListener('touchend',()=>{
+  if(!_pendingGreet||!greetVoiceOn())return;
+  const t=_pendingGreet;_pendingGreet=null;greetSayText(t,false);
+},true);
+
 // ── LOGIN GREETING (Dev and Darleendy) — spoken with the browser's own voice, with a mute switch ──
 let _greeted=false,_greetText='';
 function greetVoiceOn(){try{return localStorage.getItem('ckhr_greet_voice')!=='off';}catch(e){return true;}}
@@ -4130,16 +4191,14 @@ function renderGreetCard(speak){
     +(can?((on?'<button class="btn btn-gold" style="padding:6px 12px;" onclick="greetReplay()">🔊 Play</button>':'')+'<button class="btn" id="greetMuteBtn" style="padding:6px 12px;background:#fff;border:1px solid #c9d3e3;" onclick="greetToggleVoice()">'+(on?'🔇 Mute voice':'🔈 Turn voice on')+'</button>'):'')
     +'<button class="btn" style="padding:6px 10px;background:#fff;border:1px solid #c9d3e3;" title="Hide for now" onclick="document.getElementById(\'greetCard\').style.display=\'none\'">✕</button></div></div>';
   try{briefRefreshButtons();}catch(e){}
-  if(speak&&can&&on)greetSpeak();
+  if(speak&&can&&on){_greetAuto=true;greetSpeak();}
 }
 function greetSpeak(){
   if(!greetCanSpeak())return;
-  try{
-    window.speechSynthesis.cancel();
-    const u=new SpeechSynthesisUtterance(_greetText);u.lang='en-GB';u.rate=0.97;
-    window.speechSynthesis.speak(u);
-  }catch(e){}
+  greetSayText(_greetText,_greetAuto);
+  _greetAuto=false;
 }
+let _greetAuto=false;
 window.greetReplay=function(){if(currentRole!=='admin')return;renderGreetCard(false);greetSpeak();};
 window.greetToggleVoice=function(){
   if(currentRole!=='admin')return;
@@ -4150,7 +4209,13 @@ window.greetToggleVoice=function(){
   try{briefRefreshButtons();if(currentRole==='admin'&&typeof renderHRReviewQueue==='function')renderHRReviewQueue();}catch(e){}
 };
 function greetAfterLogin(){
-  if(_greeted||currentRole!=='admin')return;
+  if(_greeted)return;
+  if(currentRole==='ceo'){
+    _greeted=true;_ceoGreetDismissed=false;
+    let tries=0;const go=()=>{tries++;if(Object.keys(DB.employees||{}).length||tries>10)renderCeoGreeting(true);else setTimeout(go,800);};
+    setTimeout(go,1200);return;
+  }
+  if(currentRole!=='admin')return;
   _greeted=true;
   try{briefRefreshButtons();}catch(e){}
   // wait for the first data to arrive, then greet once for this sign-in
@@ -4177,7 +4242,7 @@ function briefAed(n){return Math.round(n).toLocaleString('en-US')+' dirhams';}
 function briefPlural(n,one,many){return n+' '+(n===1?one:many);}
 function briefSpeak(text){
   if(currentRole!=='admin'||!greetCanSpeak()||!greetVoiceOn())return false;
-  try{window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='en-GB';u.rate=0.97;window.speechSynthesis.speak(u);return true;}catch(e){return false;}
+  return greetSayText(text,false);
 }
 window.briefStop=function(){try{window.speechSynthesis.cancel();}catch(e){}};
 function briefRequestText(key,r){
@@ -4275,6 +4340,145 @@ function briefRefreshButtons(){
   }
 }
 
+// ── GREETINGS FOR STAFF AND CEM (text only, short, built only from what each person may already see) ──
+let _staffGreetDismissed=false,_ceoGreetDismissed=false;
+function greetLocalDay(ms){const d=new Date(ms);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function greetHelloWord(){const hr=new Date().getHours();return hr<12?'Good morning':hr<17?'Good afternoon':'Good evening';}
+// Announcements published today by HR. Only on the day they were published; festive banners are left to their own banner.
+function greetTodayAnnouncements(){
+  const today=greetLocalDay(Date.now());
+  return Object.values(DB.announcements||{}).filter(a=>a&&a.title&&a.ts&&greetLocalDay(a.ts)===today&&(!a.expiryDate||a.expiryDate>=today)&&!(typeof ANN_THEMES!=='undefined'&&ANN_THEMES[a.theme])).sort((x,y)=>y.ts-x.ts);
+}
+function greetAnnouncementLines(){
+  const list=greetTodayAnnouncements();if(!list.length)return [];
+  const lines=list.slice(0,3).map(a=>{
+    const m=String(a.message||'').replace(/\s+/g,' ').trim();
+    const snip=m.length>140?m.slice(0,140).replace(/\s+\S*$/,'')+'…':m;
+    return '📢 <b>'+esc(a.title)+'</b>'+(snip?' — '+esc(snip):'');
+  });
+  if(list.length>3)lines.push('📢 and '+(list.length-3)+' more announcement'+(list.length-3>1?'s':'')+' from HR today.');
+  return lines;
+}
+function greetApprovalsWaiting(empKey){
+  if(!empKey)return 0;
+  const lr=Object.values(DB.leaveRequests||{});
+  return lr.filter(r=>r.status!=='Rejected'&&((r.lineManagerKey===empKey&&r.stage==='Line Manager Approval')||(r.additionalApproverKey===empKey&&r.stage==='Additional Approval'))).length;
+}
+function greetCardShell(helloHtml,lines,onDismiss,reviewTarget,reviewCount){
+  return '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;padding:13px 16px;margin-bottom:16px;border-radius:10px;background:#f4f7fb;border:1px solid #d9e2ef;">'
+    +'<div style="flex:1;min-width:230px;"><div style="font-size:15px;font-weight:700;color:#1C3557;">'+helloHtml+'</div>'
+    +(lines.length?'<div style="font-size:13px;color:#444;line-height:1.7;margin-top:4px;">'+lines.join('<br>')+'</div>':'')+'</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
+    +(reviewTarget&&reviewCount?'<button class="btn btn-gold" style="padding:6px 12px;" onclick="greetGoToApprovals(\''+reviewTarget+'\')">Review now</button>':'')
+    +'<button class="btn" style="padding:6px 10px;background:#fff;border:1px solid #c9d3e3;" title="Hide for now" onclick="'+onDismiss+'">✕</button></div></div>';
+}
+window.greetGoToApprovals=function(id){
+  const el=document.getElementById(id);
+  if(el&&el.style.display!=='none'){try{el.scrollIntoView({behavior:'smooth',block:'start'});}catch(e){el.scrollIntoView();}}
+};
+window.greetDismissStaff=function(){_staffGreetDismissed=true;try{window.speechSynthesis.cancel();}catch(e){}const el=document.getElementById('empGreetCard');if(el){el.innerHTML='';el.style.display='none';}};
+window.greetDismissCeo=function(){_ceoGreetDismissed=true;try{window.speechSynthesis.cancel();}catch(e){}const el=document.getElementById('greetCard');if(el){el.innerHTML='';el.style.display='none';}};
+let _staffGreetText='',_staffSpoken=false;
+function renderStaffGreeting(speak){
+  const el=document.getElementById('empGreetCard');if(!el)return;
+  if(currentRole!=='employee'||_staffGreetDismissed){return;}
+  const me=DB.employees&&DB.employees[currentEmpKey];
+  if(!me){return;} // wait until the person's own record has arrived
+  const first=String(me.name||adminName||'').trim().split(/\s+/)[0];
+  const lines=[];
+  // 1) Passport, only if it is within 90 days (or already past)
+  if(me.passExp&&/^\d{4}-\d{2}-\d{2}$/.test(me.passExp)){
+    const t0=new Date();t0.setHours(0,0,0,0);
+    const days=Math.round((new Date(me.passExp+'T00:00:00')-t0)/86400000);
+    if(days<0)lines.push('🛂 Your passport expired on '+esc(fmt(me.passExp))+'. Please arrange renewal and give HR the new copy.');
+    else if(days<=90)lines.push('🛂 Your passport expires on '+esc(fmt(me.passExp))+' ('+(days===0?'today':'in '+days+' day'+(days===1?'':'s'))+'). Please arrange renewal and give HR the new copy.');
+  }
+  // 2) HR announcements published today
+  greetAnnouncementLines().forEach(l=>lines.push(l));
+  // 3) Leave requests waiting on this person as a line manager / additional approver
+  const n=greetApprovalsWaiting(currentEmpKey);
+  if(n)lines.push('✅ '+n+' leave request'+(n>1?'s are':' is')+' waiting for your approval.');
+  // what is read aloud: short, no announcement titles
+  const say=[greetHelloWord()+(first?', '+first:'')+'.'];
+  if(me.passExp&&/^\d{4}-\d{2}-\d{2}$/.test(me.passExp)){
+    const t1=new Date();t1.setHours(0,0,0,0);
+    const dd=Math.round((new Date(me.passExp+'T00:00:00')-t1)/86400000);
+    if(dd<0)say.push('Your passport has expired. Please arrange renewal and give HR the new copy.');
+    else if(dd<=90)say.push(dd===0?'Your passport expires today. Please arrange renewal and give HR the new copy.':'Your passport expires in '+dd+(dd===1?' day':' days')+'. Please arrange renewal and give HR the new copy.');
+  }
+  const an=greetTodayAnnouncements().length;
+  if(an===1)say.push('HR has published one announcement today.');else if(an>1)say.push('HR has published '+an+' announcements today.');
+  if(n)say.push((n===1?'One leave request is':n+' leave requests are')+' waiting for your approval.');
+  _staffGreetText=say.join(' ');
+  const can=greetCanSpeak(),on=greetVoiceOn();
+  el.style.display='block';
+  let html=greetCardShell(greetHelloWord()+(first?', '+esc(first):''),lines,'greetDismissStaff()','empApprovalsCard',n);
+  if(can){
+    const vb=(on?'<button class="btn btn-gold" style="padding:6px 12px;" onclick="staffGreetReplay()">🔊 Play</button>':'')+'<button class="btn" id="greetMuteBtn" style="padding:6px 12px;background:#fff;border:1px solid #c9d3e3;" onclick="staffGreetToggleVoice()">'+(on?'🔇 Mute voice':'🔈 Turn voice on')+'</button>';
+    html=html.replace('<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">','<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'+vb);
+  }
+  el.innerHTML=html;
+  if(!_staffSpoken){_staffSpoken=true;if(can&&on)setTimeout(()=>{if(!_staffGreetDismissed&&greetVoiceOn()){_staffAuto=true;staffGreetSpeak();}},1800);}
+}
+function staffGreetSpeak(){
+  if(!greetCanSpeak())return;
+  greetSayText(_staffGreetText,_staffAuto);_staffAuto=false;
+}
+let _staffAuto=false;
+window.staffGreetReplay=function(){if(currentRole!=='employee')return;renderStaffGreeting();staffGreetSpeak();};
+window.staffGreetToggleVoice=function(){
+  if(currentRole!=='employee')return;
+  const nowOn=greetVoiceOn();
+  try{localStorage.setItem('ckhr_greet_voice',nowOn?'off':'on');}catch(e){}
+  if(nowOn){try{window.speechSynthesis.cancel();}catch(e){}}
+  renderStaffGreeting();
+};
+let _ceoGreetText='';
+function ceoGreetSay(list,n,first){
+  const nn=x=>x===1?'One':String(x);
+  const parts=[greetHelloWord()+(first?', '+first:'')+'.'];
+  if(list.length===1)parts.push('HR has published one announcement today.');
+  else if(list.length>1)parts.push('HR has published '+list.length+' announcements today.');
+  if(n)parts.push(nn(n)+(n===1?' leave request is':' leave requests are')+' waiting for your approval.');
+  return parts.join(' ');
+}
+function renderCeoGreeting(speak){
+  const el=document.getElementById('greetCard');if(!el)return;
+  if(currentRole!=='ceo'||_ceoGreetDismissed){return;}
+  const first=String(adminName||'').trim().split(/\s+/)[0];
+  const lines=[];
+  greetAnnouncementLines().forEach(l=>lines.push(l));
+  const n=greetApprovalsWaiting(getCurrentAdminEmpKey());
+  if(n)lines.push('✅ '+n+' leave request'+(n>1?'s are':' is')+' waiting for your approval.');
+  _ceoGreetText=ceoGreetSay(greetTodayAnnouncements(),n,first);
+  const can=greetCanSpeak(),on=greetVoiceOn();
+  el.style.display='block';
+  let html=greetCardShell(greetHelloWord()+(first?', '+esc(first):''),lines,'greetDismissCeo()','dashMyApprovalsCard',n);
+  if(can){
+    const vb=(on?'<button class="btn btn-gold" style="padding:6px 12px;" onclick="ceoGreetReplay()">🔊 Play</button>':'')+'<button class="btn" id="greetMuteBtn" style="padding:6px 12px;background:#fff;border:1px solid #c9d3e3;" onclick="ceoGreetToggleVoice()">'+(on?'🔇 Mute voice':'🔈 Turn voice on')+'</button>';
+    html=html.replace('<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">','<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'+vb);
+  }
+  el.innerHTML=html;
+  if(speak&&can&&on)setTimeout(()=>{if(!_ceoGreetDismissed&&greetVoiceOn()){_ceoAuto=true;ceoGreetSpeak();}},1500);
+}
+function ceoGreetSpeak(){
+  if(!greetCanSpeak())return;
+  greetSayText(_ceoGreetText,_ceoAuto);_ceoAuto=false;
+}
+let _ceoAuto=false;
+window.ceoGreetReplay=function(){if(currentRole!=='ceo')return;renderCeoGreeting(false);ceoGreetSpeak();};
+window.ceoGreetToggleVoice=function(){
+  if(currentRole!=='ceo')return;
+  const nowOn=greetVoiceOn();
+  try{localStorage.setItem('ckhr_greet_voice',nowOn?'off':'on');}catch(e){}
+  if(nowOn){try{window.speechSynthesis.cancel();}catch(e){}}
+  renderCeoGreeting(false);
+};
+function greetRefreshPassive(){
+  if(currentRole==='ceo'&&_greeted)renderCeoGreeting();
+  if(currentRole==='employee')renderStaffGreeting();
+}
+
 const ref_db=(path)=>ref(db,path);
 function initListeners(){
   try{botInit();}catch(e){}
@@ -4282,6 +4486,7 @@ function initListeners(){
   tables.forEach(t=>{
     onValue(ref(db,t),snap=>{
       DB[t]=snap.val()||{};
+      if(t==='announcements'||t==='leaveRequests'||t==='employees'){try{greetRefreshPassive();}catch(e){}}
       if(Object.prototype.hasOwnProperty.call(_mirrorLoaded,t)){_mirrorLoaded[t]=true;scheduleStaffMirrorSync();}
       if(t==='employees'){renderEmp();updateDash();if(document.getElementById('page-workforce')&&document.getElementById('page-workforce').classList.contains('active'))renderWorkforce();if(document.getElementById('uaeBody')&&window.renderUAE){try{renderUAE();}catch(err){}}
       // Refresh any employee dropdowns that are visible
