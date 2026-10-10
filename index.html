@@ -643,10 +643,12 @@ tr:hover td{background:#fafbfc;}
         <div class="page-header"><h2>Cost Simulator</h2><p>Test an increment before you propose it. This only calculates. Nothing is changed or saved anywhere.</p></div>
         <div class="card" style="margin-bottom:14px;">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;max-width:900px;">
-            <div class="form-group"><label>Company</label><select id="smEntity" onchange="runSimulator()"></select></div>
-            <div class="form-group"><label>Department</label><select id="smDept" onchange="runSimulator()"></select></div>
-            <div class="form-group"><label>Grade</label><select id="smGrade" onchange="runSimulator()"><option value="">All grades</option><option>White Collar</option><option>Labour</option></select></div>
-            <div class="form-group"><label>Designation contains</label><input type="text" id="smDesig" placeholder="e.g. carpenter" oninput="runSimulator()"></div>
+            <div class="form-group"><label>Test an increase for</label><select id="smWho" onchange="runSimulator()"><option value="group">A group of staff</option><option value="one">One person</option></select></div>
+            <div class="form-group" id="smPersonWrap" style="display:none;grid-column:span 2;"><label>Person (type part of a name to search)</label><input type="text" id="smPersonSearch" placeholder="Start typing a name…" oninput="smFilterPersons()"><select id="smPerson" onchange="runSimulator()" style="margin-top:6px;"></select></div>
+            <div class="form-group" data-grp="1"><label>Company</label><select id="smEntity" onchange="runSimulator()"></select></div>
+            <div class="form-group" data-grp="1"><label>Department</label><select id="smDept" onchange="runSimulator()"></select></div>
+            <div class="form-group" data-grp="1"><label>Grade</label><select id="smGrade" onchange="runSimulator()"><option value="">All grades</option><option>White Collar</option><option>Labour</option></select></div>
+            <div class="form-group" data-grp="1"><label>Designation contains</label><input type="text" id="smDesig" placeholder="e.g. carpenter" oninput="runSimulator()"></div>
             <div class="form-group"><label>Increase type</label><select id="smMode" onchange="runSimulator()"><option value="basicPct">% of basic salary</option><option value="grossPct">% of gross (total) salary</option><option value="fixed">Fixed AED per month</option></select></div>
             <div class="form-group"><label id="smValLabel">Increase (%)</label><input type="number" id="smVal" min="0" step="0.5" value="5" oninput="runSimulator()"></div>
             <div class="form-group"><label>Months it applies this year</label><input type="number" id="smMonths" min="1" max="12" value="12" oninput="runSimulator()"></div>
@@ -654,7 +656,7 @@ tr:hover td{background:#fafbfc;}
           </div>
         </div>
         <div class="card" style="margin-bottom:14px;"><div class="briefBtn" style="display:none;margin-bottom:10px;"><button class="btn btn-gold" style="padding:6px 14px;" onclick="briefSimulator()">🔊 Brief me on this result</button> <button class="btn" style="padding:6px 12px;background:#fff;border:1px solid #c9d3e3;" onclick="briefStop()">⏹ Stop</button></div><div id="smResult"></div></div>
-        <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;"><h3 style="margin:0;font-size:15px;">Person by person</h3><button class="btn btn-gold" onclick="downloadSimulatorCSV()">⬇ Download (CSV)</button></div><div id="smTable" style="overflow-x:auto;"></div>
+        <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;"><h3 style="margin:0;font-size:15px;" id="smTableTitle">Person by person</h3><button class="btn btn-gold" onclick="downloadSimulatorCSV()">⬇ Download (CSV)</button></div><div id="smTable" style="overflow-x:auto;"></div>
           <p style="font-size:12px;color:#777;margin:10px 0 0;line-height:1.6;">How it is worked out: salary figures come from Employee Records. Staff with no gross salary recorded are left out of the totals. For "% of gross", basic salary is assumed to rise by the same percentage. Gratuity uses the portal's standard gratuity formula (basic salary, UAE nationals excluded) and shows the extra amount if everyone affected left today. For UAE nationals the extra is the employer pension contribution on the higher basic salary, per year. This is an estimate for planning, not a payroll figure.</p></div>
       </div>
 
@@ -3954,7 +3956,7 @@ window.initSimulatorPage=function(){
   const fill=(id,first,vals)=>{const s=document.getElementById(id);if(!s)return;const cur=s.value;s.innerHTML='<option value="">'+first+'</option>'+vals.map(x=>'<option>'+esc(x)+'</option>').join('');s.value=vals.includes(cur)?cur:'';};
   fill('smEntity','Both companies',[...new Set(emps.map(e=>e.entity).filter(Boolean))].sort());
   fill('smDept','All departments',[...new Set(emps.map(e=>e.dept).filter(Boolean))].sort());
-  runSimulator();
+  smFilterPersons();
 };
 window.runSimulator=function(){
   if(currentRole!=='admin')return;
@@ -3962,6 +3964,11 @@ window.runSimulator=function(){
   const mode=document.getElementById('smMode').value;
   document.getElementById('smValLabel').textContent=mode==='fixed'?'Increase (AED per month, per person)':'Increase (%)';
   document.getElementById('smBasicWrap').style.display=mode==='fixed'?'flex':'none';
+  const who=document.getElementById('smWho').value;
+  document.querySelectorAll('#page-simulator [data-grp]').forEach(x=>{x.style.display=who==='one'?'none':'';});
+  document.getElementById('smPersonWrap').style.display=who==='one'?'':'none';
+  document.getElementById('smTableTitle').textContent=who==='one'?'Everyone in the department':'Person by person';
+  if(who==='one')return runSimPerson();
   const val=Math.max(0,smNum(document.getElementById('smVal').value));
   let months=Math.round(smNum(document.getElementById('smMonths').value));if(!(months>=1))months=1;if(months>12)months=12;
   const alsoBasic=document.getElementById('smAlsoBasic').checked;
@@ -3999,6 +4006,80 @@ window.runSimulator=function(){
     +_smRows.slice(0,300).map(r=>'<tr style="border-top:1px solid #eee;"><td style="padding:4px 8px;">'+esc(r.name)+'</td><td style="padding:4px 8px;">'+esc(r.dept)+'</td><td style="padding:4px 8px;">'+esc(r.desig)+'</td><td style="text-align:right;padding:4px 8px;">'+smMoney(r.cur)+'</td><td style="text-align:right;padding:4px 8px;">'+smMoney(r.next)+'</td><td style="text-align:right;padding:4px 8px;color:#1A7A6E;">+'+smMoney(r.next-r.cur).replace('AED ','')+'</td></tr>').join('')
     +'</tbody></table>'+(_smRows.length>300?'<div style="font-size:12px;color:#777;margin-top:6px;">Showing the first 300. The download has everyone.</div>':'');
 };
+
+// ── COST SIMULATOR: one person + their department (still only a calculation) ──
+function smPersonList(){return Object.entries(DB.employees||{}).filter(([k,e])=>e.status!=='Inactive').sort((a,b)=>String(a[1].name||'').localeCompare(String(b[1].name||'')));}
+window.smFilterPersons=function(){
+  const si=document.getElementById('smPersonSearch'),sel=document.getElementById('smPerson');if(!si||!sel)return;
+  const q=si.value.trim().toLowerCase(),cur=sel.value;
+  const list=smPersonList().filter(([k,e])=>!q||String(e.name||'').toLowerCase().includes(q)||String(e.empId||'').toLowerCase()===q);
+  sel.innerHTML='<option value="">— Choose a person —</option>'+list.map(([k,e])=>'<option value="'+esc(k)+'">'+esc(e.name||k)+' — '+esc(e.dept||'no department')+(e.desig?' ('+esc(e.desig)+')':'')+'</option>').join('');
+  if(list.some(([k])=>k===cur))sel.value=cur;else if(q&&list.length===1)sel.value=list[0][0];
+  runSimulator();
+};
+function smPct(x){return (Math.round(x*10)/10).toFixed(1).replace(/\.0$/,'')+'%';}
+function smRankPhrase(r,n){return n<=1?'the only one':(r===1?'the highest paid':(r===n?'the lowest paid':'number '+r+' of '+n));}
+function runSimPerson(){
+  const res=document.getElementById('smResult'),tbl=document.getElementById('smTable');
+  const mode=document.getElementById('smMode').value;
+  const val=Math.max(0,smNum(document.getElementById('smVal').value));
+  let months=Math.round(smNum(document.getElementById('smMonths').value));if(!(months>=1))months=1;if(months>12)months=12;
+  const alsoBasic=document.getElementById('smAlsoBasic').checked;
+  const key=document.getElementById('smPerson').value;
+  const e=key&&DB.employees&&DB.employees[key];
+  _smRows=[];window._smBrief={person:false,reason:'none'};
+  if(!e){res.innerHTML='<div style="color:#777;font-size:14px;">Choose a person above to test an increase for them and see what it does to their department.</div>';tbl.innerHTML='';return;}
+  const g=smNum(e.grossSalary||e.gross),b=smNum(e.basicSalary);
+  if(!g){window._smBrief={person:false,reason:'nogross',name:e.name};res.innerHTML='<div style="color:#7a5a00;font-size:14px;">No gross salary is recorded for <b>'+esc(e.name)+'</b>, so a raise cannot be tested. Add it in Employee Records first.</div>';tbl.innerHTML='';return;}
+  let g2=g,b2=b;
+  if(mode==='basicPct'){b2=b*(1+val/100);g2=g+(b2-b);}
+  else if(mode==='grossPct'){g2=g*(1+val/100);b2=b*(1+val/100);}
+  else{g2=g+val;if(alsoBasic)b2=b+val;}
+  const pct=(g2-g)/g*100,extraM=g2-g;
+  let gratExtra=0,penExtra=0;const uae=isUAENational(e);
+  if(uae){const ps=smNum(e.pensionSalary)||b;const ps2=smNum(e.pensionSalary)?ps+(b2-b):b2;penExtra=Math.max(0,ps2-ps)*GPSSA_EMPLOYER_PCT/100*12;}
+  else{const a=calcEOSB(e),c=calcEOSB({...e,basicSalary:String(b2)});if(a&&c)gratExtra=Math.max(0,c.eosb-a.eosb);}
+  const dept=e.dept||'';
+  const rows=Object.entries(DB.employees).filter(([k,x])=>x.status!=='Inactive'&&(x.dept||'')===dept&&smNum(x.grossSalary||x.gross)>0).map(([k,x])=>{const cur=smNum(x.grossSalary||x.gross);return{key:k,name:x.name||k,dept:x.dept||'',desig:x.desig||'',entity:x.entity||'',cur,next:k===key?g2:cur};});
+  const n=rows.length,deptCur=rows.reduce((s,r)=>s+r.cur,0),deptNew=rows.reduce((s,r)=>s+r.next,0);
+  const rankOf=(arr,v)=>arr.filter(x=>x>v).length+1;
+  const rankBefore=rankOf(rows.map(r=>r.cur),g),rankAfter=rankOf(rows.map(r=>r.next),g2);
+  const des=String(e.desig||'').trim().toLowerCase();
+  const peers=des?rows.filter(r=>r.key!==key&&String(r.desig).trim().toLowerCase()===des):[];
+  const pAvg=peers.length?peers.reduce((s,r)=>s+r.cur,0)/peers.length:0,pMin=peers.length?Math.min(...peers.map(r=>r.cur)):0,pMax=peers.length?Math.max(...peers.map(r=>r.cur)):0;
+  const mgr=e.lineManagerKey&&DB.employees[e.lineManagerKey];const mgrG=mgr?smNum(mgr.grossSalary||mgr.gross):0;
+  const rel=(v,avg)=>{const d=(v-avg)/avg*100;return Math.abs(d)<0.05?'at the average':smPct(Math.abs(d))+(d>0?' above':' below')+' the average';};
+  const flags=[];
+  if(n>1&&rankAfter===1&&rankBefore>1)flags.push('After this raise they would be the highest paid in '+dept+' ('+n+' people).');
+  if(mgrG&&g2>mgrG)flags.push('Their new pay ('+smMoney(g2)+') would be higher than their line manager\'s: '+(mgr.name||'manager')+' ('+smMoney(mgrG)+'). Worth checking before you propose it.');
+  else if(mgrG&&g2===mgrG)flags.push('Their new pay would be equal to their line manager\'s ('+(mgr.name||'manager')+').');
+  if(peers.length&&g2>pMax)flags.push('Their new pay would be above everyone else with the same designation (the highest today is '+smMoney(pMax)+').');
+  if(pct>=15)flags.push('This is a '+smPct(pct)+' rise for one person.');
+  window._smBrief={person:true,name:e.name,desig:e.desig||'',dept,cur:g,next:g2,pct,extraM,months,gratExtra,penExtra,uae,n,deptCur,deptNew,deptPct:deptCur?(deptNew-deptCur)/deptCur*100:0,rankBefore,rankAfter,flags};
+  const tile=(t,v,sub)=>'<div style="flex:1;min-width:190px;background:#f6f8fb;border-radius:10px;padding:12px 14px;"><div style="font-size:12px;color:#666;">'+t+'</div><div style="font-size:21px;font-weight:700;color:#1C3557;margin:2px 0;">'+v+'</div><div style="font-size:11.5px;color:#777;">'+(sub||'')+'</div></div>';
+  const line=(t)=>'<div style="margin:5px 0;">'+t+'</div>';
+  let a='<div style="font-size:14px;margin-bottom:10px;"><b>'+esc(e.name)+'</b>'+(e.desig?' · '+esc(e.desig):'')+(dept?' · '+esc(dept):'')+(e.entity?' · '+esc(e.entity):'')+'</div>'
+    +'<div style="display:flex;gap:12px;flex-wrap:wrap;">'
+    +tile('Gross salary now → after',smMoney(g)+' → '+smMoney(g2),'A rise of '+smPct(pct))
+    +tile('Extra per month',smMoney(extraM),'For '+months+' month'+(months>1?'s':'')+' this year: <b>'+smMoney(extraM*months)+'</b>')
+    +tile('Extra per full year',smMoney(extraM*12),'Once it runs for 12 months')
+    +tile(uae?'Extra employer pension (UAE national)':'Extra gratuity if they left today',smMoney(uae?penExtra:gratExtra),uae?'Per year, on the higher basic salary':'Worked out on basic salary only')
+    +'</div>';
+  a+='<h4 style="margin:18px 0 6px;font-size:14px;color:#1C3557;">What it does to '+(dept?esc(dept):'their department')+'</h4><div style="font-size:13px;line-height:1.6;color:#333;">';
+  a+=line('<b>Department payroll:</b> '+smMoney(deptCur)+' → '+smMoney(deptNew)+' (up '+smPct(deptCur?(deptNew-deptCur)/deptCur*100:0)+') across '+n+' '+(n===1?'person':'people')+' with a salary on record.');
+  a+=line('<b>Department average gross:</b> '+smMoney(n?deptCur/n:0)+' → '+smMoney(n?deptNew/n:0)+'.');
+  a+=line('<b>Position in the department:</b> '+(n>1?(rankBefore===rankAfter?'stays '+smRankPhrase(rankAfter,n):'moves from '+smRankPhrase(rankBefore,n)+' to '+smRankPhrase(rankAfter,n)):'the only person in the department with a salary on record')+'.');
+  a+=line('<b>Same designation'+(e.desig?' ('+esc(e.desig)+')':'')+':</b> '+(peers.length?peers.length+' other'+(peers.length>1?'s':'')+', average '+smMoney(pAvg)+' (range '+smMoney(pMin)+' to '+smMoney(pMax)+'). Today they are '+rel(g,pAvg)+'; after the raise, '+rel(g2,pAvg)+'.':(des?'no other active staff with this designation to compare with.':'no designation recorded for this person.')));
+  a+=line('<b>Line manager:</b> '+(mgrG?esc(mgr.name||'Manager')+' earns '+smMoney(mgrG)+'. Their new pay is '+(g2>mgrG?'above':(g2===mgrG?'equal to':'below'))+' that.':(e.lineManagerKey?'a line manager is set but has no gross salary recorded.':'no line manager recorded.')));
+  a+='</div>';
+  a+=flags.length?'<div style="margin-top:12px;padding:10px 13px;border-radius:8px;background:#fff4dc;color:#7a5a00;font-size:13px;line-height:1.6;"><b>Worth a look:</b><br>'+flags.map(f=>'• '+esc(f)).join('<br>')+'</div>':'<div style="margin-top:12px;padding:10px 13px;border-radius:8px;background:#e8f5e9;color:#1A7A6E;font-size:13px;">Nothing unusual: no change in who is highest paid, and pay stays below the line manager\'s.</div>';
+  a+='<div style="font-size:11.5px;color:#888;margin-top:10px;">This compares pay only. It does not consider performance, experience or market rates.</div>';
+  res.innerHTML=a;
+  _smRows=rows.slice().sort((x,y)=>y.next-x.next||x.name.localeCompare(y.name));
+  tbl.innerHTML='<table style="font-size:12.5px;border-collapse:collapse;width:100%;min-width:560px;"><thead><tr><th style="text-align:left;padding:4px 8px;">Name</th><th style="text-align:left;padding:4px 8px;">Designation</th><th style="text-align:right;padding:4px 8px;">Gross now</th><th style="text-align:right;padding:4px 8px;">Gross after</th></tr></thead><tbody>'
+    +_smRows.map(r=>'<tr style="border-top:1px solid #eee;'+(r.key===key?'background:#fff8e1;font-weight:700;':'')+'"><td style="padding:4px 8px;">'+esc(r.name)+(r.key===key?' ◄':'')+'</td><td style="padding:4px 8px;">'+esc(r.desig)+'</td><td style="text-align:right;padding:4px 8px;">'+smMoney(r.cur)+'</td><td style="text-align:right;padding:4px 8px;">'+smMoney(r.next)+'</td></tr>').join('')+'</tbody></table>';
+}
+
 window.downloadSimulatorCSV=function(){
   if(currentRole!=='admin')return;
   const rows=[['Name','Company','Department','Designation','Gross now (AED/month)','Gross after (AED/month)','Extra per month (AED)']].concat(_smRows.map(r=>[r.name,r.entity,r.dept,r.desig,Math.round(r.cur),Math.round(r.next),Math.round(r.next-r.cur)]));
@@ -4145,6 +4226,22 @@ window.briefSimulator=function(){
   const res=document.getElementById('smResult');if(!res||!res.dataset)return;
   const d=window._smBrief;
   if(!d){briefSpeak('There is no simulation result to read yet.');return;}
+  if(d.person===false){briefSpeak(d.reason==='nogross'?'No gross salary is recorded for '+d.name+', so a raise cannot be tested.':'Choose a person first.');return;}
+  if(d.person===true){
+    const p=[];
+    p.push('This is a test, nothing is saved.');
+    p.push(d.name+(d.desig?', '+d.desig:'')+(d.dept?', in '+d.dept:'')+', would go from '+briefAed(d.cur)+' to '+briefAed(d.next)+' a month gross, a rise of '+(Math.round(d.pct*10)/10)+' percent.');
+    p.push('That is an extra '+briefAed(d.extraM)+' a month, '+briefAed(d.extraM*d.months)+' over '+briefPlural(d.months,'month','months')+' this year, and '+briefAed(d.extraM*12)+' over a full year.');
+    if(d.uae){if(d.penExtra>0)p.push('As a UAE national, the employer pension contribution would rise by about '+briefAed(d.penExtra)+' a year.');}
+    else if(d.gratExtra>0)p.push('The extra end of service gratuity, if they left today, would be about '+briefAed(d.gratExtra)+'.');
+    else p.push('There is no extra gratuity from this change.');
+    p.push('In '+(d.dept||'the department')+', '+briefPlural(d.n,'person has','people have')+' a salary on record. Payroll would go from '+briefAed(d.deptCur)+' to '+briefAed(d.deptNew)+', up '+(Math.round(d.deptPct*10)/10)+' percent.');
+    const rp=(r,n)=>n<=1?'the only one':(r===1?'the highest paid':(r===n?'the lowest paid':'number '+r+' of '+n));
+    if(d.n>1)p.push(d.rankBefore===d.rankAfter?d.name+' would stay '+rp(d.rankAfter,d.n)+'.':d.name+' would move from '+rp(d.rankBefore,d.n)+' to '+rp(d.rankAfter,d.n)+'.');
+    d.flags.forEach(f=>p.push(f));
+    p.push('These are estimates for planning. They compare pay only, not performance or experience.');
+    briefSpeak(p.join(' '));return;
+  }
   if(!d.pool){briefSpeak('No active staff match these choices.');return;}
   const parts=[];
   parts.push('This is a test, nothing is saved.');
