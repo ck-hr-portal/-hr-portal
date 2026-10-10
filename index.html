@@ -412,6 +412,7 @@ tr:hover td{background:#fafbfc;}
     <div class="topbar-right">
       <span class="admin-name" id="adminNameDisplay"></span>
       <span class="sync-ind" id="syncStatus">● Connecting...</span>
+      <button class="btn-logout" id="voiceToggleBtn" style="display:none;" onclick="greetToggleVoice()" title="Switch the assistant's voice on or off">🔊 Voice on</button>
       <button class="btn-logout" onclick="doLogout()">Sign Out</button>
     </div>
   </div>
@@ -630,6 +631,7 @@ tr:hover td{background:#fafbfc;}
             <div class="form-group"><label>Company</label><select id="hhEntity" onchange="renderHeadcountHistory()"></select></div>
             <button class="btn btn-gold" onclick="downloadHeadcountCSV()">⬇ Download monthly table (CSV)</button>
           </div>
+          <div class="briefBtn" style="display:none;margin-top:12px;"><button class="btn btn-gold" style="padding:6px 14px;" onclick="briefHeadcount()">🔊 Brief me on this</button> <button class="btn" style="padding:6px 12px;background:#fff;border:1px solid #c9d3e3;" onclick="briefStop()">⏹ Stop</button></div>
           <div id="hhSnapshot" style="margin-top:16px;"></div>
         </div>
         <div class="card" style="margin-bottom:14px;"><h3 style="margin:0 0 10px;font-size:15px;">Last 24 months</h3><div id="hhTrend" style="overflow-x:auto;"></div></div>
@@ -651,7 +653,7 @@ tr:hover td{background:#fafbfc;}
             <div class="form-group" id="smBasicWrap" style="justify-content:flex-end;"><label style="display:flex;gap:8px;align-items:center;font-weight:500;"><input type="checkbox" id="smAlsoBasic" onchange="runSimulator()"> Fixed amount also raises basic salary</label></div>
           </div>
         </div>
-        <div class="card" style="margin-bottom:14px;"><div id="smResult"></div></div>
+        <div class="card" style="margin-bottom:14px;"><div class="briefBtn" style="display:none;margin-bottom:10px;"><button class="btn btn-gold" style="padding:6px 14px;" onclick="briefSimulator()">🔊 Brief me on this result</button> <button class="btn" style="padding:6px 12px;background:#fff;border:1px solid #c9d3e3;" onclick="briefStop()">⏹ Stop</button></div><div id="smResult"></div></div>
         <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;"><h3 style="margin:0;font-size:15px;">Person by person</h3><button class="btn btn-gold" onclick="downloadSimulatorCSV()">⬇ Download (CSV)</button></div><div id="smTable" style="overflow-x:auto;"></div>
           <p style="font-size:12px;color:#777;margin:10px 0 0;line-height:1.6;">How it is worked out: salary figures come from Employee Records. Staff with no gross salary recorded are left out of the totals. For "% of gross", basic salary is assumed to rise by the same percentage. Gratuity uses the portal's standard gratuity formula (basic salary, UAE nationals excluded) and shows the extra amount if everyone affected left today. For UAE nationals the extra is the employer pension contribution on the higher basic salary, per year. This is an estimate for planning, not a payroll figure.</p></div>
       </div>
@@ -1188,6 +1190,7 @@ tr:hover td{background:#fafbfc;}
           <div id="adminMyApprovalsBody"></div>
         </div>
         <div class="card">
+          <div class="briefBtn" id="briefAllWrap" style="display:none;margin-bottom:10px;"><button class="btn btn-gold" style="padding:6px 14px;" onclick="briefAllRequests()">🔊 Brief me on all waiting requests</button> <button class="btn" style="padding:6px 12px;background:#fff;border:1px solid #c9d3e3;" onclick="briefStop()">⏹ Stop</button></div>
           <div class="table-wrap">
             <table>
               <thead><tr><th>Employee</th><th>Type</th><th>Dates</th><th>Days</th><th>Reason</th><th>Submitted</th><th>Line Manager</th><th>HR Comments</th><th>Action</th></tr></thead>
@@ -2024,6 +2027,7 @@ window.forgotPassword=async function(){
 window.doLogout=function(){
   _staffUnsubs.forEach(f=>{try{f();}catch(e){}});_staffUnsubs=[];
   currentAdmin='';currentRole='';currentEmpKey='';adminName='';adminTitle='';adminSignName='';
+  try{const vt=document.getElementById('voiceToggleBtn');if(vt)vt.style.display='none';}catch(e){}
   try{_greeted=false;try{window.speechSynthesis&&window.speechSynthesis.cancel();}catch(e2){}const gc=document.getElementById('greetCard');if(gc){gc.style.display='none';gc.innerHTML='';}}catch(e){}
   try{_backupLast=null;_bkUnlocked=null;const bb=document.getElementById('backupBanner');if(bb)bb.innerHTML='';}catch(e){}
   document.getElementById('app').style.display='none';
@@ -2316,7 +2320,7 @@ function applyCEOMode(){
   // Employee Portal Access (credential management), which stays admin-only
   // regardless of role, per explicit instruction.
   const style=document.createElement('style');
-  style.textContent=`#navHeadcount, #navSimulator, #page-headcount, #page-simulator, #greetCard, #bkTake, #bkCheck, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #backupBanner, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }`;
+  style.textContent=`#voiceToggleBtn, .briefBtn, #navHeadcount, #navSimulator, #page-headcount, #page-simulator, #greetCard, #bkTake, #bkCheck, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #backupBanner, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }`;
   document.head.appendChild(style);
   document.getElementById('syncStatus').textContent='● CEO — Full View, Read-Only';
 }
@@ -3592,7 +3596,7 @@ function applyPROMode(){
   style.textContent=`
     .nav-item[onclick*="'loans'"] { display: none !important; }
     .nav-item[onclick*="'settlement'"] { display: none !important; }
-    #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #navBackup, #backupBanner, #page-backup, #navHeadcount, #navSimulator, #page-headcount, #page-simulator, #greetCard, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }
+    #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #navBackup, #backupBanner, #page-backup, #voiceToggleBtn, .briefBtn, #navHeadcount, #navSimulator, #page-headcount, #page-simulator, #greetCard, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }
     button[onclick*="openEmpModal"], button[onclick="delEmp"], button[onclick*="delEmp("] { display: none !important; }
   `;
   document.head.appendChild(style);
@@ -3841,7 +3845,7 @@ function leaveCoverHtml(reqKey,r){
   else if(ratio>=0.34){col='#7a5a00';bg='#fff4dc';msg='Busiest day: '+c.peak+' of '+c.total+' off in '+esc(c.dept)+', '+left+' left.';}
   else{msg='Cover is fine: busiest day '+c.peak+' of '+c.total+' off in '+esc(c.dept)+'.';}
   const lst=c.others.slice(0,4).map(o=>esc(o.name)+' ('+fmt(o.from)+(o.to!==o.from?' – '+fmt(o.to):'')+(o.pending?', not yet approved':'')+')').join('; ');
-  return '<div style="font-size:11px;margin-top:6px;padding:5px 8px;border-radius:6px;background:'+bg+';color:'+col+';max-width:230px;line-height:1.5;">👥 '+msg+(lst?'<br><span style="color:#555;">Also off: '+lst+(c.others.length>4?' and '+(c.others.length-4)+' more':'')+'</span>':'')+'</div>';
+  return '<div style="font-size:11px;margin-top:6px;padding:5px 8px;border-radius:6px;background:'+bg+';color:'+col+';max-width:230px;line-height:1.5;">👥 '+msg+(greetVoiceOn()&&greetCanSpeak()?'<br><button class="btn" style="margin-top:5px;padding:3px 9px;font-size:11px;background:#fff;border:1px solid #c9d3e3;color:#1C3557;" onclick="briefRequest(\''+reqKey+'\')">🔊 Brief me</button>':'')+(lst?'<br><span style="color:#555;">Also off: '+lst+(c.others.length>4?' and '+(c.others.length-4)+' more':'')+'</span>':'')+'</div>';
 }
 
 // ── HEADCOUNT HISTORY (Dev and Darleendy only) ───────────────────────────────────────────
@@ -3921,6 +3925,7 @@ window.renderHeadcountHistory=function(){
   document.getElementById('hhTrend').innerHTML='<table style="font-size:13px;border-collapse:collapse;width:100%;min-width:520px;"><thead><tr><th style="text-align:left;padding:4px 10px;">Month</th><th style="text-align:right;padding:4px 10px;">Joined</th><th style="text-align:right;padding:4px 10px;">Left</th><th style="text-align:right;padding:4px 10px;">Headcount at month end</th><th style="width:34%;"></th></tr></thead><tbody>'
     +_hhRows.slice().reverse().map(r=>'<tr style="border-top:1px solid #eee;"><td style="padding:5px 10px;">'+esc(r.label)+'</td><td style="text-align:right;padding:5px 10px;color:#1A7A6E;">'+(r.joined?'+'+r.joined:'0')+'</td><td style="text-align:right;padding:5px 10px;color:#a02020;">'+(r.left?'−'+r.left:'0')+'</td><td style="text-align:right;padding:5px 10px;font-weight:700;">'+r.count+'</td><td style="padding:5px 10px;"><div style="height:10px;border-radius:5px;background:#1C3557;width:'+Math.round(r.count/mx*100)+'%;"></div></td></tr>').join('')
     +'</tbody></table>';
+  {const y1=new Date(Date.now()-365*86400000).toISOString().slice(0,10);window._hhBrief={date:ds,entity:ent,at:at.length,now:now.length,joined12:pool.filter(p=>p.join>y1&&p.join<=todayS).length,left12:pool.filter(p=>p.exit&&p.exit>y1&&p.exit<=todayS).length,noJoin:noJoin.length,noExit:noExit.length};}
   const notes=['A person is counted from their joining date until they leave. On their exit date they no longer count at the end of that day.'];
   if(noJoin.length)notes.push('<b>'+noJoin.length+' record'+(noJoin.length>1?'s':'')+' left out because there is no valid joining date:</b> '+noJoin.slice(0,8).map(esc).join(', ')+(noJoin.length>8?' and '+(noJoin.length-8)+' more':'')+'.');
   if(noExit.length)notes.push('<b>'+noExit.length+' inactive record'+(noExit.length>1?'s':'')+' left out because there is no exit date:</b> '+noExit.slice(0,8).map(esc).join(', ')+(noExit.length>8?' and '+(noExit.length-8)+' more':'')+'. Add the exit date in Employee Records and they will appear in the history.');
@@ -3977,6 +3982,9 @@ window.runSimulator=function(){
     _smRows.push({name:e.name,dept:e.dept||'',desig:e.desig||'',entity:e.entity||'',cur:g,next:g2});
   });
   const extraM=newM-curM,extraY=extraM*months;
+  {const modeTxt=mode==='basicPct'?val+' percent on basic salary':mode==='grossPct'?val+' percent on gross salary':'a fixed '+Math.round(val)+' dirhams a month';
+   const scopeBits=[ent,dept,grade,des?('designation containing '+des):''].filter(Boolean);
+   window._smBrief=pool.length?{pool:true,what:'an increase of '+modeTxt,scope:scopeBits.join(', '),counted,curM,newM,extraM,months,gratExtra,penExtra,noGross:noGross.length}:{pool:false};}
   if(!pool.length){res.innerHTML='<div style="color:#777;font-size:14px;">No active staff match these choices.</div>';document.getElementById('smTable').innerHTML='';return;}
   const tile=(t,n,sub)=>'<div style="flex:1;min-width:190px;background:#f6f8fb;border-radius:10px;padding:12px 14px;"><div style="font-size:12px;color:#666;">'+t+'</div><div style="font-size:21px;font-weight:700;color:#1C3557;margin:2px 0;">'+n+'</div><div style="font-size:11.5px;color:#777;">'+(sub||'')+'</div></div>';
   res.innerHTML='<div style="display:flex;gap:12px;flex-wrap:wrap;">'
@@ -4040,6 +4048,7 @@ function renderGreetCard(speak){
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
     +(can?((on?'<button class="btn btn-gold" style="padding:6px 12px;" onclick="greetReplay()">🔊 Play</button>':'')+'<button class="btn" id="greetMuteBtn" style="padding:6px 12px;background:#fff;border:1px solid #c9d3e3;" onclick="greetToggleVoice()">'+(on?'🔇 Mute voice':'🔈 Turn voice on')+'</button>'):'')
     +'<button class="btn" style="padding:6px 10px;background:#fff;border:1px solid #c9d3e3;" title="Hide for now" onclick="document.getElementById(\'greetCard\').style.display=\'none\'">✕</button></div></div>';
+  try{briefRefreshButtons();}catch(e){}
   if(speak&&can&&on)greetSpeak();
 }
 function greetSpeak(){
@@ -4057,10 +4066,12 @@ window.greetToggleVoice=function(){
   try{localStorage.setItem('ckhr_greet_voice',nowOn?'off':'on');}catch(e){}
   if(nowOn){try{window.speechSynthesis.cancel();}catch(e){}}
   renderGreetCard(false);
+  try{briefRefreshButtons();if(currentRole==='admin'&&typeof renderHRReviewQueue==='function')renderHRReviewQueue();}catch(e){}
 };
 function greetAfterLogin(){
   if(_greeted||currentRole!=='admin')return;
   _greeted=true;
+  try{briefRefreshButtons();}catch(e){}
   // wait for the first data to arrive, then greet once for this sign-in
   let tries=0;
   const go=()=>{
@@ -4069,6 +4080,102 @@ function greetAfterLogin(){
     else setTimeout(go,800);
   };
   setTimeout(go,1500);
+}
+
+// ── VOICE BRIEFINGS (Dev and Darleendy) — plain, factual, spoken with the browser's own voice ──
+// Each one is read only when you press its button. Same mute switch as the login greeting (top bar).
+function briefDate(d){try{return new Date(d+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'long'});}catch(e){return d;}}
+function briefRange(a,b){
+  if(!a)return '';
+  if(!b||a===b)return 'on '+briefDate(a);
+  const A=new Date(a+'T00:00:00'),B=new Date(b+'T00:00:00');
+  if(A.getMonth()===B.getMonth()&&A.getFullYear()===B.getFullYear())return 'from '+A.getDate()+' to '+briefDate(b);
+  return 'from '+briefDate(a)+' to '+briefDate(b);
+}
+function briefAed(n){return Math.round(n).toLocaleString('en-US')+' dirhams';}
+function briefPlural(n,one,many){return n+' '+(n===1?one:many);}
+function briefSpeak(text){
+  if(currentRole!=='admin'||!greetCanSpeak()||!greetVoiceOn())return false;
+  try{window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='en-GB';u.rate=0.97;window.speechSynthesis.speak(u);return true;}catch(e){return false;}
+}
+window.briefStop=function(){try{window.speechSynthesis.cancel();}catch(e){}};
+function briefRequestText(key,r){
+  const parts=[];
+  const days=reqDays(r);
+  parts.push(r.empName+' has asked for '+String(r.leaveType||'leave').toLowerCase()+' '+briefRange(r.startDate,r.endDate)+', '+(days===1?'1 day':days+' days')+'.');
+  const emp=DB.employees&&DB.employees[r.empKey];
+  if(emp&&/annual/i.test(r.leaveType||'')&&emp.annualLeaveBalance!==undefined&&emp.annualLeaveBalance!==''&&!isNaN(parseFloat(emp.annualLeaveBalance))){
+    const bal=parseFloat(emp.annualLeaveBalance);
+    parts.push(days>bal?'That is more than the recorded annual leave balance of '+bal+' days.':'The recorded annual leave balance is '+bal+' days.');
+  }
+  let c=null;try{c=leaveCoverInfo(key,r);}catch(e){}
+  let advice='';
+  if(!c){parts.push('There is no department on this employee\'s record, so I cannot check cover.');}
+  else if(!c.bad){
+    const left=c.total-c.peak,ratio=c.total?c.peak/c.total:1;
+    if(c.total<=1){parts.push(r.empName+' is the only person in '+c.dept+', so there is nobody to cover.');advice='I would not forward this until you have agreed how the work is covered.';}
+    else if(left<=0){parts.push('On the busiest day, all '+c.total+' people in '+c.dept+' would be off.');advice='I would not forward this until cover is arranged.';}
+    else if(c.total===2){parts.push('On the busiest day, 1 of the 2 people in '+c.dept+' would be off.');advice='It is workable, but please check cover first.';}
+    else if(left===1||ratio>=0.5){parts.push('On the busiest day, '+c.peak+' of '+c.total+' people in '+c.dept+' would be off, leaving only '+left+'.');advice='I would not forward this until cover is arranged.';}
+    else if(ratio>=0.34){parts.push('On the busiest day, '+c.peak+' of '+c.total+' people in '+c.dept+' would be off, leaving '+left+'.');advice='It is workable, but please check cover first.';}
+    else{parts.push('Cover is fine. On the busiest day, '+c.peak+' of '+c.total+' people in '+c.dept+' would be off.');advice='No concerns from the cover side.';}
+    c.others.slice(0,4).forEach(o=>parts.push(o.name+(o.pending?' has a request, not yet approved, ':' is approved off ')+briefRange(o.from,o.to)+'.'));
+    if(c.others.length>4)parts.push('And '+(c.others.length-4)+' more.');
+  }
+  if(!r.lineManagerKey)parts.push('This employee has no line manager on record. You will need to set one before you can forward the request.');
+  const hrs=(Date.now()-(r.submittedAt||Date.now()))/3600000;
+  if(hrs>48)parts.push('It has been waiting for more than 2 days.');
+  if(advice)parts.push(advice+' This is advice only. The decision is yours.');
+  return parts.join(' ');
+}
+window.briefRequest=function(key){
+  const r=(DB.leaveRequests||{})[key];if(!r)return;
+  briefSpeak(briefRequestText(key,r));
+};
+window.briefAllRequests=function(){
+  const pend=Object.entries(DB.leaveRequests||{}).filter(([k,r])=>r.stage==='HR Review'&&r.status!=='Rejected').sort((a,b)=>a[1].submittedAt-b[1].submittedAt);
+  if(!pend.length){briefSpeak('There are no leave requests waiting for HR review.');return;}
+  const shown=pend.slice(0,6);
+  let text='You have '+briefPlural(pend.length,'leave request','leave requests')+' waiting for HR review. ';
+  text+=shown.map(([k,r],i)=>'Number '+(i+1)+'. '+briefRequestText(k,r)).join(' ');
+  if(pend.length>shown.length)text+=' There are '+(pend.length-shown.length)+' more on the screen.';
+  briefSpeak(text);
+};
+window.briefSimulator=function(){
+  const res=document.getElementById('smResult');if(!res||!res.dataset)return;
+  const d=window._smBrief;
+  if(!d){briefSpeak('There is no simulation result to read yet.');return;}
+  if(!d.pool){briefSpeak('No active staff match these choices.');return;}
+  const parts=[];
+  parts.push('This is a test, nothing is saved.');
+  parts.push('Giving '+d.what+' to '+briefPlural(d.counted,'person','people')+(d.scope?' in '+d.scope:'')+' would change monthly payroll from '+briefAed(d.curM)+' to '+briefAed(d.newM)+'.');
+  parts.push('That is an extra '+briefAed(d.extraM)+' a month, or '+briefAed(d.extraM*d.months)+' over '+briefPlural(d.months,'month','months')+' this year, and '+briefAed(d.extraM*12)+' over a full year.');
+  if(d.gratExtra>0)parts.push('The extra end of service gratuity, if everyone affected left today, would be about '+briefAed(d.gratExtra)+'.');
+  else parts.push('There is no extra gratuity from this change.');
+  if(d.penExtra>0)parts.push('For UAE nationals, the employer pension contribution would rise by about '+briefAed(d.penExtra)+' a year.');
+  if(d.noGross)parts.push(briefPlural(d.noGross,'person has','people have')+' no gross salary recorded and are left out of these figures.');
+  parts.push('These are estimates for planning, not payroll figures.');
+  briefSpeak(parts.join(' '));
+};
+window.briefHeadcount=function(){
+  const d=window._hhBrief;
+  if(!d){briefSpeak('There is no headcount to read yet.');return;}
+  const parts=[];
+  const diff=d.now-d.at;
+  parts.push('At the end of '+briefDate(d.date)+(d.entity?', for '+d.entity+',':'')+' you had '+briefPlural(d.at,'person','people')+'.');
+  parts.push(diff===0?'That is the same as today.':'Today you have '+d.now+', which is '+Math.abs(diff)+(diff>0?' more':' fewer')+'.');
+  if(d.joined12!==undefined)parts.push('Over the last 12 months, '+briefPlural(d.joined12,'person joined','people joined')+' and '+briefPlural(d.left12,'person left','people left')+'.');
+  if(d.noJoin||d.noExit)parts.push((d.noJoin+d.noExit)+' records were left out because a joining or exit date is missing, so the history is not complete until those are fixed.');
+  briefSpeak(parts.join(' '));
+};
+function briefRefreshButtons(){
+  const show=currentRole==='admin'&&greetCanSpeak()&&greetVoiceOn();
+  document.querySelectorAll('.briefBtn').forEach(e=>{e.style.display=show?'block':'none';});
+  const t=document.getElementById('voiceToggleBtn');
+  if(t){
+    if(currentRole==='admin'&&greetCanSpeak()){t.style.display='';t.textContent=greetVoiceOn()?'🔊 Voice on':'🔇 Voice off';}
+    else t.style.display='none';
+  }
 }
 
 const ref_db=(path)=>ref(db,path);
@@ -4176,6 +4283,7 @@ window.showPage=function(page,el){
   if(page==='backup')renderBackupPage();
   if(page==='headcount')initHeadcountPage();
   if(page==='simulator')initSimulatorPage();
+  try{briefRefreshButtons();}catch(e){}
   if(page==='policyimport')renderPolicyImportList();
   if(page==='leaveapprovals')renderHRReviewQueue();
   if(page==='orgchart')renderOrgChart();
