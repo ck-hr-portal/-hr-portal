@@ -273,6 +273,14 @@ tr:hover td{background:#fafbfc;}
         <button class="btn btn-primary" onclick="openLeaveRequestForm()">+ Submit Leave Request</button>
       </div>
     </div>
+    <div class="card" id="empLetterCard" style="display:none;">
+      <div class="card-title">✉️ My Letter Requests</div>
+      <p style="font-size:12px;color:#888;margin-bottom:8px;">Need a salary certificate? Send a request here. When HR has signed it, a Download button appears. It stays available for 7 days, so please download it as soon as it is ready.</p>
+      <div class="table-wrap" style="max-height:260px;overflow-y:auto;margin-bottom:14px;">
+        <table><thead><tr><th>Requested</th><th>Letter</th><th>Addressed to</th><th>Purpose</th><th>Status</th></tr></thead><tbody id="empLetterBody"></tbody></table>
+      </div>
+      <button class="btn btn-primary" onclick="openLetterRequestForm()">+ Request a Salary Certificate</button>
+    </div>
 
     <div class="card" id="empApprovalsCard" style="display:none;">
       <div class="card-title">📋 My Approvals</div>
@@ -396,6 +404,21 @@ tr:hover td{background:#fafbfc;}
   </div>
 </div>
 
+<div class="modal-overlay" id="lqReqModal">
+  <div class="modal">
+    <div class="modal-header"><h3>Request a Salary Certificate</h3><span class="modal-close" onclick="closeModal('lqReqModal')">&times;</span></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Who is the letter for? *</label><select id="lqrAddr" onchange="lqrToggle()"></select></div>
+      <div class="form-group" id="lqrAddrOtherWrap" style="display:none;"><label>Name of the bank / company / office *</label><input type="text" id="lqrAddrOther" maxlength="200"></div>
+      <div class="form-group" style="grid-column:1/-1;"><label>Branch, city or other details (optional)</label><input type="text" id="lqrDetails" maxlength="300" placeholder="e.g. Deira Branch, Dubai, UAE"></div>
+      <div class="form-group"><label>What is it for? *</label><select id="lqrPurpose" onchange="lqrToggle()"></select></div>
+      <div class="form-group" id="lqrPurposeOtherWrap" style="display:none;"><label>Please say what it is for *</label><input type="text" id="lqrPurposeOther" maxlength="200"></div>
+      <div class="form-group" style="grid-column:1/-1;"><label>Anything else HR should know (optional)</label><textarea id="lqrNotes" rows="3" maxlength="1000" style="width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;font-family:inherit;"></textarea></div>
+    </div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="submitLetterRequest()">Send Request</button></div>
+  </div>
+</div>
+
 <!-- APP -->
 <div id="app">
   <div class="topbar">
@@ -436,6 +459,7 @@ tr:hover td{background:#fafbfc;}
       <div class="nav-item" id="navComp" onclick="showPage('comp',this)"><span class="icon">⏱️</span>Compensatory Leave</div>
       <div class="nav-item" id="navLrep" onclick="showPage('lrep',this)"><span class="icon">🖨️</span>Employee Leave Reports</div>
       <div class="nav-item" id="navLro" onclick="showPage('lro',this)"><span class="icon">🔁</span>Leave Year Rollover</div>
+      <div class="nav-item" id="navLq" onclick="showPage('lq',this)"><span class="icon">📨</span>Instruction Box <span id="lqBadge" style="display:none;background:#c0392b;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px;"></span></div>
       <div class="nav-item" onclick="showPage('salary',this)"><span class="icon">💰</span>Salary &amp; Promotions</div>
       <div class="nav-item" id="navSimulator" onclick="showPage('simulator',this)"><span class="icon">🧮</span>Cost Simulator</div>
       <div class="nav-item" id="navCost" onclick="showPage('cost',this)"><span class="icon">💰</span>Total Cost Analysis</div>
@@ -679,6 +703,25 @@ tr:hover td{background:#fafbfc;}
           <div class="btn-row"><button class="btn" onclick="roFillLabour()">Fill everyone with their balance</button> <button class="btn btn-gold" onclick="roSave()">Save carry-over</button></div>
         </div>
         <div id="roBody"></div>
+      </div>
+
+      <div id="page-lq" class="page">
+        <div class="page-header"><h2>Instruction Box</h2><p>Letter requests from staff. Open a request, check or edit the letter, and Darleendy signs and sends it to the employee's portal. Only Dev and Darleendy can see this.</p></div>
+        <div id="lqEditor"></div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title">Requests <select id="lqFilter" onchange="renderLetterInbox()" style="float:right;font-size:12px;padding:4px 8px;border:1.5px solid #e0e0e0;border-radius:6px;"><option value="open">Waiting for action</option><option value="Sent">Sent</option><option value="Declined">Declined</option><option value="all">All</option></select></div>
+          <div class="table-wrap" id="lqInbox"></div>
+        </div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title">Letter log</div>
+          <p style="font-size:12px;color:#888;margin-bottom:8px;">Every letter issued or declined stays here for good. The PDF itself is removed automatically: the employee can download for 7 days, HR for 10 days (you can also delete it earlier once you have saved or printed your copy).</p>
+          <div class="table-wrap" id="lqLogBox"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Signature and stamps</div>
+          <p style="font-size:12px;color:#888;margin-bottom:8px;">Upload the scanned picture of Darleendy's signature with the company stamp, one for each company. The white paper is removed automatically. The employee's company decides which one goes on the letter.</p>
+          <div id="lqAssetBox"></div>
+        </div>
       </div>
 
       <!-- BATCH 3 PAGES (Dev and Darleendy only) -->
@@ -1946,7 +1989,7 @@ function set(...args){
   }
   if(currentRole==='employee'){
     const path=args[0]?.toString()||'';
-    if(!path.includes('leaveRequests')){
+    if(!path.includes('leaveRequests')&&!path.includes('letterRequests')){
       return Promise.reject(new Error('employee-restricted-write'));
     }
   }
@@ -2480,7 +2523,7 @@ function applyCEOMode(){
   // Employee Portal Access (credential management), which stays admin-only
   // regardless of role, per explicit instruction.
   const style=document.createElement('style');
-  style.textContent=`#navLrep, #page-lrep, #navLro, #page-lro, #navCost, #navProv, #page-cost, #page-prov, #navChecklists, #navAck, #navUnans, #page-checklists, #page-ack, #page-unanswered, #voiceToggleBtn, .briefBtn, #navHeadcount, #navSimulator, #page-headcount, #page-simulator, #bkTake, #bkCheck, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #backupBanner, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }`;
+  style.textContent=`#navLrep, #page-lrep, #navLro, #page-lro, #navLq, #page-lq, #navCost, #navProv, #page-cost, #page-prov, #navChecklists, #navAck, #navUnans, #page-checklists, #page-ack, #page-unanswered, #voiceToggleBtn, .briefBtn, #navHeadcount, #navSimulator, #page-headcount, #page-simulator, #bkTake, #bkCheck, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #backupBanner, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }`;
   document.head.appendChild(style);
   document.getElementById('syncStatus').textContent='● CEO — Full View, Read-Only';
 }
@@ -3224,6 +3267,7 @@ function initEmployeeListeners(empKey,uid){
   lookup('empKey','own');
   lookup('lineManagerKey','lm');
   lookup('additionalApproverKey','addl');
+  try{lqEmpInit(empKey);}catch(e){console.error(e);}
   // Company-wide content and low-sensitivity shared lists
   optional(ref(db,'holidays'),snap=>{DB.holidays=snap.val()||{};});
   _staffUnsubs.push(onValue(ref(db,'staffShared/leaveAll'),snap=>{DB.leaveAll=snap.val()||{};},()=>{DB.leaveAll=null;})); // company-wide leave (name, dept, dates). Needs the updated rules; falls back to own department without them
@@ -3759,7 +3803,7 @@ function applyPROMode(){
   style.textContent=`
     .nav-item[onclick*="'loans'"] { display: none !important; }
     .nav-item[onclick*="'settlement'"] { display: none !important; }
-    #navLrep, #page-lrep, #navLro, #page-lro, #navCost, #navProv, #page-cost, #page-prov, #navChecklists, #navAck, #navUnans, #page-checklists, #page-ack, #page-unanswered, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #navBackup, #backupBanner, #page-backup, #voiceToggleBtn, .briefBtn, #navHeadcount, #navSimulator, #page-headcount, #page-simulator, #greetCard, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }
+    #navLrep, #page-lrep, #navLro, #page-lro, #navLq, #page-lq, #navCost, #navProv, #page-cost, #page-prov, #navChecklists, #navAck, #navUnans, #page-checklists, #page-ack, #page-unanswered, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #navBackup, #backupBanner, #page-backup, #voiceToggleBtn, .briefBtn, #navHeadcount, #navSimulator, #page-headcount, #page-simulator, #greetCard, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }
     button[onclick*="openEmpModal"], button[onclick="delEmp"], button[onclick*="delEmp("] { display: none !important; }
   `;
   document.head.appendChild(style);
@@ -3836,7 +3880,7 @@ function parseEmpSelect(val){
 // ── DATA BACKUP (Dev and Darleendy only) ─────────────────────────────────────
 // Downloads one file with all portal data. Optional password: the file is locked with AES-256 in this
 // browser, so the password never leaves the computer. Nothing here changes any portal data.
-const BACKUP_NODES=['employees','leave','leaveAdjustments','salary','loans','repayments','assets','flightAllowance','leavers','docHistory','holidays','announcements','policies','audit','leaveRequests','ceoMessage','orgChart','pendingHires','finalSettlements','staffMap','compLeave','acks','checklists','checklistTemplates','botUnanswered','costEntries','costSettings'];
+const BACKUP_NODES=['employees','leave','leaveAdjustments','salary','loans','repayments','assets','flightAllowance','leavers','docHistory','holidays','announcements','policies','audit','leaveRequests','ceoMessage','orgChart','pendingHires','finalSettlements','staffMap','compLeave','acks','checklists','checklistTemplates','botUnanswered','costEntries','costSettings','letterRequests','letterLog'];
 const BACKUP_DUE_DAYS=7;
 let _backupLast=null,_backupRulesOk=true,_backupBusy=false,_bkUnlocked=null,_bkUnlockedName='';
 function bkLocalLast(){try{return JSON.parse(localStorage.getItem('ckhr_last_backup')||'null');}catch(e){return null;}}
@@ -5824,6 +5868,353 @@ window.roSave=async function(){
   renderRolloverPage();
 };
 
+// ── BATCH 5: Letter requests (Salary Certificate first) ──
+// Employees ask in their own portal; Dev and Darleendy see the request in the Instruction Box, edit the letter,
+// and Darleendy approves it: the PDF (her signature and the company stamp on it) goes to the employee's portal.
+// The PDF is built in the browser and kept in the same free Realtime Database. It is deleted automatically after a few days;
+// the log (who, what, when) is kept for good.
+const LQ_EMP_DAYS=7,LQ_ADMIN_DAYS=10;      // how long the employee / HR can still download the letter
+const LQ_SIGNER='darleendy';                // the only login that can sign and send (change this word to let someone else do it)
+const LQ_ADDR=['Emirates Islamic Bank','Dubai Islamic Bank','Emirates NBD','Mashreq Bank','Abu Dhabi Commercial Bank (ADCB)','First Abu Dhabi Bank (FAB)','RAKBANK','Commercial Bank of Dubai','Embassy / Consulate','Landlord / Real estate company','To whom it may concern'];
+const LQ_PURPOSES=['Credit card application','Bank loan application','Bank account opening','Visa application','Tenancy / accommodation','Other'];
+function lqDay(ts){return new Date(ts).toLocaleDateString('en-AE',{day:'2-digit',month:'short',year:'numeric'});}
+function lqLongDate(d){return (d||new Date()).toLocaleDateString('en-AE',{day:'2-digit',month:'long',year:'numeric'});}
+function lqOrd(s){const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(s||''));if(!m)return s||'';const dt=new Date(+m[1],+m[2]-1,+m[3]),n=dt.getDate();const x=(n%10===1&&n!==11)?'st':(n%10===2&&n!==12)?'nd':(n%10===3&&n!==13)?'rd':'th';return n+x+' '+dt.toLocaleDateString('en-GB',{month:'long',year:'numeric'});}
+function lqMoney(x){const n=parseFloat(x);return isNaN(n)?'':n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function lqNat(n){n=String(n||'').trim();if(!n)return'';const m={pakistan:'Pakistani',india:'Indian',bangladesh:'Bangladeshi','sri lanka':'Sri Lankan',nepal:'Nepali',philippines:'Filipino',egypt:'Egyptian',jordan:'Jordanian',lebanon:'Lebanese',syria:'Syrian',sudan:'Sudanese',turkey:'Turkish',uk:'British','united kingdom':'British',indonesia:'Indonesian',kenya:'Kenyan',uganda:'Ugandan',ghana:'Ghanaian',nigeria:'Nigerian',palestine:'Palestinian',iraq:'Iraqi',iran:'Iranian',morocco:'Moroccan',tunisia:'Tunisian',uae:'Emirati','united arab emirates':'Emirati',yemen:'Yemeni',afghanistan:'Afghan',china:'Chinese',russia:'Russian',ukraine:'Ukrainian',usa:'American','united states':'American',canada:'Canadian',australia:'Australian',italy:'Italian',france:'French',germany:'German',spain:'Spanish',ethiopia:'Ethiopian',eritrea:'Eritrean',cameroon:'Cameroonian',nepalese:'Nepali'};return m[n.toLowerCase()]||n;}
+function lqPos(h){return h==='Mr.'?'his':h==='Ms.'?'her':'their';}
+function lqPurposePhrase(p,h){
+  const l=String(p||'').toLowerCase().trim();if(!l)return'for official purposes';
+  if(/credit card|loan|account opening|visa/.test(l))return'for '+lqPos(h)+' '+l;
+  if(/tenanc|accommodation|rent/.test(l))return'for '+lqPos(h)+' tenancy / accommodation purposes';
+  return'for the following purpose: '+p;
+}
+function lqGen(m,w){
+  const he=m.hon==='Mr.'?'he':m.hon==='Ms.'?'she':'they',His=m.hon==='Mr.'?'His':m.hon==='Ms.'?'Her':'Their',vb=he==='they'?'have':'has';
+  if(w.p1)m.p1='This letter is to certify that '+(m.hon?m.hon+' ':'')+m.name+(m.passport?' holder of '+(m.nat?m.nat+' ':'')+'passport no. '+m.passport:'')+' has been employed in our organization since '+m.join+'. '+His+' current position is '+m.desig+' and '+he+' '+vb+' a monthly salary of '+m.salary+' AED, all-inclusive.';
+  if(w.p2)m.p2='This certificate is being issued upon the employee’s request '+m.pp+'.';
+  if(w.p3)m.p3='Please note that the company/authorized signatory does not constitute any financial guarantee/risk or obligation on our part.';
+}
+function lqDefaultModel(ek,r){
+  const e=(DB.employees||{})[ek]||{};const g=String(e.gender||'').toLowerCase();
+  const hon=g==='male'?'Mr.':g==='female'?'Ms.':'';
+  const a1=(!r.addrTo||r.addrTo==='To whom it may concern')?'':r.addrTo;
+  const m={ref:nextRefNo('salary'),date:lqLongDate(),entity:(e.entity&&e.entity.includes('Building'))?'CKC Building Contracting LLC':'CK Architecture Interiors LLC',
+    attnOn:!!a1,a1,a2:a1?(r.addrDetails||'Dubai, UAE'):'',title:'SALARY CERTIFICATE',sal:'To whom it may concern;',hon,name:e.name||r.empName||'',empId:e.empId||'',dept:e.dept||'',
+    passport:e.passport||'',nat:lqNat(e.nationality),join:lqOrd(e.join),desig:e.desig||'',salary:lqMoney(e.grossSalary),pp:'',signer:'MARY DARLEENDY VILBAR',signerTitle:'Human Resource Manager'};
+  m.pp=lqPurposePhrase(r.purpose,hon);lqGen(m,{p1:1,p2:1,p3:1});return m;
+}
+function lqStampKey(m){return /building/i.test(m.entity)?'ckc':'ck';}
+// ---------- picture handling: turn a scanned stamp/signature (white paper) into a see-through PNG ----------
+function lqProcessImage(file){
+  return new Promise((resolve,reject)=>{
+    const fr=new FileReader();
+    fr.onerror=()=>reject(new Error('Could not read the file'));
+    fr.onload=()=>{const img=new Image();img.onerror=()=>reject(new Error('That does not look like a picture file'));
+      img.onload=()=>{
+        const mx=420,sc=Math.min(1,mx/Math.max(img.naturalWidth,img.naturalHeight));
+        const w=Math.max(1,Math.round(img.naturalWidth*sc)),h=Math.max(1,Math.round(img.naturalHeight*sc));
+        const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(img,0,0,w,h);
+        const id=x.getImageData(0,0,w,h),d=id.data;
+        for(let i=0;i<d.length;i+=4){
+          const r=d[i],g=d[i+1],b=d[i+2],a=255-Math.min(r,g,b);
+          if(a<22){d[i+3]=0;continue;}
+          d[i]=Math.max(0,Math.min(255,Math.round(255-(255-r)*255/a)));d[i+1]=Math.max(0,Math.min(255,Math.round(255-(255-g)*255/a)));d[i+2]=Math.max(0,Math.min(255,Math.round(255-(255-b)*255/a)));
+          d[i+3]=Math.min(255,Math.round((a-22)*255/233));
+        }
+        x.putImageData(id,0,0);resolve(c.toDataURL('image/png'));
+      };img.src=fr.result;};
+    fr.readAsDataURL(file);
+  });
+}
+async function lqLoadAssets(force){
+  if(DB.letterAssets&&!force)return DB.letterAssets;
+  try{const s=await get(ref(db,'letterAssets'));DB.letterAssets=s.val()||{};}catch(e){DB.letterAssets={};}
+  return DB.letterAssets;
+}
+window.lqUploadStamp=async function(which,inp){
+  const f=inp&&inp.files&&inp.files[0];if(!f)return;
+  try{
+    const img=await lqProcessImage(f);
+    await set(ref(db,'letterAssets/'+which),{img,by:adminName,ts:Date.now()});
+    logAudit('Letter stamp uploaded',which==='ckc'?'CKC Building Contracting':'CK Architecture Interiors','');
+    await lqLoadAssets(true);renderLqAssets();
+  }catch(e){alert('Could not save the picture: '+(e&&e.message||e));}
+  inp.value='';
+};
+async function renderLqAssets(){
+  const el=document.getElementById('lqAssetBox');if(!el)return;
+  const A=await lqLoadAssets();
+  const one=(k,name)=>'<div style="flex:1;min-width:230px;border:1px solid #e0e0e0;border-radius:8px;padding:10px;"><div style="font-weight:700;color:#1C3557;font-size:13px;margin-bottom:6px;">'+name+'</div>'
+    +(A[k]&&A[k].img?'<div style="background:#fff;border:1px dashed #ccc;border-radius:6px;padding:4px;text-align:center;"><img src="'+A[k].img+'" style="height:110px;"></div><div style="font-size:11px;color:#1A7A6E;margin:4px 0;">Saved'+(A[k].by?' by '+esc(A[k].by):'')+(A[k].ts?' on '+lqDay(A[k].ts):'')+'</div>':'<div style="font-size:12px;color:#c0392b;margin:8px 0;">Not uploaded yet</div>')
+    +'<input type="file" accept="image/*" onchange="lqUploadStamp(\''+k+'\',this)" style="font-size:12px;"></div>';
+  el.innerHTML='<div style="display:flex;gap:12px;flex-wrap:wrap;">'+one('ck','CK Architecture Interiors LLC')+one('ckc','CKC Building Contracting LLC')+'</div>';
+}
+// ---------- employee side ----------
+function lqEmpInit(empKey){
+  _staffUnsubs.push(onValue(ref(db,'letterRequests/'+empKey),s=>{DB.myLetters=s.val()||{};renderMyLetters();},()=>{DB.myLetters=null;renderMyLetters();}));
+}
+window.renderMyLetters=function(){
+  const card=document.getElementById('empLetterCard'),body=document.getElementById('empLetterBody');if(!card||!body)return;
+  if(DB.myLetters===null){card.style.display='none';return;}
+  card.style.display='block';
+  const rows=Object.entries(DB.myLetters||{}).sort((a,b)=>(b[1].requestedAt||0)-(a[1].requestedAt||0));
+  const now=Date.now();
+  body.innerHTML=rows.length?rows.map(([rid,r])=>{
+    let st;
+    if(r.status==='Sent'){
+      if(r.expiresAt&&now<r.expiresAt&&r.fileState!=='Deleted')st='<div style="color:#1A7A6E;font-weight:700;">Ready</div><button class="btn btn-sm btn-primary" onclick="lqEmpDownload(\''+rid+'\')">Download PDF</button><div style="font-size:11px;color:#888;margin-top:3px;">Available until '+lqDay(r.expiresAt)+'</div>';
+      else st='<div style="color:#888;font-weight:600;">Issued on '+lqDay(r.sentAt||r.requestedAt)+'</div><div style="font-size:11px;color:#888;">The download period has ended. Please contact HR if you need another copy.</div>';
+    }else if(r.status==='Declined')st='<div style="color:#c0392b;font-weight:700;">Declined</div>'+(r.declineReason?'<div style="font-size:11px;color:#555;">'+esc(r.declineReason)+'</div>':'');
+    else st='<div style="color:#e67e22;font-weight:700;">Pending with HR</div>';
+    return'<tr><td>'+lqDay(r.requestedAt)+'</td><td>Salary Certificate</td><td>'+esc(r.addrTo||'')+'</td><td>'+esc(r.purpose||'')+'</td><td>'+st+'</td></tr>';
+  }).join(''):'<tr><td colspan="5"><div class="empty-state"><p>No letter requests yet</p></div></td></tr>';
+};
+window.openLetterRequestForm=function(){
+  const a=document.getElementById('lqrAddr');if(a&&!a.options.length)a.innerHTML=LQ_ADDR.map(x=>'<option>'+esc(x)+'</option>').join('')+'<option>Other</option>';
+  const p=document.getElementById('lqrPurpose');if(p&&!p.options.length)p.innerHTML=LQ_PURPOSES.map(x=>'<option>'+esc(x)+'</option>').join('');
+  ['lqrAddrOther','lqrDetails','lqrPurposeOther','lqrNotes'].forEach(id=>sv(id,''));
+  lqrToggle();document.getElementById('lqReqModal').classList.add('open');
+};
+window.lqrToggle=function(){
+  const ao=document.getElementById('lqrAddrOtherWrap'),po=document.getElementById('lqrPurposeOtherWrap');
+  if(ao)ao.style.display=v('lqrAddr')==='Other'?'block':'none';
+  if(po)po.style.display=v('lqrPurpose')==='Other'?'block':'none';
+};
+window.submitLetterRequest=async function(){
+  const e=DB.employees[currentEmpKey];if(!e)return;
+  let addrTo=v('lqrAddr');if(addrTo==='Other'){addrTo=v('lqrAddrOther');if(!addrTo){alert('Please type who the letter is addressed to.');return;}}
+  let purpose=v('lqrPurpose');if(purpose==='Other'){purpose=v('lqrPurposeOther');if(!purpose){alert('Please type the purpose of the letter.');return;}}
+  const rec={empKey:currentEmpKey,empName:e.name,type:'salary',addrTo:addrTo.slice(0,200),addrDetails:v('lqrDetails').slice(0,300),purpose:purpose.slice(0,200),notes:v('lqrNotes').slice(0,1000),requestedAt:Date.now(),status:'Pending'};
+  try{await set(push(ref(db,'letterRequests/'+currentEmpKey)),rec);}
+  catch(err){alert('Sorry, the request could not be sent. Please try again, or tell HR.');return;}
+  closeModal('lqReqModal');
+  alert('Your request has been sent to HR. You will see the letter here once it is ready.');
+};
+function lqSaveBlob(dataUrl,name){const a=document.createElement('a');a.href=dataUrl;a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),500);}
+window.lqEmpDownload=async function(rid){
+  try{
+    const s=await get(ref(db,'letterFiles/'+currentEmpKey+'/'+rid));const f=s.val();
+    if(!f||!f.pdf){alert('This letter is no longer available. Please contact HR if you need another copy.');return;}
+    lqSaveBlob(f.pdf,f.name||'Salary_Certificate.pdf');
+  }catch(e){alert('This letter is no longer available. Please contact HR if you need another copy.');}
+};
+// ---------- HR side (Dev and Darleendy) ----------
+let _lqStarted=false;
+function lqStart(){
+  if(_lqStarted||currentRole!=='admin')return;_lqStarted=true;
+  onValue(ref(db,'letterRequests'),s=>{DB.letterReq=s.val()||{};if(!window._lqCleaned){window._lqCleaned=true;lqCleanup();}renderLetterInbox();lqBadge();},()=>{});
+  onValue(ref(db,'letterLog'),s=>{DB.letterLog=s.val()||{};renderLqLog();},()=>{});
+}
+function lqRows(){const out=[];Object.entries(DB.letterReq||{}).forEach(([ek,o])=>Object.entries(o||{}).forEach(([rid,r])=>{if(r)out.push({ek,rid,r});}));return out.sort((a,b)=>(b.r.requestedAt||0)-(a.r.requestedAt||0));}
+function lqBadge(){const n=lqRows().filter(x=>x.r.status==='Pending'||x.r.status==='Draft').length;const b=document.getElementById('lqBadge');if(b){b.textContent=n||'';b.style.display=n?'inline-block':'none';}}
+async function lqCleanup(){
+  const now=Date.now();
+  for(const x of lqRows()){
+    if(x.r.fileState==='Available'&&x.r.adminUntil&&x.r.adminUntil<now){try{await lqRemoveFile(x.ek,x.rid,true);}catch(e){}}
+  }
+}
+async function lqRemoveFile(ek,rid,auto){
+  const r=((DB.letterReq||{})[ek]||{})[rid];if(!r)return;
+  await remove(ref(db,'letterFiles/'+ek+'/'+rid));
+  await set(ref(db,'letterRequests/'+ek+'/'+rid),Object.assign({},r,{fileState:'Deleted'}));
+  if(r.logKey)try{const l=(DB.letterLog||{})[r.logKey];if(l)await set(ref(db,'letterLog/'+r.logKey),Object.assign({},l,{fileState:'Deleted'}));}catch(e){}
+  logAudit(auto?'Letter file auto-deleted':'Letter file deleted',r.empName||'',r.refNo||'');
+}
+window.lqDeleteFile=async function(ek,rid){
+  if(!confirm('Delete the stored PDF? Only do this once you have saved or printed your copy. The log entry stays. This cannot be undone.'))return;
+  await lqRemoveFile(ek,rid,false);
+};
+window.lqAdminDownload=async function(ek,rid){
+  try{const s=await get(ref(db,'letterFiles/'+ek+'/'+rid));const f=s.val();if(!f||!f.pdf){alert('The file is no longer stored.');return;}lqSaveBlob(f.pdf,f.name||'Salary_Certificate.pdf');}
+  catch(e){alert('The file is no longer stored.');}
+};
+function lqStatusTag(r){
+  const c={Pending:'#e67e22',Draft:'#8e44ad',Sent:'#1A7A6E',Declined:'#c0392b'}[r.status]||'#888';
+  return'<span style="color:'+c+';font-weight:700;">'+esc(r.status==='Draft'?'Draft saved':r.status||'')+'</span>';
+}
+window.renderLetterInbox=function(){
+  const el=document.getElementById('lqInbox');if(!el)return;
+  const f=v('lqFilter')||'open';
+  let rows=lqRows();
+  if(f==='open')rows=rows.filter(x=>x.r.status==='Pending'||x.r.status==='Draft');
+  else if(f!=='all')rows=rows.filter(x=>x.r.status===f);
+  const ent=ek=>{const e=(DB.employees||{})[ek];return e?(e.entity||'').replace(/ (Interiors|Contracting)$/,''):'';};
+  el.innerHTML='<table style="width:100%;font-size:13px;"><thead><tr><th>Requested</th><th>Employee</th><th>Company</th><th>Letter</th><th>Addressed to</th><th>Purpose</th><th>Status</th><th></th></tr></thead><tbody>'
+    +(rows.length?rows.map(x=>'<tr><td>'+lqDay(x.r.requestedAt)+'</td><td>'+esc(x.r.empName||'')+'</td><td>'+esc(ent(x.ek))+'</td><td>Salary Certificate</td><td>'+esc(x.r.addrTo||'')+(x.r.addrDetails?'<div style="font-size:11px;color:#888;">'+esc(x.r.addrDetails)+'</div>':'')+'</td><td>'+esc(x.r.purpose||'')+(x.r.notes?'<div style="font-size:11px;color:#888;">'+esc(x.r.notes)+'</div>':'')+'</td><td>'+lqStatusTag(x.r)+'</td><td>'
+      +(x.r.status==='Pending'||x.r.status==='Draft'?'<button class="btn btn-sm btn-primary" onclick="lqOpen(\''+x.ek+'\',\''+x.rid+'\')">Open</button>':(x.r.status==='Sent'&&x.r.fileState==='Available'?'<button class="btn btn-sm" onclick="lqAdminDownload(\''+x.ek+'\',\''+x.rid+'\')">Download</button>':''))+'</td></tr>').join(''):'<tr><td colspan="8" style="text-align:center;color:#999;padding:16px;">Nothing here</td></tr>')
+    +'</tbody></table>';
+  lqBadge();
+};
+window.renderLqLog=function(){
+  const el=document.getElementById('lqLogBox');if(!el)return;
+  const rows=Object.entries(DB.letterLog||{}).sort((a,b)=>(b[1].issuedAt||0)-(a[1].issuedAt||0));
+  const now=Date.now();
+  el.innerHTML='<table style="width:100%;font-size:13px;"><thead><tr><th>Date</th><th>Ref. No.</th><th>Employee</th><th>Letter</th><th>Addressed to</th><th>Done by</th><th>Result</th><th>File</th></tr></thead><tbody>'
+    +(rows.length?rows.map(([k,l])=>{
+      const live=l.fileState==='Available'&&l.adminUntil&&l.adminUntil>now;
+      return'<tr><td>'+lqDay(l.issuedAt)+'</td><td>'+esc(l.refNo||'-')+'</td><td>'+esc(l.empName||'')+'</td><td>'+esc(l.typeName||'')+'</td><td>'+esc(l.addrTo||'')+'</td><td>'+esc(l.issuedBy||'')+'</td><td>'+esc(l.result||'Sent')+'</td><td>'
+        +(live?'<button class="btn btn-sm" onclick="lqAdminDownload(\''+esc(l.empKey)+'\',\''+esc(l.rid)+'\')">Download</button> <button class="btn btn-sm btn-danger" onclick="lqDeleteFile(\''+esc(l.empKey)+'\',\''+esc(l.rid)+'\')">Delete</button><div style="font-size:11px;color:#888;">until '+lqDay(l.adminUntil)+'</div>':(l.result==='Declined'?'-':'<span style="color:#888;font-size:12px;">Deleted</span>'))+'</td></tr>';
+    }).join(''):'<tr><td colspan="8" style="text-align:center;color:#999;padding:16px;">No letters issued yet</td></tr>')
+    +'</tbody></table>';
+};
+window.initLetterPage=function(){lqStart();renderLetterInbox();renderLqLog();renderLqAssets();};
+// ----- the editor -----
+const LQ_FIELDS=[['ref','Ref. No.'],['date','Date'],['name','Employee name'],['hon','Mr. / Ms.','sel'],['passport','Passport no.'],['nat','Nationality (as in "Pakistani passport")'],['join','Employed since'],['desig','Designation'],['salary','Monthly salary (AED, all-inclusive)'],['pp','Purpose wording'],['entity','Company (decides the stamp)','ent'],['title','Letter title'],['sal','Opening line'],['a1','Attention: line 1 (who)'],['a2','Attention: line 2 (city / details)']];
+window.lqOpen=async function(ek,rid){
+  const r=((DB.letterReq||{})[ek]||{})[rid];if(!r)return;
+  await lqLoadAssets();
+  const m=r.draft?Object.assign({},r.draft):lqDefaultModel(ek,r);
+  window._lq={ek,rid,m,dirty:{p1:!!(r.draft&&r.draft.dirty&&r.draft.dirty.p1),p2:!!(r.draft&&r.draft.dirty&&r.draft.dirty.p2),p3:!!(r.draft&&r.draft.dirty&&r.draft.dirty.p3)}};
+  const canSign=currentAdmin===LQ_SIGNER;
+  const fld=(k,l,t)=>{
+    const id='lqf_'+k;
+    if(t==='sel')return'<div class="form-group"><label>'+l+'</label><select id="'+id+'" onchange="lqChange()"><option value="">(none)</option><option>Mr.</option><option>Ms.</option></select></div>';
+    if(t==='ent')return'<div class="form-group"><label>'+l+'</label><select id="'+id+'" onchange="lqChange()"><option>CK Architecture Interiors LLC</option><option>CKC Building Contracting LLC</option></select></div>';
+    return'<div class="form-group"><label>'+l+'</label><input type="text" id="'+id+'" oninput="lqChange()"></div>';
+  };
+  document.getElementById('lqEditor').innerHTML='<div class="card" style="border-top:3px solid #C9A84C;margin-bottom:16px;">'
+    +'<div class="card-title">Letter for '+esc(r.empName||'')+' <span style="font-size:12px;font-weight:400;color:#888;">requested '+lqDay(r.requestedAt)+' · to: '+esc(r.addrTo||'')+' · purpose: '+esc(r.purpose||'')+'</span></div>'
+    +(r.notes?'<div style="font-size:12.5px;background:#fffbe6;border:1px solid #f0e0a0;border-radius:6px;padding:7px 10px;margin-bottom:10px;">Note from employee: '+esc(r.notes)+'</div>':'')
+    +'<div class="form-grid">'+LQ_FIELDS.map(x=>fld(x[0],x[1],x[2])).join('')+'</div>'
+    +'<label style="font-size:13px;display:block;margin:6px 0 10px;"><input type="checkbox" id="lqf_attnOn" onchange="lqChange()"> Show the "Attention:" lines</label>'
+    +[['p1','Paragraph 1'],['p2','Paragraph 2'],['p3','Paragraph 3 (bold)']].map(p=>'<div class="form-group" style="margin-bottom:8px;"><label>'+p[1]+'</label><textarea id="lqf_'+p[0]+'" rows="3" oninput="lqPara(\''+p[0]+'\')" style="width:100%;padding:8px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;font-family:inherit;"></textarea></div>').join('')
+    +'<div style="font-size:12px;color:#888;margin-bottom:8px;">The paragraphs update by themselves when you change the details above, until you type in a paragraph yourself. <a href="#" onclick="lqRebuild();return false;">Rebuild all three from the details</a></div>'
+    +'<div id="lqSignNote" style="font-size:12.5px;margin-bottom:10px;"></div>'
+    +'<div class="btn-row"><button class="btn" onclick="lqSaveDraft()">'+(canSign?'Save draft':'Save draft for Darleendy')+'</button>'
+    +(canSign?' <button class="btn btn-gold" onclick="lqDownloadDraft()">Download PDF (signed and stamped)</button> <button class="btn btn-primary" onclick="lqSend()">Send to employee</button>':'')
+    +' <button class="btn btn-danger" onclick="lqDecline()">Decline request</button> <button class="btn" onclick="lqClose()">Close</button></div></div>'
+    +'<div class="card" style="margin-bottom:16px;"><div class="card-title">Preview</div><div id="lqPreview"></div></div>';
+  LQ_FIELDS.forEach(x=>{const el=document.getElementById('lqf_'+x[0]);if(el)el.value=m[x[0]]||'';});
+  document.getElementById('lqf_attnOn').checked=!!m.attnOn;
+  ['p1','p2','p3'].forEach(k=>{document.getElementById('lqf_'+k).value=m[k]||'';});
+  lqRefresh();
+  document.getElementById('lqEditor').scrollIntoView({behavior:'smooth'});
+};
+window.lqClose=function(){window._lq=null;const e=document.getElementById('lqEditor');if(e)e.innerHTML='';};
+function lqCollect(){
+  const q=window._lq;if(!q)return null;const m=q.m;
+  LQ_FIELDS.forEach(x=>{const el=document.getElementById('lqf_'+x[0]);if(el)m[x[0]]=el.value;});
+  m.attnOn=document.getElementById('lqf_attnOn').checked;
+  ['p1','p2','p3'].forEach(k=>{const el=document.getElementById('lqf_'+k);if(el)m[k]=el.value;});
+  return m;
+}
+window.lqChange=function(){
+  const q=window._lq;if(!q)return;const prev={hon:q.m.hon};lqCollect();
+  if(q.m.hon!==prev.hon&&!q.dirty.p2)q.m.pp=lqPurposePhrase((((DB.letterReq||{})[q.ek]||{})[q.rid]||{}).purpose,q.m.hon),document.getElementById('lqf_pp').value=q.m.pp;
+  const w={p1:!q.dirty.p1,p2:!q.dirty.p2,p3:!q.dirty.p3};lqGen(q.m,w);
+  ['p1','p2','p3'].forEach(k=>{if(w[k])document.getElementById('lqf_'+k).value=q.m[k];});
+  lqRefresh();
+};
+window.lqPara=function(k){const q=window._lq;if(!q)return;q.dirty[k]=true;lqCollect();lqRefresh();};
+window.lqRebuild=function(){const q=window._lq;if(!q)return;lqCollect();q.dirty={p1:false,p2:false,p3:false};lqGen(q.m,{p1:1,p2:1,p3:1});['p1','p2','p3'].forEach(k=>{document.getElementById('lqf_'+k).value=q.m[k];});lqRefresh();};
+function lqPreviewHtml(m,stamp){
+  const meta=[['Ref. No.',m.ref],['Date',m.date],['Employee Name',m.name],['Employee ID',m.empId||'—'],['Designation',m.desig||'—'],['Department',m.dept||'—']];
+  return'<div style="max-width:800px;margin:0 auto;border:1px solid #ddd;box-shadow:0 2px 12px rgba(0,0,0,0.08);background:#fff;color:#222;">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;padding:24px 40px 16px;"><img src="ck_logo.png" style="height:44px;"><img src="ckc_logo.png" style="height:44px;"></div>'
+    +'<div style="border-top:2.5px solid #1C3557;margin:0 40px;"></div>'
+    +'<div style="padding:20px 40px 0;"><table style="font-size:12.5px;border-collapse:collapse;">'+meta.map(([l,val])=>'<tr><td style="font-weight:700;color:#1C3557;padding:2px 10px 2px 0;white-space:nowrap;">'+esc(l)+'</td><td style="padding:2px 6px;">:</td><td>'+esc(val)+'</td></tr>').join('')+'</table></div>'
+    +'<div style="border-top:1px solid #ccc;margin:16px 40px 0;"></div><div style="padding:20px 40px 30px;font-size:13px;line-height:1.9;">'
+    +(m.attnOn&&(m.a1||m.a2)?'<table style="border-collapse:collapse;margin-bottom:14px;"><tr><td style="vertical-align:top;padding-right:22px;">Attention:</td><td>'+esc(m.a1)+(m.a2?'<br>'+esc(m.a2):'')+'</td></tr></table>':'')
+    +'<div style="text-align:center;font-weight:700;font-size:14.5px;color:#1C3557;margin:6px 0 16px;letter-spacing:0.5px;">'+esc(m.title)+'</div>'
+    +(m.sal?'<p style="margin:0 0 12px;">'+esc(m.sal)+'</p>':'')
+    +'<p style="margin:0 0 12px;text-align:justify;">'+esc(m.p1)+'</p><p style="margin:0 0 12px;text-align:justify;">'+esc(m.p2)+'</p><p style="margin:0 0 12px;text-align:justify;font-weight:700;">'+esc(m.p3)+'</p>'
+    +'<div style="margin-top:26px;"><div style="font-weight:700;">Yours faithfully,</div>'
+    +(stamp?'<img src="'+stamp+'" style="height:150px;display:block;margin:2px 0 0 -6px;">':'<div style="height:120px;color:#c0392b;font-size:12px;padding-top:50px;">[No stamp uploaded for this company yet]</div>')
+    +'<div style="font-weight:700;">'+esc(m.signer)+'</div><div>'+esc(m.signerTitle)+'</div></div></div>'
+    +'<div style="border-top:1px solid #ccc;margin:0 40px;"></div><div style="color:#888;font-size:9.5px;padding:10px 40px 18px;text-align:center;">CK Architecture Interiors LLC  |  CKC Building Contracting LLC  |  Dubai, UAE  |  This document is system-generated and confidential.</div></div>';
+}
+window.lqRefresh=function(){
+  const q=window._lq;if(!q)return;const m=lqCollect();const A=DB.letterAssets||{};const st=(A[lqStampKey(m)]||{}).img||'';
+  document.getElementById('lqPreview').innerHTML=lqPreviewHtml(m,st);
+  const n=document.getElementById('lqSignNote');
+  if(n)n.innerHTML=(st?'':'<span style="color:#c0392b;">The '+(lqStampKey(m)==='ckc'?'CKC':'CK')+' stamp has not been uploaded yet (see "Signature and stamps" lower on this page). The letter cannot be sent without it.</span> ')
+    +(currentAdmin===LQ_SIGNER?'':'<span style="color:#555;">Only Darleendy can sign and send. Your changes are saved as a draft for her.</span>');
+};
+function lqEnsureJsPdf(){
+  if(window.jspdf)return Promise.resolve();
+  return new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});
+}
+async function lqBuildPdf(m,stamp){
+  await lqEnsureJsPdf();
+  const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4',compress:true});
+  const pageW=210,margin=20,contentW=pageW-margin*2;
+  const [ckLogo,ckcLogo]=await Promise.all([loadImageAsDataURL('ck_logo.png'),loadImageAsDataURL('ckc_logo.png')]);
+  let y=20;
+  if(ckLogo){const w=14*(ckLogo.w/ckLogo.h);doc.addImage(ckLogo.dataUrl,'PNG',margin,y-8,w,14);}
+  if(ckcLogo){const w=14*(ckcLogo.w/ckcLogo.h);doc.addImage(ckcLogo.dataUrl,'PNG',pageW-margin-w,y-8,w,14);}
+  y+=12;doc.setDrawColor(28,53,87);doc.setLineWidth(0.8);doc.line(margin,y,pageW-margin,y);y+=10;
+  doc.setFontSize(10.5);
+  [['Ref. No.',m.ref],['Date',m.date],['Employee Name',m.name],['Employee ID',m.empId||'—'],['Designation',m.desig||'—'],['Department',m.dept||'—']].forEach(([l,val])=>{
+    doc.setFont('helvetica','bold');doc.setTextColor(28,53,87);doc.text(l,margin,y);
+    doc.setFont('helvetica','normal');doc.setTextColor(30,30,30);doc.text(':',margin+38,y);doc.text(String(val),margin+43,y);y+=6;});
+  y+=4;doc.setDrawColor(200,200,200);doc.setLineWidth(0.3);doc.line(margin,y,pageW-margin,y);y+=10;
+  doc.setTextColor(30,30,30);doc.setFont('helvetica','normal');doc.setFontSize(10.5);
+  if(m.attnOn&&(m.a1||m.a2)){doc.text('Attention:',margin,y);doc.text(m.a1||'',margin+26,y);y+=5.8;if(m.a2){doc.text(m.a2,margin+26,y);y+=5.8;}y+=5;}
+  doc.setTextColor(28,53,87);doc.setFontSize(13);doc.setFont('helvetica','bold');doc.text(m.title||'',pageW/2,y,{align:'center'});y+=11;
+  doc.setTextColor(30,30,30);doc.setFontSize(10.5);doc.setFont('helvetica','normal');
+  if(m.sal){doc.text(m.sal,margin,y);y+=9;}
+  [['p1',false],['p2',false],['p3',true]].forEach(([k,bold])=>{
+    doc.setFont('helvetica',bold?'bold':'normal');
+    const lines=doc.splitTextToSize(m[k]||'',contentW);
+    lines.forEach((line,i)=>{if(y>262){doc.addPage();y=25;}if(i<lines.length-1)doc.text(line,margin,y,{maxWidth:contentW,align:'justify'});else doc.text(line,margin,y);y+=6.2;});
+    y+=4;
+  });
+  y+=8;if(y>205){doc.addPage();y=25;}
+  doc.setFont('helvetica','bold');doc.text('Yours faithfully,',margin,y);y+=2;
+  if(stamp){doc.addImage(stamp,'PNG',margin-3,y,42,42);y+=42;}else y+=20;
+  doc.setFont('helvetica','bold');doc.text(m.signer||'',margin,y+3);y+=8.5;
+  doc.setFont('helvetica','normal');doc.text(m.signerTitle||'',margin,y);
+  const pc=doc.internal.getNumberOfPages();
+  for(let p=1;p<=pc;p++){doc.setPage(p);doc.setDrawColor(200,200,200);doc.setLineWidth(0.3);doc.line(margin,282,pageW-margin,282);doc.setTextColor(140,140,140);doc.setFontSize(7.5);doc.setFont('helvetica','normal');
+    doc.text('CK Architecture Interiors LLC  |  CKC Building Contracting LLC  |  Dubai, UAE  |  This document is system-generated and confidential.',pageW/2,288,{align:'center'});
+    doc.text('Page '+p+' of '+pc,pageW-margin,293,{align:'right'});}
+  return doc;
+}
+function lqFileName(m){return 'SAL_'+String(m.name||'Employee').replace(/[^a-zA-Z0-9]+/g,'_')+'_'+new Date().toISOString().split('T')[0]+'.pdf';}
+function lqNeedStamp(m){const A=DB.letterAssets||{};const s=(A[lqStampKey(m)]||{}).img;if(!s){alert('Please upload the '+(lqStampKey(m)==='ckc'?'CKC Building Contracting':'CK Architecture Interiors')+' stamp first (Signature and stamps, lower on this page).');return null;}return s;}
+window.lqSaveDraft=async function(){
+  const q=window._lq;if(!q)return;const m=lqCollect();
+  const r=((DB.letterReq||{})[q.ek]||{})[q.rid];if(!r)return;
+  const draft=Object.assign({},m,{dirty:q.dirty});
+  await set(ref(db,'letterRequests/'+q.ek+'/'+q.rid),Object.assign({},r,{status:'Draft',draft,draftBy:adminName,draftAt:Date.now()}));
+  logAudit('Letter draft saved',r.empName||'',m.ref);
+  alert('Draft saved.');
+};
+window.lqDownloadDraft=async function(){
+  const q=window._lq;if(!q||currentAdmin!==LQ_SIGNER)return;const m=lqCollect();const st=lqNeedStamp(m);if(!st)return;
+  const doc=await lqBuildPdf(m,st);doc.save(lqFileName(m));
+};
+window.lqSend=async function(){
+  const q=window._lq;if(!q)return;
+  if(currentAdmin!==LQ_SIGNER){alert('Only Darleendy can sign and send letters. Please save a draft for her.');return;}
+  const m=lqCollect();const st=lqNeedStamp(m);if(!st)return;
+  const r=((DB.letterReq||{})[q.ek]||{})[q.rid];if(!r)return;
+  if(!confirm('Sign and send this letter to '+(r.empName||'the employee')+'? They will be able to download it from their portal for '+LQ_EMP_DAYS+' days.'))return;
+  const doc=await lqBuildPdf(m,st);const pdf=doc.output('datauristring');
+  if(pdf.length>1400000){alert('The PDF came out too large to store ('+Math.round(pdf.length/1024)+' KB). Please re-upload smaller stamp pictures.');return;}
+  const now=Date.now(),empUntil=now+LQ_EMP_DAYS*86400000,admUntil=now+LQ_ADMIN_DAYS*86400000;
+  try{
+    await set(ref(db,'letterFiles/'+q.ek+'/'+q.rid),{pdf,name:lqFileName(m),refNo:m.ref,expiresAt:empUntil,adminUntil:admUntil,ts:now});
+    const lk=push(ref(db,'letterLog')).key;
+    await set(ref(db,'letterRequests/'+q.ek+'/'+q.rid),Object.assign({},r,{status:'Sent',refNo:m.ref,sentAt:now,sentBy:adminName,expiresAt:empUntil,adminUntil:admUntil,fileState:'Available',logKey:lk,draft:null}));
+    await set(ref(db,'letterLog/'+lk),{empKey:q.ek,rid:q.rid,empName:r.empName||m.name,entity:m.entity,type:'salary',typeName:'Salary Certificate',addrTo:m.a1||r.addrTo||'To whom it may concern',purpose:r.purpose||'',refNo:m.ref,requestedAt:r.requestedAt,issuedAt:now,issuedBy:adminName,empUntil,adminUntil:admUntil,fileState:'Available',result:'Sent'});
+    try{await set(push(ref(db,'docHistory')),{empKey:q.ek,empName:r.empName||m.name,docType:'Salary Certificate',docTypeKey:'salary',refNo:m.ref,issueDate:new Date().toISOString().split('T')[0],generatedBy:adminName,status:'Issued'});}catch(e){}
+    logAudit('Letter sent',r.empName||'',m.ref+' to '+(m.a1||'whom it may concern'));
+  }catch(err){alert('The letter could not be sent: '+(err&&err.message||err));return;}
+  lqClose();alert('Sent. '+(r.empName||'The employee')+' can now download it from their portal. You can also download it from the log below for '+LQ_ADMIN_DAYS+' days.');
+};
+window.lqDecline=async function(){
+  const q=window._lq;if(!q)return;
+  const r=((DB.letterReq||{})[q.ek]||{})[q.rid];if(!r)return;
+  const why=prompt('Reason to show the employee (optional):','');if(why===null)return;
+  const now=Date.now();
+  await set(ref(db,'letterRequests/'+q.ek+'/'+q.rid),Object.assign({},r,{status:'Declined',declineReason:String(why||'').slice(0,300),declinedBy:adminName,declinedAt:now,draft:null}));
+  await set(push(ref(db,'letterLog')),{empKey:q.ek,rid:q.rid,empName:r.empName||'',type:'salary',typeName:'Salary Certificate',addrTo:r.addrTo||'',purpose:r.purpose||'',requestedAt:r.requestedAt,issuedAt:now,issuedBy:adminName,fileState:'None',result:'Declined'});
+  logAudit('Letter declined',r.empName||'',why||'');
+  lqClose();
+};
+
 const ref_db=(path)=>ref(db,path);
 function initListeners(){
   try{botInit();}catch(e){}
@@ -5883,7 +6274,7 @@ function initListeners(){
       scheduleStaffMirrorSync();
     },()=>{window._compLoadFailed=true;_mirrorLoaded.compLeave=true;scheduleStaffMirrorSync();});
   }
-  if(currentRole==='admin'){try{initBatch2Listeners();initBatch3Listeners();}catch(e){console.error(e);}}
+  if(currentRole==='admin'){try{initBatch2Listeners();initBatch3Listeners();}catch(e){console.error(e);}try{lqStart();}catch(e){console.error(e);}}
   // When the last backup was taken: Dev and Darleendy get the weekly reminder, Cem can see the status (view only)
   if(currentRole==='admin'||currentRole==='ceo'){
     onValue(ref(db,'backupLog/last'),snap=>{_backupLast=snap.val();_backupRulesOk=true;renderBackupBanner();renderBackupPage();},()=>{_backupLast=null;_backupRulesOk=false;renderBackupBanner();renderBackupPage();});
@@ -5904,7 +6295,7 @@ window.closeMobileSidebar=function(){
 };
 window.showPage=function(page,el){
   if(page==='comp'&&currentRole!=='admin')return; // Dev and Darleendy only
-  if((page==='headcount'||page==='simulator'||page==='checklists'||page==='ack'||page==='unanswered'||page==='cost'||page==='prov'||page==='lrep'||page==='lro')&&currentRole!=='admin')return; // Dev and Darleendy only
+  if((page==='headcount'||page==='simulator'||page==='checklists'||page==='ack'||page==='unanswered'||page==='cost'||page==='prov'||page==='lrep'||page==='lro'||page==='lq')&&currentRole!=='admin')return; // Dev and Darleendy only
   if(page==='backup'&&currentRole!=='admin'&&currentRole!=='ceo')return; // Dev and Darleendy run it; Cem can view the status
   closeMobileSidebar(); // so picking a page doesn't leave the drawer covering the content on mobile
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -5934,6 +6325,7 @@ window.showPage=function(page,el){
   if(page==='simulator')initSimulatorPage();
   if(page==='lrep')renderLeaveReportPage();
   if(page==='lro')renderRolloverPage();
+  if(page==='lq')initLetterPage();
   if(page==='cost')initCostPage();
   if(page==='prov')renderProvisionPage();
   if(page==='checklists')renderChecklistsPage();
