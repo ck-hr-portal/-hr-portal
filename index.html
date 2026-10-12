@@ -198,6 +198,7 @@ tr:hover td{background:#fafbfc;}
   </div>
   <div style="max-width:1100px;margin:80px auto 40px;padding:0 24px;">
     <div id="empGreetCard"></div>
+    <div id="empAckCard" style="display:none;"></div>
     <div id="empFestive"></div>
     <div class="card" id="empCEOMsgCard" style="display:none;background:#fff;border-top:3px solid #C9A84C;">
       <div style="display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap;">
@@ -428,10 +429,15 @@ tr:hover td{background:#fafbfc;}
       <div class="nav-item" onclick="showPage('uaenationals',this)"><span class="icon">🇦🇪</span>UAE Nationals</div>
       <div class="nav-item" id="navWorkforce" onclick="showPage('workforce',this)"><span class="icon">📈</span>Workforce Summary</div>
       <div class="nav-item" id="navHeadcount" onclick="showPage('headcount',this)"><span class="icon">🕰️</span>Headcount History</div>
+      <div class="nav-item" id="navChecklists" onclick="showPage('checklists',this)"><span class="icon">✅</span>Joiner / Leaver Checklists</div>
+      <div class="nav-item" id="navAck" onclick="showPage('ack',this)"><span class="icon">📌</span>Acknowledgements</div>
+      <div class="nav-item" id="navUnans" onclick="showPage('unanswered',this)"><span class="icon">❓</span>Unanswered Questions</div>
       <div class="nav-item" onclick="showPage('leave',this)"><span class="icon">📅</span>Leave Register</div>
       <div class="nav-item" id="navComp" onclick="showPage('comp',this)"><span class="icon">⏱️</span>Compensatory Leave</div>
       <div class="nav-item" onclick="showPage('salary',this)"><span class="icon">💰</span>Salary &amp; Promotions</div>
       <div class="nav-item" id="navSimulator" onclick="showPage('simulator',this)"><span class="icon">🧮</span>Cost Simulator</div>
+      <div class="nav-item" id="navCost" onclick="showPage('cost',this)"><span class="icon">💰</span>Total Cost Analysis</div>
+      <div class="nav-item" id="navProv" onclick="showPage('prov',this)"><span class="icon">🏦</span>Year-End Provision</div>
       <div class="nav-section">Finance</div>
       <div class="nav-item" onclick="showPage('loans',this)"><span class="icon">🏦</span>Employee Loans</div>
       <div class="nav-section">Assets</div>
@@ -637,6 +643,81 @@ tr:hover td{background:#fafbfc;}
         </div>
         <div class="card" style="margin-bottom:14px;"><h3 style="margin:0 0 10px;font-size:15px;">Last 24 months</h3><div id="hhTrend" style="overflow-x:auto;"></div></div>
         <div class="card"><div id="hhNotes" style="font-size:12.5px;color:#666;line-height:1.65;"></div></div>
+      </div>
+
+      <!-- BATCH 3 PAGES (Dev and Darleendy only) -->
+      <div id="page-cost" class="page">
+        <div class="page-header"><h2>Total Cost Analysis</h2><p>What your people cost: fixed (salary, pension, gratuity, flights) and variable (medical insurance, visas, training and so on that you enter yourself). Choose any period, past or future, and look at one person, one department, one company or everyone. Only Dev and Darleendy can see this.</p></div>
+        <div class="card" style="margin-bottom:14px;">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+            <button class="btn btn-sm" onclick="cmQuick('month')">This month</button>
+            <button class="btn btn-sm" onclick="cmQuick('ytd')">Year to date</button>
+            <button class="btn btn-sm" onclick="cmQuick('last3')">Last 3 months</button>
+            <button class="btn btn-sm" onclick="cmQuick('year')">This full year</button>
+            <button class="btn btn-sm" onclick="cmQuick('lastyear')">Last year</button>
+            <button class="btn btn-sm" onclick="cmQuick('next12')">Next 12 months (projection)</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;">
+            <div class="form-group"><label>From month</label><input type="month" id="cmFrom" onchange="renderCostPage()"></div>
+            <div class="form-group"><label>To month</label><input type="month" id="cmTo" onchange="renderCostPage()"></div>
+            <div class="form-group"><label>Company</label><select id="cmEntity" onchange="renderCostPage()"></select></div>
+            <div class="form-group"><label>Department</label><select id="cmDept" onchange="renderCostPage()"></select></div>
+            <div class="form-group"><label>Employee</label><select id="cmEmp" onchange="renderCostPage()"></select></div>
+          </div>
+          <div class="btn-row" style="margin-top:6px;"><button class="btn btn-gold" onclick="cmDownloadPDF()">⬇ Download PDF</button> <button class="btn btn-gold" onclick="cmDownloadExcel()">⬇ Download Excel</button></div>
+        </div>
+        <div class="briefBtn" style="display:none;margin-bottom:10px;"><button class="btn btn-gold" style="padding:6px 14px;" onclick="briefCost()">🔊 Brief me on this</button> <button class="btn" style="padding:6px 12px;background:#fff;border:1px solid #c9d3e3;" onclick="briefStop()">⏹ Stop</button></div>
+        <div id="cmBody"></div>
+        <div class="card" id="ceFormCard" style="margin-bottom:14px;">
+          <div class="card-title">Add a variable cost (actual amount paid)</div>
+          <div style="font-size:12.5px;color:#666;margin-bottom:10px;">Enter only what was actually paid, against the person it was paid for. For a dependent, choose the employee and write who it was for (for example "Spouse" or the child's name). Nothing is estimated or split: the amount is counted in the month you choose.</div>
+          <input type="hidden" id="ceEditKey">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">
+            <div class="form-group"><label>Type of cost</label><select id="ceCat"><option>Medical insurance</option><option>Visa &amp; labour card</option><option>Training</option><option>Bonus / overtime</option><option>Recruitment</option><option>Other</option></select></div>
+            <div class="form-group"><label>Employee</label><select id="ceEmp"></select></div>
+            <div class="form-group"><label>Paid for (leave blank if for the employee)</label><input type="text" id="ceFor" maxlength="100" placeholder="e.g. Spouse, or child's name"></div>
+            <div class="form-group"><label>Actual amount paid (AED)</label><input type="number" id="ceAmount" min="0" step="0.01"></div>
+            <div class="form-group"><label>Month paid</label><input type="month" id="ceMonth"></div>
+          </div>
+          <div class="form-group"><label>Note (optional, e.g. policy or invoice number)</label><input type="text" id="ceNote" maxlength="200"></div>
+          <div class="btn-row"><button class="btn btn-primary" id="ceSaveBtn" onclick="ceSave()">Add cost</button> <button class="btn" id="ceCancelBtn" style="display:none;" onclick="ceCancel()">Cancel</button></div>
+        </div>
+        <div class="card" style="margin-bottom:14px;">
+          <div class="card-title">Add many at once (paste from Excel)</div>
+          <div style="font-size:12.5px;color:#666;margin-bottom:10px;">Copy rows from your insurance statement in Excel and paste them below, one line per person or dependent, with these columns in this order: <b>Employee name</b>, <b>Paid for</b> (blank for the employee), <b>Actual amount</b>, <b>Month</b> (optional, like 2026-11). Names must match the portal exactly. If any row has a problem, nothing is saved and you are told which row.</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">
+            <div class="form-group"><label>Type of cost</label><select id="ceBulkCat"><option>Medical insurance</option><option>Visa &amp; labour card</option><option>Training</option><option>Bonus / overtime</option><option>Recruitment</option><option>Other</option></select></div>
+            <div class="form-group"><label>Month paid (for rows without a month)</label><input type="month" id="ceBulkMonth"></div>
+          </div>
+          <div class="form-group"><textarea id="ceBulk" style="min-height:120px;" placeholder="Alice Joiner&#9;&#9;1850&#10;Alice Joiner&#9;Spouse&#9;1420&#10;Bob Builder&#9;Child - Sara&#9;980&#9;2026-11"></textarea></div>
+          <div class="btn-row"><button class="btn btn-primary" onclick="ceBulkSave()">Check and save all</button></div>
+        </div>
+        <div class="card" style="margin-bottom:14px;"><div class="card-title">Variable costs entered</div><div id="ceList"></div></div>
+        <div class="card" style="margin-bottom:14px;"><div class="card-title">Settings for the fixed cost</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
+            <div class="form-group"><label>Flight allowance (AED a year)</label><input type="number" id="cmsFlight" min="0" step="1"></div>
+            <div class="form-group"><label>Employer GPSSA (% of pension salary)</label><input type="number" id="cmsGpssa" min="0" step="0.1"></div>
+          </div>
+          <div style="display:flex;gap:18px;flex-wrap:wrap;margin:6px 0 10px;font-size:13px;">
+            <label><input type="checkbox" id="cmsGrat"> Include gratuity accrual</label>
+            <label><input type="checkbox" id="cmsGp"> Include employer GPSSA</label>
+            <label><input type="checkbox" id="cmsFl"> Include flight allowance</label>
+          </div>
+          <div class="btn-row"><button class="btn btn-primary" onclick="cmSaveSettings()">Save settings</button></div>
+        </div>
+        <div class="card"><div id="cmNotes" style="font-size:12.5px;color:#555;line-height:1.6;"></div></div>
+      </div>
+      <div id="page-prov" class="page">
+        <div class="page-header"><h2>Year-End Provision</h2><p>The amount to set aside for end-of-service gratuity and unused leave, as at a date you choose (normally 31 December). For the finance team. Only Dev and Darleendy can see this.</p></div>
+        <div class="card" style="margin-bottom:14px;"><div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;">
+          <div class="form-group"><label>As at date</label><input type="date" id="provDate" onchange="renderProvisionPage()"></div>
+          <div class="form-group"><label>Company</label><select id="provEntity" onchange="renderProvisionPage()"></select></div>
+          <button class="btn btn-gold" onclick="provDownloadPDF()">⬇ Download PDF</button>
+          <button class="btn btn-gold" onclick="provDownloadExcel()">⬇ Download Excel</button>
+        </div></div>
+        <div class="briefBtn" style="display:none;margin-bottom:10px;"><button class="btn btn-gold" style="padding:6px 14px;" onclick="briefProvision()">🔊 Brief me on this</button> <button class="btn" style="padding:6px 12px;background:#fff;border:1px solid #c9d3e3;" onclick="briefStop()">⏹ Stop</button></div>
+        <div id="provBody"></div>
+        <div class="card" style="margin-top:14px;"><div id="provNotes" style="font-size:12.5px;color:#555;line-height:1.6;"></div></div>
       </div>
 
       <!-- COST SIMULATOR (Dev and Darleendy only) -->
@@ -900,6 +981,37 @@ tr:hover td{background:#fafbfc;}
         </div>
       </div>
 
+      <!-- BATCH 2 PAGES (Dev and Darleendy only) -->
+      <div id="page-checklists" class="page">
+        <div class="page-header"><h2>Joiner / Leaver Checklists</h2><p>A tick-list for each new joiner and each person leaving, so nothing is missed. Only Dev and Darleendy can see this.</p></div>
+        <div class="card" style="margin-bottom:14px;">
+          <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;">
+            <div class="form-group"><label>Person</label><select id="clEmp"></select></div>
+            <div class="form-group"><label>Type</label><select id="clType"><option value="joiner">Joiner (new starter)</option><option value="leaver">Leaver (exit)</option></select></div>
+            <button class="btn btn-primary" onclick="clStart()">Start checklist</button>
+          </div>
+        </div>
+        <div id="clBody"></div>
+        <div class="card" style="margin-top:14px;"><div class="card-title">Edit the standard lists</div>
+          <div style="font-size:12.5px;color:#666;margin-bottom:8px;">One item per line. New checklists use these lists. Checklists already started keep their own items.</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;"><div class="form-group"><label>Joiner list</label><textarea id="clTplJoiner" style="min-height:220px;"></textarea></div><div class="form-group"><label>Leaver list</label><textarea id="clTplLeaver" style="min-height:220px;"></textarea></div></div>
+          <div class="btn-row"><button class="btn btn-primary" onclick="clSaveTemplates()">Save lists</button></div>
+        </div>
+      </div>
+      <div id="page-ack" class="page">
+        <div class="page-header"><h2>Acknowledgements</h2><p>Policies, memos and circulars that staff must confirm they have read. Tick "Staff must acknowledge" when you publish one, or choose it below. Staff see it at the top of their portal until they confirm.</p></div>
+        <div class="card" style="margin-bottom:14px;"><div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;">
+          <div class="form-group"><label>Company</label><select id="ackEntity" onchange="renderAckPage()"></select></div>
+          <button class="btn btn-gold" onclick="ackDownloadPDF()">⬇ Download PDF report</button>
+          <button class="btn btn-gold" onclick="ackDownloadExcel()">⬇ Download Excel report</button>
+        </div></div>
+        <div id="ackBody"></div>
+      </div>
+      <div id="page-unanswered" class="page">
+        <div class="page-header"><h2>Unanswered Questions</h2><p>Questions the help assistant could not answer, grouped together. Use it to see what staff really ask, so answers or policies can be added. Names are not recorded.</p></div>
+        <div class="card"><div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:12px;"><label style="font-size:13px;"><input type="checkbox" id="unShowDone" onchange="renderUnansweredPage()"> Show handled ones</label><button class="btn btn-gold" onclick="unDownload()">⬇ Download (CSV)</button></div><div id="unBody"></div></div>
+      </div>
+
       <!-- ANNOUNCEMENTS -->
       <div id="page-announcements" class="page">
         <div class="page-header"><h2>Announcements</h2></div>
@@ -927,6 +1039,7 @@ tr:hover td{background:#fafbfc;}
               <div class="form-group"><label>Live From</label><input type="date" id="annStart"></div>
               <div class="form-group"><label>Live Until (expires after this date)</label><input type="date" id="annExpiry"></div>
             </div>
+            <div class="form-group" style="margin-top:10px;"><label style="display:flex;gap:8px;align-items:center;font-weight:600;"><input type="checkbox" id="annAck"> Staff must acknowledge this (they confirm they have read it)</label></div>
             <div class="btn-row"><button class="btn btn-primary" onclick="saveAnn()" id="annSaveBtn">Publish</button><button class="btn" id="annCancelBtn" style="display:none;" onclick="cancelAnnEdit()">Cancel Edit</button></div>
           </div>
           <div class="card"><div class="card-title">📢 Currently Live</div><div id="annList"></div></div>
@@ -955,6 +1068,7 @@ tr:hover td{background:#fafbfc;}
             <div class="form-group" style="margin-top:10px;"><label>Category</label><select id="polCat"><option>Leave &amp; Attendance</option><option>Code of Conduct</option><option>Compensation</option><option>Health &amp; Safety</option><option>Recruitment</option><option>General</option></select></div>
             <div class="form-group" style="margin-top:10px;"><label>Policy Content</label><textarea id="polContent" style="min-height:180px;" placeholder="Paste the full policy text here."></textarea><p style="font-size:11px;color:#888;margin-top:4px;">Tip: start a line with <strong>Label:</strong> to bold it, <strong>1. </strong> for a numbered list, or <strong>- </strong> for a bullet point.</p></div>
             <div class="form-group" style="margin-top:10px;"><label>Effective Date</label><input type="date" id="polDate"></div>
+            <div class="form-group" style="margin-top:10px;"><label style="display:flex;gap:8px;align-items:center;font-weight:600;"><input type="checkbox" id="polAck"> Staff must acknowledge this policy (they confirm they have read it)</label></div>
             <div class="btn-row"><button class="btn btn-primary" onclick="savePol()">Save Policy</button></div>
           </div>
           <div class="card"><div class="card-title">📋 Policy Library</div><div id="polList"></div></div>
@@ -2325,7 +2439,7 @@ function applyCEOMode(){
   // Employee Portal Access (credential management), which stays admin-only
   // regardless of role, per explicit instruction.
   const style=document.createElement('style');
-  style.textContent=`#voiceToggleBtn, .briefBtn, #navHeadcount, #navSimulator, #page-headcount, #page-simulator, #bkTake, #bkCheck, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #backupBanner, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }`;
+  style.textContent=`#navCost, #navProv, #page-cost, #page-prov, #navChecklists, #navAck, #navUnans, #page-checklists, #page-ack, #page-unanswered, #voiceToggleBtn, .briefBtn, #navHeadcount, #navSimulator, #page-headcount, #page-simulator, #bkTake, #bkCheck, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #backupBanner, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }`;
   document.head.appendChild(style);
   document.getElementById('syncStatus').textContent='● CEO — Full View, Read-Only';
 }
@@ -2586,7 +2700,7 @@ function botStaffAnswer(raw){
   return'Sorry, I couldn\'t find an answer to <i>“'+esc(String(raw).slice(0,80))+'”</i>. '+hr+'<br><small>I can help with: your leave balance and requests, whether a colleague is on leave, your document dates, holidays and company policies. Type <b>help</b> for examples.</small>';
 }
 
-function botAnswer(raw){return currentRole==='employee'?botStaffAnswer(raw):botAdminAnswer(raw);}
+function botAnswer(raw){const r=currentRole==='employee'?botStaffAnswer(raw):botAdminAnswer(raw);try{if(typeof r==='string'&&r.indexOf('Sorry, I couldn\'t find an answer')===0)botLogUnanswered(raw);}catch(e){}return r;}
 function botAdd(who,html){
   const log=document.getElementById('hbLog');if(!log)return;
   const d=document.createElement('div');d.className='hb-m '+(who==='me'?'hb-me':'hb-bot');
@@ -3075,8 +3189,9 @@ function initEmployeeListeners(empKey,uid){
   _staffUnsubs.push(onValue(ref(db,'staffShared/directory'),snap=>{DB.directory=snap.val()||{};},()=>{DB.directory=null;})); // names + departments of current staff
   optional(ref(db,'staffShared/birthdays'),snap=>{DB.sharedBdays=snap.val()||{};renderEmpBirthdaysAnniversaries();});
   optional(ref(db,'staffShared/anniversaries'),snap=>{DB.sharedAnnis=snap.val()||{};renderEmpBirthdaysAnniversaries();});
-  optional(ref(db,'announcements'),snap=>{DB.announcements=snap.val()||{};renderEmpAnnouncements();try{renderStaffGreeting();}catch(e){}});
-  optional(ref(db,'policies'),snap=>{DB.policies=snap.val()||{};renderEmpPolicies();});
+  optional(ref(db,'announcements'),snap=>{DB.announcements=snap.val()||{};renderEmpAnnouncements();try{renderStaffGreeting();renderStaffAckCard();}catch(e){}});
+  optional(ref(db,'policies'),snap=>{DB.policies=snap.val()||{};renderEmpPolicies();try{renderStaffAckCard();renderStaffGreeting();}catch(e){}});
+  optional(ref(db,'acks/'+empKey),snap=>{DB.myAcks=snap.val()||{};try{renderStaffAckCard();renderStaffGreeting();}catch(e){}});
   optional(ref(db,'ceoMessage'),snap=>{
     const m=snap.val()||{};
     const card=document.getElementById('empCEOMsgCard');
@@ -3603,7 +3718,7 @@ function applyPROMode(){
   style.textContent=`
     .nav-item[onclick*="'loans'"] { display: none !important; }
     .nav-item[onclick*="'settlement'"] { display: none !important; }
-    #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #navBackup, #backupBanner, #page-backup, #voiceToggleBtn, .briefBtn, #navHeadcount, #navSimulator, #page-headcount, #page-simulator, #greetCard, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }
+    #navCost, #navProv, #page-cost, #page-prov, #navChecklists, #navAck, #navUnans, #page-checklists, #page-ack, #page-unanswered, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #navBackup, #backupBanner, #page-backup, #voiceToggleBtn, .briefBtn, #navHeadcount, #navSimulator, #page-headcount, #page-simulator, #greetCard, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }
     button[onclick*="openEmpModal"], button[onclick="delEmp"], button[onclick*="delEmp("] { display: none !important; }
   `;
   document.head.appendChild(style);
@@ -3680,7 +3795,7 @@ function parseEmpSelect(val){
 // ── DATA BACKUP (Dev and Darleendy only) ─────────────────────────────────────
 // Downloads one file with all portal data. Optional password: the file is locked with AES-256 in this
 // browser, so the password never leaves the computer. Nothing here changes any portal data.
-const BACKUP_NODES=['employees','leave','leaveAdjustments','salary','loans','repayments','assets','flightAllowance','leavers','docHistory','holidays','announcements','policies','audit','leaveRequests','ceoMessage','orgChart','pendingHires','finalSettlements','staffMap','compLeave'];
+const BACKUP_NODES=['employees','leave','leaveAdjustments','salary','loans','repayments','assets','flightAllowance','leavers','docHistory','holidays','announcements','policies','audit','leaveRequests','ceoMessage','orgChart','pendingHires','finalSettlements','staffMap','compLeave','acks','checklists','checklistTemplates','botUnanswered','costEntries','costSettings'];
 const BACKUP_DUE_DAYS=7;
 let _backupLast=null,_backupRulesOk=true,_backupBusy=false,_bkUnlocked=null,_bkUnlockedName='';
 function bkLocalLast(){try{return JSON.parse(localStorage.getItem('ckhr_last_backup')||'null');}catch(e){return null;}}
@@ -4398,6 +4513,8 @@ function renderStaffGreeting(speak){
   // 3) Leave requests waiting on this person as a line manager / additional approver
   const n=greetApprovalsWaiting(currentEmpKey);
   if(n)lines.push('✅ '+n+' leave request'+(n>1?'s are':' is')+' waiting for your approval.');
+  const pa=staffPendingAcks().length;
+  if(pa)lines.push('📌 '+pa+' item'+(pa>1?'s need':' needs')+' your acknowledgement. Please see below.');
   // what is read aloud: short, no announcement titles
   const say=[greetHelloWord()+(first?', '+first:'')+'.'];
   if(me.passExp&&/^\d{4}-\d{2}-\d{2}$/.test(me.passExp)){
@@ -4409,6 +4526,7 @@ function renderStaffGreeting(speak){
   const an=greetTodayAnnouncements().length;
   if(an===1)say.push('HR has published one announcement today.');else if(an>1)say.push('HR has published '+an+' announcements today.');
   if(n)say.push((n===1?'One leave request is':n+' leave requests are')+' waiting for your approval.');
+  if(pa)say.push((pa===1?'One item needs':pa+' items need')+' your acknowledgement.');
   _staffGreetText=say.join(' ');
   const can=greetCanSpeak(),on=greetVoiceOn();
   el.style.display='block';
@@ -4479,6 +4597,815 @@ function greetRefreshPassive(){
   if(currentRole==='employee')renderStaffGreeting();
 }
 
+// ── BATCH 2: acknowledgements, joiner/leaver checklists, unanswered-questions log (Dev and Darleendy only) ──
+let _b2RulesOk=true;
+function b2Note(){return _b2RulesOk?'':'<div style="padding:10px 14px;margin-bottom:14px;border-radius:8px;background:#fff4dc;border:1px solid #f0d28a;color:#7a5a00;font-size:13px;">The new Firebase rules have not been published yet, so this page cannot load or save. Publish the rules file first, then refresh.</div>';}
+function b2Csv(name,rows){simDownload(name,rows);}
+function b2Day(){return new Date().toISOString().slice(0,10);}
+
+// ---------- 1. Acknowledgements (policies, memos, circulars) ----------
+function ackItems(){
+  const out=[],today=b2Day();
+  Object.entries(DB.policies||{}).forEach(([k,p])=>{if(p&&p.ackRequired)out.push({id:'p_'+k,key:k,src:'policies',kind:'Policy',title:p.name||'Policy',cat:p.category||'',ver:p.ackVer||1,body:p.content||'',date:p.date||''});});
+  Object.entries(DB.announcements||{}).forEach(([k,a])=>{if(a&&a.ackRequired&&!(typeof ANN_THEMES!=='undefined'&&ANN_THEMES[a.theme])&&(!a.expiryDate||a.expiryDate>=today))out.push({id:'a_'+k,key:k,src:'announcements',kind:'Memo / circular',title:a.title||'Announcement',cat:a.category||'',ver:a.ackVer||1,body:a.message||'',date:a.startDate||''});});
+  return out;
+}
+function ackDone(empKey,it,acks){const r=acks&&acks[empKey]&&acks[empKey][it.id];return !!(r&&(r.ver||1)>=it.ver);}
+function staffPendingAcks(){
+  if(currentRole!=='employee'||DB.myAcks===undefined)return [];
+  return ackItems().filter(it=>!(DB.myAcks&&DB.myAcks[it.id]&&(DB.myAcks[it.id].ver||1)>=it.ver));
+}
+function renderStaffAckCard(){
+  const el=document.getElementById('empAckCard');if(!el)return;
+  if(currentRole!=='employee'){el.style.display='none';el.innerHTML='';return;}
+  const list=staffPendingAcks();
+  if(!list.length){el.style.display='none';el.innerHTML='';return;}
+  el.style.display='block';
+  el.innerHTML='<div class="card" style="border-top:3px solid #C9A84C;margin-bottom:16px;"><div class="card-title">📌 Please read and acknowledge</div>'
+   +'<div style="font-size:12.5px;color:#666;margin-bottom:8px;">HR needs you to confirm that you have read the following. Open each one, read it, then press the button.</div>'
+   +list.map(it=>{const prev=DB.myAcks&&DB.myAcks[it.id];return '<div style="border:1px solid #e0e0e0;border-radius:8px;margin-bottom:10px;overflow:hidden;">'
+    +'<div style="background:#f5f7fa;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><div><strong style="font-size:13px;color:#1C3557;">'+esc(it.title)+'</strong> <span style="font-size:11px;color:#888;">'+esc(it.kind)+(it.cat?' · '+esc(it.cat):'')+(prev?' · <b style="color:#a06a00;">Updated, please acknowledge again</b>':'')+'</span></div>'
+    +'<div style="display:flex;gap:6px;"><button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="togglePolicy(\'ack_'+it.id+'\')">Read</button><button class="btn btn-sm btn-primary" onclick="staffAck(\''+it.id+'\','+it.ver+')">✔ I have read and understood</button></div></div>'
+    +'<div id="ack_'+it.id+'" style="display:none;padding:14px;font-size:12px;line-height:1.8;color:#333;background:#fff;border-top:1px solid #e0e0e0;max-height:300px;overflow-y:auto;">'+(it.body?formatRichText(it.body):'No text added.')+'</div></div>';}).join('')+'</div>';
+}
+window.staffAck=function(id,ver){
+  if(currentRole!=='employee'||!currentEmpKey)return;
+  if(!/^[pa]_[-A-Za-z0-9_]{1,40}$/.test(id))return;
+  const rec={at:Date.now(),ver:Number(ver)||1};
+  _fbSet(ref(db,'acks/'+currentEmpKey+'/'+id),rec).then(()=>{
+    DB.myAcks=Object.assign({},DB.myAcks||{});DB.myAcks[id]=rec;
+    renderStaffAckCard();try{renderStaffGreeting();}catch(e){}
+  }).catch(()=>{alert('Sorry, your acknowledgement could not be saved. Please try again, or tell HR.');});
+};
+function ackEntity(){return (document.getElementById('ackEntity')||{}).value||'';}
+function ackPool(){const en=ackEntity();return Object.entries(DB.employees||{}).filter(([k,e])=>e&&e.status!=='Inactive'&&e.portalEnabled===true&&(!en||e.entity===en));}
+function renderAckPage(){
+  const el=document.getElementById('ackBody');if(!el)return;
+  const sel=document.getElementById('ackEntity');
+  if(sel&&!sel.options.length){const ents=[...new Set(Object.values(DB.employees||{}).map(e=>e&&e.entity).filter(Boolean))].sort();sel.innerHTML='<option value="">Both companies</option>'+ents.map(x=>'<option>'+esc(x)+'</option>').join('');}
+  const pool=ackPool(),acks=DB.acks||{};
+  const noLogin=Object.values(DB.employees||{}).filter(e=>e&&e.status!=='Inactive'&&e.portalEnabled!==true&&(!ackEntity()||e.entity===ackEntity())).length;
+  const items=ackItems();
+  let h=b2Note();
+  h+='<div style="font-size:12.5px;color:#666;margin-bottom:12px;">'+pool.length+' active staff have a portal login and can acknowledge online.'+(noLogin?' '+noLogin+' active staff have no login yet, so they are not counted here.':'')+'</div>';
+  h+=items.length?items.map(it=>{
+    const done=pool.filter(([k])=>ackDone(k,it,acks)),pend=pool.filter(([k])=>!ackDone(k,it,acks));
+    const pct=pool.length?Math.round(done.length*100/pool.length):0;
+    return '<div class="card" style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-start;"><div><strong style="color:#1C3557;">'+esc(it.title)+'</strong> <span style="font-size:11px;color:#888;">'+esc(it.kind)+(it.cat?' · '+esc(it.cat):'')+' · version '+it.ver+'</span>'
+     +'<div style="margin-top:6px;font-size:13px;"><b style="color:'+(pend.length?'#a06a00':'#1A7A6E')+';">'+done.length+' of '+pool.length+' acknowledged ('+pct+'%)</b></div></div>'
+     +'<div style="display:flex;gap:6px;flex-wrap:wrap;"><button class="btn btn-sm btn-gold" onclick="ackAskAgain(\''+it.id+'\')">Ask everyone again</button><button class="btn btn-sm" style="background:#fff;border:1px solid #c9d3e3;" onclick="ackStop(\''+it.id+'\')">Stop requiring</button></div></div>'
+     +(pend.length?'<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:12.5px;color:#a06a00;">Still to acknowledge ('+pend.length+')</summary><div style="font-size:12.5px;line-height:1.7;margin-top:4px;">'+pend.map(([k,e])=>esc(e.name)+(e.dept?' <span style="color:#888;">('+esc(e.dept)+')</span>':'')).join('<br>')+'</div></details>':'')
+     +(done.length?'<details style="margin-top:6px;"><summary style="cursor:pointer;font-size:12.5px;color:#1A7A6E;">Acknowledged ('+done.length+')</summary><div style="font-size:12.5px;line-height:1.7;margin-top:4px;">'+done.map(([k,e])=>esc(e.name)+' <span style="color:#888;">'+esc(new Date(acks[k][it.id].at).toLocaleDateString('en-GB'))+'</span>').join('<br>')+'</div></details>':'')
+     +'</div>';}).join(''):'<div class="empty-state"><p>Nothing needs acknowledgement right now. Choose items below, or tick "Staff must acknowledge" when you publish a policy or announcement.</p></div>';
+  const today=b2Day();
+  const cand=[];
+  Object.entries(DB.policies||{}).forEach(([k,p])=>{if(p&&!p.ackRequired)cand.push({src:'p',key:k,title:p.name,kind:'Policy'});});
+  Object.entries(DB.announcements||{}).forEach(([k,a])=>{if(a&&!a.ackRequired&&!(typeof ANN_THEMES!=='undefined'&&ANN_THEMES[a.theme])&&(!a.expiryDate||a.expiryDate>=today))cand.push({src:'a',key:k,title:a.title,kind:'Memo / circular'});});
+  h+='<div class="card" style="margin-top:6px;"><div class="card-title">Ask staff to acknowledge something already published</div>'
+   +(cand.length?cand.map(c=>'<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #f0f0f0;"><div style="font-size:13px;"><b>'+esc(c.title)+'</b> <span style="font-size:11px;color:#888;">'+c.kind+'</span></div><button class="btn btn-sm btn-primary" onclick="ackRequire(\''+c.src+'\',\''+c.key+'\')">Require acknowledgement</button></div>').join(''):'<div class="empty-state"><p>Nothing else to choose from.</p></div>')+'</div>';
+  el.innerHTML=h;
+}
+function ackPath(id){return (id[0]==='p'?'policies/':'announcements/')+id.slice(2);}
+window.ackRequire=function(src,key){
+  const base=(src==='p'?'policies/':'announcements/')+key;
+  const rec=(src==='p'?DB.policies:DB.announcements)[key]||{};
+  if(!confirm('Ask all staff with a portal login to acknowledge "'+(rec.name||rec.title)+'"? They will see it at the top of their portal and in their greeting until they confirm.'))return;
+  Promise.all([set(ref(db,base+'/ackRequired'),true),set(ref(db,base+'/ackVer'),rec.ackVer||1)]).then(()=>logAudit('Acknowledgement Required',rec.name||rec.title,'')).catch(e=>alert('Could not save: '+(e&&e.message||e)));
+};
+window.ackAskAgain=function(id){
+  const it=ackItems().find(x=>x.id===id);if(!it)return;
+  if(!confirm('Ask everyone to acknowledge "'+it.title+'" again? Use this after you have amended it. Everyone, including those who already confirmed, will be asked again.'))return;
+  set(ref(db,ackPath(id)+'/ackVer'),it.ver+1).then(()=>logAudit('Acknowledgement Re-requested',it.title,'version '+(it.ver+1))).catch(e=>alert('Could not save: '+(e&&e.message||e)));
+};
+window.ackStop=function(id){
+  const it=ackItems().find(x=>x.id===id);if(!it)return;
+  if(!confirm('Stop asking staff to acknowledge "'+it.title+'"? Past acknowledgements are kept.'))return;
+  remove(ref(db,ackPath(id)+'/ackRequired')).then(()=>logAudit('Acknowledgement Stopped',it.title,'')).catch(e=>alert('Could not save: '+(e&&e.message||e)));
+};
+
+function ackReportData(){
+  const pool=ackPool(),acks=DB.acks||{},en=ackEntity();
+  const items=ackItems().map(it=>{
+    const rows=pool.map(([k,e])=>{const ok=ackDone(k,it,acks);const r=ok?acks[k][it.id]:null;return {k,name:e.name||'',empId:e.empId||'',dept:e.dept||'',entity:e.entity||'',ok,at:r?r.at:0};})
+      .sort((a,b)=>(a.ok-b.ok)||String(a.name).localeCompare(String(b.name)));
+    const done=rows.filter(x=>x.ok).length;
+    return {it,rows,done,pend:rows.length-done,pct:rows.length?Math.round(done*100/rows.length):0};
+  });
+  const tot=items.reduce((a,x)=>({done:a.done+x.done,all:a.all+x.rows.length}),{done:0,all:0});
+  return {items,pool:pool.length,en,tot,pct:tot.all?Math.round(tot.done*100/tot.all):0,
+    filters:(en||'Both companies')+'   |   '+pool.length+' active staff with a portal login   |   '+items.length+' item'+(items.length===1?'':'s')+' requiring acknowledgement'};
+}
+function ackFileName(ext){return 'CK_Acknowledgement_Report_'+((ackEntity()||'All-Companies').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,''))+'_'+b2Day()+'.'+ext;}
+function ackDate(ms){return ms?new Date(ms).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'';}
+window.ackDownloadPDF=async function(){
+  const D=ackReportData();
+  if(!D.items.length){alert('Nothing needs acknowledgement right now, so there is nothing to report.');return;}
+  try{
+    await wfLoadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',()=>!!window.jspdf);
+    await wfLoadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js',()=>!!(window.jspdf&&window.jspdf.jsPDF&&window.jspdf.jsPDF.API.autoTable));
+  }catch(e){alert('Could not load the PDF tools. Please check the internet connection and try again.');return;}
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const W=297,H=210,m=12,NAVY=[28,53,87],GOLD=[201,168,76],GREEN=[26,122,110],AMBER=[160,106,0];
+  let ckLogo=null,ckcLogo=null;
+  try{[ckLogo,ckcLogo]=await Promise.all([loadImageAsDataURL('ck_logo.png'),loadImageAsDataURL('ckc_logo.png')]);}catch(e){}
+  const logoH=10,today=new Date().toLocaleDateString('en-AE',{day:'2-digit',month:'long',year:'numeric'});
+  const drawn=new Set();
+  function drawHeader(){
+    const p=doc.internal.getCurrentPageInfo().pageNumber;
+    if(drawn.has(p))return;drawn.add(p);
+    if(ckcLogo)doc.addImage(ckcLogo.dataUrl,'PNG',m,7,logoH*(ckcLogo.w/ckcLogo.h),logoH);
+    if(ckLogo)doc.addImage(ckLogo.dataUrl,'PNG',W-m-logoH*(ckLogo.w/ckLogo.h),7,logoH*(ckLogo.w/ckLogo.h),logoH);
+    doc.setFont('helvetica','bold');doc.setFontSize(16);doc.setTextColor(...NAVY);
+    doc.text('Policy & Memo Acknowledgement Report',W/2,13,{align:'center'});
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(110,110,110);
+    doc.text(D.filters,W/2,18.5,{align:'center'});
+    doc.setDrawColor(...NAVY);doc.setLineWidth(0.7);doc.line(m,22,W-m,22);
+    doc.setDrawColor(...GOLD);doc.setLineWidth(0.7);doc.line(m,23.2,m+40,23.2);
+  }
+  drawHeader();
+  const cards=[{n:D.items.length,l:'Items requiring acknowledgement',sub:'policies, memos and circulars',rgb:NAVY},{n:D.pool,l:'Staff who can acknowledge',sub:'active, with a portal login',rgb:NAVY},{n:D.tot.done+' of '+D.tot.all,l:'Acknowledgements received',sub:'across all items',rgb:GREEN},{n:D.pct+'%',l:'Overall completion',sub:(D.tot.all-D.tot.done)+' still pending',rgb:D.pct>=100?GREEN:AMBER}];
+  const gap=3,cy=27,ch=17,cw=(W-2*m-gap*(cards.length-1))/cards.length;
+  cards.forEach((k,i)=>{const x=m+i*(cw+gap);
+    doc.setFillColor(250,251,253);doc.setDrawColor(222,226,232);doc.setLineWidth(0.3);doc.roundedRect(x,cy,cw,ch,1.5,1.5,'FD');
+    doc.setFillColor(...k.rgb);doc.rect(x,cy,1.6,ch,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(16);doc.setTextColor(...NAVY);doc.text(String(k.n),x+5,cy+8);
+    doc.setFontSize(8);doc.setTextColor(60,60,60);doc.text(k.l,x+5,cy+12.2);
+    doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(120,120,120);doc.text(k.sub,x+5,cy+15.4);});
+  const common=(extra)=>Object.assign({theme:'grid',margin:{left:m,right:m,top:28,bottom:16},
+    styles:{font:'helvetica',fontSize:8,cellPadding:1.7,lineColor:[222,226,232],lineWidth:0.2,textColor:[40,40,40],valign:'middle'},
+    headStyles:{fillColor:NAVY,textColor:255,fontStyle:'bold',halign:'center'},alternateRowStyles:{fillColor:[247,249,252]},didDrawPage:()=>drawHeader()},extra);
+  const section=(title,y)=>{doc.setFont('helvetica','bold');doc.setFontSize(10.5);doc.setTextColor(...NAVY);doc.text(title,m,y);};
+  let y=cy+ch+9;
+  section('Summary by item',y);
+  doc.autoTable(common({startY:y+2,head:[['#','Item','Type','Category','Version','Acknowledged','Pending','Completion']],
+    body:D.items.map((x,i)=>[i+1,x.it.title,x.it.kind,x.it.cat||'—',x.it.ver,x.done,x.pend,x.pct+'%']),
+    columnStyles:{0:{cellWidth:8,halign:'center'},1:{cellWidth:80},2:{cellWidth:36},3:{cellWidth:44},4:{halign:'center',cellWidth:18},5:{halign:'center'},6:{halign:'center'},7:{halign:'center'}},
+    didParseCell:(d)=>{if(d.section==='body'&&d.column.index===6&&Number(d.cell.raw)>0){d.cell.styles.textColor=AMBER;d.cell.styles.fontStyle='bold';}if(d.section==='body'&&d.column.index===7&&String(d.cell.raw)==='100%'){d.cell.styles.textColor=GREEN;d.cell.styles.fontStyle='bold';}}}));
+  D.items.forEach((x,i)=>{
+    doc.addPage();drawHeader();
+    doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(...NAVY);doc.text(x.it.title,m,33);
+    doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(110,110,110);
+    doc.text(x.it.kind+(x.it.cat?'  |  '+x.it.cat:'')+'  |  Version '+x.it.ver+'  |  '+x.done+' of '+x.rows.length+' acknowledged ('+x.pct+'%)  |  '+x.pend+' pending',m,38);
+    doc.autoTable(common({startY:41,head:[['#','Employee','Emp. ID','Department','Company','Status','Date acknowledged']],
+      body:x.rows.map((r,j)=>[j+1,r.name,r.empId,r.dept,r.entity,r.ok?'Acknowledged':'Pending',r.ok?ackDate(r.at):'—']),
+      columnStyles:{0:{cellWidth:8,halign:'center'},1:{cellWidth:62},2:{cellWidth:22},3:{cellWidth:48},4:{cellWidth:52},5:{halign:'center',cellWidth:28},6:{halign:'center'}},
+      didParseCell:(d)=>{if(d.section==='body'&&d.column.index===5){const ok=d.cell.raw==='Acknowledged';d.cell.styles.textColor=ok?GREEN:AMBER;d.cell.styles.fontStyle='bold';}}}));
+  });
+  const n=doc.getNumberOfPages();
+  for(let i=1;i<=n;i++){
+    doc.setPage(i);
+    doc.setDrawColor(200,200,200);doc.setLineWidth(0.3);doc.line(m,H-11,W-m,H-11);
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(140,140,140);
+    doc.text('CK Architecture Interiors LLC  |  CKC Building Contracting LLC  —  HR  |  Confidential',m,H-6.5);
+    doc.text('Generated '+today,W/2,H-6.5,{align:'center'});
+    doc.text('Page '+i+' of '+n,W-m,H-6.5,{align:'right'});
+  }
+  doc.save(ackFileName('pdf'));
+};
+window.ackDownloadExcel=async function(){
+  const D=ackReportData();
+  if(!D.items.length){alert('Nothing needs acknowledgement right now, so there is nothing to report.');return;}
+  try{await wfLoadScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js',()=>!!window.ExcelJS);}
+  catch(e){alert('Could not load the Excel tools. Please check the internet connection and try again.');return;}
+  const wb=new ExcelJS.Workbook();wb.creator='CK HR Portal';wb.created=new Date();
+  const NAVY='FF1C3557',GOLD='FFC9A84C',BAND='FFF5F7FA',LINE='FFDDE1E7',GREEN='FF1A7A6E',AMBER='FFA06A00';
+  const thin={style:'thin',color:{argb:LINE}},border={top:thin,left:thin,bottom:thin,right:thin};
+  const today=new Date().toLocaleDateString('en-AE',{day:'2-digit',month:'long',year:'numeric'});
+  const title=(ws,text,cols)=>{
+    ws.mergeCells(1,1,1,cols);const c=ws.getCell(1,1);c.value=text;c.font={name:'Calibri',size:16,bold:true,color:{argb:NAVY}};c.alignment={vertical:'middle'};ws.getRow(1).height=26;
+    ws.mergeCells(2,1,2,cols);const s=ws.getCell(2,1);s.value=D.filters+'   |   Generated '+today;s.font={name:'Calibri',size:9,color:{argb:'FF6E6E6E'}};
+    ws.getRow(3).height=4;for(let i=1;i<=cols;i++)ws.getCell(3,i).fill={type:'pattern',pattern:'solid',fgColor:{argb:i<=3?GOLD:NAVY}};
+  };
+  const table=(ws,r0,head,rows,leftCols,statusCol)=>{
+    const hr=ws.getRow(r0);head.forEach((h,i)=>{const c=hr.getCell(i+1);c.value=h;c.font={name:'Calibri',size:10,bold:true,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}};c.alignment={horizontal:leftCols.includes(i)?'left':'center',vertical:'middle',wrapText:true};c.border=border;});
+    hr.height=22;
+    rows.forEach((r,ri)=>{const row=ws.getRow(r0+1+ri);
+      r.forEach((val,i)=>{const c=row.getCell(i+1);c.value=val;c.font={name:'Calibri',size:10};c.border=border;c.alignment={horizontal:leftCols.includes(i)?'left':'center',vertical:'middle'};
+        if(ri%2===1)c.fill={type:'pattern',pattern:'solid',fgColor:{argb:BAND}};
+        if(i===statusCol){c.font={name:'Calibri',size:10,bold:true,color:{argb:val==='Acknowledged'?GREEN:AMBER}};}});});
+    return r0+rows.length+1;
+  };
+  // Sheet 1: summary
+  const ws=wb.addWorksheet('Summary',{views:[{showGridLines:false}]});
+  title(ws,'Policy & Memo Acknowledgement Report',8);
+  const kp=[['Items requiring acknowledgement',D.items.length],['Staff who can acknowledge',D.pool],['Acknowledgements received',D.tot.done+' of '+D.tot.all],['Overall completion',D.pct+'%']];
+  kp.forEach(([l,val],i)=>{const vc=ws.getCell(5,i*2+1),lc=ws.getCell(6,i*2+1);ws.mergeCells(5,i*2+1,5,i*2+2);ws.mergeCells(6,i*2+1,6,i*2+2);
+    vc.value=val;vc.font={name:'Calibri',size:20,bold:true,color:{argb:NAVY}};vc.alignment={horizontal:'center',vertical:'middle'};vc.fill={type:'pattern',pattern:'solid',fgColor:{argb:BAND}};vc.border={top:{style:'thick',color:{argb:i===3&&D.pct<100?AMBER:NAVY}},left:thin,right:thin};
+    lc.value=l;lc.font={name:'Calibri',size:10,bold:true,color:{argb:'FF3C3C3C'}};lc.alignment={horizontal:'center',vertical:'middle'};lc.fill={type:'pattern',pattern:'solid',fgColor:{argb:BAND}};lc.border={bottom:thin,left:thin,right:thin};});
+  ws.getRow(5).height=32;ws.getRow(6).height=20;
+  const sc=ws.getCell(8,1);sc.value='Summary by item';sc.font={name:'Calibri',size:12,bold:true,color:{argb:NAVY}};
+  table(ws,9,['#','Item','Type','Category','Version','Acknowledged','Pending','Completion'],D.items.map((x,i)=>[i+1,x.it.title,x.it.kind,x.it.cat||'—',x.it.ver,x.done,x.pend,x.pct+'%']),[1,2,3],-1);
+  [6,44,20,24,10,15,12,13].forEach((w,i)=>ws.getColumn(i+1).width=w);
+  ws.pageSetup={orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0};
+  // Sheet 2: every person, every item (filterable)
+  const head=['#','Item','Type','Version','Employee','Emp. ID','Department','Company','Status','Date acknowledged'];
+  const all=[];D.items.forEach(x=>x.rows.forEach(r=>all.push([0,x.it.title,x.it.kind,x.it.ver,r.name,r.empId,r.dept,r.entity,r.ok?'Acknowledged':'Pending',r.ok?ackDate(r.at):''])));
+  all.forEach((r,i)=>r[0]=i+1);
+  const wd=wb.addWorksheet('Detail',{views:[{showGridLines:false,state:'frozen',ySplit:5}]});
+  title(wd,'Acknowledgement Detail — every person, every item',head.length);wd.getRow(4).height=6;
+  table(wd,5,head,all,[1,2,4,6,7],8);
+  [5,38,18,9,28,11,20,28,15,18].forEach((w,i)=>wd.getColumn(i+1).width=w);
+  wd.autoFilter={from:{row:5,column:1},to:{row:5+all.length,column:head.length}};
+  wd.pageSetup={orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0};
+  // Sheet 3: pending only (the chase list)
+  const pend=all.filter(r=>r[8]==='Pending').map((r,i)=>[i+1,r[1],r[4],r[5],r[6],r[7]]);
+  const wp=wb.addWorksheet('Still pending',{views:[{showGridLines:false,state:'frozen',ySplit:5}]});
+  title(wp,'Still To Acknowledge — chase list',6);wp.getRow(4).height=6;
+  table(wp,5,['#','Item','Employee','Emp. ID','Department','Company'],pend.length?pend:[['','Nobody is pending','','','','']],[1,2,4,5],-1);
+  [5,38,28,11,20,28].forEach((w,i)=>wp.getColumn(i+1).width=w);
+  wp.pageSetup={orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0};
+  const buf=await wb.xlsx.writeBuffer();
+  const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=ackFileName('xlsx');document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},4000);
+};
+
+// ---------- 3. Joiner and leaver checklists ----------
+const CL_DEFAULTS={
+  joiner:['Signed offer letter / contract received','Passport copy and photos collected','Entry permit / visa application started','Medical test and Emirates ID done','Labour contract registered with MOHRE','Health insurance activated','Company email and system access created','Workstation, tools and assets issued','Attendance, payroll and bank details set up','Induction done and policies explained','Policies acknowledged in the portal','Probation review date set','Staff portal login created'],
+  leaver:['Resignation or termination letter on file','Notice period and last working day confirmed','Handover completed','Company assets returned','Email and system access closed','Loan or advance balance cleared','Final settlement calculated','Final settlement approved and paid','Visa and labour card cancelled','Health insurance cancelled','Experience certificate / NOC issued if requested','Exit interview done','Moved to Leavers and portal login switched off']
+};
+function clTemplate(type){
+  const t=DB.checklistTemplates&&DB.checklistTemplates[type];
+  const arr=t?(Array.isArray(t)?t:Object.keys(t).sort((a,b)=>a-b).map(k=>t[k])):null;
+  return (arr&&arr.length)?arr.filter(Boolean):CL_DEFAULTS[type];
+}
+function clItems(c){return Object.entries(c.items||{}).map(([id,i])=>Object.assign({id},i)).sort((a,b)=>(a.n||0)-(b.n||0));}
+function renderChecklistsPage(){
+  const el=document.getElementById('clBody');if(!el)return;
+  const sel=document.getElementById('clEmp');
+  if(sel){const cur=sel.value;sel.innerHTML='<option value="">Choose a person…</option>'+Object.entries(DB.employees||{}).sort((a,b)=>String(a[1].name).localeCompare(String(b[1].name))).map(([k,e])=>'<option value="'+k+'">'+esc(e.name)+(e.status==='Inactive'?' (inactive)':'')+'</option>').join('');sel.value=cur;}
+  const jt=document.getElementById('clTplJoiner'),lt=document.getElementById('clTplLeaver');
+  if(jt&&document.activeElement!==jt)jt.value=clTemplate('joiner').join('\n');
+  if(lt&&document.activeElement!==lt)lt.value=clTemplate('leaver').join('\n');
+  const list=Object.entries(DB.checklists||{}).map(([id,c])=>{const it=clItems(c);return {id,c,it,done:it.filter(x=>x.done).length};});
+  list.sort((a,b)=>((a.done===a.it.length&&a.it.length)-(b.done===b.it.length&&b.it.length))||(b.c.createdAt||0)-(a.c.createdAt||0));
+  el.innerHTML=b2Note()+(list.length?list.map(({id,c,it,done})=>{
+    const full=it.length&&done===it.length;
+    return '<div class="card" style="margin-bottom:12px;'+(full?'opacity:.8;':'')+'"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;"><div><strong style="color:#1C3557;">'+esc(c.empName||'')+'</strong> <span style="font-size:11px;background:'+(c.type==='joiner'?'#e0f2ee':'#fde8e8')+';padding:2px 8px;border-radius:10px;">'+(c.type==='joiner'?'Joiner':'Leaver')+'</span> <b style="font-size:12.5px;color:'+(full?'#1A7A6E':'#a06a00')+';">'+done+' of '+it.length+(full?' · complete ✔':'')+'</b></div>'
+     +'<div style="display:flex;gap:6px;"><button class="btn btn-sm" style="background:#fff;border:1px solid #c9d3e3;" onclick="clToggleOpen(\''+id+'\')">'+(window._clOpen&&window._clOpen[id]?'Hide':'Open')+'</button><button class="btn btn-sm btn-danger" onclick="clDelete(\''+id+'\')">✕</button></div></div>'
+     +(window._clOpen&&window._clOpen[id]?'<div style="margin-top:10px;">'+it.map(x=>'<label style="display:flex;gap:9px;align-items:flex-start;padding:5px 0;border-bottom:1px solid #f4f4f4;font-size:13px;cursor:pointer;"><input type="checkbox" '+(x.done?'checked ':'')+'onchange="clTick(\''+id+'\',\''+x.id+'\',this.checked)" style="margin-top:3px;"><span style="flex:1;'+(x.done?'text-decoration:line-through;color:#888;':'')+'">'+esc(x.label)+(x.done&&x.by?' <span style="font-size:11px;color:#888;">— '+esc(x.by)+', '+esc(new Date(x.at).toLocaleDateString('en-GB'))+'</span>':'')+'</span></label>').join('')
+       +'<div style="display:flex;gap:8px;margin-top:10px;"><input type="text" id="clAdd_'+id+'" placeholder="Add an extra item for this person" style="flex:1;"><button class="btn btn-sm btn-primary" onclick="clAddItem(\''+id+'\')">Add</button></div></div>':'')
+     +'</div>';}).join(''):'<div class="empty-state"><p>No checklists started yet. Choose a person above and press Start.</p></div>');
+}
+window._clOpen={};
+window.clToggleOpen=function(id){window._clOpen[id]=!window._clOpen[id];renderChecklistsPage();};
+window.clStart=function(){
+  const k=v('clEmp'),type=v('clType');
+  if(!k){alert('Please choose a person first.');return;}
+  const e=DB.employees[k];if(!e)return;
+  const dup=Object.values(DB.checklists||{}).find(c=>c.empKey===k&&c.type===type);
+  if(dup&&!confirm(e.name+' already has a '+type+' checklist. Start another one?'))return;
+  const items={};clTemplate(type).forEach((l,i)=>{items['i'+i]={label:l,n:i,done:false};});
+  const rec={empKey:k,empName:e.name,type,createdAt:Date.now(),createdBy:adminName,items};
+  const nr=push(ref(db,'checklists'));
+  set(nr,rec).then(()=>{window._clOpen[nr.key]=true;logAudit('Checklist Started',e.name,type);}).catch(err=>alert('Could not save: '+(err&&err.message||err)));
+};
+window.clTick=function(id,iid,on){
+  const c=DB.checklists&&DB.checklists[id];if(!c||!c.items||!c.items[iid])return;
+  const it=Object.assign({},c.items[iid],{done:!!on,by:on?adminName:'',at:on?Date.now():0});
+  set(ref(db,'checklists/'+id+'/items/'+iid),it).catch(err=>alert('Could not save: '+(err&&err.message||err)));
+};
+window.clAddItem=function(id){
+  const el=document.getElementById('clAdd_'+id);const label=el?el.value.trim().slice(0,120):'';if(!label)return;
+  const c=DB.checklists[id];const n=Math.max(-1,...clItems(c).map(x=>x.n||0))+1;
+  set(ref(db,'checklists/'+id+'/items/x'+Date.now()),{label,n,done:false}).catch(err=>alert('Could not save: '+(err&&err.message||err)));
+};
+window.clDelete=function(id){
+  const c=DB.checklists[id];if(!c)return;
+  if(!confirm('Delete the '+c.type+' checklist for '+c.empName+'?'))return;
+  remove(ref(db,'checklists/'+id)).then(()=>logAudit('Checklist Deleted',c.empName,c.type)).catch(err=>alert('Could not save: '+(err&&err.message||err)));
+};
+window.clSaveTemplates=function(){
+  const get=id=>(document.getElementById(id).value||'').split(/\r?\n/).map(s=>s.trim().slice(0,120)).filter(Boolean);
+  const j=get('clTplJoiner'),l=get('clTplLeaver');
+  if(!j.length||!l.length){alert('Each list needs at least one item.');return;}
+  const o=a=>{const r={};a.forEach((s,i)=>r[i]=s);return r;};
+  Promise.all([set(ref(db,'checklistTemplates/joiner'),o(j)),set(ref(db,'checklistTemplates/leaver'),o(l))]).then(()=>{logAudit('Checklist Templates Saved','','');alert('Saved. New checklists will use these lists. Checklists already started are not changed.');}).catch(err=>alert('Could not save: '+(err&&err.message||err)));
+};
+
+// ---------- 4. Unanswered-questions log ----------
+let _unLogged=0,_unLast='';
+function botLogUnanswered(raw){
+  try{
+    if(currentRole!=='employee'&&currentRole!=='admin')return;
+    const q=String(raw||'').replace(/\s+/g,' ').trim().slice(0,300);
+    if(q.length<3||q===_unLast||_unLogged>=25)return;
+    _unLast=q;_unLogged++;
+    _fbSet(push(ref(db,'botUnanswered')),{q,at:Date.now(),role:currentRole==='employee'?'staff':'admin'}).catch(()=>{});
+  }catch(e){}
+}
+function unNorm(q){return String(q).toLowerCase().replace(/[^a-z0-9؀-ۿ ]+/g,' ').replace(/\s+/g,' ').trim();}
+function unGroups(){
+  const g={};
+  Object.entries(DB.botUnanswered||{}).forEach(([id,x])=>{
+    if(!x||!x.q)return;const n=unNorm(x.q)||x.q;
+    const e=g[n]=g[n]||{q:x.q,ids:[],count:0,last:0,staff:0,admin:0,open:0};
+    e.ids.push(id);e.count++;e.last=Math.max(e.last,x.at||0);if(x.role==='staff')e.staff++;else e.admin++;if(!x.done)e.open++;
+  });
+  return Object.values(g).sort((a,b)=>b.open-a.open||b.count-a.count||b.last-a.last);
+}
+function renderUnansweredPage(){
+  const el=document.getElementById('unBody');if(!el)return;
+  const showDone=!!(document.getElementById('unShowDone')||{}).checked;
+  const gs=unGroups().filter(x=>showDone||x.open>0);
+  window._unGroups=gs;
+  el.innerHTML=b2Note()+(gs.length?'<div style="overflow-x:auto;"><table><thead><tr><th>Question</th><th>Times asked</th><th>By</th><th>Last asked</th><th></th></tr></thead><tbody>'
+   +gs.map((x,i)=>'<tr><td>'+esc(x.q)+(x.open===0?' <span style="font-size:11px;color:#1A7A6E;">handled</span>':'')+'</td><td>'+x.count+'</td><td>'+(x.staff?x.staff+' staff':'')+(x.staff&&x.admin?', ':'')+(x.admin?x.admin+' HR':'')+'</td><td>'+esc(new Date(x.last).toLocaleDateString('en-GB'))+'</td><td style="white-space:nowrap;">'+(x.open?'<button class="btn btn-sm btn-primary" onclick="unHandled('+i+')">Mark handled</button> ':'')+'<button class="btn btn-sm btn-danger" onclick="unDelete('+i+')">✕</button></td></tr>').join('')+'</tbody></table></div>':'<div class="empty-state"><p>No unanswered questions. When the help assistant cannot answer something, it appears here.</p></div>');
+}
+window.unHandled=function(i){
+  const g=(window._unGroups||[])[i];if(!g)return;
+  const ups={};g.ids.forEach(id=>{const x=DB.botUnanswered[id];if(x&&!x.done){ups['botUnanswered/'+id+'/done']=true;}});
+  Promise.all(Object.keys(ups).map(p=>set(ref(db,p),true).then(()=>set(ref(db,p.replace('/done','/doneBy')),adminName)))).catch(err=>alert('Could not save: '+(err&&err.message||err)));
+};
+window.unDelete=function(i){
+  const g=(window._unGroups||[])[i];if(!g)return;
+  if(!confirm('Delete this question from the log ('+g.count+' time'+(g.count>1?'s':'')+' asked)?'))return;
+  Promise.all(g.ids.map(id=>remove(ref(db,'botUnanswered/'+id)))).catch(err=>alert('Could not save: '+(err&&err.message||err)));
+};
+window.unDownload=function(){
+  const rows=[['Question','Times asked','Asked by staff','Asked by HR','Last asked','Handled']];
+  unGroups().forEach(x=>rows.push([x.q,x.count,x.staff,x.admin,new Date(x.last).toLocaleDateString('en-GB'),x.open?'No':'Yes']));
+  b2Csv('unanswered-questions-'+b2Day()+'.csv',rows);
+};
+function initBatch2Listeners(){
+  const fail=()=>{_b2RulesOk=false;};
+  const mk=(node,key,fn)=>onValue(ref(db,node),snap=>{DB[key]=snap.val()||{};fn();},()=>{fail();DB[key]=DB[key]||{};fn();});
+  const act=id=>{const p=document.getElementById('page-'+id);return p&&p.classList.contains('active');};
+  mk('acks','acks',()=>{if(act('ack'))renderAckPage();});
+  mk('checklists','checklists',()=>{if(act('checklists'))renderChecklistsPage();});
+  mk('checklistTemplates','checklistTemplates',()=>{if(act('checklists'))renderChecklistsPage();});
+  mk('botUnanswered','botUnanswered',()=>{if(act('unanswered'))renderUnansweredPage();});
+}
+
+window.renderUnansweredPage=renderUnansweredPage;window.renderAckPage=renderAckPage;
+function b2RefreshPassive(){
+  const act=id=>{const p=document.getElementById('page-'+id);return p&&p.classList.contains('active');};
+  try{if(act('ack'))renderAckPage();}catch(e){}
+  try{if(act('cost'))renderCostPage();}catch(e){}
+  try{if(act('prov'))renderProvisionPage();}catch(e){}
+}
+// ── BATCH 3: Total Cost Analysis (fixed + variable, any period, past or future) and Year-End Provision (Dev and Darleendy only) ──
+const COST_DEFAULTS={flightAnnual:1500,gpssaPct:12.5,gratuityOn:true,gpssaOn:true,flightOn:true};
+const COST_CATS=['Medical insurance','Visa & labour card','Training','Bonus / overtime','Recruitment','Other'];
+function costSettings(){return Object.assign({},COST_DEFAULTS,DB.costSettings||{});}
+function cmDate(s){return new Date(s+'T00:00:00');}
+function cmMonths(from,to){
+  const out=[];if(!/^\d{4}-\d{2}$/.test(from||'')||!/^\d{4}-\d{2}$/.test(to||''))return out;
+  let [y,m]=from.split('-').map(Number);const [ty,tm]=to.split('-').map(Number);
+  while((y<ty||(y===ty&&m<=tm))&&out.length<120){out.push(y+'-'+String(m).padStart(2,'0'));m++;if(m>12){m=1;y++;}}
+  return out;
+}
+function cmMonthLabel(m){const [y,mo]=m.split('-').map(Number);return new Date(y,mo-1,1).toLocaleDateString('en-GB',{month:'short',year:'numeric'});}
+function cmShortEnt(en){return /building|ckc/i.test(en||'')?'CKC':/architecture|\bck\b/i.test(en||'')?'CK':(en||'No company');}
+function cmFmt(n){return Math.round(n||0).toLocaleString('en-AE');}
+// salary on a given date, scaled from today's package using the Salary & Promotions history
+function cmSalaryFactor(k,dateObj){
+  const recs=Object.values(DB.salary||{}).filter(s=>s&&s.empId===k&&s.type!=='Bonus'&&hhIsDate(s.date)&&smNum(s.newVal)>0).sort((a,b)=>a.date<b.date?-1:1);
+  if(!recs.length)return {f:1,est:false};
+  const today=new Date();today.setHours(0,0,0,0);
+  const cur=recs.filter(r=>cmDate(r.date)<=today).pop();
+  const Ncur=cur?smNum(cur.newVal):(smNum(recs[0].prev)||smNum(recs[0].newVal));
+  if(!(Ncur>0))return {f:1,est:false};
+  const rec=recs.filter(r=>cmDate(r.date)<=dateObj).pop();
+  const N=rec?smNum(rec.newVal):(smNum(recs[0].prev)>0?smNum(recs[0].prev):Ncur);
+  const f=N/Ncur;
+  return {f:isFinite(f)&&f>0?f:1,est:rec!==cur};
+}
+function cmCompute(o){
+  const S=costSettings(),months=cmMonths(o.from,o.to);
+  const today=new Date();today.setHours(0,0,0,0);
+  const curMonth=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0');
+  const notes={noJoin:[],noExit:[],noSalary:[],estSalary:[]};
+  const leaverByKey={};Object.values(DB.leavers||{}).forEach(l=>{if(l.sourceEmpKey)leaverByKey[l.sourceEmpKey]=l;});
+  const mi=months.map(m=>{const [y,mo]=m.split('-').map(Number);const D=new Date(y,mo,0).getDate();return {m,D,start:new Date(y,mo-1,1),endEx:new Date(y,mo-1,D+1),proj:m>curMonth};});
+  const people=[];
+  Object.entries(DB.employees||{}).forEach(([k,e])=>{
+    if(!e)return;
+    let exit=null;
+    if(e.status==='Inactive'){
+      exit=hhIsDate(e.exitDate)?e.exitDate:(leaverByKey[k]&&hhIsDate(leaverByKey[k].endDate)?leaverByKey[k].endDate:null);
+      if(!exit){notes.noExit.push(e.name||k);return;}
+    }
+    const join=hhIsDate(e.join)?e.join:null;
+    if(!join)notes.noJoin.push(e.name||k);
+    const basic=smNum(e.basicSalary),gross=smNum(e.grossSalary)||basic;
+    if(!gross)notes.noSalary.push(e.name||k);
+    const P={k,name:e.name||k,dept:e.dept||'No department',entity:e.entity||'No company',join,exit,uae:isUAENational(e),months:{},t:{gross:0,gp:0,gr:0,fl:0,vd:0,va:0},fr:0};
+    let usedEst=false;
+    mi.forEach(M=>{
+      const s0=join&&cmDate(join)>M.start?cmDate(join):M.start;
+      const e0=exit&&cmDate(exit)<M.endEx?cmDate(exit):M.endEx;
+      const days=Math.max(0,Math.round((e0-s0)/864e5));
+      if(days<=0)return;
+      const fr=Math.min(1,days/M.D);
+      const refEnd=new Date(Math.min(e0.getTime()-864e5,M.endEx.getTime()-864e5));
+      const sf=cmSalaryFactor(k,refEnd);if(sf.est)usedEst=true;
+      const yrs=join?(refEnd-cmDate(join))/(365.25*864e5):null;
+      const g=gross*sf.f*fr,b=basic*sf.f;
+      const pens=(smNum(e.pensionSalary)||basic)*sf.f;
+      const gp=(S.gpssaOn&&P.uae)?pens*S.gpssaPct/100*fr:0;
+      const daily=b*12/365,tier=(yrs!=null&&yrs>5)?30:21;
+      const gr=(S.gratuityOn&&!P.uae)?daily*tier/12*fr:0;
+      const fl=(S.flightOn&&(yrs==null||yrs>=1))?S.flightAnnual/12*fr:0;
+      P.months[M.m]={fr,gross:g,gp,gr,fl,vd:0,va:0};
+      P.fr+=fr;P.t.gross+=g;P.t.gp+=gp;P.t.gr+=gr;P.t.fl+=fl;
+    });
+    if(usedEst)notes.estSalary.push(P.name);
+    if(Object.keys(P.months).length)people.push(P);
+  });
+  // variable costs: actual amounts paid for one person, counted in the month paid. Nothing is estimated, spread or shared.
+  let unalloc=0;const byCat={};const entryRows=[];
+  Object.entries(DB.costEntries||{}).forEach(([id,c])=>{
+    if(!c||!(smNum(c.amount)>0))return;
+    const m=c.month||c.from;if(!m||months.indexOf(m)<0)return;
+    const amt=smNum(c.amount);
+    const P=people.find(x=>x.k===c.target&&x.months[m]);
+    if(!P){unalloc+=amt;entryRows.push({id,c,inRange:amt});return;}
+    P.months[m].vd+=amt;P.t.vd+=amt;
+    byCat[c.cat||'Other']=(byCat[c.cat||'Other']||0)+amt;
+    entryRows.push({id,c,inRange:amt});
+  });
+  // filters
+  const keep=people.filter(P=>(!o.entity||P.entity===o.entity)&&(!o.dept||P.dept===o.dept)&&(!o.empKey||P.k===o.empKey));
+  const filtered=!!(o.entity||o.dept||o.empKey);
+  const sumT=(arr)=>arr.reduce((a,P)=>({gross:a.gross+P.t.gross,gp:a.gp+P.t.gp,gr:a.gr+P.t.gr,fl:a.fl+P.t.fl,vd:a.vd+P.t.vd,va:a.va+P.t.va,fr:a.fr+P.fr}),{gross:0,gp:0,gr:0,fl:0,vd:0,va:0,fr:0});
+  const T=sumT(keep);
+  const grp=(keyFn,labelFn)=>{const g={};keep.forEach(P=>{const key=keyFn(P);const x=g[key]=g[key]||{label:labelFn(P),people:[],ent:P.entity};x.people.push(P);});return Object.values(g).map(x=>Object.assign(x,{T:sumT(x.people),n:x.people.length})).sort((a,b)=>(a.label>b.label?1:-1));};
+  const byEntity=grp(P=>P.entity,P=>P.entity);
+  const byDept=grp(P=>P.dept+'|'+P.entity,P=>P.dept+' ('+cmShortEnt(P.entity)+')');
+  const byMonth=mi.map(M=>{let r={m:M.m,proj:M.proj,gross:0,gp:0,gr:0,fl:0,vd:0,va:0,hc:0};keep.forEach(P=>{const x=P.months[M.m];if(x){r.gross+=x.gross;r.gp+=x.gp;r.gr+=x.gr;r.fl+=x.fl;r.vd+=x.vd;r.va+=x.va;r.hc+=x.fr;}});return r;});
+  const fixed=T.gross+T.gp+T.gr+T.fl,vari=T.vd+T.va;
+  const nM=months.length||1;
+  return {months,mi,people:keep.sort((a,b)=>(b.t.gross+b.t.gp+b.t.gr+b.t.fl+b.t.vd+b.t.va)-(a.t.gross+a.t.gp+a.t.gr+a.t.fl+a.t.vd+a.t.va)),T,fixed,vari,total:fixed+vari,avgHc:T.fr/nM,perHead:T.fr?(fixed+vari)/T.fr:0,byEntity,byDept,byMonth,byCat,unalloc:filtered?0:unalloc,filtered,notes,entryRows:(filtered?entryRows.filter(x=>keep.some(P=>P.k===x.c.target)):entryRows),nProj:mi.filter(x=>x.proj).length,S,
+    label:(o.entity||'Both companies')+(o.dept?'  |  '+o.dept:'')+(o.empKey&&DB.employees[o.empKey]?'  |  '+DB.employees[o.empKey].name:'')+'  |  '+cmMonthLabel(o.from)+(o.from!==o.to?' to '+cmMonthLabel(o.to):'')};
+}
+function cmOpts(){return {from:v('cmFrom'),to:v('cmTo'),entity:v('cmEntity'),dept:v('cmDept'),empKey:v('cmEmp')};}
+function cmRowTot(t){return t.gross+t.gp+t.gr+t.fl+t.vd+t.va;}
+function renderCostPage(){
+  const el=document.getElementById('cmBody');if(!el)return;
+  // fill selectors once / refresh options
+  const fill=(id,html)=>{const s=document.getElementById(id);if(!s)return;const cur=s.value;s.innerHTML=html;s.value=cur;};
+  const emps=Object.entries(DB.employees||{});
+  fill('cmEntity','<option value="">Both companies</option>'+[...new Set(emps.map(([k,e])=>e&&e.entity).filter(Boolean))].sort().map(x=>'<option>'+esc(x)+'</option>').join(''));
+  fill('cmDept','<option value="">All departments</option>'+[...new Set(emps.map(([k,e])=>e&&e.dept).filter(Boolean))].sort().map(x=>'<option>'+esc(x)+'</option>').join(''));
+  fill('cmEmp','<option value="">Everyone</option>'+emps.sort((a,b)=>String(a[1].name).localeCompare(String(b[1].name))).map(([k,e])=>'<option value="'+k+'">'+esc(e.name)+(e.status==='Inactive'?' (left)':'')+'</option>').join(''));
+  if(!document.getElementById('cmFrom').value){cmQuick('ytd',true);}
+  const R=cmCompute(cmOpts());window._cmR=R;
+  if(!R.months.length){el.innerHTML='<div class="empty-state"><p>Choose a valid From and To month.</p></div>';return;}
+  const card=(l,val,sub,c)=>'<div style="flex:1;min-width:150px;padding:12px 14px;border-radius:9px;background:#f4f7fb;border:1px solid #d9e2ef;"><div style="font-size:11px;color:#888;">'+l+'</div><div style="font-size:19px;font-weight:700;color:'+(c||'#1C3557')+';">'+val+'</div><div style="font-size:11px;color:#888;">'+sub+'</div></div>';
+  let h=b2Note();
+  h+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">'+card('Total cost','AED '+cmFmt(R.total),R.months.length+' month'+(R.months.length>1?'s':''),'#a02020')+card('Fixed cost','AED '+cmFmt(R.fixed),'salary, pension, gratuity, flights')+card('Variable cost','AED '+cmFmt(R.vari),'medical, visas, training, other')+card('Average headcount',R.avgHc.toFixed(1),'people, by days employed')+card('Cost per head per month','AED '+cmFmt(R.perHead),'fixed + variable')+'</div>';
+  if(R.nProj)h+='<div style="padding:9px 14px;margin-bottom:12px;border-radius:8px;background:#eef4ff;border:1px solid #c9d9f5;color:#1C3557;font-size:12.5px;">'+R.nProj+' of these months are in the future. They are a projection: current staff and current salaries carry on, with known joining and exit dates and any salary changes you have already dated.</div>';
+  const cols='<th>Gross salary</th><th>GPSSA (employer)</th><th>Gratuity accrual</th><th>Flight allowance</th><th>Fixed</th><th>Variable</th><th>Total</th>';
+  const cells=(T)=>{const f=T.gross+T.gp+T.gr+T.fl,vv=T.vd+T.va;return '<td>'+cmFmt(T.gross)+'</td><td>'+cmFmt(T.gp)+'</td><td>'+cmFmt(T.gr)+'</td><td>'+cmFmt(T.fl)+'</td><td><b>'+cmFmt(f)+'</b></td><td>'+cmFmt(vv)+'</td><td><b>'+cmFmt(f+vv)+'</b></td>';};
+  const tbl=(title,head,rows,tot)=>'<div class="card" style="margin-bottom:14px;"><div class="card-title">'+title+'</div><div style="overflow-x:auto;"><table><thead><tr>'+head+'</tr></thead><tbody>'+rows+(tot||'')+'</tbody></table></div></div>';
+  const totRow=(label,extra)=>'<tr style="background:#e8ecf3;font-weight:700;"><td>'+label+'</td>'+(extra||'')+cells(R.T)+'</tr>';
+  h+=tbl('By company','<th>Company</th><th>Staff</th>'+cols,R.byEntity.map(x=>'<tr><td>'+esc(x.label)+'</td><td>'+x.n+'</td>'+cells(x.T)+'</tr>').join(''),totRow('Total','<td>'+(R.people.length)+'</td>'));
+  h+=tbl('By department','<th>Department</th><th>Staff</th>'+cols,R.byDept.map(x=>'<tr><td>'+esc(x.label)+'</td><td>'+x.n+'</td>'+cells(x.T)+'</tr>').join(''),totRow('Total','<td>'+R.people.length+'</td>'));
+  h+=tbl('By month','<th>Month</th><th>Headcount</th>'+cols,R.byMonth.map(x=>{const T={gross:x.gross,gp:x.gp,gr:x.gr,fl:x.fl,vd:x.vd,va:x.va};return '<tr><td>'+cmMonthLabel(x.m)+(x.proj?' <span style="font-size:10.5px;color:#1565c0;">projection</span>':'')+'</td><td>'+x.hc.toFixed(1)+'</td>'+cells(T)+'</tr>';}).join(''),totRow('Total','<td></td>'));
+  h+=tbl('By employee','<th>Employee</th><th>Company</th><th>Department</th>'+cols,R.people.map(P=>'<tr><td>'+esc(P.name)+'</td><td>'+esc(cmShortEnt(P.entity))+'</td><td>'+esc(P.dept)+'</td>'+cells(P.t)+'</tr>').join(''),totRow('Total','<td></td><td></td>'));
+  if(R.unalloc>0)h+='<div style="font-size:12.5px;color:#a06a00;margin-bottom:12px;">AED '+cmFmt(R.unalloc)+' of variable cost is not in the totals above, because the person was not employed in that month (for example a premium paid after they left).</div>';
+  const nt=[];
+  if(R.notes.noJoin.length)nt.push(R.notes.noJoin.length+' people have no joining date, so they are counted for the whole period: '+R.notes.noJoin.slice(0,8).map(esc).join(', ')+(R.notes.noJoin.length>8?' and more':'')+'.');
+  if(R.notes.noExit.length)nt.push(R.notes.noExit.length+' inactive people have no exit date, so they are left out: '+R.notes.noExit.slice(0,8).map(esc).join(', ')+(R.notes.noExit.length>8?' and more':'')+'.');
+  if(R.notes.noSalary.length)nt.push(R.notes.noSalary.length+' people have no salary on record and count as zero: '+R.notes.noSalary.slice(0,8).map(esc).join(', ')+(R.notes.noSalary.length>8?' and more':'')+'.');
+  if(R.notes.estSalary.length)nt.push('Past salaries for '+R.notes.estSalary.length+' people are rebuilt from the Salary &amp; Promotions history.');
+  const nb=document.getElementById('cmNotes');
+  if(nb)nb.innerHTML='<b>How this is worked out</b><br>• <b>Fixed</b> = gross salary + employer pension (GPSSA, Emirati staff) + gratuity accrual (non-Emirati staff, from day one: 21 days of basic per year, 30 after five years, shown monthly) + flight allowance (AED '+R.S.flightAnnual+' a year after one year of service). Turn parts on or off in the settings below.<br>• <b>Variable</b> = the costs you enter below (medical insurance, visas, training, bonus and so on). Only actual amounts paid are entered, one person at a time (including dependents), and each is counted in the month it was paid. Nothing is estimated, spread or shared out. Future months show fixed cost only.<br>• Months are worked out from joining and exit dates, so a part month counts by days. Past months are rebuilt from today\'s records (there is no monthly snapshot saved), so they are an estimate.<br>• Not included: loans (they are repaid, not a cost), notice pay, and bonuses unless you enter the actual amount as a variable cost.'+(nt.length?'<br><b style="color:#a06a00;">'+nt.join('<br>')+'</b>':'');
+  el.innerHTML=h;
+  renderCostEntries();
+}
+window.cmQuick=function(kind,noRender){
+  const t=new Date(),y=t.getFullYear(),m=t.getMonth()+1,p=n=>String(n).padStart(2,'0');
+  const add=(mm,d)=>{const x=new Date(y,mm-1+d,1);return x.getFullYear()+'-'+p(x.getMonth()+1);};
+  const cur=y+'-'+p(m);
+  const map={month:[cur,cur],ytd:[y+'-01',cur],last3:[add(m,-2),cur],year:[y+'-01',y+'-12'],lastyear:[(y-1)+'-01',(y-1)+'-12'],next12:[add(m,1),add(m,12)]};
+  const r=map[kind]||map.ytd;sv('cmFrom',r[0]);sv('cmTo',r[1]);
+  if(!noRender)renderCostPage();
+};
+// ---- variable cost entries: ACTUAL amounts paid, one person (or one dependent of a person) at a time. Nothing is estimated or split. ----
+function ceTargetFill(){
+  const s=document.getElementById('ceEmp');if(!s)return;
+  const emps=Object.entries(DB.employees||{}).sort((a,b)=>String(a[1].name).localeCompare(String(b[1].name)));
+  const cur=s.value;
+  s.innerHTML='<option value="">Choose the employee…</option>'+emps.map(([k,e])=>'<option value="'+k+'">'+esc(e.name)+(e.status==='Inactive'?' (left)':'')+'</option>').join('');
+  if(cur)s.value=cur;
+}
+function ceScopeLabel(c){return (DB.employees&&DB.employees[c.target]?DB.employees[c.target].name:(c.scope==='employee'?'(person removed)':'(old entry)'));}
+function ceMonthOf(c){return c.month||c.from||'';}
+function renderCostEntries(){
+  const el=document.getElementById('ceList');if(!el)return;
+  const list=Object.entries(DB.costEntries||{}).sort((a,b)=>String(ceMonthOf(b[1])).localeCompare(String(ceMonthOf(a[1]))));
+  const tot=list.reduce((a,[id,c])=>a+smNum(c.amount),0);
+  el.innerHTML=list.length?'<div style="font-size:12.5px;color:#666;margin-bottom:6px;">'+list.length+' entr'+(list.length>1?'ies':'y')+', AED '+cmFmt(tot)+' in all. Each amount is counted in the month it was paid.</div><div style="overflow-x:auto;"><table><thead><tr><th>Employee</th><th>For</th><th>Type</th><th>Month paid</th><th>Amount</th><th></th></tr></thead><tbody>'+list.map(([id,c])=>'<tr><td>'+esc(ceScopeLabel(c))+'</td><td>'+esc(c.label||'Employee')+'</td><td>'+esc(c.cat||'')+(c.note?'<div style="font-size:11px;color:#888;">'+esc(c.note)+'</div>':'')+'</td><td>'+esc(ceMonthOf(c)?cmMonthLabel(ceMonthOf(c)):'')+'</td><td>AED '+cmFmt(smNum(c.amount))+'</td><td style="white-space:nowrap;"><button class="btn btn-sm btn-primary" onclick="ceEdit(\''+id+'\')">Edit</button> <button class="btn btn-sm btn-danger" onclick="ceDelete(\''+id+'\')">✕</button></td></tr>').join('')+'</tbody></table></div>':'<div class="empty-state"><p>No variable costs entered yet.</p></div>';
+}
+function ceRecord(empKey,forWho,cat,amount,month,note){
+  return {cat:cat,label:String(forWho||'').slice(0,100),scope:'employee',target:empKey,amount:amount,mode:'total',month:month,from:month,to:month,note:String(note||'').slice(0,200),by:adminName,ts:Date.now()};
+}
+window.ceSave=function(){
+  const editKey=v('ceEditKey');
+  const k=v('ceEmp'),amount=smNum(v('ceAmount')),month=v('ceMonth');
+  if(!k){alert('Please choose the employee this was paid for.');return;}
+  if(!(amount>0)){alert('Please enter the actual amount paid (above zero).');return;}
+  if(!/^\d{4}-\d{2}$/.test(month)){alert('Please choose the month it was paid.');return;}
+  const data=ceRecord(k,v('ceFor'),v('ceCat'),amount,month,v('ceNote'));
+  const op=editKey?set(ref(db,'costEntries/'+editKey),data):set(push(ref(db,'costEntries')),data);
+  op.then(()=>{logAudit(editKey?'Edit Variable Cost':'Add Variable Cost',data.cat+' - '+((DB.employees[k]||{}).name||k),'AED '+data.amount);ceReset(true);renderCostPage();}).catch(e=>alert('Could not save: '+(e&&e.message||e)));
+};
+window.ceEdit=function(id){
+  const c=DB.costEntries[id];if(!c)return;
+  sv('ceEditKey',id);sv('ceCat',c.cat);ceTargetFill();sv('ceEmp',c.target);sv('ceFor',c.label);sv('ceAmount',c.amount);sv('ceMonth',ceMonthOf(c));sv('ceNote',c.note);
+  document.getElementById('ceSaveBtn').textContent='Save changes';document.getElementById('ceCancelBtn').style.display='inline-block';
+  document.getElementById('ceFormCard').scrollIntoView({behavior:'smooth'});
+};
+function ceReset(keepMonth){
+  sv('ceEditKey','');sv('ceFor','');sv('ceAmount','');sv('ceNote','');if(!keepMonth)sv('ceMonth','');
+  document.getElementById('ceSaveBtn').textContent='Add cost';document.getElementById('ceCancelBtn').style.display='none';
+}
+window.ceCancel=function(){ceReset();};
+window.ceDelete=function(id){
+  const c=DB.costEntries[id];if(!c)return;
+  if(!confirm('Delete this '+c.cat+' entry for '+ceScopeLabel(c)+' (AED '+cmFmt(smNum(c.amount))+')?'))return;
+  remove(ref(db,'costEntries/'+id)).then(()=>{logAudit('Delete Variable Cost',c.cat,'AED '+c.amount);renderCostPage();}).catch(e=>alert('Could not save: '+(e&&e.message||e)));
+};
+// paste many actual amounts at once (copy rows from Excel): Employee name | For (blank = the employee) | Amount | Month (optional)
+window.ceBulkSave=function(){
+  const raw=(document.getElementById('ceBulk')||{}).value||'';
+  const cat=v('ceBulkCat'),defMonth=v('ceBulkMonth');
+  const lines=raw.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  if(!lines.length){alert('Paste the rows first.');return;}
+  if(!/^\d{4}-\d{2}$/.test(defMonth)){alert('Please choose the month these were paid (used for any row that has no month of its own).');return;}
+  const byName={};Object.entries(DB.employees||{}).forEach(([k,e])=>{const n=normName(e.name);(byName[n]=byName[n]||[]).push(k);});
+  const recs=[],errs=[];
+  lines.forEach((ln,i)=>{
+    let parts=ln.indexOf('\t')>=0?ln.split('\t'):ln.split(',');
+    parts=parts.map(x=>x.trim());
+    if(/^employee/i.test(parts[0])&&i===0)return; // header row
+    if(parts.length<2){errs.push('Row '+(i+1)+': needs at least a name and an amount.');return;}
+    const name=parts[0];let forWho='',amtStr,mon=defMonth;
+    if(parts.length===2){amtStr=parts[1];}
+    else{forWho=parts[1];amtStr=parts[2];if(parts[3])mon=parts[3];}
+    const amount=smNum(String(amtStr).replace(/[^0-9.\-]/g,''));
+    const keys=byName[normName(name)]||[];
+    if(keys.length!==1){errs.push('Row '+(i+1)+': '+(keys.length?'more than one employee is called':'no employee found called')+' "'+name+'".');return;}
+    if(!(amount>0)){errs.push('Row '+(i+1)+': "'+amtStr+'" is not a valid amount.');return;}
+    if(!/^\d{4}-\d{2}$/.test(mon)){errs.push('Row '+(i+1)+': month "'+mon+'" must look like 2026-11.');return;}
+    recs.push(ceRecord(keys[0],forWho,cat,amount,mon,''));
+  });
+  if(errs.length){alert('Nothing was saved. Please fix these first:\n\n'+errs.slice(0,12).join('\n')+(errs.length>12?'\n…and '+(errs.length-12)+' more.':''));return;}
+  if(!recs.length){alert('No rows to save.');return;}
+  const tot=recs.reduce((a,r)=>a+r.amount,0);
+  if(!confirm('Save '+recs.length+' '+cat+' entries, AED '+cmFmt(tot)+' in all?'))return;
+  Promise.all(recs.map(r=>set(push(ref(db,'costEntries')),r))).then(()=>{logAudit('Bulk Variable Costs',cat,recs.length+' entries, AED '+tot);document.getElementById('ceBulk').value='';renderCostPage();alert(recs.length+' entries saved.');}).catch(e=>alert('Could not save: '+(e&&e.message||e)));
+};
+window.cmSaveSettings=function(){
+  const o={flightAnnual:smNum(v('cmsFlight'))||0,gpssaPct:smNum(v('cmsGpssa'))||0,gratuityOn:document.getElementById('cmsGrat').checked,gpssaOn:document.getElementById('cmsGp').checked,flightOn:document.getElementById('cmsFl').checked};
+  set(ref(db,'costSettings'),o).then(()=>{logAudit('Cost Settings Saved','','');renderCostPage();}).catch(e=>alert('Could not save: '+(e&&e.message||e)));
+};
+function cmSettingsFill(){
+  const S=costSettings();const set1=(id,val)=>{const e=document.getElementById(id);if(e&&document.activeElement!==e)e.value=val;};
+  set1('cmsFlight',S.flightAnnual);set1('cmsGpssa',S.gpssaPct);
+  [['cmsGrat',S.gratuityOn],['cmsGp',S.gpssaOn],['cmsFl',S.flightOn]].forEach(([id,on])=>{const e=document.getElementById(id);if(e)e.checked=!!on;});
+}
+function initCostPage(){
+  const f=document.getElementById('ceMonth');
+  if(f&&!f.value){const t=new Date();sv('ceMonth',t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0'));}
+  const g=document.getElementById('ceBulkMonth');
+  if(g&&!g.value){const t=new Date();sv('ceBulkMonth',t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0'));}
+  ceTargetFill();cmSettingsFill();renderCostPage();
+}
+window.briefCost=function(){
+  const R=window._cmR;if(!R||!R.months.length){briefSpeak('There is no cost to read yet.');return;}
+  const p=['For '+R.label.replace(/\s*\|\s*/g,', ')+', the total cost is '+briefAed(R.total)+'.','Fixed cost is '+briefAed(R.fixed)+' and variable cost is '+briefAed(R.vari)+'.','That is about '+briefAed(R.perHead)+' per person per month, for an average of '+R.avgHc.toFixed(0)+' people.'];
+  if(R.byEntity.length>1)R.byEntity.forEach(x=>p.push(cmShortEnt(x.ent)+' is '+briefAed(cmRowTot(x.T))+'.'));
+  if(R.nProj)p.push(briefPlural(R.nProj,'month is','months are')+' a projection.');
+  briefSpeak(p.join(' '));
+};
+
+// ---- exports (same look as the other portal reports) ----
+async function b3Pdf(title,filters){
+  await wfLoadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',()=>!!window.jspdf);
+  await wfLoadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js',()=>!!(window.jspdf&&window.jspdf.jsPDF&&window.jspdf.jsPDF.API.autoTable));
+  const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const W=297,H=210,m=12,NAVY=[28,53,87],GOLD=[201,168,76];
+  let ckLogo=null,ckcLogo=null;try{[ckLogo,ckcLogo]=await Promise.all([loadImageAsDataURL('ck_logo.png'),loadImageAsDataURL('ckc_logo.png')]);}catch(e){}
+  const logoH=10,drawn=new Set();
+  const drawHeader=()=>{
+    const p=doc.internal.getCurrentPageInfo().pageNumber;if(drawn.has(p))return;drawn.add(p);
+    if(ckcLogo)doc.addImage(ckcLogo.dataUrl,'PNG',m,7,logoH*(ckcLogo.w/ckcLogo.h),logoH);
+    if(ckLogo)doc.addImage(ckLogo.dataUrl,'PNG',W-m-logoH*(ckLogo.w/ckLogo.h),7,logoH*(ckLogo.w/ckLogo.h),logoH);
+    doc.setFont('helvetica','bold');doc.setFontSize(16);doc.setTextColor(...NAVY);doc.text(title,W/2,13,{align:'center'});
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(110,110,110);doc.text(filters,W/2,18.5,{align:'center'});
+    doc.setDrawColor(...NAVY);doc.setLineWidth(0.7);doc.line(m,22,W-m,22);doc.setDrawColor(...GOLD);doc.setLineWidth(0.7);doc.line(m,23.2,m+40,23.2);
+  };
+  drawHeader();
+  const cards=(arr)=>{const gap=3,cy=27,ch=17,cw=(W-2*m-gap*(arr.length-1))/arr.length;
+    arr.forEach((k,i)=>{const x=m+i*(cw+gap);doc.setFillColor(250,251,253);doc.setDrawColor(222,226,232);doc.setLineWidth(0.3);doc.roundedRect(x,cy,cw,ch,1.5,1.5,'FD');doc.setFillColor(...(k.rgb||NAVY));doc.rect(x,cy,1.6,ch,'F');
+      doc.setFont('helvetica','bold');doc.setFontSize(15);doc.setTextColor(...NAVY);doc.text(String(k.n),x+5,cy+8);doc.setFontSize(8);doc.setTextColor(60,60,60);doc.text(k.l,x+5,cy+12.2);
+      doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(120,120,120);doc.text(k.sub||'',x+5,cy+15.4);});};
+  const common=(extra)=>Object.assign({theme:'grid',margin:{left:m,right:m,top:28,bottom:16},styles:{font:'helvetica',fontSize:7.5,cellPadding:1.5,lineColor:[222,226,232],lineWidth:0.2,textColor:[40,40,40],valign:'middle'},headStyles:{fillColor:NAVY,textColor:255,fontStyle:'bold',halign:'center'},alternateRowStyles:{fillColor:[247,249,252]},didDrawPage:()=>drawHeader()},extra);
+  const section=(t,y)=>{doc.setFont('helvetica','bold');doc.setFontSize(10.5);doc.setTextColor(...NAVY);doc.text(t,m,y);};
+  const totalStyle=(n)=>(d)=>{if(d.section==='body'&&d.row.index===n-1){d.cell.styles.fontStyle='bold';d.cell.styles.fillColor=[232,236,243];}};
+  const finish=(name)=>{const n=doc.getNumberOfPages();const today=new Date().toLocaleDateString('en-AE',{day:'2-digit',month:'long',year:'numeric'});
+    for(let i=1;i<=n;i++){doc.setPage(i);doc.setDrawColor(200,200,200);doc.setLineWidth(0.3);doc.line(m,H-11,W-m,H-11);doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(140,140,140);
+      doc.text('CK Architecture Interiors LLC  |  CKC Building Contracting LLC  —  HR  |  Confidential',m,H-6.5);doc.text('Generated '+today,W/2,H-6.5,{align:'center'});doc.text('Page '+i+' of '+n,W-m,H-6.5,{align:'right'});}
+    doc.save(name);};
+  return {doc,W,H,m,NAVY,cards,common,section,totalStyle,drawHeader,finish};
+}
+async function b3Xl(){
+  await wfLoadScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js',()=>!!window.ExcelJS);
+  const wb=new ExcelJS.Workbook();wb.creator='CK HR Portal';wb.created=new Date();
+  const NAVY='FF1C3557',GOLD='FFC9A84C',BAND='FFF5F7FA',TOT='FFE8ECF3',LINE='FFDDE1E7';
+  const thin={style:'thin',color:{argb:LINE}},border={top:thin,left:thin,bottom:thin,right:thin};
+  const today=new Date().toLocaleDateString('en-AE',{day:'2-digit',month:'long',year:'numeric'});
+  const title=(ws,text,sub,cols)=>{ws.mergeCells(1,1,1,cols);const c=ws.getCell(1,1);c.value=text;c.font={name:'Calibri',size:16,bold:true,color:{argb:NAVY}};c.alignment={vertical:'middle'};ws.getRow(1).height=26;
+    ws.mergeCells(2,1,2,cols);const s=ws.getCell(2,1);s.value=sub+'   |   Generated '+today;s.font={name:'Calibri',size:9,color:{argb:'FF6E6E6E'}};
+    ws.getRow(3).height=4;for(let i=1;i<=cols;i++)ws.getCell(3,i).fill={type:'pattern',pattern:'solid',fgColor:{argb:i<=3?GOLD:NAVY}};};
+  // opt: left (array of left-aligned column indexes), num (array of numeric column indexes), totalLast
+  const table=(ws,r0,head,rows,opt)=>{opt=opt||{};const left=opt.left||[0],num=opt.num||[];
+    const hr=ws.getRow(r0);head.forEach((h,i)=>{const c=hr.getCell(i+1);c.value=h;c.font={name:'Calibri',size:10,bold:true,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}};c.alignment={horizontal:left.includes(i)?'left':'center',vertical:'middle',wrapText:true};c.border=border;});hr.height=24;
+    rows.forEach((r,ri)=>{const row=ws.getRow(r0+1+ri),tot=opt.totalLast&&ri===rows.length-1;
+      r.forEach((val,i)=>{const c=row.getCell(i+1);c.value=val;c.font={name:'Calibri',size:10,bold:tot};c.border=border;c.alignment={horizontal:left.includes(i)?'left':(num.includes(i)?'right':'center'),vertical:'middle'};
+        if(num.includes(i)&&typeof val==='number')c.numFmt='#,##0';
+        if(tot)c.fill={type:'pattern',pattern:'solid',fgColor:{argb:TOT}};else if(ri%2===1)c.fill={type:'pattern',pattern:'solid',fgColor:{argb:BAND}};});});
+    return r0+rows.length+1;};
+  const kpis=(ws,row,arr)=>{arr.forEach(([l,val],i)=>{const col=i*2+1;ws.mergeCells(row,col,row,col+1);ws.mergeCells(row+1,col,row+1,col+1);const vc=ws.getCell(row,col),lc=ws.getCell(row+1,col);
+    vc.value=val;vc.font={name:'Calibri',size:18,bold:true,color:{argb:NAVY}};vc.alignment={horizontal:'center',vertical:'middle'};vc.fill={type:'pattern',pattern:'solid',fgColor:{argb:BAND}};vc.border={top:{style:'thick',color:{argb:NAVY}},left:thin,right:thin};
+    lc.value=l;lc.font={name:'Calibri',size:9,bold:true,color:{argb:'FF3C3C3C'}};lc.alignment={horizontal:'center',vertical:'middle',wrapText:true};lc.fill={type:'pattern',pattern:'solid',fgColor:{argb:BAND}};lc.border={bottom:thin,left:thin,right:thin};});
+    ws.getRow(row).height=30;ws.getRow(row+1).height=22;};
+  const download=async(name)=>{const buf=await wb.xlsx.writeBuffer();const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},4000);};
+  return {wb,title,table,kpis,download};
+}
+function cmFileName(ext){const R=window._cmR;return 'CK_Total_Cost_Analysis_'+(R?R.months[0]+'_to_'+R.months[R.months.length-1]:'')+'.'+ext;}
+function cmRowsFor(list,labelFn){return list.map(x=>labelFn(x));}
+window.cmDownloadPDF=async function(){
+  const R=window._cmR;if(!R||!R.months.length){alert('Choose a valid period first.');return;}
+  let P;try{P=await b3Pdf('Total Cost Analysis',R.label);}catch(e){alert('Could not load the PDF tools. Please check the internet connection and try again.');return;}
+  const {doc,m}=P;
+  P.cards([{n:'AED '+cmFmt(R.total),l:'Total cost',sub:R.months.length+' month'+(R.months.length>1?'s':''),rgb:[160,32,32]},{n:'AED '+cmFmt(R.fixed),l:'Fixed cost',sub:'salary, pension, gratuity, flights'},{n:'AED '+cmFmt(R.vari),l:'Variable cost',sub:'medical, visas, training, other',rgb:[201,168,76]},{n:R.avgHc.toFixed(1),l:'Average headcount',sub:'by days employed'},{n:'AED '+cmFmt(R.perHead),l:'Per head per month',sub:'fixed + variable',rgb:[26,122,110]}]);
+  const head=['Gross salary','GPSSA','Gratuity','Flights','Fixed','Variable','Total'];
+  const nums=(T)=>{const f=T.gross+T.gp+T.gr+T.fl,vv=T.vd+T.va;return [T.gross,T.gp,T.gr,T.fl,f,vv,f+vv].map(cmFmt);};
+  const colStyles=(first)=>{const o={0:{halign:'left',cellWidth:first}};for(let i=1;i<=9;i++)o[i]={halign:'right'};return o;};
+  let y=27+17+8;
+  P.section('By company',y);
+  doc.autoTable(P.common({startY:y+2,head:[['Company','Staff'].concat(head)],body:R.byEntity.map(x=>[x.label,x.n].concat(nums(x.T))).concat([['Total',R.people.length].concat(nums(R.T))]),columnStyles:colStyles(70),didParseCell:P.totalStyle(R.byEntity.length+1)}));
+  y=doc.lastAutoTable.finalY+8;if(y>P.H-60){doc.addPage();P.drawHeader();y=34;}
+  P.section('By month',y);
+  doc.autoTable(P.common({startY:y+2,head:[['Month','Headcount'].concat(head)],body:R.byMonth.map(x=>[cmMonthLabel(x.m)+(x.proj?' (projection)':''),x.hc.toFixed(1)].concat(nums({gross:x.gross,gp:x.gp,gr:x.gr,fl:x.fl,vd:x.vd,va:x.va}))).concat([['Total',''].concat(nums(R.T))]),columnStyles:colStyles(50),didParseCell:P.totalStyle(R.byMonth.length+1)}));
+  doc.addPage();P.drawHeader();
+  P.section('By department',33);
+  doc.autoTable(P.common({startY:35,head:[['Department','Staff'].concat(head)],body:R.byDept.map(x=>[x.label,x.n].concat(nums(x.T))).concat([['Total',R.people.length].concat(nums(R.T))]),columnStyles:colStyles(70),didParseCell:P.totalStyle(R.byDept.length+1)}));
+  doc.addPage();P.drawHeader();
+  P.section('By employee ('+R.people.length+')',33);
+  doc.autoTable(P.common({startY:35,head:[['Employee','Company','Department'].concat(head)],body:R.people.map(p=>[p.name,cmShortEnt(p.entity),p.dept].concat(nums(p.t))).concat([['Total','',''].concat(nums(R.T))]),columnStyles:Object.assign({0:{halign:'left',cellWidth:55},1:{halign:'center',cellWidth:16},2:{halign:'left',cellWidth:44}},{3:{halign:'right'},4:{halign:'right'},5:{halign:'right'},6:{halign:'right'},7:{halign:'right'},8:{halign:'right'},9:{halign:'right'}}),didParseCell:P.totalStyle(R.people.length+1)}));
+  const ents=R.entryRows.filter(x=>x.inRange>0);
+  if(ents.length){doc.addPage();P.drawHeader();P.section('Variable costs included',33);
+    doc.autoTable(P.common({startY:35,head:[['Employee','For','Type','Month paid','Amount (AED)']],body:ents.map(({c,inRange})=>[ceScopeLabel(c),c.label||'Employee',c.cat||'',cmMonthLabel(ceMonthOf(c)),cmFmt(inRange)]),columnStyles:{4:{halign:'right'}}}));}
+  const S=R.S;doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(110,110,110);
+  let ny=(ents.length?doc.lastAutoTable.finalY:doc.lastAutoTable.finalY)+8;if(ny>P.H-40){doc.addPage();P.drawHeader();ny=34;}
+  const lines=doc.splitTextToSize('Basis: fixed = gross salary + employer GPSSA ('+S.gpssaPct+'% of pension salary, Emirati staff) + gratuity accrual (non-Emirati staff, 21 days of basic per year, 30 after five years) + flight allowance (AED '+S.flightAnnual+' a year after one year of service). Variable = actual amounts paid, entered in the portal against each person in the month paid. Past months are rebuilt from current records and Salary & Promotions history; future months are a projection of fixed cost only.',P.W-2*m);
+  doc.text(lines,m,ny);
+  P.finish(cmFileName('pdf'));
+};
+window.cmDownloadExcel=async function(){
+  const R=window._cmR;if(!R||!R.months.length){alert('Choose a valid period first.');return;}
+  let X;try{X=await b3Xl();}catch(e){alert('Could not load the Excel tools. Please check the internet connection and try again.');return;}
+  const {wb,title,table,kpis}=X;
+  const head=['Gross salary','GPSSA (employer)','Gratuity accrual','Flight allowance','Fixed','Variable','Total'];
+  const nums=(T)=>{const f=T.gross+T.gp+T.gr+T.fl,vv=T.vd+T.va;return [T.gross,T.gp,T.gr,T.fl,f,vv,f+vv].map(Math.round);};
+  const ws=wb.addWorksheet('Summary',{views:[{showGridLines:false}]});
+  title(ws,'Total Cost Analysis',R.label,10);
+  kpis(ws,5,[['Total cost (AED)',Math.round(R.total)],['Fixed cost (AED)',Math.round(R.fixed)],['Variable cost (AED)',Math.round(R.vari)],['Average headcount',Number(R.avgHc.toFixed(1))],['Per head per month (AED)',Math.round(R.perHead)]]);
+  let r=8;const st=(t)=>{const c=ws.getCell(r,1);c.value=t;c.font={name:'Calibri',size:12,bold:true,color:{argb:'FF1C3557'}};r++;};
+  const num=[2,3,4,5,6,7,8];
+  st('By company');r=table(ws,r,['Company','Staff'].concat(head),R.byEntity.map(x=>[x.label,x.n].concat(nums(x.T))).concat([['Total',R.people.length].concat(nums(R.T))]),{left:[0],num,totalLast:true})+2;
+  st('By department');r=table(ws,r,['Department','Staff'].concat(head),R.byDept.map(x=>[x.label,x.n].concat(nums(x.T))).concat([['Total',R.people.length].concat(nums(R.T))]),{left:[0],num,totalLast:true})+2;
+  if(Object.keys(R.byCat).length){st('Variable cost by type');r=table(ws,r,['Type','Amount (AED)'],Object.entries(R.byCat).map(([k,x])=>[k,Math.round(x)]),{left:[0],num:[1]})+1;}
+  ws.getColumn(1).width=38;for(let i=2;i<=10;i++)ws.getColumn(i).width=16;
+  ws.pageSetup={orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0};
+  const we=wb.addWorksheet('By employee',{views:[{showGridLines:false,state:'frozen',ySplit:5}]});
+  title(we,'Total Cost by Employee',R.label,10);we.getRow(4).height=6;
+  table(we,5,['Employee','Company','Department'].concat(head),R.people.map(p=>[p.name,cmShortEnt(p.entity),p.dept].concat(nums(p.t))).concat([['Total','',''].concat(nums(R.T))]),{left:[0,2],num:[3,4,5,6,7,8,9],totalLast:true});
+  [30,10,22,15,15,15,15,15,15,15].forEach((w,i)=>we.getColumn(i+1).width=w);
+  we.autoFilter={from:{row:5,column:1},to:{row:5+R.people.length,column:10}};
+  const wm=wb.addWorksheet('By month',{views:[{showGridLines:false,state:'frozen',ySplit:5}]});
+  title(wm,'Total Cost by Month',R.label,10);wm.getRow(4).height=6;
+  table(wm,5,['Month','Headcount'].concat(head),R.byMonth.map(x=>[cmMonthLabel(x.m)+(x.proj?' (projection)':''),Number(x.hc.toFixed(1))].concat(nums({gross:x.gross,gp:x.gp,gr:x.gr,fl:x.fl,vd:x.vd,va:x.va}))).concat([['Total','']].map(a=>a.concat(nums(R.T)))),{left:[0],num:[2,3,4,5,6,7,8],totalLast:true});
+  [26,12,15,15,15,15,15,15,15].forEach((w,i)=>wm.getColumn(i+1).width=w);
+  const wv=wb.addWorksheet('Variable costs',{views:[{showGridLines:false,state:'frozen',ySplit:5}]});
+  title(wv,'Variable Costs (actual amounts paid)',R.label,5);wv.getRow(4).height=6;
+  const ents=R.entryRows.filter(x=>x.inRange>0);
+  table(wv,5,['Employee','For','Type','Month paid','Amount (AED)'],ents.length?ents.map(({c,inRange})=>[ceScopeLabel(c),c.label||'Employee',c.cat||'',cmMonthLabel(ceMonthOf(c)),Math.round(inRange)]):[['None entered','','','','']],{left:[0,1,2,3],num:[4]});
+  [30,24,22,14,16].forEach((w,i)=>wv.getColumn(i+1).width=w);
+  const wa=wb.addWorksheet('Assumptions',{views:[{showGridLines:false}]});
+  title(wa,'Assumptions',R.label,2);
+  const S=R.S;
+  table(wa,5,['Item','Setting'],[['Gross salary','Monthly gross, scaled by Salary & Promotions history for past/future months'],['Employer GPSSA (Emirati staff)',S.gpssaOn?S.gpssaPct+'% of pension salary':'Off'],['Gratuity accrual (non-Emirati staff)',S.gratuityOn?'21 days of basic per year (30 after 5 years), accrued monthly from day one':'Off'],['Flight allowance',S.flightOn?'AED '+S.flightAnnual+' a year after one year of service':'Off'],['Variable costs','Actual amounts paid, entered against each person (and dependents) in the month paid. No estimates, no splitting'],['Part months','Counted by days employed'],['Past months','Estimated from current records (no monthly snapshots saved)'],['Future months','Projection: current staff and salaries continue']],{left:[0,1]});
+  wa.getColumn(1).width=38;wa.getColumn(2).width=90;
+  await X.download(cmFileName('xlsx'));
+};
+
+// ---------- Year-End Provision (gratuity and unused leave as at a chosen date) ----------
+function calcEOSBAt(e,refDate){
+  if(!e||!e.join)return null;
+  const years=(refDate-cmDate(e.join))/(365.25*864e5);
+  if(years<0)return null;
+  if(isUAENational(e))return{years,eosb:0,uae:true};
+  if(years<1)return{years,eosb:0};
+  const basic=parseFloat(e.basicSalary||0),daily=basic*12/365;
+  return{years,eosb:years<=5?(daily*21*years):(daily*21*5+daily*30*(years-5))};
+}
+function provAsAt(){return v('provDate')||(new Date().getFullYear()+'-12-31');}
+function provRows(){
+  const ent=v('provEntity'),ref0=cmDate(provAsAt());
+  const rows=[];
+  Object.entries(DB.employees||{}).forEach(([k,e])=>{
+    if(!e||e.status==='Inactive')return;
+    if(ent&&e.entity!==ent)return;
+    if(e.join&&cmDate(e.join)>ref0)return; // not yet joined on that date
+    const basic=smNum(e.basicSalary),g=calcEOSBAt(e,ref0),uae=isUAENational(e);
+    const grat=g?g.eosb:0;
+    const hasBal=e.annualLeaveBalance!=null&&e.annualLeaveBalance!=='';
+    const bal=hasBal?Math.max(0,smNum(e.annualLeaveBalance)):0;
+    const leaveVal=basic/30*bal;
+    rows.push({k,name:e.name,entity:e.entity||'',dept:e.dept||'',basic,years:g?g.years:null,uae,grat,hasBal,bal,leaveVal,total:grat+leaveVal,noJoin:!e.join,noBasic:!basic});
+  });
+  return rows.sort((a,b)=>b.total-a.total);
+}
+function renderProvisionPage(){
+  const el=document.getElementById('provBody');if(!el)return;
+  if(!document.getElementById('provDate').value)sv('provDate',new Date().getFullYear()+'-12-31');
+  const sel=document.getElementById('provEntity');
+  if(sel&&!sel.options.length){const ents=[...new Set(Object.values(DB.employees||{}).map(e=>e&&e.entity).filter(Boolean))].sort();sel.innerHTML='<option value="">Both companies</option>'+ents.map(x=>'<option>'+esc(x)+'</option>').join('');}
+  const rows=provRows();
+  const T=rows.reduce((a,r)=>({g:a.g+r.grat,l:a.l+r.leaveVal,t:a.t+r.total}),{g:0,l:0,t:0});
+  const miss=rows.filter(r=>r.noJoin||r.noBasic||!r.hasBal).length;
+  window._prov={rows,T,miss,asAt:provAsAt(),ent:v('provEntity')};
+  const card=(l,val,c)=>'<div style="flex:1;min-width:150px;padding:12px 14px;border-radius:9px;background:#f4f7fb;border:1px solid #d9e2ef;"><div style="font-size:11px;color:#888;">'+l+'</div><div style="font-size:19px;font-weight:700;color:'+(c||'#1C3557')+';">'+val+'</div></div>';
+  let h=b2Note()+'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">'+card('Active staff',rows.length)+card('Gratuity provision','AED '+cmFmt(T.g))+card('Unused leave provision','AED '+cmFmt(T.l))+card('Total provision','AED '+cmFmt(T.t),'#a02020')+'</div>';
+  const byE={};rows.forEach(r=>{const n=r.entity||'(no company)';const x=byE[n]=byE[n]||{n:0,g:0,l:0};x.n++;x.g+=r.grat;x.l+=r.leaveVal;});
+  h+='<div style="overflow-x:auto;margin-bottom:14px;"><table><thead><tr><th>Company</th><th>Staff</th><th>Gratuity</th><th>Unused leave</th><th>Total</th></tr></thead><tbody>'+Object.entries(byE).map(([n,x])=>'<tr><td>'+esc(n)+'</td><td>'+x.n+'</td><td>AED '+cmFmt(x.g)+'</td><td>AED '+cmFmt(x.l)+'</td><td><b>AED '+cmFmt(x.g+x.l)+'</b></td></tr>').join('')+'</tbody></table></div>';
+  h+='<div style="overflow-x:auto;"><table><thead><tr><th>Name</th><th>Company</th><th>Basic</th><th>Years at date</th><th>Gratuity</th><th>Leave days</th><th>Leave value</th><th>Total</th></tr></thead><tbody>'
+   +rows.map(r=>'<tr><td>'+esc(r.name)+(r.noJoin?' <span title="No joining date" style="color:#a02020;">⚠</span>':'')+'</td><td>'+esc(cmShortEnt(r.entity))+'</td><td>'+(r.noBasic?'<span style="color:#a02020;">missing</span>':'AED '+cmFmt(r.basic))+'</td><td>'+(r.years==null?'—':r.years.toFixed(1))+'</td><td>'+(r.uae?'<span style="color:#888;">GPSSA</span>':'AED '+cmFmt(r.grat))+'</td><td>'+(r.hasBal?r.bal:'<span style="color:#a02020;">not recorded</span>')+'</td><td>AED '+cmFmt(r.leaveVal)+'</td><td><b>AED '+cmFmt(r.total)+'</b></td></tr>').join('')+'</tbody></table></div>';
+  el.innerHTML=h;
+  const nt=document.getElementById('provNotes');
+  if(nt)nt.innerHTML='<b>How this is worked out</b><br>• Gratuity: the same formula as the Salary tab and Final Settlement, with service counted up to '+esc(fmt(provAsAt()))+', using each person\'s current basic salary. Under one year of service = nil. Emirati staff are on the GPSSA pension instead, so they show nil here.<br>• Unused leave: the recorded annual leave balance today × basic salary ÷ 30 (company policy: leave left at the end of service is paid on basic salary). The balance at the chosen date is not known, so today\'s balance is used. A negative balance counts as zero.<br>• People who have not joined by the chosen date are left out. Not included: notice pay, outstanding loans or advances, flight allowance and anything else due at exit.'+(miss?'<br><b style="color:#a02020;">'+miss+' of '+rows.length+' people have a missing joining date, basic salary or leave balance, so their figures are understated. They are marked in the table.</b>':'');
+}
+function provFileName(ext){const P=window._prov;return 'CK_Year-End_Provision_'+(P?P.asAt:'')+(P&&P.ent?'_'+P.ent.replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,''):'')+'.'+ext;}
+window.provDownloadPDF=async function(){
+  const D=window._prov;if(!D||!D.rows.length){alert('No staff to report.');return;}
+  let P;try{P=await b3Pdf('Year-End Provision Report','Gratuity and unused leave as at '+fmt(D.asAt)+'   |   '+(D.ent||'Both companies')+'   |   '+D.rows.length+' active staff');}catch(e){alert('Could not load the PDF tools. Please check the internet connection and try again.');return;}
+  const {doc,m}=P;
+  P.cards([{n:D.rows.length,l:'Active staff',sub:'at '+fmt(D.asAt)},{n:'AED '+cmFmt(D.T.g),l:'Gratuity provision',sub:'non-Emirati staff'},{n:'AED '+cmFmt(D.T.l),l:'Unused leave provision',sub:'balance x basic / 30',rgb:[201,168,76]},{n:'AED '+cmFmt(D.T.t),l:'Total provision',sub:'gratuity + unused leave',rgb:[160,32,32]}]);
+  const byE={};D.rows.forEach(r=>{const n=r.entity||'(no company)';const x=byE[n]=byE[n]||{n:0,g:0,l:0};x.n++;x.g+=r.grat;x.l+=r.leaveVal;});
+  let y=27+17+8;P.section('By company',y);
+  const right={};for(let i=1;i<=4;i++)right[i]={halign:'right'};
+  doc.autoTable(P.common({startY:y+2,head:[['Company','Staff','Gratuity (AED)','Unused leave (AED)','Total (AED)']],body:Object.entries(byE).map(([n,x])=>[n,x.n,cmFmt(x.g),cmFmt(x.l),cmFmt(x.g+x.l)]).concat([['Total',D.rows.length,cmFmt(D.T.g),cmFmt(D.T.l),cmFmt(D.T.t)]]),columnStyles:Object.assign({0:{halign:'left',cellWidth:90}},right),didParseCell:P.totalStyle(Object.keys(byE).length+1)}));
+  y=doc.lastAutoTable.finalY+8;if(y>P.H-50){doc.addPage();P.drawHeader();y=34;}
+  P.section('By employee',y);
+  doc.autoTable(P.common({startY:y+2,head:[['Employee','Company','Basic (AED)','Years','Gratuity (AED)','Leave days','Leave value (AED)','Total (AED)']],body:D.rows.map(r=>[r.name,cmShortEnt(r.entity),r.noBasic?'missing':cmFmt(r.basic),r.years==null?'—':r.years.toFixed(1),r.uae?'GPSSA':cmFmt(r.grat),r.hasBal?r.bal:'not recorded',cmFmt(r.leaveVal),cmFmt(r.total)]).concat([['Total','','','',cmFmt(D.T.g),'',cmFmt(D.T.l),cmFmt(D.T.t)]]),columnStyles:{0:{halign:'left',cellWidth:62},1:{halign:'center',cellWidth:18},2:{halign:'right'},3:{halign:'center'},4:{halign:'right'},5:{halign:'center'},6:{halign:'right'},7:{halign:'right'}},didParseCell:P.totalStyle(D.rows.length+1)}));
+  let ny=doc.lastAutoTable.finalY+8;if(ny>P.H-34){doc.addPage();P.drawHeader();ny=34;}
+  doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(110,110,110);
+  doc.text(doc.splitTextToSize('Basis: gratuity by the UAE formula used in Final Settlement (21 days of basic per year for the first five years, 30 days after), service counted to '+fmt(D.asAt)+' at current basic salary. Emirati staff are covered by GPSSA. Unused leave = recorded balance x basic salary / 30. Excludes notice pay, loans and other exit dues.'+(D.miss?' '+D.miss+' people have missing data, so the total is understated.':''),P.W-2*m),m,ny);
+  P.finish(provFileName('pdf'));
+};
+window.provDownloadExcel=async function(){
+  const D=window._prov;if(!D||!D.rows.length){alert('No staff to report.');return;}
+  let X;try{X=await b3Xl();}catch(e){alert('Could not load the Excel tools. Please check the internet connection and try again.');return;}
+  const {wb,title,table,kpis}=X;
+  const sub='Gratuity and unused leave as at '+fmt(D.asAt)+'   |   '+(D.ent||'Both companies');
+  const ws=wb.addWorksheet('Summary',{views:[{showGridLines:false}]});
+  title(ws,'Year-End Provision Report',sub,8);
+  kpis(ws,5,[['Active staff',D.rows.length],['Gratuity provision (AED)',Math.round(D.T.g)],['Unused leave provision (AED)',Math.round(D.T.l)],['Total provision (AED)',Math.round(D.T.t)]]);
+  const byE={};D.rows.forEach(r=>{const n=r.entity||'(no company)';const x=byE[n]=byE[n]||{n:0,g:0,l:0};x.n++;x.g+=r.grat;x.l+=r.leaveVal;});
+  let r=8;const c=ws.getCell(r,1);c.value='By company';c.font={name:'Calibri',size:12,bold:true,color:{argb:'FF1C3557'}};r++;
+  r=table(ws,r,['Company','Staff','Gratuity (AED)','Unused leave (AED)','Total (AED)'],Object.entries(byE).map(([n,x])=>[n,x.n,Math.round(x.g),Math.round(x.l),Math.round(x.g+x.l)]).concat([['Total',D.rows.length,Math.round(D.T.g),Math.round(D.T.l),Math.round(D.T.t)]]),{left:[0],num:[2,3,4],totalLast:true})+1;
+  if(D.miss){const m2=ws.getCell(r,1);m2.value=D.miss+' people have a missing joining date, basic salary or leave balance, so the total is understated.';m2.font={name:'Calibri',size:10,bold:true,color:{argb:'FFA02020'}};}
+  [38,10,18,20,16,10,10,10].forEach((w,i)=>ws.getColumn(i+1).width=w);
+  ws.pageSetup={orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0};
+  const we=wb.addWorksheet('By employee',{views:[{showGridLines:false,state:'frozen',ySplit:5}]});
+  title(we,'Year-End Provision by Employee',sub,10);we.getRow(4).height=6;
+  table(we,5,['Employee','Company','Department','Basic (AED)','Years at date','Gratuity (AED)','Leave days','Leave value (AED)','Total (AED)','Note'],D.rows.map(x=>[x.name,cmShortEnt(x.entity),x.dept,Math.round(x.basic),x.years==null?'':Number(x.years.toFixed(2)),Math.round(x.grat),x.hasBal?x.bal:'',Math.round(x.leaveVal),Math.round(x.total),[x.uae?'Emirati: GPSSA, no gratuity':'',x.noJoin?'No joining date':'',x.noBasic?'No basic salary':'',x.hasBal?'':'No leave balance'].filter(Boolean).join('; ')]).concat([['Total','','','','',Math.round(D.T.g),'',Math.round(D.T.l),Math.round(D.T.t),'']]),{left:[0,2,9],num:[3,5,7,8],totalLast:true});
+  [30,10,22,14,12,16,12,16,16,34].forEach((w,i)=>we.getColumn(i+1).width=w);
+  we.autoFilter={from:{row:5,column:1},to:{row:5+D.rows.length,column:10}};
+  await X.download(provFileName('xlsx'));
+};
+window.briefProvision=function(){
+  const D=window._prov;if(!D||!D.rows.length){briefSpeak('There are no figures to read yet.');return;}
+  const p=['As at '+briefDate(D.asAt)+', the provision for '+briefPlural(D.rows.length,'person','people')+' is '+briefAed(D.T.t)+'.','That is '+briefAed(D.T.g)+' in gratuity and '+briefAed(D.T.l)+' for unused leave.'];
+  if(D.miss)p.push(briefPlural(D.miss,'person has','people have')+' missing data, so the total is understated.');
+  briefSpeak(p.join(' '));
+};
+window.renderCostPage=renderCostPage;window.renderProvisionPage=renderProvisionPage;
+function initBatch3Listeners(){
+  const act=id=>{const p=document.getElementById('page-'+id);return p&&p.classList.contains('active');};
+  const mk=(node,key,fn)=>onValue(ref(db,node),snap=>{DB[key]=snap.val()||{};fn();},()=>{_b2RulesOk=false;DB[key]=DB[key]||{};fn();});
+  mk('costEntries','costEntries',()=>{if(act('cost'))renderCostPage();});
+  mk('costSettings','costSettings',()=>{if(act('cost')){cmSettingsFill();renderCostPage();}});
+}
+
 const ref_db=(path)=>ref(db,path);
 function initListeners(){
   try{botInit();}catch(e){}
@@ -4487,6 +5414,7 @@ function initListeners(){
     onValue(ref(db,t),snap=>{
       DB[t]=snap.val()||{};
       if(t==='announcements'||t==='leaveRequests'||t==='employees'){try{greetRefreshPassive();}catch(e){}}
+      if(t==='announcements'||t==='policies'||t==='employees'||t==='salary'||t==='leavers'){try{b2RefreshPassive();}catch(e){}}
       if(Object.prototype.hasOwnProperty.call(_mirrorLoaded,t)){_mirrorLoaded[t]=true;scheduleStaffMirrorSync();}
       if(t==='employees'){renderEmp();updateDash();if(document.getElementById('page-workforce')&&document.getElementById('page-workforce').classList.contains('active'))renderWorkforce();if(document.getElementById('uaeBody')&&window.renderUAE){try{renderUAE();}catch(err){}}
       // Refresh any employee dropdowns that are visible
@@ -4537,6 +5465,7 @@ function initListeners(){
       scheduleStaffMirrorSync();
     },()=>{window._compLoadFailed=true;_mirrorLoaded.compLeave=true;scheduleStaffMirrorSync();});
   }
+  if(currentRole==='admin'){try{initBatch2Listeners();initBatch3Listeners();}catch(e){console.error(e);}}
   // When the last backup was taken: Dev and Darleendy get the weekly reminder, Cem can see the status (view only)
   if(currentRole==='admin'||currentRole==='ceo'){
     onValue(ref(db,'backupLog/last'),snap=>{_backupLast=snap.val();_backupRulesOk=true;renderBackupBanner();renderBackupPage();},()=>{_backupLast=null;_backupRulesOk=false;renderBackupBanner();renderBackupPage();});
@@ -4557,7 +5486,7 @@ window.closeMobileSidebar=function(){
 };
 window.showPage=function(page,el){
   if(page==='comp'&&currentRole!=='admin')return; // Dev and Darleendy only
-  if((page==='headcount'||page==='simulator')&&currentRole!=='admin')return; // Dev and Darleendy only
+  if((page==='headcount'||page==='simulator'||page==='checklists'||page==='ack'||page==='unanswered'||page==='cost'||page==='prov')&&currentRole!=='admin')return; // Dev and Darleendy only
   if(page==='backup'&&currentRole!=='admin'&&currentRole!=='ceo')return; // Dev and Darleendy run it; Cem can view the status
   closeMobileSidebar(); // so picking a page doesn't leave the drawer covering the content on mobile
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -4585,6 +5514,11 @@ window.showPage=function(page,el){
   if(page==='backup')renderBackupPage();
   if(page==='headcount')initHeadcountPage();
   if(page==='simulator')initSimulatorPage();
+  if(page==='cost')initCostPage();
+  if(page==='prov')renderProvisionPage();
+  if(page==='checklists')renderChecklistsPage();
+  if(page==='ack')renderAckPage();
+  if(page==='unanswered')renderUnansweredPage();
   try{briefRefreshButtons();}catch(e){}
   if(page==='policyimport')renderPolicyImportList();
   if(page==='leaveapprovals')renderHRReviewQueue();
@@ -6920,6 +7854,7 @@ window.saveAnn=function(){
     by:adminName,ts:editKey?DB.announcements[editKey]?.ts||Date.now():Date.now(),
     lastEditedBy:editKey?adminName:'',lastEditedAt:editKey?Date.now():''
   };
+  { const prev=editKey?(DB.announcements[editKey]||{}):{}; const want=!!(document.getElementById('annAck')||{}).checked; if(want){data.ackRequired=true;data.ackVer=prev.ackVer||1;} }
   if(!data.title){alert('Title required');return;}
   if(!data.expiryDate){alert('Please set a "Live Until" date so this announcement moves to the log automatically once it expires.');return;}
   const op=editKey?set(ref(db,'announcements/'+editKey),data):set(push(ref(db,'announcements')),data);
@@ -6932,14 +7867,14 @@ window.saveAnn=function(){
 window.editAnn=function(key){
   const a=DB.announcements[key];
   sv('annEditKey',key);sv('annTitle',a.title);sv('annMsg',a.message);sv('annCat',a.category);sv('annTheme',a.theme||'');annPreview();
-  sv('annStart',a.startDate||'');sv('annExpiry',a.expiryDate||'');
+  sv('annStart',a.startDate||'');sv('annExpiry',a.expiryDate||'');{const c=document.getElementById('annAck');if(c)c.checked=!!a.ackRequired;}
   document.getElementById('annFormTitle').textContent='✏️ Editing Announcement';
   document.getElementById('annSaveBtn').textContent='Save Changes';
   document.getElementById('annCancelBtn').style.display='inline-block';
   window.scrollTo(0,0);
 };
 window.cancelAnnEdit=function(){
-  sv('annEditKey','');sv('annTitle','');sv('annMsg','');sv('annStart','');sv('annExpiry','');sv('annTheme','');annPreview();
+  sv('annEditKey','');sv('annTitle','');sv('annMsg','');sv('annStart','');sv('annExpiry','');sv('annTheme','');{const c=document.getElementById('annAck');if(c)c.checked=false;}annPreview();
   document.getElementById('annFormTitle').textContent='+ New Announcement';
   document.getElementById('annSaveBtn').textContent='Publish';
   document.getElementById('annCancelBtn').style.display='none';
@@ -6989,8 +7924,9 @@ window.togglePolicy=function(id){
 };
 window.savePol=function(){
   const data={name:v('polName'),category:v('polCat'),content:v('polContent'),date:v('polDate'),ts:Date.now()};
+  if((document.getElementById('polAck')||{}).checked){data.ackRequired=true;data.ackVer=1;}
   if(!data.name){alert('Policy name required');return;}
-  set(push(ref(db,'policies')),data).then(()=>{logAudit('Add Policy',data.name,data.category);showAlert('pol-alert','Saved!');sv('polName','');sv('polContent','');});
+  set(push(ref(db,'policies')),data).then(()=>{logAudit('Add Policy',data.name,data.category);showAlert('pol-alert','Saved!');sv('polName','');sv('polContent','');{const c=document.getElementById('polAck');if(c)c.checked=false;}});
 };
 function renderPolicies(){
   const list=Object.entries(DB.policies).sort((a,b)=>b[1].ts-a[1].ts);
