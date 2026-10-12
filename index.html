@@ -648,10 +648,12 @@ tr:hover td{background:#fafbfc;}
 
       <!-- BATCH 4 PAGE (Dev and Darleendy only) -->
       <div id="page-lrep" class="page">
-        <div class="page-header"><h2>Employee Leave Reports</h2><p>A full leave summary for each employee in one place: annual leave balance, leave taken by type, every leave record, adjustments, and compensatory leave. One page per person, ready to print. Choose everyone, a company, a department or one person. Only Dev and Darleendy can see this.</p></div>
+        <div class="page-header"><h2>Employee Leave Reports</h2><p>A full leave summary for each employee in one place: annual leave balance, leave taken by type, every leave record, adjustments, and compensatory leave. One page per person, ready to print. Leave year runs 1 January to 31 December. Choose the year and, if you want, a range of months within it. Choose everyone, a company, a department or one person. Only Dev and Darleendy can see this.</p></div>
         <div class="card" style="margin-bottom:14px;">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;">
-            <div class="form-group"><label>Leave year</label><select id="lrYear" onchange="renderLeaveReportPage()"></select></div>
+            <div class="form-group"><label>Leave year</label><select id="lrYear" onchange="lrYearChanged()"></select></div>
+            <div class="form-group"><label>From month</label><select id="lrFromM" onchange="lrMonthsChanged()"></select></div>
+            <div class="form-group"><label>To month</label><select id="lrToM" onchange="lrMonthsChanged()"></select></div>
             <div class="form-group"><label>Company</label><select id="lrEntity" onchange="renderLeaveReportPage()"></select></div>
             <div class="form-group"><label>Department</label><select id="lrDept" onchange="renderLeaveReportPage()"></select></div>
             <div class="form-group"><label>Employee</label><select id="lrEmp" onchange="renderLeaveReportPage()"></select></div>
@@ -5431,14 +5433,29 @@ function initBatch3Listeners(){
 
 // ── BATCH 4: Employee Leave Report (full leave summary + compensatory leave, one page per person; PDF and Excel) — Dev and Darleendy only ──
 function lrN(n){n=Math.round((Number(n)||0)*10)/10;return Number.isInteger(n)?String(n):n.toFixed(1);}
-function lrOpts(){return {year:v('lrYear')||String(new Date().getFullYear()),entity:v('lrEntity'),dept:v('lrDept'),empKey:v('lrEmp'),includeLeft:!!(document.getElementById('lrLeft')||{}).checked};}
+const LR_MON=['January','February','March','April','May','June','July','August','September','October','November','December'];
+function lrStartMonth(){return 1;} // leave year = 1 January to 31 December
+function lrYearLabel(y,sm){return sm===1?String(y):y+' - '+(y+1);}
+function lrSpanMonths(y,sm){const out=[];for(let i=0;i<12;i++){const mm=sm+i,yy=y+Math.floor((mm-1)/12);out.push(yy+'-'+String(((mm-1)%12)+1).padStart(2,'0'));}return out;}
+function lrOpts(){
+  const sm=lrStartMonth(),now=new Date();
+  const curStart=(now.getMonth()+1>=sm)?now.getFullYear():now.getFullYear()-1;
+  const y=parseInt(v('lrYear'),10)||curStart;
+  const ym=lrSpanMonths(y,sm);
+  let from=v('lrFromM'),to=v('lrToM');
+  if(ym.indexOf(from)<0)from=ym[0];if(ym.indexOf(to)<0)to=ym[11];
+  return {startYear:y,sm,ym,from,to,entity:v('lrEntity'),dept:v('lrDept'),empKey:v('lrEmp'),includeLeft:!!(document.getElementById('lrLeft')||{}).checked};
+}
 function lrCompute(o){
-  const year=String(o.year),idx=buildNameIndex();
+  const ym=o.ym,ly0=ym[0],ly1=ym[11],wf=o.from,wt=o.to,idx=buildNameIndex();
+  const lyLabel=lrYearLabel(o.startYear,o.sm),lyRange=cmMonthLabel(ly0)+' to '+cmMonthLabel(ly1),per=wf===wt?cmMonthLabel(wf):cmMonthLabel(wf)+' to '+cmMonthLabel(wt),partial=(wf!==ly0||wt!==ly1);
+  const mOf=l=>String((l&&l.from)||'').slice(0,7);
+  const inWin=l=>{const m=mOf(l);return m>=wf&&m<=wt;},inYtd=l=>{const m=mOf(l);return m>=ly0&&m<=wt;};
   const groups={},adjG={};
   Object.values(DB.leave||{}).forEach(l=>{if(!l)return;const n=leaveGroupName(l.empName,idx);(groups[n]=groups[n]||[]).push(l);});
   Object.values(DB.leaveAdjustments||{}).forEach(a=>{if(!a)return;const n=leaveGroupName(a.empName,idx);(adjG[n]=adjG[n]||[]).push(a);});
   const empNames=new Set(Object.values(DB.employees||{}).map(e=>e&&e.name));
-  let unmatched=0;Object.entries(groups).forEach(([n,arr])=>{if(!empNames.has(n))unmatched+=arr.filter(l=>String(l.from||'').slice(0,4)===year).length;});
+  let unmatched=0;Object.entries(groups).forEach(([n,arr])=>{if(!empNames.has(n))unmatched+=arr.filter(inWin).length;});
   const rows=[];
   Object.entries(DB.employees||{}).forEach(([k,e])=>{
     if(!e||!e.name)return;
@@ -5446,15 +5463,17 @@ function lrCompute(o){
     if(o.entity&&e.entity!==o.entity)return;if(o.dept&&e.dept!==o.dept)return;if(o.empKey&&k!==o.empKey)return;
     let probEnd=null;if(e.join){const pe=new Date(e.join);if(!isNaN(pe)){pe.setMonth(pe.getMonth()+6);probEnd=pe;}}
     const sickUnpaidOf=(l,d)=>{if(!probEnd||!l.from)return 0;const f=new Date(l.from),t=new Date(l.to||l.from);if(f>=probEnd)return 0;if(t<probEnd)return d;const total=Math.round((t-f)/86400000)+1,before=Math.round((probEnd-f)/86400000);return d*(before/total);};
-    const recs=(groups[e.name]||[]).filter(l=>String(l.from||'').slice(0,4)===year).sort((a,b)=>String(a.from)>String(b.from)?1:-1);
-    let used=0,sick=0,unpaidSick=0,wfh=0,pend=0;const byT={};const recRows=[];
+    const allRecs=(groups[e.name]||[]).sort((a,b)=>String(a.from)>String(b.from)?1:-1);
+    const recs=allRecs.filter(inWin);
+    let used=0,usedWin=0,sick=0,unpaidSick=0,wfh=0,pend=0;const byT={};const recRows=[];
+    allRecs.filter(inYtd).forEach(l=>{if(leaveCounts(l))used+=leaveDeductFor(l.type,leaveDaysOf(l),compRelation(l.relation,l.notes||l.reason));});
     recs.forEach(l=>{
       const d=leaveDaysOf(l),counted=leaveCounts(l),kind=leaveKind(l.type);
       const rel=compRelation(l.relation,l.notes||l.reason);
       const ded=counted?leaveDeductFor(l.type,d,rel):0;
       let tag='';
       if(counted){
-        used+=ded;const b=byT[l.type||'Other']=byT[l.type||'Other']||{type:l.type||'Other',n:0,days:0,ded:0};b.n++;b.days+=d;b.ded+=ded;
+        usedWin+=ded;const b=byT[l.type||'Other']=byT[l.type||'Other']||{type:l.type||'Other',n:0,days:0,ded:0};b.n++;b.days+=d;b.ded+=ded;
         if(kind==='sick'){sick+=d;const u=sickUnpaidOf(l,d);unpaidSick+=u;if(u>0)tag='Unpaid (probation)'+(u<d?': '+lrN(u)+' of '+lrN(d)+' days':'');}
         else if(kind==='wfh')wfh+=d;
         else if(kind==='compassion')tag=ded>0?ded+' day(s) off annual leave (beyond '+(rel==='spouse'?5:3)+')':'Not off annual leave';
@@ -5464,29 +5483,34 @@ function lrCompute(o){
       recRows.push({type:l.type||'',from:l.from||'',to:l.to||l.from||'',days:d,status:l.status||'Approved',ded,note:[tag,l.notes||''].filter(Boolean).join(' | ')});
     });
     const ent=parseFloat(e.annualLeaveEnt||30),entitled=isNaN(ent)?30:ent;
-    const adjRows=(adjG[e.name]||[]).filter(a=>String(a.year)===year).map(a=>({type:a.type||'',days:parseFloat(a.days||0)||0,notes:a.notes||'',by:a.by||''}));
+    const adjIn=a=>{const d=String(a.date||'').slice(0,7);return /^\d{4}-\d{2}$/.test(d)?(d>=ly0&&d<=ly1):String(a.year)===String(o.startYear);};
+    const adjRows=(adjG[e.name]||[]).filter(adjIn).map(a=>({type:a.type||'',days:parseFloat(a.days||0)||0,notes:a.notes||'',by:a.by||''}));
     const adj=adjRows.reduce((s,a)=>s+a.days,0);
     const ents=compEntriesFor(k).map(([id,c])=>c);
-    const before=year+'-01-01',inY=c=>String(c.date||'').slice(0,4)===year;
+    const before=wf+'-01',inY=c=>{const m=String(c.date||'').slice(0,7);return m>=wf&&m<=wt;};
     const eh=c=>parseFloat(c.hours)||0;
     const open=ents.filter(c=>String(c.date||'')<before).reduce((s,c)=>s+(c.kind==='taken'?-eh(c):c.kind==='earned'?eh(c):0),0);
     const cy=ents.filter(inY).sort((a,b)=>String(a.date)>String(b.date)?1:-1);
     const earned=cy.filter(c=>c.kind==='earned').reduce((s,c)=>s+eh(c),0),taken=cy.filter(c=>c.kind==='taken').reduce((s,c)=>s+eh(c),0);
     rows.push({k,name:e.name,empId:e.empId||'',entity:e.entity||'',dept:e.dept||'',desig:e.desig||e.designation||'',join:e.join||'',status:e.status||'Active',
-      entitled,adj,adjRows,used,balance:entitled+adj-used,sick,unpaidSick,wfh,pend,byType:Object.values(byT).sort((a,b)=>b.days-a.days),records:recRows,
+      entitled,adj,adjRows,used,usedWin,balance:entitled+adj-used,sick,unpaidSick,wfh,pend,byType:Object.values(byT).sort((a,b)=>b.days-a.days),records:recRows,
       comp:{open,earned,taken,close:open+earned-taken,entries:cy}});
   });
   rows.sort((a,b)=>(a.entity+'|'+a.name).localeCompare(b.entity+'|'+b.name));
   const T=rows.reduce((a,r)=>({ent:a.ent+r.entitled+r.adj,used:a.used+r.used,bal:a.bal+r.balance,sick:a.sick+r.sick,wfh:a.wfh+r.wfh,comp:a.comp+r.comp.close}),{ent:0,used:0,bal:0,sick:0,wfh:0,comp:0});
-  return {year,rows,T,unmatched,label:(o.entity||'Both companies')+(o.dept?'  |  '+o.dept:'')+(o.empKey&&DB.employees[o.empKey]?'  |  '+DB.employees[o.empKey].name:'')+'  |  Leave year '+year+(o.includeLeft?'  |  including staff who have left':'')};
+  return {year:lyLabel,ly:lyLabel,lyRange,per,partial,wf,wt,rows,T,unmatched,label:(o.entity||'Both companies')+(o.dept?'  |  '+o.dept:'')+(o.empKey&&DB.employees[o.empKey]?'  |  '+DB.employees[o.empKey].name:'')+'  |  Leave year '+lyLabel+' ('+lyRange+')'+(partial?'  |  Period '+per:'')+(o.includeLeft?'  |  including staff who have left':'')};
 }
 function lrCompTxt(h){return fmtCompHours(h);}
 function renderLeaveReportPage(){
   const el=document.getElementById('lrBody');if(!el)return;
-  const fill=(id,html)=>{const s=document.getElementById(id);if(!s)return;const cur=s.value;s.innerHTML=html;if(cur)s.value=cur;};
+  const fill=(id,html)=>{const s=document.getElementById(id);if(!s)return;const cur=s.value;s.innerHTML=html;if(cur&&[...s.options].some(o=>o.value===cur))s.value=cur;};
   const emps=Object.entries(DB.employees||{}).filter(([k,e])=>e&&e.name);
-  const y0=new Date().getFullYear();
-  fill('lrYear',[0,1,2,3,4,5].map(i=>'<option>'+(y0-i)+'</option>').join(''));
+  {const sm=lrStartMonth(),now=new Date(),curStart=(now.getMonth()+1>=sm)?now.getFullYear():now.getFullYear()-1;
+   fill('lrYear',[0,1,2,3,4,5].map(i=>{const y=curStart-i;const sp=lrSpanMonths(y,sm);return '<option value="'+y+'">'+y+'  (1 Jan '+y+' to 31 Dec '+y+')</option>';}).join(''));
+   const O=lrOpts();
+   fill('lrFromM',O.ym.map(m=>'<option value="'+m+'">'+cmMonthLabel(m)+'</option>').join(''));
+   fill('lrToM',O.ym.map(m=>'<option value="'+m+'">'+cmMonthLabel(m)+'</option>').join(''));
+   document.getElementById('lrFromM').value=O.from;document.getElementById('lrToM').value=O.to;}
   fill('lrEntity','<option value="">Both companies</option>'+[...new Set(emps.map(([k,e])=>e.entity).filter(Boolean))].sort().map(x=>'<option>'+esc(x)+'</option>').join(''));
   fill('lrDept','<option value="">All departments</option>'+[...new Set(emps.map(([k,e])=>e.dept).filter(Boolean))].sort().map(x=>'<option>'+esc(x)+'</option>').join(''));
   fill('lrEmp','<option value="">All employees</option>'+emps.sort((a,b)=>String(a[1].name).localeCompare(String(b[1].name))).map(([k,e])=>'<option value="'+k+'">'+esc(e.name)+(e.status==='Inactive'?' (left)':'')+'</option>').join(''));
@@ -5494,14 +5518,16 @@ function renderLeaveReportPage(){
   if(!R.rows.length){el.innerHTML='<div class="empty-state"><p>No employees match these choices.</p></div>';return;}
   const card=(l,val,c)=>'<div style="flex:1;min-width:130px;padding:12px 14px;border-radius:9px;background:#f4f7fb;border:1px solid #d9e2ef;"><div style="font-size:11px;color:#888;">'+l+'</div><div style="font-size:19px;font-weight:700;color:'+(c||'#1C3557')+';">'+val+'</div></div>';
   let h='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">'+card('Employees',R.rows.length)+card('Annual leave taken',lrN(R.rows.reduce((a,r)=>a+r.used,0))+' days')+card('Annual leave balance (total)',lrN(R.rows.reduce((a,r)=>a+r.balance,0))+' days')+card('Sick leave taken',lrN(R.T.sick)+' days')+card('Compensatory balance (total)',esc(lrCompTxt(R.T.comp)))+'</div>';
-  if(R.unmatched)h+='<div style="padding:9px 14px;margin-bottom:12px;border-radius:8px;background:#fff4dc;border:1px solid #f0d28a;color:#7a5a00;font-size:12.5px;">'+R.unmatched+' leave record'+(R.unmatched>1?'s':'')+' in '+R.year+' could not be matched to an employee name, so '+(R.unmatched>1?'they are':'it is')+' not in this report. Use "Fix names" on the Leave Register to correct this.</div>';
+  if(R.unmatched)h+='<div style="padding:9px 14px;margin-bottom:12px;border-radius:8px;background:#fff4dc;border:1px solid #f0d28a;color:#7a5a00;font-size:12.5px;">'+R.unmatched+' leave record'+(R.unmatched>1?'s':'')+' in '+R.per+' could not be matched to an employee name, so '+(R.unmatched>1?'they are':'it is')+' not in this report. Use "Fix names" on the Leave Register to correct this.</div>';
   h+='<div style="overflow-x:auto;"><table><thead><tr><th>Employee</th><th>Company</th><th>Entitlement</th><th>Carry-over / adjustments</th><th>Total entitlement</th><th>Taken off annual</th><th>Balance</th><th>Sick</th><th>WFH</th><th>Comp. leave balance</th><th></th></tr></thead><tbody>'+R.rows.map(r=>'<tr><td><b>'+esc(r.name)+'</b>'+(r.status==='Inactive'?' <span style="font-size:11px;color:#888;">(left)</span>':'')+'<div style="font-size:11px;color:#888;">'+esc(r.empId)+' '+esc(r.dept)+'</div></td><td>'+esc(cmShortEnt(r.entity))+'</td><td>'+lrN(r.entitled)+'</td><td>'+(r.adj>0?'+':'')+lrN(r.adj)+'</td><td><b>'+lrN(r.entitled+r.adj)+'</b></td><td>'+lrN(r.used)+'</td><td style="font-weight:700;color:'+(r.balance<0?'#c0392b':'#1A7A6E')+';">'+lrN(r.balance)+'</td><td>'+lrN(r.sick)+(r.unpaidSick>0?' <span style="font-size:10.5px;color:#c0392b;">('+lrN(r.unpaidSick)+' unpaid)</span>':'')+'</td><td>'+lrN(r.wfh)+'</td><td>'+esc(lrCompTxt(r.comp.close))+'</td><td><button class="btn btn-sm btn-gold" data-k="'+esc(r.k)+'" onclick="lrDownloadPDF(this.dataset.k)">📄 PDF</button></td></tr>').join('')+'</tbody></table></div>';
   el.innerHTML=h;
   const nb=document.getElementById('lrNotes');
-  if(nb)nb.innerHTML='<b>How this is worked out</b><br>• Same rules as the Leave Summary window: balance = annual entitlement + adjustments for the year − days taken that come off annual leave (annual, half day, emergency, Hajj, Umrah, and compassionate leave beyond 3 or 5 days). Sick, work from home, maternity, paternity, study and unpaid leave do not reduce it.<br>• Only approved leave is counted. Pending and rejected requests are listed on the report but not counted. A leave is placed in the year it starts.<br>• Carry-over from an earlier year is included only if it was entered as an adjustment. The balance is worked out from the leave records, not from the balance figure stored on the employee record.<br>• Compensatory leave: brought forward = earned minus taken before 1 January; then earned and taken during the year; balance at the end of the year (one day = 8 hours).';
+  if(nb)nb.innerHTML='<b>How this is worked out</b><br>• Same rules as the Leave Summary window: balance = annual entitlement + adjustments for the leave year − days taken, from the start of the leave year up to the end of the months you chose, that come off annual leave (annual, half day, emergency, Hajj, Umrah, and compassionate leave beyond 3 or 5 days). Sick, work from home, maternity, paternity, study and unpaid leave do not reduce it.<br>• Only approved leave is counted. Pending and rejected requests are listed on the report but not counted. A leave is placed in the month it starts.<br>• The leave year runs 1 January to 31 December. Choose the year, then narrow to a range of months if you want. The balance is always shown at the end of the months you chose; leave taken, sick leave, work from home, the records list and compensatory leave cover only the chosen months.<br>• Carry-over from an earlier year is included only if it was entered as an adjustment. The balance is worked out from the leave records, not from the balance figure stored on the employee record.<br>• Compensatory leave: brought forward = earned minus taken before the first chosen month; then earned and taken in the chosen months; balance at the end of them (one day = 8 hours). Adjustments belong to the leave year by their date if they have one, otherwise by the year entered on them.';
 }
 window.renderLeaveReportPage=renderLeaveReportPage;
-function lrFileName(ext,R,only){const nm=only&&R.rows.length===1?R.rows[0].name.replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,''):'';return 'CK_Employee_Leave_Report_'+R.year+'_'+(nm||(v('lrEntity')?v('lrEntity').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,''):'All-Companies'))+'.'+ext;}
+window.lrYearChanged=function(){sv('lrFromM','');sv('lrToM','');renderLeaveReportPage();};
+window.lrMonthsChanged=function(){const O=lrOpts();if(O.from>O.to){sv('lrToM',O.from);}renderLeaveReportPage();};
+function lrFileName(ext,R,only){const nm=only&&R.rows.length===1?R.rows[0].name.replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,''):'';return 'CK_Employee_Leave_Report_'+R.ly.replace(/[^0-9A-Za-z]+/g,'-')+(R.partial?'_'+R.wf+'_to_'+R.wt:'')+'_'+(nm||(v('lrEntity')?v('lrEntity').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,''):'All-Companies'))+'.'+ext;}
 window.lrDownloadPDF=async function(onlyKey){
   const R=lrCompute(Object.assign(lrOpts(),onlyKey?{empKey:onlyKey}:{}));
   if(!R.rows.length){alert('No employees match these choices.');return;}
@@ -5509,7 +5535,7 @@ window.lrDownloadPDF=async function(onlyKey){
   const {doc,W,H,m,NAVY}=P,CW=W-2*m;
   let cur=null,curFirst=1;
   const pageNo=()=>doc.internal.getCurrentPageInfo().pageNumber;
-  const strip=()=>{if(!cur||pageNo()===curFirst)return;doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(...NAVY);doc.text(cur.name+'  ('+(cur.empId||'no ID')+')  -  '+R.year+' leave report, continued',m,28.5);};
+  const strip=()=>{if(!cur||pageNo()===curFirst)return;doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(...NAVY);doc.text(cur.name+'  ('+(cur.empId||'no ID')+')  -  '+R.ly+' leave report, continued',m,28.5);};
   const tbl=(o)=>Object.assign({theme:'grid',margin:{left:m,right:m,top:32,bottom:16},styles:{font:'helvetica',fontSize:7.5,cellPadding:1.5,lineColor:[222,226,232],lineWidth:0.2,textColor:[40,40,40],valign:'middle'},headStyles:{fillColor:NAVY,textColor:255,fontStyle:'bold',halign:'center'},alternateRowStyles:{fillColor:[247,249,252]},didDrawPage:()=>{P.drawHeader();strip();}},o);
   const newPage=()=>{doc.addPage();P.drawHeader();};
   let y=0;
@@ -5534,36 +5560,36 @@ window.lrDownloadPDF=async function(onlyKey){
     doc.setFont('helvetica','bold');doc.setFontSize(12.5);doc.setTextColor(...NAVY);doc.text(r.name,m+5,y+6.5);
     doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(70,70,70);
     doc.text([r.empId?'ID '+r.empId:'',r.entity,r.dept,r.desig].filter(Boolean).join('   |   '),m+5,y+11.2);
-    doc.text('Joined '+(r.join?fmt(r.join):'not recorded')+'   |   Status: '+(r.status==='Inactive'?'Left the company':'Active')+'   |   Leave year '+R.year,m+5,y+15);
+    doc.text('Joined '+(r.join?fmt(r.join):'not recorded')+'   |   Status: '+(r.status==='Inactive'?'Left the company':'Active')+'   |   Leave year '+R.ly+(R.partial?'   |   '+R.per:''),m+5,y+15);
     y+=22;
     // cards
-    const cs=[{n:lrN(r.entitled),l:'Annual entitlement'},{n:(r.adj>0?'+':'')+lrN(r.adj),l:'Carry-over / adjustments'},{n:lrN(r.entitled+r.adj),l:'Total entitlement'},{n:lrN(r.used),l:'Taken off annual leave'},{n:lrN(r.balance),l:'Annual leave balance',rgb:r.balance<0?[192,57,43]:[26,122,110]}];
+    const cs=[{n:lrN(r.entitled),l:'Annual entitlement'},{n:(r.adj>0?'+':'')+lrN(r.adj),l:'Carry-over / adjustments'},{n:lrN(r.entitled+r.adj),l:'Total entitlement'},{n:lrN(r.used),l:R.partial?'Taken (year to period end)':'Taken off annual leave'},{n:lrN(r.balance),l:R.partial?'Balance at period end':'Annual leave balance',rgb:r.balance<0?[192,57,43]:[26,122,110]}];
     const gap=3,cw=(CW-gap*(cs.length-1))/cs.length;
     cs.forEach((k,j)=>{const x=m+j*(cw+gap);doc.setFillColor(250,251,253);doc.setDrawColor(222,226,232);doc.setLineWidth(0.3);doc.roundedRect(x,y,cw,16,1.5,1.5,'FD');doc.setFillColor(...(k.rgb||NAVY));doc.rect(x,y,1.5,16,'F');
       doc.setFont('helvetica','bold');doc.setFontSize(14);doc.setTextColor(...(k.rgb||NAVY));doc.text(k.n,x+4.5,y+7.5);doc.setFontSize(7);doc.setTextColor(70,70,70);doc.text(k.l,x+4.5,y+12.5);});
     y+=20;
     doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(60,60,60);
-    doc.text('Sick leave: '+lrN(r.sick)+' days'+(r.unpaidSick>0?' ('+lrN(r.unpaidSick)+' unpaid, in probation)':'')+'     |     Work from home: '+lrN(r.wfh)+' days'+(r.pend?'     |     Pending requests (not counted): '+r.pend:''),m,y+1);
+    doc.text((R.partial?'Taken off annual in '+R.per+': '+lrN(r.usedWin)+' days     |     ':'')+'Sick leave: '+lrN(r.sick)+' days'+(r.unpaidSick>0?' ('+lrN(r.unpaidSick)+' unpaid, in probation)':'')+'     |     Work from home: '+lrN(r.wfh)+' days'+(r.pend?'     |     Pending requests (not counted): '+r.pend:''),m,y+1);
     y+=7;
     // by type
-    sec('Leave taken in '+R.year+' (approved), by type');
+    sec('Leave taken, '+R.per+' (approved), by type');
     if(r.byType.length){doc.autoTable(tbl({startY:y,head:[['Leave type','Records','Days','Comes off annual leave']],body:r.byType.map(b=>[b.type,b.n,lrN(b.days),lrN(b.ded)]),columnStyles:{0:{halign:'left'},1:{halign:'center'},2:{halign:'center'},3:{halign:'center'}}}));after();}
-    else{doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(120,120,120);doc.text('No approved leave in '+R.year+'.',m,y+3);y+=9;}
+    else{doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(120,120,120);doc.text('No approved leave in '+R.per+'.',m,y+3);y+=9;}
     // records
     sec('Leave records');
     if(r.records.length){doc.autoTable(tbl({startY:y,head:[['From','To','Type','Days','Status','Off annual','Notes']],body:r.records.map(x=>[fmt(x.from),fmt(x.to),x.type,lrN(x.days),x.status,x.ded?lrN(x.ded):'-',x.note||'']),columnStyles:{0:{cellWidth:22},1:{cellWidth:22},2:{halign:'left',cellWidth:30},3:{halign:'center',cellWidth:12},4:{halign:'center',cellWidth:20},5:{halign:'center',cellWidth:17},6:{halign:'left'}},
       didParseCell:(d)=>{if(d.section==='body'&&d.column.index===4){const s=String(d.cell.raw).toLowerCase();if(s==='pending')d.cell.styles.textColor=[160,106,0];else if(s==='rejected'||s==='cancelled')d.cell.styles.textColor=[192,57,43];}}}));after();}
-    else{doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(120,120,120);doc.text('No leave records for '+R.year+'.',m,y+3);y+=9;}
+    else{doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(120,120,120);doc.text('No leave records in '+R.per+'.',m,y+3);y+=9;}
     // adjustments
-    if(r.adjRows.length){sec('Adjustments for '+R.year+' (carry-over, encashment and similar)');doc.autoTable(tbl({startY:y,head:[['Type','Days','Notes','Entered by']],body:r.adjRows.map(a=>[a.type,(a.days>0?'+':'')+lrN(a.days),a.notes,a.by]),columnStyles:{0:{halign:'left',cellWidth:50},1:{halign:'center',cellWidth:18},2:{halign:'left'},3:{cellWidth:30}}}));after();}
+    if(r.adjRows.length){sec('Adjustments for leave year '+R.ly+' (carry-over, encashment and similar)');doc.autoTable(tbl({startY:y,head:[['Type','Days','Notes','Entered by']],body:r.adjRows.map(a=>[a.type,(a.days>0?'+':'')+lrN(a.days),a.notes,a.by]),columnStyles:{0:{halign:'left',cellWidth:50},1:{halign:'center',cellWidth:18},2:{halign:'left'},3:{cellWidth:30}}}));after();}
     // compensatory
-    sec('Compensatory leave');
-    doc.autoTable(tbl({startY:y,head:[['Brought forward (1 Jan '+R.year+')','Earned in '+R.year,'Taken in '+R.year,'Balance at end of '+R.year]],body:[[lrCompTxt(r.comp.open),lrCompTxt(r.comp.earned),lrCompTxt(r.comp.taken),lrCompTxt(r.comp.close)]],styles:{font:'helvetica',fontSize:9,cellPadding:2,halign:'center',lineColor:[222,226,232],lineWidth:0.2,textColor:[40,40,40]}}));after(4);
+    sec('Compensatory leave ('+R.per+')');
+    doc.autoTable(tbl({startY:y,head:[['Brought forward','Earned in period','Taken in period','Balance at end of period']],body:[[lrCompTxt(r.comp.open),lrCompTxt(r.comp.earned),lrCompTxt(r.comp.taken),lrCompTxt(r.comp.close)]],styles:{font:'helvetica',fontSize:9,cellPadding:2,halign:'center',lineColor:[222,226,232],lineWidth:0.2,textColor:[40,40,40]}}));after(4);
     if(r.comp.entries.length){doc.autoTable(tbl({startY:y,head:[['Date','Entry','Amount','Reason','Note','Entered by']],body:r.comp.entries.map(c=>[fmt(c.date),c.kind==='taken'?'Taken':'Earned',(COMP_UNITS[c.unit]||{}).label||lrN(c.hours)+' hrs',c.category||'-',c.note||'',c.by||'']),columnStyles:{0:{cellWidth:24},1:{halign:'center',cellWidth:18},2:{halign:'center',cellWidth:24},3:{halign:'left',cellWidth:44},4:{halign:'left'},5:{cellWidth:24}}}));after(5);}
-    else{doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(120,120,120);doc.text('No compensatory leave entries in '+R.year+'.',m,y+3);y+=9;}
+    else{doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(120,120,120);doc.text('No compensatory leave entries in '+R.per+'.',m,y+3);y+=9;}
     need(18);
     doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(120,120,120);
-    const ln=doc.splitTextToSize('Annual balance = entitlement + adjustments - days taken that come off annual leave (annual, half day, emergency, Hajj, Umrah, and compassionate leave beyond 3 or 5 days). Sick, work from home, maternity, paternity, study and unpaid leave do not reduce it. Only approved leave is counted, and a leave is placed in the year it starts. Carry-over from an earlier year appears only if entered as an adjustment. One day of compensatory leave = 8 hours.',CW);
+    const ln=doc.splitTextToSize('Annual balance = entitlement + adjustments - days taken (from the start of the leave year to the end of the period shown) that come off annual leave (annual, half day, emergency, Hajj, Umrah, and compassionate leave beyond 3 or 5 days). Sick, work from home, maternity, paternity, study and unpaid leave do not reduce it. Only approved leave is counted, and a leave is placed in the month it starts. Carry-over from an earlier year appears only if entered as an adjustment. One day of compensatory leave = 8 hours.',CW);
     doc.text(ln,m,y);
   });
   P.finish(lrFileName('pdf',R,!!onlyKey));
@@ -5576,7 +5602,7 @@ window.lrDownloadExcel=async function(){
   const dec=(ws,r0,n,cols)=>{for(let r=r0;r<=r0+n;r++)cols.forEach(c=>{const cell=ws.getCell(r,c);if(typeof cell.value==='number')cell.numFmt='0.0#';});};
   const ws=wb.addWorksheet('Summary',{views:[{showGridLines:false,state:'frozen',ySplit:8}]});
   title(ws,'Employee Leave Report',R.label,18);
-  const head=['Employee','ID','Company','Department','Joined','Entitlement (days)','Carry-over / adjustments (days)','Total entitlement (days)','Taken off annual (days)','Annual balance (days)','Sick (days)','Unpaid sick (days)','WFH (days)','Pending requests','Comp. b/f (hrs)','Comp. earned (hrs)','Comp. taken (hrs)','Comp. balance (hrs)'];
+  const head=['Employee','ID','Company','Department','Joined','Entitlement (days)','Carry-over / adjustments (days)','Total entitlement (days)','Taken off annual (days, year to period end)','Annual balance at period end (days)','Sick (days)','Unpaid sick (days)','WFH (days)','Pending requests','Comp. b/f (hrs)','Comp. earned (hrs)','Comp. taken (hrs)','Comp. balance (hrs)'];
   const body=R.rows.map(r=>[r.name+(r.status==='Inactive'?' (left)':''),r.empId,cmShortEnt(r.entity),r.dept,r.join?fmt(r.join):'',r.entitled,r.adj,r.entitled+r.adj,Number(lrN(r.used)),Number(lrN(r.balance)),Number(lrN(r.sick)),Number(lrN(r.unpaidSick)),Number(lrN(r.wfh)),r.pend,r.comp.open,r.comp.earned,r.comp.taken,r.comp.close]);
   body.push(['Total','','','','',R.rows.reduce((a,r)=>a+r.entitled,0),R.rows.reduce((a,r)=>a+r.adj,0),R.T.ent,Number(lrN(R.T.used)),Number(lrN(R.T.bal)),Number(lrN(R.T.sick)),Number(lrN(R.rows.reduce((a,r)=>a+r.unpaidSick,0))),Number(lrN(R.T.wfh)),R.rows.reduce((a,r)=>a+r.pend,0),R.rows.reduce((a,r)=>a+r.comp.open,0),R.rows.reduce((a,r)=>a+r.comp.earned,0),R.rows.reduce((a,r)=>a+r.comp.taken,0),R.T.comp]);
   table(ws,8,head,body,{left:[0,2,3],totalLast:true});
@@ -5588,25 +5614,25 @@ window.lrDownloadExcel=async function(){
   // KPI line under title (simple text, keeps header row stable)
   const kc=ws.getCell(4,1);kc.value='Employees '+R.rows.length+'   |   Annual leave taken '+lrN(R.T.used)+' days   |   Annual balance (total) '+lrN(R.T.bal)+' days   |   Sick leave '+lrN(R.T.sick)+' days   |   Compensatory balance (total) '+lrCompTxt(R.T.comp);kc.font={name:'Calibri',size:10,bold:true,color:{argb:'FF1C3557'}};
   const wr=wb.addWorksheet('Leave records',{views:[{showGridLines:false,state:'frozen',ySplit:5}]});
-  title(wr,'Leave Records - '+R.year,R.label,9);wr.getRow(4).height=4;
+  title(wr,'Leave Records - '+R.per,R.label,9);wr.getRow(4).height=4;
   const rr=[];R.rows.forEach(r=>r.records.forEach(x=>rr.push([r.name,r.empId,cmShortEnt(r.entity),x.type,x.from?fmt(x.from):'',x.to?fmt(x.to):'',Number(lrN(x.days)),x.status,Number(lrN(x.ded)),x.note])));
   table(wr,5,['Employee','ID','Company','Leave type','From','To','Days','Status','Off annual (days)','Notes'],rr.length?rr:[['None','','','','','','','','','']],{left:[0,3,9]});
   dec(wr,6,rr.length,[7,9]);
   [30,10,10,22,13,13,9,12,14,50].forEach((w,i)=>wr.getColumn(i+1).width=w);
   wr.autoFilter={from:{row:5,column:1},to:{row:5+rr.length,column:10}};
   const wa=wb.addWorksheet('Adjustments',{views:[{showGridLines:false,state:'frozen',ySplit:5}]});
-  title(wa,'Leave Adjustments - '+R.year,R.label,5);wa.getRow(4).height=4;
+  title(wa,'Leave Adjustments - leave year '+R.ly,R.label,5);wa.getRow(4).height=4;
   const ar=[];R.rows.forEach(r=>r.adjRows.forEach(a=>ar.push([r.name,r.empId,a.type,a.days,a.notes,a.by])));
   table(wa,5,['Employee','ID','Type','Days','Notes','Entered by'],ar.length?ar:[['None','','','','','']],{left:[0,2,4]});
   dec(wa,6,ar.length,[4]);[30,10,24,9,40,18].forEach((w,i)=>wa.getColumn(i+1).width=w);
   const wc=wb.addWorksheet('Compensatory leave',{views:[{showGridLines:false,state:'frozen',ySplit:5}]});
-  title(wc,'Compensatory Leave - '+R.year,R.label,8);wc.getRow(4).height=4;
+  title(wc,'Compensatory Leave - '+R.per,R.label,8);wc.getRow(4).height=4;
   const cr=[];R.rows.forEach(r=>r.comp.entries.forEach(c=>cr.push([r.name,r.empId,c.date?fmt(c.date):'',c.kind==='taken'?'Taken':'Earned',(COMP_UNITS[c.unit]||{}).label||'',parseFloat(c.hours)||0,c.category||'',c.note||'',c.by||''])));
   table(wc,5,['Employee','ID','Date','Entry','Amount','Hours','Reason','Note','Entered by'],cr.length?cr:[['None','','','','','','','','']],{left:[0,6,7]});
   dec(wc,6,cr.length,[6]);[30,10,13,10,12,9,34,40,18].forEach((w,i)=>wc.getColumn(i+1).width=w);
   const wn=wb.addWorksheet('Notes',{views:[{showGridLines:false}]});
   title(wn,'How this report is worked out',R.label,2);
-  table(wn,5,['Item','Rule'],[['Annual balance','Entitlement + adjustments for the year - days taken that come off annual leave'],['Comes off annual leave','Annual, half day, emergency, Hajj, Umrah; compassionate leave only beyond 3 days (5 for a spouse)'],['Does not reduce it','Sick, work from home, maternity, paternity, study, unpaid, business'],['Counted','Approved leave only; pending and rejected are listed but not counted'],['Year','A leave is placed in the year it starts'],['Carry-over','Only if entered as an adjustment'],['Compensatory leave','Brought forward = earned - taken before 1 January; one day = 8 hours'],['Source','Worked out from leave records, not from the balance figure stored on the employee record']],{left:[0,1]});
+  table(wn,5,['Item','Rule'],[['Annual balance','Entitlement + adjustments for the leave year - days taken (leave year start to period end) that come off annual leave'],['Comes off annual leave','Annual, half day, emergency, Hajj, Umrah; compassionate leave only beyond 3 days (5 for a spouse)'],['Does not reduce it','Sick, work from home, maternity, paternity, study, unpaid, business'],['Counted','Approved leave only; pending and rejected are listed but not counted'],['Period','A leave is placed in the month it starts; the balance is at the end of the chosen months'],['Carry-over','Only if entered as an adjustment'],['Compensatory leave','Brought forward = earned - taken before the first chosen month; one day = 8 hours'],['Source','Worked out from leave records, not from the balance figure stored on the employee record']],{left:[0,1]});
   wn.getColumn(1).width=26;wn.getColumn(2).width=100;
   await X.download(lrFileName('xlsx',R,false));
 };
