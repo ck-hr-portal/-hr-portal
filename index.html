@@ -648,7 +648,7 @@ tr:hover td{background:#fafbfc;}
 
       <!-- BATCH 4 PAGE (Dev and Darleendy only) -->
       <div id="page-lrep" class="page">
-        <div class="page-header"><h2>Employee Leave Reports</h2><p>A full leave summary for each employee in one place: annual leave balance, leave taken by type, every leave record, adjustments, and compensatory leave. One page per person, ready to print. Leave year runs 1 January to 31 December. Choose the year and, if you want, a range of months within it. Choose everyone, a company, a department or one person. Only Dev and Darleendy can see this.</p></div>
+        <div class="page-header"><h2>Employee Leave Reports</h2><p>A full leave summary for each employee in one place: annual leave balance, leave taken by type, every leave record, adjustments, and compensatory leave. One page per person, ready to print. Choose the year and, if you want, a range of months within it. Choose everyone, a company, a department or one person. Only Dev and Darleendy can see this.</p></div>
         <div class="card" style="margin-bottom:14px;">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;">
             <div class="form-group"><label>Leave year</label><select id="lrYear" onchange="lrYearChanged()"></select></div>
@@ -5498,7 +5498,7 @@ function lrCompute(o){
   });
   rows.sort((a,b)=>(a.entity+'|'+a.name).localeCompare(b.entity+'|'+b.name));
   const T=rows.reduce((a,r)=>({ent:a.ent+r.entitled+r.adj,used:a.used+r.used,bal:a.bal+r.balance,sick:a.sick+r.sick,wfh:a.wfh+r.wfh,comp:a.comp+r.comp.close}),{ent:0,used:0,bal:0,sick:0,wfh:0,comp:0});
-  return {year:lyLabel,ly:lyLabel,lyRange,per,partial,wf,wt,rows,T,unmatched,label:(o.entity||'Both companies')+(o.dept?'  |  '+o.dept:'')+(o.empKey&&DB.employees[o.empKey]?'  |  '+DB.employees[o.empKey].name:'')+'  |  Leave year '+lyLabel+' ('+lyRange+')'+(partial?'  |  Period '+per:'')+(o.includeLeft?'  |  including staff who have left':'')};
+  return {year:lyLabel,ly:lyLabel,lyRange,per,partial,wf,wt,rows,T,unmatched,label:(o.entity||'Both companies')+(o.dept?'  |  '+o.dept:'')+(o.empKey&&DB.employees[o.empKey]?'  |  '+DB.employees[o.empKey].name:'')+'  |  Leave year '+lyLabel+(partial?'  |  Period '+per:'')+(o.includeLeft?'  |  including staff who have left':'')};
 }
 function lrCompTxt(h){return fmtCompHours(h);}
 function renderLeaveReportPage(){
@@ -5506,7 +5506,7 @@ function renderLeaveReportPage(){
   const fill=(id,html)=>{const s=document.getElementById(id);if(!s)return;const cur=s.value;s.innerHTML=html;if(cur&&[...s.options].some(o=>o.value===cur))s.value=cur;};
   const emps=Object.entries(DB.employees||{}).filter(([k,e])=>e&&e.name);
   {const sm=lrStartMonth(),now=new Date(),curStart=(now.getMonth()+1>=sm)?now.getFullYear():now.getFullYear()-1;
-   fill('lrYear',[0,1,2,3,4,5].map(i=>{const y=curStart-i;const sp=lrSpanMonths(y,sm);return '<option value="'+y+'">'+y+'  (1 Jan '+y+' to 31 Dec '+y+')</option>';}).join(''));
+   fill('lrYear',[0,1,2,3,4,5].map(i=>{const y=curStart-i;const sp=lrSpanMonths(y,sm);return '<option value="'+y+'">'+y+'</option>';}).join(''));
    const O=lrOpts();
    fill('lrFromM',O.ym.map(m=>'<option value="'+m+'">'+cmMonthLabel(m)+'</option>').join(''));
    fill('lrToM',O.ym.map(m=>'<option value="'+m+'">'+cmMonthLabel(m)+'</option>').join(''));
