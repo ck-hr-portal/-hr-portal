@@ -706,7 +706,7 @@ tr:hover td{background:#fafbfc;}
       </div>
 
       <div id="page-lq" class="page">
-        <div class="page-header"><h2>Instruction Box</h2><p>Letter requests from staff. Open a request, check or edit the letter, and Darleendy signs and sends it to the employee's portal. Only Dev and Darleendy can see this.</p></div>
+        <div class="page-header"><h2>Instruction Box</h2><p>Letter requests from staff. Open a request, check or edit the letter, then sign and send it to the employee's portal. Dev's letters carry Dev's signature and Darleendy's carry hers. Only Dev and Darleendy can see this.</p></div>
         <div id="lqEditor"></div>
         <div class="card" style="margin-bottom:16px;">
           <div class="card-title">Requests <select id="lqFilter" onchange="renderLetterInbox()" style="float:right;font-size:12px;padding:4px 8px;border:1.5px solid #e0e0e0;border-radius:6px;"><option value="open">Waiting for action</option><option value="Sent">Sent</option><option value="Declined">Declined</option><option value="all">All</option></select></div>
@@ -718,8 +718,8 @@ tr:hover td{background:#fafbfc;}
           <div class="table-wrap" id="lqLogBox"></div>
         </div>
         <div class="card">
-          <div class="card-title">Signature and stamps</div>
-          <p style="font-size:12px;color:#888;margin-bottom:8px;">Upload the scanned picture of Darleendy's signature with the company stamp, one for each company. The white paper is removed automatically. The employee's company decides which one goes on the letter.</p>
+          <div class="card-title">Your signature and stamps</div>
+          <p style="font-size:12px;color:#888;margin-bottom:8px;">Upload the scanned picture of your own signature with the company stamp, one for each company. The white paper is removed automatically. The employee's company decides which one goes on the letter. Each person's pictures are kept separate and only that person can see or change them.</p>
           <div id="lqAssetBox"></div>
         </div>
       </div>
@@ -5874,7 +5874,11 @@ window.roSave=async function(){
 // The PDF is built in the browser and kept in the same free Realtime Database. It is deleted automatically after a few days;
 // the log (who, what, when) is kept for good.
 const LQ_EMP_DAYS=7,LQ_ADMIN_DAYS=10;      // how long the employee / HR can still download the letter
-const LQ_SIGNER='darleendy';                // the only login that can sign and send (change this word to let someone else do it)
+// Who can sign and send: each person's own signature + company stamp pictures are used when THEY generate the letter.
+const LQ_SIGNERS={darleendy:{name:'MARY DARLEENDY VILBAR',title:'Human Resource Manager'},dev:{name:'DEV MANDREKAR',title:'HR Director'}};
+function lqMe(){return LQ_SIGNERS[currentAdmin]||null;}
+// Darleendy's pictures were saved first under the plain names ck / ckc, so those stay hers; Dev's are dev_ck / dev_ckc.
+function lqSlot(co){return currentAdmin==='dev'?'dev_'+co:co;}
 const LQ_ADDR=['Emirates Islamic Bank','Dubai Islamic Bank','Emirates NBD','Mashreq Bank','Abu Dhabi Commercial Bank (ADCB)','First Abu Dhabi Bank (FAB)','RAKBANK','Commercial Bank of Dubai','Embassy / Consulate','Landlord / Real estate company','To whom it may concern'];
 const LQ_PURPOSES=['Credit card application','Bank loan application','Bank account opening','Visa application','Tenancy / accommodation','Other'];
 function lqDay(ts){return new Date(ts).toLocaleDateString('en-AE',{day:'2-digit',month:'short',year:'numeric'});}
@@ -5901,7 +5905,7 @@ function lqDefaultModel(ek,r){
   const a1=(!r.addrTo||r.addrTo==='To whom it may concern')?'':r.addrTo;
   const m={ref:nextRefNo('salary'),date:lqLongDate(),entity:(e.entity&&e.entity.includes('Building'))?'CKC Building Contracting LLC':'CK Architecture Interiors LLC',
     attnOn:!!a1,a1,a2:a1?(r.addrDetails||'Dubai, UAE'):'',title:'SALARY CERTIFICATE',sal:'To whom it may concern;',hon,name:e.name||r.empName||'',empId:e.empId||'',dept:e.dept||'',
-    passport:e.passport||'',nat:lqNat(e.nationality),join:lqOrd(e.join),desig:e.desig||'',salary:lqMoney(e.grossSalary),pp:'',signer:'MARY DARLEENDY VILBAR',signerTitle:'Human Resource Manager'};
+    passport:e.passport||'',nat:lqNat(e.nationality),join:lqOrd(e.join),desig:e.desig||'',salary:lqMoney(e.grossSalary),pp:'',signer:(lqMe()||{}).name||'',signerTitle:(lqMe()||{}).title||''};
   m.pp=lqPurposePhrase(r.purpose,hon);lqGen(m,{p1:1,p2:1,p3:1});return m;
 }
 function lqStampKey(m){return /building/i.test(m.entity)?'ckc':'ck';}
@@ -5928,16 +5932,18 @@ function lqProcessImage(file){
   });
 }
 async function lqLoadAssets(force){
-  if(DB.letterAssets&&!force)return DB.letterAssets;
-  try{const s=await get(ref(db,'letterAssets'));DB.letterAssets=s.val()||{};}catch(e){DB.letterAssets={};}
-  return DB.letterAssets;
+  if(DB.letterAssets&&DB.letterAssetsFor===currentAdmin&&!force)return DB.letterAssets;
+  const A={};
+  for(const co of ['ck','ckc']){try{const s=await get(ref(db,'letterAssets/'+lqSlot(co)));if(s.val())A[co]=s.val();}catch(e){}}
+  DB.letterAssets=A;DB.letterAssetsFor=currentAdmin;
+  return A;
 }
 window.lqUploadStamp=async function(which,inp){
   const f=inp&&inp.files&&inp.files[0];if(!f)return;
   try{
     const img=await lqProcessImage(f);
-    await set(ref(db,'letterAssets/'+which),{img,by:adminName,ts:Date.now()});
-    logAudit('Letter stamp uploaded',which==='ckc'?'CKC Building Contracting':'CK Architecture Interiors','');
+    await set(ref(db,'letterAssets/'+lqSlot(which)),{img,by:adminName,ts:Date.now()});
+    logAudit('Letter signature uploaded',which==='ckc'?'CKC Building Contracting':'CK Architecture Interiors','');
     await lqLoadAssets(true);renderLqAssets();
   }catch(e){alert('Could not save the picture: '+(e&&e.message||e));}
   inp.value='';
@@ -5948,7 +5954,7 @@ async function renderLqAssets(){
   const one=(k,name)=>'<div style="flex:1;min-width:230px;border:1px solid #e0e0e0;border-radius:8px;padding:10px;"><div style="font-weight:700;color:#1C3557;font-size:13px;margin-bottom:6px;">'+name+'</div>'
     +(A[k]&&A[k].img?'<div style="background:#fff;border:1px dashed #ccc;border-radius:6px;padding:4px;text-align:center;"><img src="'+A[k].img+'" style="height:110px;"></div><div style="font-size:11px;color:#1A7A6E;margin:4px 0;">Saved'+(A[k].by?' by '+esc(A[k].by):'')+(A[k].ts?' on '+lqDay(A[k].ts):'')+'</div>':'<div style="font-size:12px;color:#c0392b;margin:8px 0;">Not uploaded yet</div>')
     +'<input type="file" accept="image/*" onchange="lqUploadStamp(\''+k+'\',this)" style="font-size:12px;"></div>';
-  el.innerHTML='<div style="display:flex;gap:12px;flex-wrap:wrap;">'+one('ck','CK Architecture Interiors LLC')+one('ckc','CKC Building Contracting LLC')+'</div>';
+  el.innerHTML='<div style="font-size:12.5px;color:#555;margin-bottom:8px;">These are saved for <b>'+esc((lqMe()||{}).name||adminName)+'</b> only. Letters you sign use these; letters Darleendy or Dev signs use their own.</div><div style="display:flex;gap:12px;flex-wrap:wrap;">'+one('ck','CK Architecture Interiors LLC')+one('ckc','CKC Building Contracting LLC')+'</div>';
 }
 // ---------- employee side ----------
 function lqEmpInit(empKey){
@@ -6065,8 +6071,9 @@ window.lqOpen=async function(ek,rid){
   const r=((DB.letterReq||{})[ek]||{})[rid];if(!r)return;
   await lqLoadAssets();
   const m=r.draft?Object.assign({},r.draft):lqDefaultModel(ek,r);
+  if(lqMe()){m.signer=lqMe().name;m.signerTitle=lqMe().title;}
   window._lq={ek,rid,m,dirty:{p1:!!(r.draft&&r.draft.dirty&&r.draft.dirty.p1),p2:!!(r.draft&&r.draft.dirty&&r.draft.dirty.p2),p3:!!(r.draft&&r.draft.dirty&&r.draft.dirty.p3)}};
-  const canSign=currentAdmin===LQ_SIGNER;
+  const canSign=!!lqMe();
   const fld=(k,l,t)=>{
     const id='lqf_'+k;
     if(t==='sel')return'<div class="form-group"><label>'+l+'</label><select id="'+id+'" onchange="lqChange()"><option value="">(none)</option><option>Mr.</option><option>Ms.</option></select></div>';
@@ -6081,7 +6088,7 @@ window.lqOpen=async function(ek,rid){
     +[['p1','Paragraph 1'],['p2','Paragraph 2'],['p3','Paragraph 3 (bold)']].map(p=>'<div class="form-group" style="margin-bottom:8px;"><label>'+p[1]+'</label><textarea id="lqf_'+p[0]+'" rows="3" oninput="lqPara(\''+p[0]+'\')" style="width:100%;padding:8px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;font-family:inherit;"></textarea></div>').join('')
     +'<div style="font-size:12px;color:#888;margin-bottom:8px;">The paragraphs update by themselves when you change the details above, until you type in a paragraph yourself. <a href="#" onclick="lqRebuild();return false;">Rebuild all three from the details</a></div>'
     +'<div id="lqSignNote" style="font-size:12.5px;margin-bottom:10px;"></div>'
-    +'<div class="btn-row"><button class="btn" onclick="lqSaveDraft()">'+(canSign?'Save draft':'Save draft for Darleendy')+'</button>'
+    +'<div class="btn-row"><button class="btn" onclick="lqSaveDraft()">'+'Save draft'+'</button>'
     +(canSign?' <button class="btn btn-gold" onclick="lqDownloadDraft()">Download PDF (signed and stamped)</button> <button class="btn btn-primary" onclick="lqSend()">Send to employee</button>':'')
     +' <button class="btn btn-danger" onclick="lqDecline()">Decline request</button> <button class="btn" onclick="lqClose()">Close</button></div></div>'
     +'<div class="card" style="margin-bottom:16px;"><div class="card-title">Preview</div><div id="lqPreview"></div></div>';
@@ -6128,8 +6135,8 @@ window.lqRefresh=function(){
   const q=window._lq;if(!q)return;const m=lqCollect();const A=DB.letterAssets||{};const st=(A[lqStampKey(m)]||{}).img||'';
   document.getElementById('lqPreview').innerHTML=lqPreviewHtml(m,st);
   const n=document.getElementById('lqSignNote');
-  if(n)n.innerHTML=(st?'':'<span style="color:#c0392b;">The '+(lqStampKey(m)==='ckc'?'CKC':'CK')+' stamp has not been uploaded yet (see "Signature and stamps" lower on this page). The letter cannot be sent without it.</span> ')
-    +(currentAdmin===LQ_SIGNER?'':'<span style="color:#555;">Only Darleendy can sign and send. Your changes are saved as a draft for her.</span>');
+  if(n)n.innerHTML=(st?'':'<span style="color:#c0392b;">The '+(lqStampKey(m)==='ckc'?'CKC':'CK')+' stamp has not been uploaded yet (see "Your signature and stamps" lower on this page). The letter cannot be sent without it.</span> ')
+    +(lqMe()?'<span style="color:#555;">The letter is signed as '+esc(lqMe().name)+', with your own signature.</span>':'');
 };
 function lqEnsureJsPdf(){
   if(window.jspdf)return Promise.resolve();
@@ -6172,7 +6179,7 @@ async function lqBuildPdf(m,stamp){
   return doc;
 }
 function lqFileName(m){return 'SAL_'+String(m.name||'Employee').replace(/[^a-zA-Z0-9]+/g,'_')+'_'+new Date().toISOString().split('T')[0]+'.pdf';}
-function lqNeedStamp(m){const A=DB.letterAssets||{};const s=(A[lqStampKey(m)]||{}).img;if(!s){alert('Please upload the '+(lqStampKey(m)==='ckc'?'CKC Building Contracting':'CK Architecture Interiors')+' stamp first (Signature and stamps, lower on this page).');return null;}return s;}
+function lqNeedStamp(m){const A=DB.letterAssets||{};const s=(A[lqStampKey(m)]||{}).img;if(!s){alert('Please upload your '+(lqStampKey(m)==='ckc'?'CKC Building Contracting':'CK Architecture Interiors')+' signature and stamp first (Your signature and stamps, lower on this page).');return null;}return s;}
 window.lqSaveDraft=async function(){
   const q=window._lq;if(!q)return;const m=lqCollect();
   const r=((DB.letterReq||{})[q.ek]||{})[q.rid];if(!r)return;
@@ -6182,12 +6189,12 @@ window.lqSaveDraft=async function(){
   alert('Draft saved.');
 };
 window.lqDownloadDraft=async function(){
-  const q=window._lq;if(!q||currentAdmin!==LQ_SIGNER)return;const m=lqCollect();const st=lqNeedStamp(m);if(!st)return;
+  const q=window._lq;if(!q||!lqMe())return;const m=lqCollect();const st=lqNeedStamp(m);if(!st)return;
   const doc=await lqBuildPdf(m,st);doc.save(lqFileName(m));
 };
 window.lqSend=async function(){
   const q=window._lq;if(!q)return;
-  if(currentAdmin!==LQ_SIGNER){alert('Only Darleendy can sign and send letters. Please save a draft for her.');return;}
+  if(!lqMe()){alert('Only Dev and Darleendy can sign and send letters.');return;}
   const m=lqCollect();const st=lqNeedStamp(m);if(!st)return;
   const r=((DB.letterReq||{})[q.ek]||{})[q.rid];if(!r)return;
   if(!confirm('Sign and send this letter to '+(r.empName||'the employee')+'? They will be able to download it from their portal for '+LQ_EMP_DAYS+' days.'))return;
