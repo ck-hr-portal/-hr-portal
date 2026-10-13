@@ -1199,8 +1199,6 @@ tr:hover td{background:#fafbfc;}
             <div class="form-group"><label>Select Document Type</label>
               <select id="docType" onchange="updateDocForm()">
                 <option value="">— Select —</option>
-                <option value="salary" class="docOptExisting">Salary Certificate</option>
-                <option value="experience" class="docOptExisting">Experience Certificate</option>
                 <option value="noc" class="docOptExisting">NOC Letter</option>
                 <option value="warning" class="docOptExisting">Warning Letter</option>
                 <option value="termination" class="docOptExisting">Termination Letter</option>
@@ -1232,6 +1230,7 @@ tr:hover td{background:#fafbfc;}
             <button class="btn btn-sm btn-gold" style="float:right;" onclick="finalizeDoc()">✅ Finalize &amp; Download PDF</button>
           </div>
           <p style="font-size:12px;color:#888;">Click directly into the text below to correct or adjust anything before generating the final PDF.</p>
+          <label id="docStampWrap" style="display:none;font-size:13px;margin:0 0 10px;"><input type="checkbox" id="docStampOn" checked onchange="docRefreshStamp()"> Add my signature and the company stamp (picked from the employee's company)</label>
           <div id="docPreviewSheet"></div>
         </div>
       </div>
@@ -6412,6 +6411,38 @@ window.lqDecline=async function(){
   lqClose();
 };
 
+
+// ---- signature + company stamp on letters made in the Document Generator (same pictures as the Instruction Box) ----
+function docStampKeyFor(emp,signEntity){return /building/i.test(signEntity||emp.entity||'')?'ckc':'ck';}
+async function docStampPicture(emp,signEntity){
+  if(!lqMe())return{ok:false,why:'nosigner'};
+  try{const A=await lqLoadAssets();const img=(A[docStampKeyFor(emp,signEntity)]||{}).img;return img?{ok:true,img}:{ok:false,why:'missing'};}
+  catch(e){return{ok:false,why:'missing'};}
+}
+function docResetStamp(){const cb=document.getElementById('docStampOn');if(cb)cb.checked=true;}
+window.docRefreshStamp=async function(){
+  const w=document.getElementById('docStampWrap'),box=document.getElementById('docStampPrev'),m=currentDocMeta;
+  if(!w||!m)return;
+  if(!lqMe()){w.style.display='none';return;}
+  w.style.display='block';
+  const on=document.getElementById('docStampOn').checked;
+  const r=await docStampPicture(m.emp,(m.vals||{}).signEntity||null);
+  if(!box)return;
+  const isOffer=!!docT[m.type].numbered;
+  const today=new Date().toLocaleDateString('en-AE',{day:'2-digit',month:'long',year:'numeric'});
+  if(on&&r.ok)box.innerHTML=(isOffer?'':'')+'<img src="'+r.img+'" style="height:130px;display:block;margin:2px 0 0 -6px;">'+(isOffer?'<div>Date: '+today+'</div>':'');
+  else if(on&&!r.ok)box.innerHTML='<div style="color:#c0392b;font-size:12px;">Your signature and stamp for this company have not been uploaded yet (Instruction Box, "Your signature and stamps"). Untick the box to make the letter without them.</div>';
+  else box.innerHTML=isOffer?'Signed: ______________________&nbsp;&nbsp;&nbsp;&nbsp;Date: '+today:'<br>';
+};
+// returns the picture to print, '' for none, or false to stop (picture missing)
+async function docStampForFinalize(emp,signEntity){
+  const cb=document.getElementById('docStampOn'),w=document.getElementById('docStampWrap');
+  if(!lqMe()||!cb||!w||w.style.display==='none'||!cb.checked)return'';
+  const r=await docStampPicture(emp,signEntity);
+  if(!r.ok){alert('Your signature and stamp for this company have not been uploaded yet. Upload them in the Instruction Box (Your signature and stamps), or untick "Add my signature and the company stamp".');return false;}
+  return r.img;
+}
+
 const ref_db=(path)=>ref(db,path);
 function initListeners(){
   try{botInit();}catch(e){}
@@ -9279,7 +9310,7 @@ function previewOfferDoc(type,t,c,vals,comments,refNo){
         </div>`).join('')}
         </div>
         <div style="margin-top:30px;">On behalf of <strong>${esc(vals.signEntity||entityFullName(c.emp))}</strong></div>
-        <div style="margin-top:18px;">Signed: ______________________&nbsp;&nbsp;&nbsp;&nbsp;Date: ${today}</div>
+        <div id="docStampPrev" style="margin-top:18px;">Signed: ______________________&nbsp;&nbsp;&nbsp;&nbsp;Date: ${today}</div>
         <div style="font-weight:700;margin-top:6px;">${esc(adminSignName)}</div>
         <div>${esc(adminTitle)}</div>
         <div style="margin-top:36px;padding-top:18px;border-top:1px dashed #999;">
@@ -9295,6 +9326,7 @@ function previewOfferDoc(type,t,c,vals,comments,refNo){
     </div>`;
   document.getElementById('docPreviewCard').style.display='block';
   document.getElementById('docPreviewCard').scrollIntoView({behavior:'smooth'});
+  docResetStamp();docRefreshStamp();
 }
 
 window.previewDoc=function(){
@@ -9338,7 +9370,7 @@ window.previewDoc=function(){
           ${paras.filter(p=>p).map(p=>`<p style="margin:0 0 14px 0;">${esc(p)}</p>`).join('')}
         </div>
         <div style="margin-top:40px;font-size:13px;">
-          <div>Yours sincerely,</div><br>
+          <div>Yours sincerely,</div><div id="docStampPrev"><br></div>
           <div style="font-weight:700;">${esc(adminSignName)}</div>
           <div>${esc(adminTitle)}</div>
         </div>
@@ -9359,6 +9391,7 @@ window.previewDoc=function(){
     </div>`;
   document.getElementById('docPreviewCard').style.display='block';
   document.getElementById('docPreviewCard').scrollIntoView({behavior:'smooth'});
+  docResetStamp();docRefreshStamp();
 };
 
 window.finalizeDoc=async function(){
@@ -9367,6 +9400,8 @@ window.finalizeDoc=async function(){
   const bodyEl=document.getElementById('docEditableBody');
   const finalParas=Array.from(bodyEl.querySelectorAll('p')).map(p=>p.textContent).filter(p=>p.trim());
   const {type,refNo,key,emp,title}=currentDocMeta;
+  const stampImg=await docStampForFinalize(emp,null);
+  if(stampImg===false)return;
 
   if(!window.jspdf){
     await new Promise((resolve,reject)=>{
@@ -9424,9 +9459,10 @@ window.finalizeDoc=async function(){
   });
 
   y+=14;
-  if(y>250){doc.addPage();y=25;}
+  if(y>(stampImg?212:250)){doc.addPage();y=25;}
   doc.setFontSize(10.5);
-  doc.text('Yours sincerely,',margin,y);y+=16;
+  doc.text('Yours sincerely,',margin,y);
+  if(stampImg){doc.addImage(stampImg,'PNG',margin-3,y+1,42,42);y+=46;}else y+=16;
   doc.setFont('helvetica','bold');doc.text(adminSignName,margin,y);y+=5.5;
   doc.setFont('helvetica','normal');doc.text(adminTitle,margin,y);
 
@@ -9492,6 +9528,8 @@ window.finalizeOfferDoc=async function(){
   const now=new Date();
   const today=now.toLocaleDateString('en-AE',{day:'2-digit',month:'long',year:'numeric'});
   const entityFull=currentDocMeta.vals.signEntity||entityFullName(emp);
+  const stampImg=await docStampForFinalize(emp,currentDocMeta.vals.signEntity||null);
+  if(stampImg===false)return;
 
   const [ckLogo,ckcLogo]=await Promise.all([loadImageAsDataURL('ck_logo.png'),loadImageAsDataURL('ckc_logo.png')]);
   const logoH=10;
@@ -9554,13 +9592,14 @@ window.finalizeOfferDoc=async function(){
     y+=8;
   });
 
-  if(y>230){doc.addPage();drawLogos();y=drawLetterhead();}
+  if(y>(stampImg?190:230)){doc.addPage();drawLogos();y=drawLetterhead();}
   y+=6;
   doc.setFontSize(10.5);doc.setFont('helvetica','normal');
   doc.text('On behalf of',margin,y);
-  doc.setFont('helvetica','bold');doc.text(entityFull,margin+22,y);y+=14;
+  doc.setFont('helvetica','bold');doc.text(entityFull,margin+22,y);
   doc.setFont('helvetica','normal');
-  doc.text('Signed: ______________________      Date: '+today,margin,y);y+=8;
+  if(stampImg){doc.addImage(stampImg,'PNG',margin-3,y+2,42,42);y+=48;doc.text('Date: '+today,margin,y);y+=8;}
+  else{y+=14;doc.text('Signed: ______________________      Date: '+today,margin,y);y+=8;}
   doc.setFont('helvetica','bold');doc.text(adminSignName,margin,y);y+=5.5;
   doc.setFont('helvetica','normal');doc.text(adminTitle,margin,y);y+=16;
 
