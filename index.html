@@ -4126,7 +4126,7 @@ window.initHeadcountPage=function(){
   renderHeadcountHistory();
 };
 window.renderHeadcountHistory=function(){
-  if(currentRole!=='admin')return;
+  if(currentRole!=='admin'&&currentRole!=='ceo')return;
   const snap=document.getElementById('hhSnapshot');if(!snap)return;
   const {people,noJoin,noExit}=hhPeople();
   const ent=document.getElementById('hhEntity').value;
@@ -4164,7 +4164,7 @@ window.renderHeadcountHistory=function(){
   document.getElementById('hhNotes').innerHTML=notes.map(n=>'<div style="margin-bottom:6px;">'+n+'</div>').join('');
 };
 window.downloadHeadcountCSV=function(){
-  if(currentRole!=='admin')return;
+  if(currentRole!=='admin'&&currentRole!=='ceo')return;
   const rows=[['Month','Joined','Left','Headcount at month end']].concat(_hhRows.map(r=>[r.label,r.joined,r.left,r.count]));
   simDownload('headcount-history-'+new Date().toISOString().slice(0,10)+'.csv',rows);
 };
@@ -4188,7 +4188,7 @@ window.initSimulatorPage=function(){
   smFilterPersons();
 };
 window.runSimulator=function(){
-  if(currentRole!=='admin')return;
+  if(currentRole!=='admin'&&currentRole!=='ceo')return;
   const res=document.getElementById('smResult');if(!res)return;
   const mode=document.getElementById('smMode').value;
   document.getElementById('smValLabel').textContent=mode==='fixed'?'Increase (AED per month, per person)':'Increase (%)';
@@ -4310,7 +4310,7 @@ function runSimPerson(){
 }
 
 window.downloadSimulatorCSV=function(){
-  if(currentRole!=='admin')return;
+  if(currentRole!=='admin'&&currentRole!=='ceo')return;
   const rows=[['Name','Company','Department','Designation','Gross now (AED/month)','Gross after (AED/month)','Extra per month (AED)']].concat(_smRows.map(r=>[r.name,r.entity,r.dept,r.desig,Math.round(r.cur),Math.round(r.next),Math.round(r.next-r.cur)]));
   simDownload('cost-simulation-'+new Date().toISOString().slice(0,10)+'.csv',rows);
 };
