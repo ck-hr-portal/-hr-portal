@@ -697,7 +697,7 @@ tr:hover td{background:#fafbfc;}
 
       <!-- BATCH 4 PAGE (Dev and Darleendy only) -->
       <div id="page-lrep" class="page">
-        <div class="page-header"><h2>Employee Leave Reports</h2><p>A full leave summary for each employee in one place: annual leave balance, leave taken by type, every leave record, adjustments, and compensatory leave. One page per person, ready to print. Choose any period, from a month and year to a month and year (for example January 2021 to March 2026), or use the quick buttons. Choose everyone, a company, a department or one person. Only Dev and Darleendy can see this.</p></div>
+        <div class="page-header"><h2>Employee Leave Reports</h2><p>A full leave summary for each employee in one place: annual leave balance, leave taken by type, every leave record, adjustments, and compensatory leave. One page per person, ready to print. Choose any period, from a month and year to a month and year (for example January 2021 to March 2026), or use the quick buttons. Choose everyone, a company, a department or one person. Dev, Darleendy and Cem can see this. Cem has view and download only.</p></div>
         <div class="card" style="margin-bottom:14px;">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;">
             <div class="form-group"><label>From month</label><select id="lrFromMo" onchange="renderLeaveReportPage()"></select></div>
@@ -730,7 +730,7 @@ tr:hover td{background:#fafbfc;}
       </div>
 
       <div id="page-lq" class="page">
-        <div class="page-header"><h2>Instruction Box</h2><p>Letter requests from staff: salary certificate, no objection certificate (travel), experience certificate and salary transfer letter. Open a request, check or edit the letter, then sign and send it to the employee's portal. Dev's letters carry Dev's signature and Darleendy's carry hers. Only Dev and Darleendy can see this.</p></div>
+        <div class="page-header"><h2>Instruction Box</h2><p>Letter requests from staff: salary certificate, no objection certificate (travel), experience certificate and salary transfer letter. Open a request, check or edit the letter, then sign and send it to the employee's portal. Dev's letters carry Dev's signature and Darleendy's carry hers. Dev, Darleendy and Cem can see this. Cem has view and download only.</p></div>
         <div id="lqEditor"></div>
         <div class="card" style="margin-bottom:16px;">
           <div class="card-title">Requests <button class="btn btn-sm btn-primary" style="float:right;margin-left:8px;" onclick="lqNew()">+ New letter for an employee</button><select id="lqFilter" onchange="renderLetterInbox()" style="float:right;font-size:12px;padding:4px 8px;border:1.5px solid #e0e0e0;border-radius:6px;"><option value="open">Waiting for action</option><option value="Sent">Sent</option><option value="Declined">Declined</option><option value="all">All</option></select></div>
@@ -741,7 +741,7 @@ tr:hover td{background:#fafbfc;}
           <p style="font-size:12px;color:#888;margin-bottom:8px;">Every letter issued or declined stays here for good. The PDF itself is removed automatically: the employee can download for 7 days, HR for 10 days (you can also delete it earlier once you have saved or printed your copy).</p>
           <div class="table-wrap" id="lqLogBox"></div>
         </div>
-        <div class="card">
+        <div class="card" id="lqAssetCard">
           <div class="card-title">Your signature and stamps</div>
           <p style="font-size:12px;color:#888;margin-bottom:8px;">Upload the scanned picture of your own signature with the company stamp, one for each company. The white paper is removed automatically. The employee's company decides which one goes on the letter. Each person's pictures are kept separate and only that person can see or change them.</p>
           <div id="lqAssetBox"></div>
@@ -750,7 +750,7 @@ tr:hover td{background:#fafbfc;}
 
       <!-- BATCH 3 PAGES (Dev and Darleendy only) -->
       <div id="page-cost" class="page">
-        <div class="page-header"><h2>Total Cost Analysis</h2><p>What your people cost: fixed (salary, pension, gratuity, flights) and variable (medical insurance, visas, training and so on that you enter yourself). Choose any period, past or future, and look at one person, one department, one company or everyone. Only Dev and Darleendy can see this.</p></div>
+        <div class="page-header"><h2>Total Cost Analysis</h2><p>What your people cost: fixed (salary, pension, gratuity, flights) and variable (medical insurance, visas, training and so on that you enter yourself). Choose any period, past or future, and look at one person, one department, one company or everyone. Dev, Darleendy and Cem can see this. Cem has view and download only.</p></div>
         <div class="card" style="margin-bottom:14px;">
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
             <button class="btn btn-sm" onclick="cmQuick('month')">This month</button>
@@ -785,7 +785,7 @@ tr:hover td{background:#fafbfc;}
           <div class="form-group"><label>Note (optional, e.g. policy or invoice number)</label><input type="text" id="ceNote" maxlength="200"></div>
           <div class="btn-row"><button class="btn btn-primary" id="ceSaveBtn" onclick="ceSave()">Add cost</button> <button class="btn" id="ceCancelBtn" style="display:none;" onclick="ceCancel()">Cancel</button></div>
         </div>
-        <div class="card" style="margin-bottom:14px;">
+        <div class="card" id="ceBulkCard" style="margin-bottom:14px;">
           <div class="card-title">Add many at once (paste from Excel)</div>
           <div style="font-size:12.5px;color:#666;margin-bottom:10px;">Copy rows from your insurance statement in Excel and paste them below, one line per person or dependent, with these columns in this order: <b>Employee name</b>, <b>Paid for</b> (blank for the employee), <b>Actual amount</b>, <b>Month</b> (optional, like 2026-11). Names must match the portal exactly. If any row has a problem, nothing is saved and you are told which row.</div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;">
@@ -796,7 +796,7 @@ tr:hover td{background:#fafbfc;}
           <div class="btn-row"><button class="btn btn-primary" onclick="ceBulkSave()">Check and save all</button></div>
         </div>
         <div class="card" style="margin-bottom:14px;"><div class="card-title">Variable costs entered</div><div id="ceList"></div></div>
-        <div class="card" style="margin-bottom:14px;"><div class="card-title">Settings for the fixed cost</div>
+        <div class="card" id="cmSettingsCard" style="margin-bottom:14px;"><div class="card-title">Settings for the fixed cost</div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
             <div class="form-group"><label>Flight allowance (AED a year)</label><input type="number" id="cmsFlight" min="0" step="1"></div>
             <div class="form-group"><label>Employer GPSSA (% of pension salary)</label><input type="number" id="cmsGpssa" min="0" step="0.1"></div>
@@ -811,7 +811,7 @@ tr:hover td{background:#fafbfc;}
         <div class="card"><div id="cmNotes" style="font-size:12.5px;color:#555;line-height:1.6;"></div></div>
       </div>
       <div id="page-prov" class="page">
-        <div class="page-header"><h2>Year-End Provision</h2><p>The amount to set aside for end-of-service gratuity and unused leave, as at a date you choose (normally 31 December). For the finance team. Only Dev and Darleendy can see this.</p></div>
+        <div class="page-header"><h2>Year-End Provision</h2><p>The amount to set aside for end-of-service gratuity and unused leave, as at a date you choose (normally 31 December). For the finance team. Dev, Darleendy and Cem can see this. Cem has view and download only.</p></div>
         <div class="card" style="margin-bottom:14px;"><div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;">
           <div class="form-group"><label>As at date</label><input type="date" id="provDate" onchange="renderProvisionPage()"></div>
           <div class="form-group"><label>Company</label><select id="provEntity" onchange="renderProvisionPage()"></select></div>
@@ -2542,13 +2542,14 @@ window.toggleStaffAccess=async function(key,on){
 };
 
 function applyCEOMode(){
-  // Full view access everywhere, identical to admin — nothing hidden, EXCEPT
-  // Employee Portal Access (credential management), which stays admin-only
-  // regardless of role, per explicit instruction.
+  // Cem can view and download: Leave Reports, Instruction Box, Acknowledgements, Headcount History,
+  // Cost Simulator, Cost Analysis, Year-End Provision and the Org Chart. Pages HR uses to run the portal
+  // (Rollover, Checklists, Unanswered, Compensatory Leave, Portal Access, imports) stay hidden.
+  // All editing is blocked in set()/remove() as before.
   const style=document.createElement('style');
-  style.textContent=`#navLrep, #page-lrep, #navLro, #page-lro, #navLq, #page-lq, #navCost, #navProv, #page-cost, #page-prov, #navChecklists, #navAck, #navUnans, #page-checklists, #page-ack, #page-unanswered, #voiceToggleBtn, .briefBtn, #navHeadcount, #navSimulator, #page-headcount, #page-simulator, #bkTake, #bkCheck, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #backupBanner, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }`;
+  style.textContent=`#navLro, #page-lro, #navChecklists, #navUnans, #page-checklists, #page-unanswered, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #bkTake, #bkCheck, #backupBanner, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote, #ceFormCard, #ceBulkCard, #cmSettingsCard, #lqAssetCard, #ceList button, #page-lq button[onclick*="lqNew"], #lqInbox button[onclick*="lqOpen"], #lqLogBox button[onclick*="lqDeleteFile"] { display: none !important; }`;
   document.head.appendChild(style);
-  document.getElementById('syncStatus').textContent='● CEO — Full View, Read-Only';
+  document.getElementById('syncStatus').textContent='● CEO — View and Download, Read-Only';
 }
 
 // ── HELP BOT (rule-based, no AI, no outside service) ─────────────────────────
@@ -4424,17 +4425,18 @@ function greetSpeak(){
 let _greetAuto=false;
 window.greetReplay=function(){if(currentRole!=='admin')return;renderGreetCard(false);greetSpeak();};
 window.greetToggleVoice=function(){
-  if(currentRole!=='admin')return;
+  if(currentRole!=='admin'&&currentRole!=='ceo')return;
   const nowOn=greetVoiceOn();
   try{localStorage.setItem('ckhr_greet_voice',nowOn?'off':'on');}catch(e){}
   if(nowOn){try{window.speechSynthesis.cancel();}catch(e){}}
-  renderGreetCard(false);
+  if(currentRole==='admin')renderGreetCard(false);
   try{briefRefreshButtons();if(currentRole==='admin'&&typeof renderHRReviewQueue==='function')renderHRReviewQueue();}catch(e){}
 };
 function greetAfterLogin(){
   if(_greeted)return;
   if(currentRole==='ceo'){
     _greeted=true;_ceoGreetDismissed=false;
+    try{briefRefreshButtons();}catch(e){}
     let tries=0;const go=()=>{tries++;if(Object.keys(DB.employees||{}).length||tries>10)renderCeoGreeting(true);else setTimeout(go,800);};
     setTimeout(go,1200);return;
   }
@@ -4464,7 +4466,7 @@ function briefRange(a,b){
 function briefAed(n){return Math.round(n).toLocaleString('en-US')+' dirhams';}
 function briefPlural(n,one,many){return n+' '+(n===1?one:many);}
 function briefSpeak(text){
-  if(currentRole!=='admin'||!greetCanSpeak()||!greetVoiceOn())return false;
+  if((currentRole!=='admin'&&currentRole!=='ceo')||!greetCanSpeak()||!greetVoiceOn())return false;
   return greetSayText(text,false);
 }
 window.briefStop=function(){try{window.speechSynthesis.cancel();}catch(e){}};
@@ -4554,11 +4556,11 @@ window.briefHeadcount=function(){
   briefSpeak(parts.join(' '));
 };
 function briefRefreshButtons(){
-  const show=currentRole==='admin'&&greetCanSpeak()&&greetVoiceOn();
+  const show=(currentRole==='admin'||currentRole==='ceo')&&greetCanSpeak()&&greetVoiceOn();
   document.querySelectorAll('.briefBtn').forEach(e=>{e.style.display=show?'block':'none';});
   const t=document.getElementById('voiceToggleBtn');
   if(t){
-    if(currentRole==='admin'&&greetCanSpeak()){t.style.display='';t.textContent=greetVoiceOn()?'🔊 Voice on':'🔇 Voice off';}
+    if((currentRole==='admin'||currentRole==='ceo')&&greetCanSpeak()){t.style.display='';t.textContent=greetVoiceOn()?'🔊 Voice on':'🔇 Voice off';}
     else t.style.display='none';
   }
 }
@@ -5037,11 +5039,12 @@ window.unDownload=function(){
   unGroups().forEach(x=>rows.push([x.q,x.count,x.staff,x.admin,new Date(x.last).toLocaleDateString('en-GB'),x.open?'No':'Yes']));
   b2Csv('unanswered-questions-'+b2Day()+'.csv',rows);
 };
-function initBatch2Listeners(){
+function initBatch2Listeners(ceoOnly){
   const fail=()=>{_b2RulesOk=false;};
   const mk=(node,key,fn)=>onValue(ref(db,node),snap=>{DB[key]=snap.val()||{};fn();},()=>{fail();DB[key]=DB[key]||{};fn();});
   const act=id=>{const p=document.getElementById('page-'+id);return p&&p.classList.contains('active');};
   mk('acks','acks',()=>{if(act('ack'))renderAckPage();});
+  if(ceoOnly)return; // Cem only needs Acknowledgements
   mk('checklists','checklists',()=>{if(act('checklists'))renderChecklistsPage();});
   mk('checklistTemplates','checklistTemplates',()=>{if(act('checklists'))renderChecklistsPage();});
   mk('botUnanswered','botUnanswered',()=>{if(act('unanswered'))renderUnansweredPage();});
@@ -6134,8 +6137,8 @@ window.lqEmpDownload=async function(rid){
 // ---------- HR side (Dev and Darleendy) ----------
 let _lqStarted=false;
 function lqStart(){
-  if(_lqStarted||currentRole!=='admin')return;_lqStarted=true;
-  onValue(ref(db,'letterRequests'),s=>{DB.letterReq=s.val()||{};if(!window._lqCleaned){window._lqCleaned=true;lqCleanup();}renderLetterInbox();lqBadge();},()=>{});
+  if(_lqStarted||(currentRole!=='admin'&&currentRole!=='ceo'))return;_lqStarted=true;
+  onValue(ref(db,'letterRequests'),s=>{DB.letterReq=s.val()||{};if(!window._lqCleaned){window._lqCleaned=true;if(currentRole==='admin')lqCleanup();}renderLetterInbox();lqBadge();},()=>{});
   onValue(ref(db,'letterLog'),s=>{DB.letterLog=s.val()||{};renderLqLog();},()=>{});
 }
 function lqRows(){const out=[];Object.entries(DB.letterReq||{}).forEach(([ek,o])=>Object.entries(o||{}).forEach(([rid,r])=>{if(r)out.push({ek,rid,r});}));return out.sort((a,b)=>(b.r.requestedAt||0)-(a.r.requestedAt||0));}
@@ -6190,7 +6193,7 @@ window.renderLqLog=function(){
     }).join(''):'<tr><td colspan="8" style="text-align:center;color:#999;padding:16px;">No letters issued yet</td></tr>')
     +'</tbody></table>';
 };
-window.initLetterPage=function(){lqStart();renderLetterInbox();renderLqLog();renderLqAssets();};
+window.initLetterPage=function(){lqStart();renderLetterInbox();renderLqLog();if(currentRole==='admin')renderLqAssets();};
 // ----- the editor -----
 const LQ_FDEF={ref:['Ref. No.'],date:['Date'],name:['Employee name'],hon:['Mr. / Ms.','sel'],passport:['Passport no.'],nat:['Nationality (as in "Pakistani passport")'],join:['Employed since / joined on'],last:['Last working day (leave blank if still employed)'],desig:['Designation'],salary:['Monthly salary (AED, all-inclusive)'],pp:['Purpose wording'],country:['Country of travel'],tpurpose:['Purpose of travel (e.g. tourism)'],trips:['Travel dates (as they should read in the letter)'],accNo:['Account number / IBAN'],fromMonth:['Salary goes to this bank from (month and year)'],email:['E-mail line under the signature'],entity:['Company (decides the stamp)','ent'],title:['Letter title'],sal:['Opening line'],a1:['Attention: line 1 (who)'],a2:['Attention: line 2 (city / details)']};
 function lqFieldKeys(m){const t=lqT(m);const f=t.fields;return['ref','date','name','hon','passport','nat','join'].concat(f.includes('last')?['last']:[],['desig'],f.filter(x=>x!=='last'),['entity','title','sal'],t.attn?['a1','a2']:[]);}
@@ -6509,6 +6512,7 @@ function initListeners(){
     },()=>{window._compLoadFailed=true;_mirrorLoaded.compLeave=true;scheduleStaffMirrorSync();});
   }
   if(currentRole==='admin'){try{initBatch2Listeners();initBatch3Listeners();}catch(e){console.error(e);}try{lqStart();}catch(e){console.error(e);}}
+  if(currentRole==='ceo'){try{initBatch2Listeners(true);initBatch3Listeners();}catch(e){console.error(e);}try{lqStart();}catch(e){console.error(e);}}
   // When the last backup was taken: Dev and Darleendy get the weekly reminder, Cem can see the status (view only)
   if(currentRole==='admin'||currentRole==='ceo'){
     onValue(ref(db,'backupLog/last'),snap=>{_backupLast=snap.val();_backupRulesOk=true;renderBackupBanner();renderBackupPage();},()=>{_backupLast=null;_backupRulesOk=false;renderBackupBanner();renderBackupPage();});
@@ -6529,7 +6533,7 @@ window.closeMobileSidebar=function(){
 };
 window.showPage=function(page,el){
   if(page==='comp'&&currentRole!=='admin')return; // Dev and Darleendy only
-  if((page==='headcount'||page==='simulator'||page==='checklists'||page==='ack'||page==='unanswered'||page==='cost'||page==='prov'||page==='lrep'||page==='lro'||page==='lq')&&currentRole!=='admin')return; // Dev and Darleendy only
+  if((page==='headcount'||page==='simulator'||page==='checklists'||page==='ack'||page==='unanswered'||page==='cost'||page==='prov'||page==='lrep'||page==='lro'||page==='lq')&&currentRole!=='admin'&&!(currentRole==='ceo'&&['headcount','simulator','ack','cost','prov','lrep','lq'].includes(page)))return; // Dev and Darleendy; Cem can view the reporting pages
   if(page==='backup'&&currentRole!=='admin'&&currentRole!=='ceo')return; // Dev and Darleendy run it; Cem can view the status
   closeMobileSidebar(); // so picking a page doesn't leave the drawer covering the content on mobile
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
