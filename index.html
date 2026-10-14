@@ -658,6 +658,12 @@ tr:hover td{background:#fafbfc;}
         <div class="alert alert-success" id="leave-alert"></div>
         <div class="card">
           <div id="leaveUnlinkedNote"></div>
+          <div id="leaveViewTabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+            <button class="btn btn-sm" id="lvTabActive" onclick="setLeaveView('active')">👥 Active employees <span id="lvCntActive" style="opacity:.75;"></span></button>
+            <button class="btn btn-sm" id="lvTabArchive" onclick="setLeaveView('archive')">📁 Archive: left the company <span id="lvCntArchive" style="opacity:.75;"></span></button>
+          </div>
+          <div id="leaveArchiveNote" style="display:none;background:#f3f6fb;border:1px solid #d6e0ef;border-radius:7px;padding:8px 12px;font-size:12px;color:#34507a;margin-bottom:10px;">People marked Inactive in Employee Records are kept here with their full leave history. Nothing is deleted. If someone is made Active again, they move back to the active list.</div>
+          <div id="leaveArchiveHint"></div>
           <div class="toolbar">
             <input class="search-box" type="text" id="leaveSearch" placeholder="🔍 Search employee..." oninput="filterLeave()">
             <select id="leaveTypeF" onchange="filterLeave()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;">
@@ -7408,13 +7414,29 @@ window.applyFixName=async function(i){
   }
   renderFixNames();
 };
+function leaveIsArchived(name,idx){const m=matchEmpByName(name,idx);return !!(m&&m.e&&m.e.status==='Inactive');}
+window._leaveView=window._leaveView||'active';
+function paintLeaveTabs(){
+  const nameIdx=buildNameIndex(),seen={};let a=0,r=0;
+  Object.values(DB.leave||{}).forEach(l=>{const n=leaveGroupName(l.empName,nameIdx);if(seen[n])return;seen[n]=1;if(leaveIsArchived(n,nameIdx))r++;else a++;});
+  const set=(id,t)=>{const el=document.getElementById(id);if(el)el.textContent=t;};
+  set('lvCntActive','('+a+')');set('lvCntArchive','('+r+')');
+  const arch=window._leaveView==='archive';
+  const st=(id,on)=>{const el=document.getElementById(id);if(!el)return;el.style.background=on?'#1C3557':'#eef1f7';el.style.color=on?'#fff':'#1C3557';el.style.fontWeight=on?'700':'600';};
+  st('lvTabActive',!arch);st('lvTabArchive',arch);
+  const note=document.getElementById('leaveArchiveNote');if(note)note.style.display=arch?'block':'none';
+}
+window.setLeaveView=function(v){window._leaveView=(v==='archive')?'archive':'active';filterLeave();};
 function renderLeave(data){
   const rows=data||Object.entries(DB.leave).sort((a,b)=>(b[1].empName||'').localeCompare(a[1].empName||''));
   const tbody=document.getElementById('leaveBody');
+  paintLeaveTabs();
+  const nameIdx=buildNameIndex();
+  const arch=window._leaveView==='archive';
+  const hintEl=document.getElementById('leaveArchiveHint');if(hintEl)hintEl.innerHTML='';
   if(!rows.length){tbody.innerHTML='<tr><td colspan="8"><div class="empty-state"><div class="icon">📅</div><p>No leave records.</p></div></td></tr>';return;}
 
   // Group by employee — one line per real person, even if older records spell the name slightly differently
-  const nameIdx=buildNameIndex();
   const grouped={};
   rows.forEach(([k,l])=>{
     const name=leaveGroupName(l.empName,nameIdx);
@@ -7424,19 +7446,31 @@ function renderLeave(data){
   const noteEl=document.getElementById('leaveUnlinkedNote');
   if(noteEl){
     const loose=[...new Set(Object.values(DB.leave).filter(l=>!matchEmpByName(l.empName,nameIdx)).map(l=>l.empName||'(blank)'))];
-    noteEl.innerHTML=loose.length?'<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:7px;padding:8px 12px;font-size:12px;color:#8a6d00;margin-bottom:10px;">⚠ '+loose.length+' name'+(loose.length>1?'s':'')+' on leave records do not match anyone in Employee Records, so they are listed separately: <strong>'+loose.slice(0,8).map(esc).join(', ')+(loose.length>8?' …':'')+'</strong>. <button class="btn btn-sm btn-primary" style="margin-left:6px;" onclick="openFixNames()">Fix names</button></div>':'';
+    noteEl.innerHTML=(loose.length&&!arch)?'<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:7px;padding:8px 12px;font-size:12px;color:#8a6d00;margin-bottom:10px;">⚠ '+loose.length+' name'+(loose.length>1?'s':'')+' on leave records do not match anyone in Employee Records, so they are listed separately: <strong>'+loose.slice(0,8).map(esc).join(', ')+(loose.length>8?' …':'')+'</strong>. <button class="btn btn-sm btn-primary" style="margin-left:6px;" onclick="openFixNames()">Fix names</button></div>':'';
   }
+  const all=Object.entries(grouped);
+  const mine=all.filter(([n])=>leaveIsArchived(n,nameIdx)===arch);
+  const otherCount=all.length-mine.length;
+  if(!mine.length){
+    tbody.innerHTML='<tr><td colspan="8"><div class="empty-state"><div class="icon">'+(arch?'📁':'📅')+'</div><p>'+(arch?'Nobody in the archive matches.':'No active employees match.')+'</p></div></td></tr>';
+  }
+  if(otherCount>0&&hintEl&&(document.getElementById('leaveSearch')||{}).value){
+    hintEl.innerHTML='<div style="background:#eef6ff;border:1px solid #cfe3fb;border-radius:7px;padding:8px 12px;font-size:12px;color:#1c4f8a;margin-bottom:10px;">'+otherCount+' more match'+(otherCount>1?'es':'')+' in the '+(arch?'active list':'Archive')+'. <a href="#" onclick="setLeaveView(\''+(arch?'active':'archive')+'\');return false;">Show '+(arch?'active employees':'the Archive')+'</a></div>';
+  }
+  if(!mine.length)return;
 
   let html2='';
-  Object.entries(grouped).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([empName,empRows])=>{
+  mine.sort((a,b)=>a[0].localeCompare(b[0])).forEach(([empName,empRows])=>{
     const totalDays=empRows.reduce((s,[k,l])=>s+(leaveCounts(l)?leaveDaysOf(l):0),0);
     const types=[...new Set(empRows.map(([k,l])=>l.type))];
     const alsoAs=[...new Set(empRows.map(([k,l])=>l.empName||'').filter(n=>n&&n!==empName))];
-    
+    let leftTag='';
+    if(arch){const m=matchEmpByName(empName,nameIdx);const ex=m&&m.e&&m.e.exitDate;leftTag=`<span style="font-size:11px;color:#8a4b00;background:#fff1dc;border-radius:10px;padding:1px 8px;margin-left:8px;">Left${ex?' · last day '+esc(fmt(ex)):''}</span>`;}
+
     // Employee summary row - clickable
-    html2+=`<tr style="background:#f0f4ff;cursor:pointer;" onclick="openLeaveSummary('${esc(empName)}')">
+    html2+=`<tr style="background:${arch?'#f7f3ec':'#f0f4ff'};cursor:pointer;" onclick="openLeaveSummary('${esc(empName)}')">
       <td colspan="5">
-        <strong style="color:#1C3557;">${esc(empName)}</strong>
+        <strong style="color:#1C3557;">${esc(empName)}</strong>${leftTag}
         <span style="font-size:11px;color:#888;margin-left:10px;">${empRows.length} records · ${totalDays} days approved</span>
         ${alsoAs.length?`<span style="font-size:10px;color:#b7791f;margin-left:8px;" title="These records were typed with a slightly different spelling and are shown together here">(also filed as: ${alsoAs.slice(0,3).map(esc).join(', ')})</span>`:''}
         <span style="font-size:11px;color:#2563A8;margin-left:8px;">${types.slice(0,3).map(t=>`<span class="leave-tag" style="font-size:10px;">${esc(t)}</span>`).join(' ')}</span>
