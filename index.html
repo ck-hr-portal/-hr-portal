@@ -1909,8 +1909,10 @@ tr:hover td{background:#fafbfc;}
           <textarea id="adjNotes" style="min-height:55px;" placeholder="e.g. Carry over approved by Cem — 5 days from 2025"></textarea>
         </div>
       </div>
+      <div id="adjEditBanner" style="display:none;background:#fff8e1;border:1px solid #e6c866;border-radius:6px;padding:7px 10px;margin-bottom:8px;font-size:12.5px;color:#7a5a00;"></div>
       <div class="btn-row">
-        <button class="btn btn-gold" onclick="saveAdjustment()">Save Adjustment</button>
+        <button class="btn btn-gold" id="adjSaveBtn" onclick="saveAdjustment()">Save Adjustment</button>
+        <button class="btn" id="adjCancelBtn" style="display:none;" onclick="cancelAdjEdit()">Cancel editing</button>
       </div>
       <!-- Existing adjustments -->
       <div style="margin-top:14px;" id="adjList"></div>
@@ -8338,9 +8340,44 @@ window.saveLeaveFromSummary=function(){
     lsTab('history',document.querySelector('#leaveSummaryModal .tab-btn'));
   });
 };
+window._adjEditKey=null;
+function adjEditMode(on,text){
+  const b=document.getElementById('adjSaveBtn'),c=document.getElementById('adjCancelBtn'),n=document.getElementById('adjEditBanner');
+  if(b)b.textContent=on?'Update Adjustment':'Save Adjustment';
+  if(c)c.style.display=on?'':'none';
+  if(n){n.style.display=on?'block':'none';n.textContent=on?text:'';}
+}
+window.cancelAdjEdit=function(){
+  window._adjEditKey=null;
+  sv('adjDays','');sv('adjNotes','');sv('adjDate','');
+  adjEditMode(false);
+};
+window.editAdjustment=function(k){
+  const a=(DB.leaveAdjustments||{})[k];if(!a)return;
+  if(currentRole==='ceo'||currentRole==='employee')return;
+  window._adjEditKey=k;
+  const selSet=(id,val)=>{const el=document.getElementById(id);if(!el)return;val=String(val||'');if(val&&![...el.options].some(o=>o.value===val||o.text===val)){const o=document.createElement('option');o.text=val;el.add(o);}el.value=val;};
+  selSet('adjYear',a.year);selSet('adjType',a.type);
+  sv('adjDays',a.days==null?'':String(a.days));sv('adjDate',a.date||'');sv('adjNotes',a.notes||'');
+  adjEditMode(true,'Editing: '+(a.type||'')+' ('+(a.year||'')+', '+(a.days||'')+'d). Change what is wrong, then tap Update Adjustment.');
+  const f=document.getElementById('adjDays');if(f){try{f.scrollIntoView({behavior:'smooth',block:'center'});f.focus();}catch(e){}}
+};
 window.saveAdjustment=function(){
   const empName=window._currentLSSEmp;if(!empName)return;
   const days=v('adjDays');if(!days){alert('Enter number of days');return;}
+  const k=window._adjEditKey;
+  if(k){
+    const old=(DB.leaveAdjustments||{})[k];
+    if(!old){alert('This adjustment no longer exists.');cancelAdjEdit();renderAdjustments(empName);return;}
+    const data=Object.assign({},old,{year:v('adjYear'),type:v('adjType'),days,date:v('adjDate'),notes:v('adjNotes'),editedBy:adminName,editedAt:Date.now()});
+    set(ref(db,'leaveAdjustments/'+k),data).then(()=>{
+      logAudit('Edit Leave Adjustment',empName,`was ${old.type}: ${old.days}d (${old.year}) — now ${data.type}: ${days}d (${data.year})`);
+      if(DB.leaveAdjustments)DB.leaveAdjustments[k]=data;
+      window._adjEditKey=null;sv('adjDays','');sv('adjNotes','');sv('adjDate','');adjEditMode(false);
+      renderAdjustments(empName);refreshLeaveSummary(empName);
+    }).catch(e=>alert('Could not save: '+(e&&e.message||e)));
+    return;
+  }
   const data={empName,year:v('adjYear'),type:v('adjType'),days,date:v('adjDate'),notes:v('adjNotes'),by:adminName,ts:Date.now()};
   set(push(ref(db,'leaveAdjustments')),data).then(()=>{
     logAudit('Leave Adjustment',empName,`${data.type}: ${days}d (${data.year})`);
@@ -8355,8 +8392,9 @@ function renderAdjustments(empName){
   el.innerHTML=adjs.length?
     '<div style="font-size:12px;font-weight:700;color:#1C3557;margin-bottom:6px;">Existing Adjustments:</div>'+
     adjs.map(([k,a])=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f0f0f0;">
-      <div><span style="font-weight:600;color:${parseFloat(a.days||0)>0?'#1A7A6E':'#e74c3c'}">${parseFloat(a.days||0)>0?'+':''}${a.days}d</span> — ${esc(a.type)} (${a.year})<br><span style="font-size:11px;color:#888;">${esc(a.notes||'')} · ${esc(a.by||'')}</span></div>
-      <button class="btn btn-sm btn-danger" onclick="(async()=>{await remove(ref(window._db,'leaveAdjustments/${k}'));renderAdjustments('${esc(empName)}');refreshLeaveSummary('${esc(empName)}');})()">✕</button>
+      <div><span style="font-weight:600;color:${parseFloat(a.days||0)>0?'#1A7A6E':'#e74c3c'}">${parseFloat(a.days||0)>0?'+':''}${a.days}d</span> — ${esc(a.type)} (${a.year})<br><span style="font-size:11px;color:#888;">${esc(a.notes||'')} · ${esc(a.by||'')}${a.date?' · effective '+esc(a.date):''}${a.editedBy?' · edited by '+esc(a.editedBy):''}</span></div>
+      <div style="display:flex;gap:6px;">${(currentRole==='ceo'||currentRole==='employee')?'':`<button class="btn btn-sm" onclick="editAdjustment('${k}')">✎ Edit</button>`}
+      <button class="btn btn-sm btn-danger" onclick="(async()=>{await remove(ref(window._db,'leaveAdjustments/${k}'));renderAdjustments('${esc(empName)}');refreshLeaveSummary('${esc(empName)}');})()">✕</button></div>
     </div>`).join('')
     :'<div style="font-size:12px;color:#888;">No adjustments yet.</div>';
   window._db=db;
@@ -10883,6 +10921,7 @@ window.lsTab=function(tab,el){
 
 window.openLeaveSummary=function(empName){
   window._currentLSSEmp=empName;
+  try{cancelAdjEdit();}catch(e){}
   document.getElementById('lsEmpName').textContent=empName;
   const firstTab=document.querySelector('#leaveSummaryModal .tab-btn');
   {const cy=Math.max(new Date().getFullYear(),2026);window._lsYear=String(cy);
