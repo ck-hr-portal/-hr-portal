@@ -72,6 +72,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f5;color:#1a1a2e;}
 .form-group input,.form-group select,.form-group textarea{padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;font-family:inherit;transition:border-color 0.2s;}
 .form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:#2563A8;}
 .form-group textarea{resize:vertical;min-height:65px;}
+.form-group select{width:100%;max-width:100%;min-width:0;text-overflow:ellipsis;}
 .form-full{grid-column:1/-1;}
 .btn{padding:8px 16px;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;}
 .btn-primary{background:#1C3557;color:#fff;}
@@ -1520,7 +1521,7 @@ tr:hover td{background:#fafbfc;}
           </select>
           <p style="font-size:11px;color:#888;margin-top:3px;">Who approves this person's leave requests, after HR review.</p>
         </div>
-        <div class="form-group"><label><input type="checkbox" id="eNeedsAdditionalApproval" onchange="document.getElementById('eAdditionalApproverWrap').style.display=this.checked?'block':'none';"> Requires an additional approval level</label></div>
+        <div class="form-group"><label><input type="checkbox" id="eNeedsAdditionalApproval" onchange="document.getElementById('eAdditionalApproverWrap').style.display=this.checked?'flex':'none';"> Requires an additional approval level</label></div>
         <div class="form-group" id="eAdditionalApproverWrap" style="display:none;"><label>Additional Approver</label>
           <select id="eAdditionalApprover" onclick="if(this.options.length<=1)buildEmpDropdown('eAdditionalApprover')">
             <option value="">— Select Employee —</option>
@@ -7233,7 +7234,7 @@ window.editEmp=function(key,uaeMode){
   sv('eLinkedAdmin',e.linkedAdminLogin||'');
   document.getElementById('eCanViewOrgChart').checked=!!e.canViewOrgChart;
   document.getElementById('eNeedsAdditionalApproval').checked=!!e.needsAdditionalApproval;
-  document.getElementById('eAdditionalApproverWrap').style.display=e.needsAdditionalApproval?'block':'none';
+  document.getElementById('eAdditionalApproverWrap').style.display=e.needsAdditionalApproval?'flex':'none';
   sv('ePassport',e.passport);sv('eVisa',e.visa);sv('eEid',e.eid);sv('eLab',e.lab);
   sv('ePassExp',e.passExp);sv('eVisaExp',e.visaExp);sv('eEidExp',e.eidExp);sv('eLabExp',e.labExp);sv('eMed',e.medInsurance);sv('eDepCount',e.dependentsCount||'0');
   sv('eBasic',e.basicSalary);sv('eGross',e.grossSalary);sv('eMOL',e.molSalary);sv('eHouse',e.house);sv('eTransport',e.transport);sv('eOther',e.otherAllowances);
@@ -9117,8 +9118,8 @@ function currentDocEmp(){
 }
 window.switchDocSourceMode=function(){
   const mode=document.querySelector('input[name="docSourceMode"]:checked').value;
-  document.getElementById('docEmpSelWrap').style.display=mode==='existing'?'block':'none';
-  document.getElementById('docPendingSelWrap').style.display=mode==='pending'?'block':'none';
+  document.getElementById('docEmpSelWrap').style.display=mode==='existing'?'flex':'none';
+  document.getElementById('docPendingSelWrap').style.display=mode==='pending'?'flex':'none';
   document.querySelectorAll('.docOptExisting').forEach(o=>o.style.display=mode==='existing'?'block':'none');
   sv('docEmpSel','');sv('docPendingSel','');sv('docType','');
   document.getElementById('docFormArea').style.display='none';
