@@ -2800,6 +2800,9 @@ function botStaffAnswer(raw){
   const ofOtherReal=ofOther&&!BOT_LEAVE_WORDS.has(ofOther[2])&&!/^(leave|policy|policies|holiday|holidays|apply|annual|sick|visa|work|office|hr|company|staff)$/.test(ofOther[2]);
   if(ownTopic&&(otherNamed||ofOtherReal||/\b(his|her|their)\b|\w+ s (balance|visa|passport|manager|birthday)\b/.test(q))&&!/\bmy\b|\bmine\b|\bmyself\b/.test(q))
     return'Sorry, I can only share <b>your own</b> details. Information about other employees is confidential. You can ask me whether a colleague is on leave and when they are back.';
+  // "Who is my line manager?" must be answered from the person's own record, before the colleague-name lookup treats "line manager" as a name
+  if(/\b(my|me|i)\b/.test(q)&&botHas(q,['manager','line manager','supervisor','report to','reporting','approver','who approves','boss'])&&!nameToks.length)
+    return e.lineManagerName?`Your line manager is <b>${esc(e.lineManagerName)}</b>.`+(e.needsAdditionalApproval&&e.additionalApproverName?` Your leave also needs final approval from <b>${esc(e.additionalApproverName)}</b>.`:''):'No line manager is recorded for you yet. '+hr;
   if(DB.directory&&Object.keys(DB.directory).length&&/\bwho is\b|\bwho s\b|\bhow many\b/.test(q)&&!/\b(leave|leaves|days|day|sick|annual|holiday|holidays|policy|policies|balance|entitled|hours|years)\b/.test(q)){
     const stopW2=new Set(['who','is','s','the','of','a','an','how','many','we','have','are','there','in','our','company','here','do','does','named','called','name','people','person','staff','employees','colleagues','with','any','my','me']);
     const cand2=qt.filter(t=>t.length>2&&!stopW2.has(t)&&!/^\d+$/.test(t));
