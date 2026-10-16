@@ -265,7 +265,8 @@ tr:hover td{background:#fafbfc;}
       </div>
       <div class="card">
         <div class="card-title">📝 My Leave Requests</div>
-        <div class="table-wrap" style="max-height:200px;overflow-y:auto;margin-bottom:14px;">
+        <div id="empHandoverBanner" style="display:none;"></div>
+        <div class="table-wrap" style="max-height:340px;overflow-y:auto;margin-bottom:14px;">
           <table>
             <thead><tr><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th></tr></thead>
             <tbody id="empMyRequests"></tbody>
@@ -364,6 +365,27 @@ tr:hover td{background:#fafbfc;}
   </div>
 </div>
 
+<div class="modal-overlay" id="hrLeaveOnBehalfModal">
+  <div class="modal">
+    <div class="modal-header"><h3>Submit Leave for an Employee (HR exception)</h3><span class="modal-close" onclick="closeModal('hrLeaveOnBehalfModal')">&times;</span></div>
+    <p style="font-size:12px;color:#888;margin-bottom:10px;">Use this when an employee is stopped by the advance-notice rule and you decide to allow the leave. The request then follows the normal steps (HR Review, Line Manager, Additional Approver). Your name and your reason are recorded on the request.</p>
+    <div class="form-grid">
+      <div class="form-group"><label>Employee</label><select id="hlEmp"></select></div>
+      <div class="form-group"><label>Leave Type</label><select id="hlType" onchange="hlCalc()"></select></div>
+      <div class="form-group" id="hlRelWrap" style="display:none;"><label>Relationship to the person who passed away</label>
+        <select id="hlRel"><option value="">— select —</option><option value="spouse">Spouse</option><option value="other">Parent / Child / Sibling / Grandparent / Grandchild</option></select></div>
+      <div class="form-group"><label id="hlStartLabel">Start Date</label><input type="date" id="hlStart" onchange="hlCalc()"></div>
+      <div class="form-group" id="hlEndWrap"><label>End Date</label><input type="date" id="hlEnd" onchange="hlCalc()"></div>
+      <div class="form-group"><label>Total Days</label><input type="text" id="hlDays" readonly style="background:#f5f5f5;font-weight:700;"></div>
+      <div class="form-group"><label>Reliever Name (optional)</label><input type="text" id="hlReliever"></div>
+      <div id="hlNotice" style="display:none;grid-column:1/-1;border-radius:7px;padding:10px 12px;font-size:12.5px;line-height:1.5;"></div>
+      <div class="form-group" style="grid-column:1/-1;"><label>Reason / Comments</label><textarea id="hlReason" rows="2" style="width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;font-family:inherit;"></textarea></div>
+      <div class="form-group" style="grid-column:1/-1;"><label>Reason for the exception (required when the notice rule is not met)</label><textarea id="hlExc" rows="2" style="width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;font-family:inherit;"></textarea></div>
+    </div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="submitHRLeaveOnBehalf()">Submit for Employee</button></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="leaveReqModal">
   <div class="modal">
     <div class="modal-header"><h3>Submit Leave Request</h3><span class="modal-close" onclick="closeModal('leaveReqModal')">&times;</span></div>
@@ -386,6 +408,7 @@ tr:hover td{background:#fafbfc;}
       <div class="form-group" id="lrEndWrap"><label>End Date</label><input type="date" id="lrEnd" onchange="calcLRDays()"></div>
       <div class="form-group"><label>Total Days</label><input type="text" id="lrDays" readonly style="background:#f5f5f5;font-weight:700;"></div>
       <div></div>
+      <div id="lrNoticeBox" style="display:none;grid-column:1/-1;border-radius:7px;padding:10px 12px;font-size:12.5px;line-height:1.5;"></div>
       <div class="form-group" style="grid-column:1/-1;"><label>Reason / Comments</label><textarea id="lrReason" rows="3" style="width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;font-family:inherit;"></textarea></div>
       <div id="lrExtraFields" style="display:none;grid-column:1/-1;">
         <div style="border-top:1px dashed #ccc;margin:4px 0 12px;"></div>
@@ -401,7 +424,7 @@ tr:hover td{background:#fafbfc;}
         <p style="font-size:12.5px;color:#c0392b;font-weight:600;margin:0;">All supporting documents should be emailed to the HR department and/or the original submitted to HR in person for filing and record purposes. Documents cannot be uploaded through the portal.</p>
       </div>
     </div>
-    <div class="btn-row"><button class="btn btn-primary" onclick="submitLeaveRequest()">Submit Request</button></div>
+    <div class="btn-row"><button class="btn btn-primary" id="lrSubmitBtn" onclick="submitLeaveRequest()">Submit Request</button></div>
   </div>
 </div>
 
@@ -1409,12 +1432,25 @@ tr:hover td{background:#fafbfc;}
           <p style="font-size:12px;color:#888;margin-bottom:8px;">Requests from people reporting to you, waiting on your decision as Line Manager or Additional Approver.</p>
           <div id="adminMyApprovalsBody"></div>
         </div>
+        <div id="hlOnBehalfWrap" style="display:none;margin-bottom:12px;">
+          <button class="btn btn-gold" onclick="openHRLeaveOnBehalf()">+ Submit Leave for an Employee (HR exception)</button>
+          <span style="font-size:11.5px;color:#888;margin-left:8px;">For leave the advance-notice rule would block, or leave an employee cannot enter themselves.</span>
+        </div>
         <div class="card">
           <div class="briefBtn" id="briefAllWrap" style="display:none;margin-bottom:10px;"><button class="btn btn-gold" style="padding:6px 14px;" onclick="briefAllRequests()">🔊 Brief me on all waiting requests</button> <button class="btn" style="padding:6px 12px;background:#fff;border:1px solid #c9d3e3;" onclick="briefStop()">⏹ Stop</button></div>
           <div class="table-wrap">
             <table>
               <thead><tr><th>Employee</th><th>Type</th><th>Dates</th><th>Days</th><th>Reason</th><th>Submitted</th><th>Line Manager</th><th>HR Comments</th><th>Action</th></tr></thead>
               <tbody id="hrReviewBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="page-header" style="margin-top:24px;"><h2 style="font-size:16px;">🤝 Handover Confirmation</h2><p>Every approved leave of more than 3 days (any type) needs a handover, about 1 week before the leave starts, so someone covers the employee's duties. After all approvals the employee sees <strong style="color:#a35a00;">Approved, handover pending</strong> (amber). When Dev or Darleendy confirms it, it turns green. If it is still unconfirmed 1 week before the leave starts, it turns <strong style="color:#c0392b;">Unauthorised / Incomplete</strong> (red), with a warning that HR may reject the leave or mark it as unpaid.</p></div>
+        <div class="card" id="handoverCard">
+          <div class="table-wrap" style="max-height:420px;overflow-y:auto;">
+            <table>
+              <thead><tr><th>Employee</th><th>Type</th><th>Dates</th><th>Days</th><th>Reliever</th><th>Handover due</th><th>Handover status</th><th>Action</th></tr></thead>
+              <tbody id="handoverBody"></tbody>
             </table>
           </div>
         </div>
@@ -3383,6 +3419,12 @@ function describeLeaveStage(r){
   if(r.status==='Cancelled')return{label:'Cancelled & Closed',cls:'badge-inactive'};
   if(r.status==='Rejected'&&r.returnedForCorrection)return{label:'Returned — please correct and submit again',cls:'badge-pending'};
   if(r.status==='Rejected')return{label:'Rejected & Closed'+(r.rejectedAt?' (at '+r.rejectedStage+')':''),cls:'badge-rejected'};
+  if(handoverApplies(r)){
+    const hs=handoverState(r);
+    if(hs==='unpaid')return{label:'Approved as Unpaid Leave',cls:'badge-rejected'};
+    if(hs==='pending')return handoverLevel(r)==='overdue'?{label:'Unauthorised / Incomplete (handover)',cls:'badge-rejected'}:{label:'Approved, handover pending',cls:'badge-pending'};
+    return{label:'Approved & Handover Confirmed',cls:'badge-approved'};
+  }
   if(r.status==='Approved')return{label:'Approved & Closed',cls:'badge-approved'};
   if(r.stage==='HR Review')return{label:'HR Review',cls:'badge-pending'};
   if(r.stage==='Line Manager Approval')return{label:'Manager Approval'+(r.lineManagerName?' — '+r.lineManagerName:''),cls:'badge-pending'};
@@ -3496,7 +3538,7 @@ window.renderHRReviewQueue=function(){
         ${r.nativeAddress?'<br><strong>Address:</strong> '+esc(r.nativeAddress):''}
         ${r.nativeContact?'<br><strong>Contact:</strong> '+esc(r.nativeContact):''}
         ${r.relieverName?'<br><strong>Reliever:</strong> '+esc(r.relieverName):''}
-        ${r.remarks?'<br><strong>Remarks:</strong> '+esc(r.remarks):''}</td>
+        ${r.remarks?'<br><strong>Remarks:</strong> '+esc(r.remarks):''}${hrNoticeFlag(r)}</td>
       <td style="font-size:11px;">${fmt(new Date(r.submittedAt).toISOString().split('T')[0])}${escalated?'<br><span style="color:#c0392b;font-weight:700;">⚠️ Escalated to Dev — '+Math.floor(hoursWaiting)+'h waiting</span>':''}</td>
       <td style="font-size:11px;">${r.lineManagerName?esc(r.lineManagerName):'<span style="color:#c0392b;">Not set</span>'}</td>
       <td>${canAct?`<textarea id="hrc_${k}" rows="2" style="width:140px;font-size:11px;padding:4px;border:1px solid #ddd;border-radius:4px;"></textarea>`:''}</td>
@@ -3522,6 +3564,8 @@ window.renderHRReviewQueue=function(){
         <td>${canAdjust?`<button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="openAdjustLeave('${k}')">Adjust</button>`:''}${(canAct&&r.status==='Pending'&&(r.stage==='Line Manager Approval'||r.stage==='Additional Approval'))?`<button class="btn btn-sm btn-danger" title="Reject on behalf of the approver" onclick="rejectLeaveRequest('${k}','${esc(r.stage)}')">✗ Reject</button>`:''}</td></tr>`;
     }).join('');
   }
+  renderHandoverTable(canAct);
+  const ow=document.getElementById('hlOnBehalfWrap');if(ow)ow.style.display=canAct?'block':'none';
 };
 function reqDays(r){return r.leaveType==='Half Day Leave'?0.5:Math.ceil((new Date(r.endDate)-new Date(r.startDate))/86400000)+1;}
 window.completeHRReview=function(key){
@@ -3605,11 +3649,22 @@ function buildLeaveStageBreakdown(r){
     else if(r.rejectedStage==='Additional Approval')lines.push({label:'Additional Approver',status:'Rejected',comment:r.addlComments,ok:false});
     else if(r.lmActedAt&&r.lmDecision==='Approved'&&r.status!=='Rejected')lines.push({label:'Additional Approver'+(r.additionalApproverName?' ('+r.additionalApproverName+')':''),status:'Pending',ok:null});
   }
+  // Handover (approved leave of more than 3 days)
+  if(handoverApplies(r)){
+    const hs=handoverState(r),hd=handoverDue(r);
+    if(hs==='unpaid')lines.push({label:'Handover',status:'Not completed. HR marked this leave as UNPAID',ok:false});
+    else if(hs==='done')lines.push({label:'Handover',status:'Confirmed by '+(r.handoverBy||'HR')+' on '+fmt(r.handoverApprovedAt),comment:r.handoverNote,ok:true});
+    else lines.push({label:'Handover',status:'Waiting for HR to confirm'+(hd?' (due by '+fmt(hd)+')':''),ok:handoverLevel(r)==='overdue'?false:null});
+  }
   // Overall
   let overall;
   if(r.status==='Cancelled')overall={label:'Overall',status:'Cancelled & Closed',ok:false};
   else if(r.status==='Rejected'&&r.returnedForCorrection)overall={label:'Overall',status:'Returned — please submit a corrected request',ok:false};
   else if(r.status==='Rejected')overall={label:'Overall',status:'Rejected & Closed (at '+(r.rejectedStage||'—')+')',ok:false};
+  else if(handoverApplies(r)&&handoverState(r)==='unpaid')overall={label:'Overall',status:'Approved as Unpaid Leave (handover not completed)',ok:false};
+  else if(handoverApplies(r)&&handoverLevel(r)==='overdue')overall={label:'Overall',status:'Unauthorised / Incomplete',ok:false,handover:'overdue'};
+  else if(handoverApplies(r)&&handoverState(r)==='pending')overall={label:'Overall',status:'Approved, handover pending',ok:null,handover:'waiting'};
+  else if(handoverApplies(r))overall={label:'Overall',status:'Approved & Handover Confirmed',ok:true};
   else if(r.stage==='Completed'&&r.status==='Approved')overall={label:'Overall',status:'Approved & Closed',ok:true};
   else overall={label:'Overall',status:'In Progress — currently at '+r.stage,ok:null};
   return{lines,overall};
@@ -3668,6 +3723,17 @@ function renderEmpDeptLeave(){
 window.renderMyLeaveRequests=function(){
   const e=DB.employees[currentEmpKey];if(!e)return;
   const rows=Object.values(DB.leaveRequests||{}).filter(r=>r.empKey===currentEmpKey).sort((a,b)=>b.submittedAt-a.submittedAt);
+  const bn=document.getElementById('empHandoverBanner');
+  if(bn){
+    const hp=rows.filter(r=>handoverApplies(r)&&handoverLevel(r)==='overdue');
+    const hw=rows.filter(r=>handoverApplies(r)&&handoverLevel(r)==='waiting');
+    const hu=rows.filter(r=>handoverApplies(r)&&handoverState(r)==='unpaid');
+    let bh='';
+    if(hw.length)bh+=`<div style="margin-bottom:10px;padding:10px 12px;background:#fff3e0;border:1px solid #f0c27b;border-radius:7px;color:#a35a00;font-size:12.5px;line-height:1.5;"><strong>Approved, handover pending.</strong> Your leave (${hw.map(r=>esc(r.leaveType)+', '+fmt(r.startDate)+' to '+fmt(r.endDate)).join('; ')}) is approved by all approvers. The last step is the handover, which HR confirms about 1 week before you go. Once confirmed, it turns green. ${esc(HANDOVER_WARN)}</div>`;
+    if(hp.length)bh+=`<div style="margin-bottom:10px;padding:10px 12px;background:#fdecea;border:1px solid #e6b0aa;border-radius:7px;color:#c0392b;font-size:12.5px;line-height:1.5;"><strong>Handover needed now.</strong> Your approved leave (${hp.map(r=>esc(r.leaveType)+', '+fmt(r.startDate)+' to '+fmt(r.endDate)).join('; ')}) shows as <strong>Unauthorised / Incomplete</strong> because HR has not confirmed your handover and your leave starts within a week. ${esc(HANDOVER_WARN)}</div>`;
+    if(hu.length)bh+=`<div style="margin-bottom:10px;padding:10px 12px;background:#fdecea;border:1px solid #e6b0aa;border-radius:7px;color:#c0392b;font-size:12.5px;line-height:1.5;"><strong>Marked as unpaid.</strong> HR has marked this leave as unpaid because the handover was not completed: ${hu.map(r=>fmt(r.startDate)+' to '+fmt(r.endDate)).join('; ')}.</div>`;
+    bn.style.display=bh?'block':'none';bn.innerHTML=bh;
+  }
   document.getElementById('empMyRequests').innerHTML=rows.length?rows.map(r=>{
     const {lines,overall}=buildLeaveStageBreakdown(r);
     const rowHtml=lines.map(l=>{
@@ -3675,8 +3741,9 @@ window.renderMyLeaveRequests=function(){
       return`<div style="margin-bottom:2px;"><strong style="color:${color};">${esc(l.label)}:</strong> ${esc(l.status)}${l.comment?' — <em>'+esc(l.comment)+'</em>':''}</div>`;
     }).join('');
     const overallColor=overall.ok===true?'#1A7A6E':overall.ok===false?'#c0392b':'#e67e22';
+    const warn=overall.handover==='overdue'?`<div style="margin-top:6px;padding:6px 8px;background:#fdecea;border:1px solid #e6b0aa;border-radius:6px;color:#c0392b;font-size:11px;">Your leave is approved by all approvers, but your handover is still not confirmed by HR and your leave starts within a week. ${esc(HANDOVER_WARN)}</div>`:overall.handover==='waiting'?`<div style="margin-top:6px;padding:6px 8px;background:#fff3e0;border:1px solid #f0c27b;border-radius:6px;color:#a35a00;font-size:11px;">Your leave is approved by all approvers. The only step left is your handover, which HR confirms about 1 week before you go. ${esc(HANDOVER_WARN)}</div>`:'';
     return`<tr><td>${esc(r.leaveType)}</td><td>${fmt(r.startDate)}</td><td>${fmt(r.endDate)}</td><td>${r.totalDays}</td>
-      <td style="font-size:11px;">${rowHtml}<div style="margin-top:4px;font-weight:700;color:${overallColor};">${esc(overall.status)}</div></td></tr>`;
+      <td style="font-size:11px;">${rowHtml}<div style="margin-top:4px;font-weight:700;color:${overallColor};">${esc(overall.status)}</div>${warn}</td></tr>`;
   }).join(''):'<tr><td colspan="5"><div class="empty-state"><p>No requests submitted yet</p></div></td></tr>';
 };
 window.renderMyApprovals=function(){
@@ -3756,6 +3823,186 @@ window.decideLeaveApproval=async function(key,role,approve){
     alert('Your decision could not be saved ('+((err&&err.code)||(err&&err.message)||'unknown error')+'). Please refresh the page and try again. If it still fails, take a screenshot and send it to Dev.');
   }
 };
+// ===== Leave advance-notice rule + HR handover confirmation (v39) =====
+// Notice needed by length of leave (calendar days): 1-3 -> 2 weeks, 4-10 -> 3 weeks, 11-20 -> 4 weeks, 21+ -> 3 months.
+// Over 10 days the rule is HARD (employee cannot submit; HR can submit an exception). Up to 10 days it is a warning only.
+// Handover: any approved leave of more than 3 days needs HR (Dev/Darleendy) to confirm the handover.
+// Leaves that ended before LEAVE_RULE_FROM are left exactly as they were.
+const LEAVE_RULE_FROM='2026-10-16';
+const HANDOVER_WARN='HR may reject this leave or mark it as unpaid leave if the handover is not completed.';
+function lnParse(x){const p=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(x||''));return p?new Date(+p[1],+p[2]-1,+p[3]):null;}
+function lnToday(ts){const x=ts?new Date(ts):new Date();return new Date(x.getFullYear(),x.getMonth(),x.getDate());}
+function leaveNoticeRule(days){
+  days=Number(days)||0;
+  if(days<=0)return null;
+  if(days<=3)return{label:'2 weeks',earliest:t=>{t.setDate(t.getDate()+14);return t;}};
+  if(days<=10)return{label:'3 weeks',earliest:t=>{t.setDate(t.getDate()+21);return t;}};
+  if(days<=20)return{label:'4 weeks',earliest:t=>{t.setDate(t.getDate()+28);return t;}};
+  return{label:'3 months',earliest:t=>{t.setMonth(t.getMonth()+3);return t;}};
+}
+function leaveNoticeCheck(type,startStr,days,refTs){
+  const rule=leaveNoticeRule(days),start=lnParse(startStr);
+  if(!rule||!start)return null;
+  const today=lnToday(refTs),earliest=rule.earliest(new Date(today));
+  const met=start>=earliest;
+  const planned=!['half','sick','emergency','compassion','maternity','paternity','wfh'].includes(leaveKind(type));
+  const hardExempt=['sick','maternity','emergency','hajj','umrah'].includes(leaveKind(type));
+  return{rule,earliest,met,days:Number(days),given:Math.round((start-today)/86400000),hard:!met&&days>10&&!hardExempt,advisory:!met&&days<=10&&planned};
+}
+function lnDaysTxt(n){return n+(n===1?' day':' days');}
+function lnBoxHtml(nc,days){
+  let bg='#eef6f0',bd='#a5d6a7',col='#1b5e20',h='';
+  const need='<strong>'+nc.rule.label+'</strong> advance notice (earliest start date: <strong>'+fmt(nc.earliest)+'</strong>)';
+  const gave=nc.given<0?'Your start date is in the past.':'Your leave starts in '+lnDaysTxt(nc.given)+'.';
+  if(nc.hard){bg='#fdecea';bd='#e6b0aa';col='#c0392b';
+    h='⛔ <strong>Not aligned with company rule / protocol.</strong> Leave of '+lnDaysTxt(nc.days)+' needs '+need+'. '+gave+' This request cannot be submitted. <strong>Please contact the HR department.</strong>';}
+  else if(nc.advisory){bg='#fff3e0';bd='#f0c27b';col='#a35a00';
+    h='⚠ <strong>HR notice:</strong> leave of '+lnDaysTxt(nc.days)+' needs '+need+'. '+gave+' You can still submit, but this is short notice and HR may not approve it.';}
+  else if(nc.met){h='✓ Company rule: leave of '+lnDaysTxt(nc.days)+' needs '+nc.rule.label+' advance notice. Your notice meets this.';}
+  else {bg='#f5f5f5';bd='#ddd';col='#555';h='Company rule: leave of '+lnDaysTxt(nc.days)+' normally needs '+nc.rule.label+' advance notice (not applied to this type of leave).';}
+  if(days>3)h+='<br>🤝 <strong>Handover:</strong> leave of more than 3 days needs a handover confirmed by HR about 1 week before you go. Once all approvals are done it shows <strong style="color:#a35a00;">Approved, handover pending</strong> (amber) and turns green when HR confirms. If it is still not confirmed 1 week before you go, it turns <strong style="color:#c0392b;">Unauthorised / Incomplete</strong> (red) and '+HANDOVER_WARN.charAt(0).toLowerCase()+HANDOVER_WARN.slice(1);
+  return{bg,bd,col,h};
+}
+window.updateLeaveNoticeBox=function(type,from,days){
+  const box=document.getElementById('lrNoticeBox'),btn=document.getElementById('lrSubmitBtn');
+  if(btn){btn.disabled=false;btn.style.opacity='';btn.title='';}
+  if(!box)return;
+  const nc=(from&&days>0)?leaveNoticeCheck(type,from,days):null;
+  if(!nc){box.style.display='none';box.innerHTML='';return;}
+  const b=lnBoxHtml(nc,days);
+  box.style.cssText='display:block;grid-column:1/-1;border-radius:7px;padding:10px 12px;font-size:12.5px;line-height:1.5;background:'+b.bg+';border:1px solid '+b.bd+';color:'+b.col+';';
+  box.innerHTML=b.h;
+  if(nc.hard&&btn){btn.disabled=true;btn.style.opacity='.5';btn.title='Not aligned with company rule. Please contact HR.';}
+};
+// ----- HR: short-notice flag shown on the review row -----
+function hrNoticeFlag(r){
+  if(!r)return'';
+  if(r.noticeException)return'<br><span style="color:#6c3483;font-weight:700;">Notice exception by '+esc(r.submittedByHR||'HR')+(r.noticeExceptionNote?': '+esc(r.noticeExceptionNote):'')+'</span>';
+  const st=lnParse(LEAVE_RULE_FROM);if(!st||!(r.submittedAt>=st.getTime()))return'';
+  const nc=leaveNoticeCheck(r.leaveType,r.startDate,reqDays(r),r.submittedAt);
+  if(nc&&(nc.hard||nc.advisory))return'<br><span style="color:#c0392b;font-weight:700;">⚠ Short notice: needs '+nc.rule.label+', gave '+lnDaysTxt(Math.max(nc.given,0))+'</span>';
+  return'';
+}
+// ----- Handover helpers -----
+function handoverApplies(r){return !!r&&r.stage==='Completed'&&r.status==='Approved'&&reqDays(r)>3&&String(r.endDate||'')>=LEAVE_RULE_FROM;}
+function handoverState(r){return r.markedUnpaid?'unpaid':(r.handoverApprovedAt?'done':'pending');}
+// pending splits into 'waiting' (amber, before the due date) and 'overdue' (red, from 1 week before the leave starts)
+function handoverLevel(r){const st=handoverState(r);if(st!=='pending')return st;const d=handoverDue(r);return(d&&d<=lnToday())?'overdue':'waiting';}
+function handoverDue(r){const s=lnParse(r.startDate);if(!s)return null;s.setDate(s.getDate()-7);return s;}
+window.renderHandoverTable=function(canAct){
+  const body=document.getElementById('handoverBody');if(!body)return;
+  const today=lnToday(),cutoff=new Date(today);cutoff.setDate(cutoff.getDate()-30);
+  const rows=Object.entries(DB.leaveRequests||{}).filter(([k,r])=>handoverApplies(r)&&(lnParse(r.endDate)||0)>=cutoff).sort((a,b)=>String(a[1].startDate).localeCompare(String(b[1].startDate)));
+  body.innerHTML=rows.length?rows.map(([k,r])=>{
+    const st=handoverState(r),due=handoverDue(r),overdue=due&&due<=today;
+    const dueTxt=due?fmt(due):'—';
+    let stTxt,act='';
+    if(st==='done'){stTxt='<span style="color:#1A7A6E;font-weight:700;">✓ Confirmed</span><br><span style="font-size:11px;color:#666;">by '+esc(r.handoverBy||'HR')+', '+fmt(r.handoverApprovedAt)+(r.handoverNote?'<br>'+esc(r.handoverNote):'')+'</span>';
+      if(canAct)act='<button class="btn btn-sm" onclick="undoLeaveHandover(\''+k+'\')">Undo</button>';}
+    else if(st==='unpaid'){stTxt='<span style="color:#c0392b;font-weight:700;">Marked as Unpaid Leave</span><br><span style="font-size:11px;color:#666;">by '+esc(r.unpaidBy||'HR')+', '+fmt(r.unpaidAt)+'</span>';}
+    else{stTxt=overdue?'<span style="color:#c0392b;font-weight:700;">Unauthorised / Incomplete</span><br><span style="color:#c0392b;font-size:11px;font-weight:700;">⚠ OVERDUE: due '+dueTxt+'</span>':'<span style="color:#a35a00;font-weight:700;">Approved, handover pending</span>';
+      if(canAct)act='<button class="btn btn-sm btn-primary" onclick="confirmLeaveHandover(\''+k+'\')">✓ Confirm handover</button> <button class="btn btn-sm" style="background:#e67e22;color:#fff;" title="Change this leave to unpaid leave" onclick="markLeaveUnpaid(\''+k+'\')">Mark unpaid</button> <button class="btn btn-sm btn-danger" title="Reject: cancel this approved leave" onclick="openAdjustLeave(\''+k+'\')">Reject / Cancel</button>';}
+    return'<tr style="'+(st==='pending'&&overdue?'background:#fdecea;':'')+'"><td><strong>'+esc(r.empName)+'</strong></td><td>'+esc(r.leaveType)+(r.originalLeaveType?'<br><span style="font-size:10.5px;color:#888;">was '+esc(r.originalLeaveType)+'</span>':'')+'</td><td>'+fmt(r.startDate)+' – '+fmt(r.endDate)+'</td><td>'+esc(reqDays(r))+'</td><td style="font-size:12px;">'+esc(r.relieverName||'—')+'</td><td>'+dueTxt+'</td><td>'+stTxt+'</td><td>'+act+'</td></tr>';
+  }).join(''):'<tr><td colspan="8"><div class="empty-state"><p>No approved leave of more than 3 days waiting for handover</p></div></td></tr>';
+};
+window.confirmLeaveHandover=function(key){
+  if(currentRole!=='admin')return;
+  const r=DB.leaveRequests[key];if(!r)return;
+  let note=prompt('Confirm handover for '+r.empName+' ('+fmt(r.startDate)+' to '+fmt(r.endDate)+').\nWho is covering, or any note? (optional). Press OK to confirm, Cancel to stop.',r.relieverName?('Covered by '+r.relieverName):'');
+  if(note===null)return;
+  set(ref(db,'leaveRequests/'+key),{...r,handoverApprovedAt:Date.now(),handoverBy:adminSignName||adminName,handoverNote:note.trim()}).then(()=>{
+    logAudit('Leave Handover Confirmed',r.empName,r.leaveType+' '+r.startDate+' to '+r.endDate+(note.trim()?' | '+note.trim():''));
+  }).catch(err=>alert('Could not save ('+((err&&err.code)||(err&&err.message)||'unknown error')+'). Please refresh and try again.'));
+};
+window.undoLeaveHandover=function(key){
+  if(currentRole!=='admin')return;
+  const r=DB.leaveRequests[key];if(!r)return;
+  if(!confirm('Undo the handover confirmation for '+r.empName+'? The leave will show as Unauthorised / Incomplete again.'))return;
+  const c={...r};delete c.handoverApprovedAt;delete c.handoverBy;delete c.handoverNote;
+  set(ref(db,'leaveRequests/'+key),c).then(()=>logAudit('Leave Handover Confirmation Undone',r.empName,r.leaveType+' '+r.startDate+' to '+r.endDate))
+    .catch(err=>alert('Could not save ('+((err&&err.code)||(err&&err.message)||'unknown error')+'). Please refresh and try again.'));
+};
+window.markLeaveUnpaid=async function(key){
+  if(currentRole!=='admin')return;
+  const r=DB.leaveRequests[key];if(!r)return;
+  if(!confirm('Mark '+r.empName+"'s approved "+r.leaveType+' ('+fmt(r.startDate)+' to '+fmt(r.endDate)+') as UNPAID leave?\n\nAny days taken off their annual leave balance will be restored. The employee will see that the leave was marked unpaid because the handover was not completed.'))return;
+  try{
+    if(r.syncedToLeaveRegister){
+      const ded=leaveDeductFor(r.leaveType,r.totalDays,compRelation(null,r.reason));
+      const emp=DB.employees[r.empKey];
+      if(ded>0&&emp&&emp.annualLeaveBalance!=null)await set(ref(db,'employees/'+r.empKey+'/annualLeaveBalance'),parseFloat(emp.annualLeaveBalance)+ded);
+      if(r.leaveRegisterKey&&DB.leave[r.leaveRegisterKey])await set(ref(db,'leave/'+r.leaveRegisterKey),{...DB.leave[r.leaveRegisterKey],type:'Unpaid Leave'});
+    }
+    await set(ref(db,'leaveRequests/'+key),{...r,originalLeaveType:r.originalLeaveType||r.leaveType,leaveType:'Unpaid Leave',markedUnpaid:true,unpaidBy:adminSignName||adminName,unpaidAt:Date.now()});
+    logAudit('Leave Marked Unpaid (handover not completed)',r.empName,(r.originalLeaveType||r.leaveType)+' '+r.startDate+' to '+r.endDate);
+  }catch(err){alert('Could not save ('+((err&&err.code)||(err&&err.message)||'unknown error')+'). Please refresh and try again.');}
+};
+// ----- HR: submit leave for an employee (exception route) -----
+window.openHRLeaveOnBehalf=function(){
+  if(currentRole!=='admin')return;
+  const sel=document.getElementById('hlEmp');
+  sel.innerHTML='<option value="">— select employee —</option>'+Object.entries(DB.employees||{}).filter(([k,e])=>e&&e.status!=='Inactive').sort((a,b)=>String(a[1].name||'').localeCompare(String(b[1].name||''))).map(([k,e])=>'<option value="'+esc(k)+'">'+esc(e.name||k)+'</option>').join('');
+  document.getElementById('hlType').innerHTML=document.getElementById('lrType').innerHTML;
+  ['hlStart','hlEnd','hlDays','hlReason','hlExc','hlReliever','hlRel'].forEach(i=>sv(i,''));
+  hlCalc();
+  document.getElementById('hrLeaveOnBehalfModal').classList.add('open');
+};
+window.hlCalc=function(){
+  const type=v('hlType'),half=type==='Half Day Leave',from=v('hlStart'),to=half?from:v('hlEnd');
+  const ew=document.getElementById('hlEndWrap'),sl=document.getElementById('hlStartLabel'),rw=document.getElementById('hlRelWrap'),nb=document.getElementById('hlNotice');
+  if(ew)ew.style.display=half?'none':'flex';
+  if(sl)sl.textContent=half?'Date':'Start Date';
+  if(rw)rw.style.display=leaveKind(type)==='compassion'?'flex':'none';
+  const days=half?(from?0.5:0):((from&&to)?Math.ceil((new Date(to)-new Date(from))/86400000)+1:0);
+  sv('hlDays',days>0?(half?'0.5 day (half day)':days+' day'+(days>1?'s':'')):(from&&to?'Invalid dates':''));
+  if(!nb)return;
+  const nc=days>0?leaveNoticeCheck(type,from,days):null;
+  if(!nc){nb.style.display='none';return;}
+  const b=lnBoxHtml(nc,days);
+  nb.style.cssText='display:block;grid-column:1/-1;border-radius:7px;padding:10px 12px;font-size:12.5px;line-height:1.5;background:'+b.bg+';border:1px solid '+b.bd+';color:'+b.col+';';
+  nb.innerHTML=(nc.hard?b.h.replace(/This request cannot be submitted\. <strong>Please contact the HR department\.<\/strong>/,'<strong>An employee would be blocked here. You can submit it as an HR exception.</strong>'):b.h);
+};
+window.submitHRLeaveOnBehalf=async function(){
+  if(currentRole!=='admin')return;
+  const ek=v('hlEmp'),e=DB.employees[ek];
+  if(!e){alert('Please choose the employee.');return;}
+  const type=v('hlType'),half=type==='Half Day Leave',start=v('hlStart'),end=half?start:v('hlEnd');
+  if(!start||!end){alert(half?'Please select the date.':'Please select both a start and end date.');return;}
+  const days=half?0.5:Math.ceil((new Date(end)-new Date(start))/86400000)+1;
+  if(days<0.5){alert('End date must be on or after the start date.');return;}
+  let reason=v('hlReason');
+  if(leaveKind(type)==='compassion'){
+    const rel=v('hlRel');
+    if(!rel){alert('Please select the relationship to the person who passed away.');return;}
+    reason=('[Relationship: '+(rel==='spouse'?'Spouse':'Parent/Child/Sibling/Grandparent/Grandchild')+'] '+reason).trim();
+  }
+  if(half)reason=('[HR entered] '+reason).trim();
+  const exc=v('hlExc'),nc=leaveNoticeCheck(type,start,days);
+  const outside=!!(nc&&!nc.met&&(nc.hard||nc.advisory));
+  if(nc&&nc.hard&&!exc){alert('Please write the reason for this exception. It is recorded on the request.');return;}
+  if(!confirm('Submit '+type+' ('+fmt(start)+' to '+fmt(end)+', '+days+' day'+(days>1?'s':'')+') for '+e.name+'?'+(outside?'\n\nThis is an exception to the advance-notice rule and will be recorded under your name.':'')))return;
+  const me=adminSignName||adminName;
+  const record={
+    empKey:ek,empName:e.name,leaveType:type,startDate:start,endDate:end,totalDays:days,reason,
+    nativeAddress:'',nativeContact:'',relieverName:v('hlReliever'),remarks:'',
+    submittedAt:Date.now(),
+    lineManagerKey:e.lineManagerKey||'',lineManagerName:e.lineManagerName||'',
+    needsAdditionalApproval:!!e.needsAdditionalApproval,
+    additionalApproverKey:e.additionalApproverKey||'',additionalApproverName:e.additionalApproverName||'',
+    stage:'HR Review',status:'Pending',
+    hrReviewedBy:'',hrReviewedAt:'',hrComments:'',
+    lmDecision:'',lmComments:'',lmActedAt:'',
+    addlDecision:'',addlComments:'',addlActedAt:'',
+    submittedByHR:me,
+    ...((outside||exc)?{noticeException:true,noticeExceptionNote:exc}:{})
+  };
+  try{
+    await set(push(ref(db,'leaveRequests')),record);
+    logAudit('Leave Submitted by HR for Employee',e.name,type+' '+start+' to '+end+(outside||exc?' | Notice exception'+(exc?': '+exc:''):''));
+    closeModal('hrLeaveOnBehalfModal');
+    alert('Submitted for '+e.name+'. It is now at HR Review.'+(e.lineManagerKey?'':'\n\nNote: this employee has no Line Manager set yet. Set one in Employee Records before completing HR Review.'));
+  }catch(err){alert('Could not save ('+((err&&err.code)||(err&&err.message)||'unknown error')+'). Please refresh and try again.');}
+};
 window.openLeaveRequestForm=function(){
   sv('lrStart','');sv('lrEnd','');sv('lrDays','');sv('lrReason','');
   const _lt=document.getElementById('lrType');if(_lt)_lt.selectedIndex=0;
@@ -3778,6 +4025,7 @@ window.updateLeaveFormVisibility=function(){
   const days=half?(from?0.5:0):((from&&to)?Math.ceil((new Date(to)-new Date(from))/86400000)+1:0);
   const needsExtra=['Annual Leave','Sick Leave','Emergency Leave'].includes(type)&&days>2;
   document.getElementById('lrExtraFields').style.display=needsExtra?'block':'none';
+  updateLeaveNoticeBox(type,from,days);
 };
 window.calcLRDays=function(){
   const half=v('lrType')==='Half Day Leave';
@@ -3803,6 +4051,12 @@ window.submitLeaveRequest=async function(){
   if(totalDays<0.5){alert('End date must be on or after the start date.');return;}
   const e=DB.employees[currentEmpKey];
   const needsExtra=['Annual Leave','Sick Leave','Emergency Leave'].includes(leaveType)&&totalDays>2;
+  const nc=leaveNoticeCheck(leaveType,startDate,totalDays);
+  if(nc&&nc.hard){
+    alert('This leave request is not aligned with company rule / protocol.\n\nLeave of '+lnDaysTxt(totalDays)+' needs '+nc.rule.label+' advance notice (earliest start date: '+fmt(nc.earliest)+').\n\nPlease contact the HR department.');
+    return;
+  }
+  if(nc&&nc.advisory&&!confirm('HR notice: leave of '+lnDaysTxt(totalDays)+' needs '+nc.rule.label+' advance notice (earliest start date: '+fmt(nc.earliest)+').\n\nYour notice is shorter than this, so HR may not approve it.\n\nSubmit anyway?'))return;
   const record={
     empKey:currentEmpKey,empName:e.name,leaveType,startDate,endDate,totalDays,reason,
     nativeAddress:needsExtra?v('lrNativeAddress'):'',
@@ -3822,7 +4076,7 @@ window.submitLeaveRequest=async function(){
   if(!e.lineManagerKey){alert('Your Line Manager has not been set up yet in the system. Please ask HR to configure it before your request can be reviewed. It will still be submitted.');}
   await set(push(ref(db,'leaveRequests')),record);
   closeModal('leaveReqModal');
-  alert('Your leave request has been submitted for review.');
+  alert('Your leave request has been submitted for review.'+(totalDays>3?'\n\nBecause this leave is more than 3 days, HR must also confirm your handover about 1 week before you go. Once approved, the status shows amber (handover pending) and turns green when HR confirms. If it is still unconfirmed 1 week before you go, it turns red (Unauthorised / Incomplete).':''));
 };
 
 function applyPROMode(){
