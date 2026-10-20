@@ -2293,6 +2293,7 @@ async function startStaffSession(user){
   initEmployeeListeners(m.empKey,user.uid);
   applyEmployeeMode();
   usageStart(user.uid,'staff',m.empKey,'');
+  idleStart();
 }
 // "Forgot password?" — Firebase emails a reset link to the address typed. Nobody in HR is involved
 // and the page never reveals whether an email has an account.
@@ -2572,7 +2573,47 @@ window.usDownloadExcel=async function(){
   setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},4000);
 };
 
+// ── AUTO SIGN-OUT FOR STAFF AFTER 20 MINUTES WITHOUT USE ──────────────────────
+// Staff only. After 19 minutes of no mouse, keyboard, scroll or touch activity a warning appears with a
+// 60-second countdown and a "Stay signed in" button; at 20 minutes the person is signed out. The check also
+// runs the moment a phone or computer wakes up or the tab comes back, so a sleeping device cannot stay signed in.
+const IDLE_MS=20*60*1000,IDLE_WARN_MS=19*60*1000;
+let _idleOn=false,_idleLast=0,_idleTimer=null,_idleWarn=null;
+function idleTouch(){if(_idleOn&&!_idleWarn)_idleLast=Date.now();}
+function idleHideWarn(){if(_idleWarn){try{_idleWarn.remove();}catch(e){}_idleWarn=null;}}
+function idleShowWarn(secs){
+  if(!_idleWarn){
+    const d=document.createElement('div');
+    d.style.cssText='position:fixed;inset:0;background:rgba(15,30,50,.55);z-index:20000;display:flex;align-items:center;justify-content:center;padding:16px;';
+    d.innerHTML='<div style="background:#fff;border-radius:14px;max-width:380px;width:100%;padding:22px 22px 18px;box-shadow:0 10px 40px rgba(0,0,0,.35);text-align:center;font-family:inherit;"><div style="font-size:17px;font-weight:700;color:#1C3557;margin-bottom:8px;">Are you still there?</div><div style="font-size:14px;color:#444;line-height:1.55;margin-bottom:14px;">For your security you will be signed out in <b id="idleSecs">60</b> seconds because the portal has not been used.</div><button id="idleStay" class="btn btn-gold" style="width:100%;padding:11px;font-size:14px;">Stay signed in</button></div>';
+    document.body.appendChild(d);_idleWarn=d;
+    d.querySelector('#idleStay').addEventListener('click',()=>{_idleLast=Date.now();idleHideWarn();});
+  }
+  const el=_idleWarn.querySelector('#idleSecs');if(el)el.textContent=String(Math.max(0,secs));
+}
+function idleCheck(){
+  if(!_idleOn)return;
+  const idle=Date.now()-_idleLast;
+  if(idle>=IDLE_MS){
+    try{sessionStorage.setItem('ckhr_idle','1');}catch(e){}
+    doLogout();return;
+  }
+  if(idle>=IDLE_WARN_MS)idleShowWarn(Math.ceil((IDLE_MS-idle)/1000));
+}
+function idleStart(){
+  if(_idleOn)return;
+  _idleOn=true;_idleLast=Date.now();
+  clearInterval(_idleTimer);_idleTimer=setInterval(idleCheck,1000);
+}
+function idleStop(){_idleOn=false;clearInterval(_idleTimer);_idleTimer=null;idleHideWarn();}
+['mousemove','mousedown','keydown','scroll','touchstart','wheel','click'].forEach(ev=>document.addEventListener(ev,idleTouch,{capture:true,passive:true}));
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)idleCheck();});
+window.addEventListener('pageshow',idleCheck);
+window.addEventListener('focus',idleCheck);
+try{if(sessionStorage.getItem('ckhr_idle')){sessionStorage.removeItem('ckhr_idle');showLoginInfo('You were signed out because the portal was not used for 20 minutes. Please sign in again.');}}catch(e){}
+
 window.doLogout=function(){
+  try{idleStop();}catch(e){}
   try{usageEnd();}catch(e){}
   _staffUnsubs.forEach(f=>{try{f();}catch(e){}});_staffUnsubs=[];
   currentAdmin='';currentRole='';currentEmpKey='';adminName='';adminTitle='';adminSignName='';
