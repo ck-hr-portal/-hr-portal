@@ -497,6 +497,7 @@ tr:hover td{background:#fafbfc;}
       <div class="nav-item" id="navChecklists" onclick="showPage('checklists',this)"><span class="icon">✅</span>Joiner / Leaver Checklists</div>
       <div class="nav-item" id="navAck" onclick="showPage('ack',this)"><span class="icon">📌</span>Acknowledgements</div>
       <div class="nav-item" id="navUnans" onclick="showPage('unanswered',this)"><span class="icon">❓</span>Unanswered Questions</div>
+      <div class="nav-item" id="navUsage" onclick="showPage('usage',this)"><span class="icon">📊</span>Portal Usage</div>
       <div class="nav-item" onclick="showPage('leave',this)"><span class="icon">📅</span>Leave Register</div>
       <div class="nav-item" id="navComp" onclick="showPage('comp',this)"><span class="icon">⏱️</span>Compensatory Leave</div>
       <div class="nav-item" id="navLrep" onclick="showPage('lrep',this)"><span class="icon">🖨️</span>Employee Leave Reports</div>
@@ -1137,6 +1138,21 @@ tr:hover td{background:#fafbfc;}
       <div id="page-unanswered" class="page">
         <div class="page-header"><h2>Unanswered Questions</h2><p>Questions the help assistant could not answer, grouped together. Use it to see what staff really ask, so answers or policies can be added. Names are not recorded.</p></div>
         <div class="card"><div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:12px;"><label style="font-size:13px;"><input type="checkbox" id="unShowDone" onchange="renderUnansweredPage()"> Show handled ones</label><button class="btn btn-gold" onclick="unDownload()">⬇ Download (CSV)</button></div><div id="unBody"></div></div>
+      </div>
+
+      <div id="page-usage" class="page">
+        <div class="page-header"><h2>Portal Usage</h2><p>A weekly view of how much staff and the HR team use the portal. Choose Totals only for a report with no names, or With names when you need to see who has and has not signed in.</p></div>
+        <div class="card" style="margin-bottom:14px;"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+          <button class="btn btn-outline" onclick="usShift(-1)">◀ Earlier week</button>
+          <div style="font-weight:700;color:#1C3557;min-width:190px;text-align:center;padding-bottom:8px;" id="usWeekLabel">—</div>
+          <button class="btn btn-outline" onclick="usShift(1)">Later week ▶</button>
+          <div class="form-group"><label>Company</label><select id="usEntity" onchange="usSetEntity(this.value)"></select></div>
+          <div style="display:flex;gap:0;"><button class="btn btn-gold" id="usNamesOff" onclick="usSetNames(false)" style="border-radius:8px 0 0 8px;">Totals only</button><button class="btn btn-outline" id="usNamesOn" onclick="usSetNames(true)" style="border-radius:0 8px 8px 0;">With names</button></div>
+          <button class="btn btn-outline" onclick="usReload()">↻ Refresh</button>
+          <button class="btn btn-gold" onclick="usDownloadPDF()">⬇ PDF</button>
+          <button class="btn btn-gold" onclick="usDownloadExcel()">⬇ Excel</button>
+        </div></div>
+        <div id="usBody"></div>
       </div>
 
       <!-- ANNOUNCEMENTS -->
@@ -2244,6 +2260,7 @@ window.doLogin=async function(){
       if(currentRole==='ceo')applyCEOMode();
       if(currentRole==='pro')applyPROMode();
       initListeners();
+      usageStart(cred.user.uid,currentRole,'',acct.username);
     }else{
       await startStaffSession(cred.user);
     }
@@ -2275,6 +2292,7 @@ async function startStaffSession(user){
   adminName=view.name||''; adminTitle=view.desig||''; adminSignName=view.name||'';
   initEmployeeListeners(m.empKey,user.uid);
   applyEmployeeMode();
+  usageStart(user.uid,'staff',m.empKey,'');
 }
 // "Forgot password?" — Firebase emails a reset link to the address typed. Nobody in HR is involved
 // and the page never reveals whether an email has an account.
@@ -2291,7 +2309,271 @@ window.forgotPassword=async function(){
   }
   showLoginInfo('If this email has a portal login, a password reset link has been sent to it. Please check your inbox (and spam folder).');
 };
+// ── PORTAL USAGE (log + weekly report for HR and the CEO) ─────────────────────
+// Every sign-in writes one small line: when it started, the role, and for staff which employee record
+// it belongs to (never a name or anything typed). Opening a section adds to a counter on that same line.
+// Days are Dubai days (UTC+4). Only the person's own login can write their line; only Dev, Darleendy
+// and Cem can read the log.
+const US_TZ=4*3600*1000;
+function usDay(ts){return new Date((ts==null?Date.now():ts)+US_TZ).toISOString().slice(0,10);}
+function usAdd(day,n){const d=new Date(day+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);}
+function usMonday(day){const d=new Date(day+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-((d.getUTCDay()+6)%7));return d.toISOString().slice(0,10);}
+function usFmt(day){return new Date(day+'T00:00:00Z').toLocaleDateString('en-GB',{day:'2-digit',month:'short',timeZone:'UTC'});}
+function usFmtY(day){return new Date(day+'T00:00:00Z').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'});}
+function usDow(day){return new Date(day+'T00:00:00Z').toLocaleDateString('en-GB',{weekday:'short',timeZone:'UTC'});}
+function usSeen(ts){if(!ts)return '—';const iso=new Date(ts+US_TZ).toISOString();return usFmt(iso.slice(0,10))+', '+iso.slice(11,16);}
+let _us=null;
+function usageFlushNow(){
+  if(!_us)return;
+  try{
+    clearTimeout(_us.timer);
+    const rec=JSON.parse(JSON.stringify(_us.rec));
+    if(!Object.keys(rec.f).length)delete rec.f;
+    _fbSet(ref(db,'usage/'+_us.day+'/'+_us.uid+'/'+_us.sid),rec).catch(()=>{});
+  }catch(e){}
+}
+function usageStart(uid,role,emp,who){
+  try{
+    const now=Date.now();
+    _us={day:usDay(now),uid:uid,sid:now.toString(36)+Math.random().toString(36).slice(2,8),timer:null,rec:{st:now,at:now,role:String(role||'').slice(0,12),f:{}}};
+    if(emp)_us.rec.emp=emp;
+    if(who)_us.rec.who=String(who).slice(0,20);
+    usageFlushNow();
+  }catch(e){_us=null;}
+}
+function usageHit(key){
+  if(!_us)return;
+  try{
+    key=String(key).toLowerCase().replace(/[^a-z0-9_]/g,'_').slice(0,30);
+    _us.rec.f[key]=(_us.rec.f[key]||0)+1;
+    _us.rec.at=Date.now();
+    clearTimeout(_us.timer);_us.timer=setTimeout(usageFlushNow,15000);
+  }catch(e){}
+}
+function usageHitStaff(key){if(currentRole==='employee')usageHit(key);}
+function usageEnd(){usageFlushNow();_us=null;}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)usageFlushNow();});
+
+let _usWeek='',_usNames=false,_usEntity='',_usCache={},_usErr=false;
+const US_FEATS=[['leave_request','Leave requests raised'],['bot','HR Assistant questions asked'],['ack','Acknowledgements confirmed'],['letter','Letter requests']];
+const US_PAGE_NAMES={employees:'Employee Records',leave:'Leave Register',leaveapprovals:'Leave Approvals',lrep:'Employee Leave Reports',lq:'Instruction Box',ack:'Acknowledgements',unanswered:'Unanswered Questions',headcount:'Headcount History',workforce:'Workforce Summary',cost:'Total Cost Analysis',prov:'Year-End Provision',simulator:'Cost Simulator',orgchart:'Organizational Chart',expiry:'Document Expiry',flight:'Flight Allowance',loans:'Loans',salary:'Salary',backup:'Data Backup',docgen:'Document Generator',policies:'Policies',announcements:'Announcements',uaenationals:'UAE Nationals',birthdays:'Birthdays',leavers:'Leavers',comp:'Compensatory Leave',checklists:'Joiner / Leaver Checklists',usage:'Portal Usage',dashboard:'Dashboard',audit:'Audit Log'};
+function usPageName(k){const id=String(k).replace(/^pg_/,'');return US_PAGE_NAMES[id]||(id.charAt(0).toUpperCase()+id.slice(1).replace(/_/g,' '));}
+async function usLoad(days){
+  const today=usDay(),recent=usAdd(today,-1);
+  const need=days.filter(d=>d<=today&&(!_usCache[d]||d>=recent));
+  _usErr=false;
+  await Promise.all(need.map(async d=>{
+    try{const s=await get(ref(db,'usage/'+d));_usCache[d]={data:s.val()||{}};}
+    catch(e){_usErr=true;}
+  }));
+}
+function usWeekStats(mon,poolSet,today){
+  const st={mon:mon,sun:usAdd(mon,6),days:[],staffActive:new Set(),logins:0,feat:{},adminSessions:0,adminWho:new Set(),adminPages:{},people:{}};
+  US_FEATS.forEach(([k])=>{st.feat[k]={n:0,p:new Set()};});
+  for(let i=0;i<7;i++){
+    const day=usAdd(mon,i);
+    const ds={day:day,future:day>today,active:new Set(),logins:0};
+    const dd=(_usCache[day]||{}).data||{};
+    Object.values(dd).forEach(sess=>Object.values(sess||{}).forEach(rec=>{
+      if(!rec)return;
+      if(rec.role==='staff'){
+        if(!rec.emp||!poolSet.has(rec.emp))return;
+        ds.active.add(rec.emp);ds.logins++;st.logins++;st.staffActive.add(rec.emp);
+        const p=st.people[rec.emp]||(st.people[rec.emp]={days:new Set(),n:0,last:0});
+        p.days.add(day);p.n++;p.last=Math.max(p.last,rec.at||rec.st||0);
+        Object.entries(rec.f||{}).forEach(([k,n])=>{const f=st.feat[k];if(f&&n>0){f.n+=n;f.p.add(rec.emp);}});
+      }else{
+        st.adminSessions++;st.adminWho.add(rec.who||'admin');
+        Object.entries(rec.f||{}).forEach(([k,n])=>{if(k.indexOf('pg_')===0&&k!=='pg_usage')st.adminPages[k]=(st.adminPages[k]||0)+n;});
+      }
+    }));
+    st.days.push(ds);
+  }
+  return st;
+}
+function usageReportData(){
+  const today=usDay(),ent=_usEntity,emps=DB.employees||{};
+  const pool=Object.entries(emps).filter(([k,e])=>e&&e.status!=='Inactive'&&e.portalEnabled===true&&(!ent||e.entity===ent));
+  const poolSet=new Set(pool.map(([k])=>k));
+  const weeks=[];
+  for(let w=-4;w<=0;w++)weeks.push(usWeekStats(usAdd(_usWeek,7*w),poolSet,today));
+  const cur=weeks[4],N=pool.length;
+  const pct=(a)=>N?Math.round(100*a/N):0;
+  const live=cur.days.filter(d=>!d.future);
+  let busiest=null;live.forEach(d=>{if(d.active.size>0&&(!busiest||d.active.size>busiest.active.size))busiest=d;});
+  const depts={};
+  pool.forEach(([k,e])=>{const d=e.dept||'—';const o=depts[d]||(depts[d]={dept:d,total:0,active:0});o.total++;if(cur.staffActive.has(k))o.active++;});
+  const deptRows=Object.values(depts).sort((a,b)=>b.total-a.total||a.dept.localeCompare(b.dept));
+  const lastSeen={};weeks.forEach(w=>Object.entries(w.people).forEach(([k,p])=>{lastSeen[k]=Math.max(lastSeen[k]||0,p.last);}));
+  const activeRows=[],idleRows=[];
+  pool.forEach(([k,e])=>{
+    const p=cur.people[k];
+    if(p)activeRows.push({name:e.name||k,dept:e.dept||'—',entity:wfEntShort(e),days:p.days.size,n:p.n,last:p.last});
+    else idleRows.push({name:e.name||k,dept:e.dept||'—',entity:wfEntShort(e),last:lastSeen[k]||0});
+  });
+  activeRows.sort((a,b)=>b.n-a.n||a.name.localeCompare(b.name));
+  idleRows.sort((a,b)=>(a.last||0)-(b.last||0)||a.name.localeCompare(b.name));
+  const pages=Object.entries(cur.adminPages).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([k,n])=>[usPageName(k),n]);
+  let first='';Object.keys(_usCache).sort().forEach(d=>{if(!first&&Object.keys((_usCache[d]||{}).data||{}).length)first=d;});
+  const AD={dev:'Dev',darleendy:'Darleendy',kashif:'Kashif',cem:'Cem'};
+  return {today:today,N:N,pct:pct,cur:cur,weeks:weeks,busiest:busiest,deptRows:deptRows,activeRows:activeRows,idleRows:idleRows,pages:pages,first:first,
+    adminNames:[...cur.adminWho].map(w=>AD[w]||w).sort(),ent:ent,names:_usNames,
+    label:usFmt(cur.mon)+' – '+usFmtY(cur.sun)+(cur.sun>=today?' (so far)':'')};
+}
+function usBar(n,total,color){const w=total?Math.min(100,Math.round(100*n/total)):0;return '<div style="background:#eef1f5;border-radius:6px;height:14px;min-width:120px;"><div style="width:'+w+'%;height:14px;border-radius:6px;background:'+color+';"></div></div>';}
+function usageHtml(D){
+  const c=D.cur,tbl=(head,rows,left)=>'<div class="table-wrap"><table><thead><tr>'+head.map(h=>'<th>'+esc(h)+'</th>').join('')+'</tr></thead><tbody>'+(rows.length?rows.map(r=>'<tr>'+r.map((x,i)=>'<td'+((left||[]).includes(i)?'':' style="text-align:center;"')+'>'+x+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+head.length+'" style="text-align:center;color:#888;">Nothing to show</td></tr>')+'</tbody></table></div>';
+  let h='';
+  if(_usErr)h+='<div class="card" style="border-left:4px solid #c0392b;margin-bottom:14px;">The usage log could not be fully loaded. Please refresh and try again; if it repeats, tell HR.</div>';
+  h+='<div class="card" style="margin-bottom:14px;font-size:12.5px;color:#555;line-height:1.6;">'+(D.names?'<b>With names view.</b> This view and its downloads list individual staff by name. Use <b>Totals only</b> when sharing outside HR.':'<b>Totals only view.</b> No individual names appear on screen or in the downloads, only counts and percentages.')+' Usage is counted per Dubai day, Monday to Sunday. It records sign-ins and the sections opened, never what a person types or the details they view.'+(D.first&&c.mon<D.first?' Weeks before <b>'+usFmtY(D.first)+'</b>, the first recorded sign-in in this view, show zero because recording had not started.':'')+(D.first?'':' No sign-ins have been recorded in these weeks yet.')+'</div>';
+  h+='<div class="stats-row" style="margin-bottom:14px;">'
+    +'<div class="stat-card"><div class="stat-num">'+c.staffActive.size+' <span style="font-size:15px;color:#777;">of '+D.N+'</span></div><div class="stat-label">Staff who signed in ('+D.pct(c.staffActive.size)+'%)</div></div>'
+    +'<div class="stat-card gold"><div class="stat-num">'+c.logins+'</div><div class="stat-label">Staff sign-ins</div></div>'
+    +'<div class="stat-card green"><div class="stat-num">'+(c.staffActive.size?(c.logins/c.staffActive.size).toFixed(1):'0')+'</div><div class="stat-label">Sign-ins per active person</div></div>'
+    +'<div class="stat-card"><div class="stat-num">'+(D.busiest?usDow(D.busiest.day):'—')+'</div><div class="stat-label">Busiest day'+(D.busiest?' ('+D.busiest.active.size+' people)':'')+'</div></div>'
+    +'<div class="stat-card gold"><div class="stat-num">'+c.adminWho.size+' <span style="font-size:15px;color:#777;">of 4</span></div><div class="stat-label">HR and management accounts signed in ('+c.adminSessions+' sign-ins)</div></div></div>';
+  h+='<div class="card" style="margin-bottom:14px;"><div class="card-title">Staff signed in each day</div>'+tbl(['Day','People','Sign-ins','Share of staff with a login'],c.days.map(d=>[esc(usDow(d.day)+' '+usFmt(d.day)),d.future?'—':d.active.size,d.future?'—':d.logins,d.future?'':usBar(d.active.size,D.N,'#2563A8')]),[0])+'</div>';
+  h+='<div class="card" style="margin-bottom:14px;"><div class="card-title">What staff used this week</div>'+tbl(['Feature','Times used','People who used it'],US_FEATS.map(([k,l])=>[esc(l),c.feat[k].n,c.feat[k].p.size]),[0])+'</div>';
+  h+='<div class="card" style="margin-bottom:14px;"><div class="card-title">Last five weeks</div>'+tbl(['Week','Staff signed in','Share','Sign-ins','Leave requests','HR Assistant questions'],D.weeks.map(w=>[esc(usFmt(w.mon)+' – '+usFmt(w.sun))+(w.sun>=D.today?' <span style="color:#888;">(so far)</span>':''),w.staffActive.size,D.pct(w.staffActive.size)+'%',w.logins,w.feat.leave_request.n,w.feat.bot.n]),[0])+'</div>';
+  h+='<div class="card" style="margin-bottom:14px;"><div class="card-title">By department</div>'+tbl(['Department','Staff with a login','Signed in this week','Share'],D.deptRows.map(r=>[esc(r.dept),r.total,r.active,(r.total?Math.round(100*r.active/r.total):0)+'%']),[0])+'</div>';
+  h+='<div class="card" style="margin-bottom:14px;"><div class="card-title">HR and management: most opened sections</div>'+tbl(['Section','Times opened'],D.pages.map(p=>[esc(p[0]),p[1]]),[0])+(D.names&&D.adminNames.length?'<p style="font-size:12px;color:#666;margin-top:8px;">Signed in this week: '+esc(D.adminNames.join(', '))+'</p>':'')+'</div>';
+  if(D.names){
+    h+='<div class="card" style="margin-bottom:14px;"><div class="card-title">Signed in this week ('+D.activeRows.length+')</div>'+tbl(['Name','Department','Company','Days','Sign-ins','Last seen'],D.activeRows.map(r=>[esc(r.name),esc(r.dept),esc(r.entity),r.days,r.n,esc(usSeen(r.last))]),[0,1])+'</div>';
+    h+='<div class="card" style="margin-bottom:14px;"><div class="card-title">Not signed in this week ('+D.idleRows.length+')</div>'+tbl(['Name','Department','Company','Last seen in these five weeks'],D.idleRows.map(r=>[esc(r.name),esc(r.dept),esc(r.entity),r.last?esc(usSeen(r.last)):'Not seen']),[0,1])+'</div>';
+  }
+  return h;
+}
+window.renderUsagePage=async function(){
+  const el=document.getElementById('usBody');if(!el)return;
+  if(currentRole!=='admin'&&currentRole!=='ceo')return;
+  if(!_usWeek)_usWeek=usMonday(usDay());
+  const sel=document.getElementById('usEntity');
+  if(sel&&!sel.dataset.ready){
+    const ents=[...new Set(Object.values(DB.employees||{}).map(e=>e&&e.entity).filter(Boolean))].sort();
+    sel.innerHTML='<option value="">All companies</option>'+ents.map(x=>'<option>'+esc(x)+'</option>').join('');sel.dataset.ready='1';
+  }
+  document.getElementById('usNamesOff').className='btn '+(_usNames?'btn-outline':'btn-gold');
+  document.getElementById('usNamesOn').className='btn '+(_usNames?'btn-gold':'btn-outline');
+  const days=[];for(let i=-28;i<=6;i++)days.push(usAdd(_usWeek,i));
+  el.innerHTML='<div class="card">Loading usage…</div>';
+  await usLoad(days);
+  const D=usageReportData();
+  document.getElementById('usWeekLabel').textContent=D.label;
+  el.innerHTML=usageHtml(D);
+};
+window.usShift=function(n){const nx=usAdd(_usWeek||usMonday(usDay()),7*n);if(nx>usMonday(usDay()))return;_usWeek=nx;renderUsagePage();};
+window.usSetNames=function(b){_usNames=!!b;renderUsagePage();};
+window.usSetEntity=function(val){_usEntity=val||'';renderUsagePage();};
+window.usReload=function(){_usCache={};renderUsagePage();};
+function usFileName(ext){return 'CK_Portal_Usage_'+(_usWeek||usMonday(usDay()))+'_'+(_usNames?'With-names':'Totals-only')+(_usEntity?'_'+_usEntity.replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,''):'')+'.'+ext;}
+function usSections(D){
+  const c=D.cur;
+  const S=[];
+  S.push({t:'Staff signed in each day',head:['Day','People','Sign-ins','Share of staff with a login'],rows:c.days.map(d=>[usDow(d.day)+' '+usFmt(d.day),d.future?'—':d.active.size,d.future?'—':d.logins,d.future||!D.N?'':Math.round(100*d.active.size/D.N)+'%'])});
+  S.push({t:'What staff used this week',head:['Feature','Times used','People who used it'],rows:US_FEATS.map(([k,l])=>[l,c.feat[k].n,c.feat[k].p.size])});
+  S.push({t:'Last five weeks',head:['Week','Staff signed in','Share','Sign-ins','Leave requests','HR Assistant questions'],rows:D.weeks.map(w=>[usFmt(w.mon)+' – '+usFmt(w.sun)+(w.sun>=D.today?' (so far)':''),w.staffActive.size,D.pct(w.staffActive.size)+'%',w.logins,w.feat.leave_request.n,w.feat.bot.n])});
+  S.push({t:'By department',head:['Department','Staff with a login','Signed in this week','Share'],rows:D.deptRows.map(r=>[r.dept,r.total,r.active,(r.total?Math.round(100*r.active/r.total):0)+'%'])});
+  S.push({t:'HR and management: most opened sections',head:['Section','Times opened'],rows:D.pages.length?D.pages.map(p=>[p[0],p[1]]):[['Nothing recorded','']]});
+  if(D.names){
+    S.push({t:'Signed in this week ('+D.activeRows.length+')',head:['Name','Department','Company','Days','Sign-ins','Last seen'],rows:D.activeRows.map(r=>[r.name,r.dept,r.entity,r.days,r.n,usSeen(r.last)]),left:[0,1]});
+    S.push({t:'Not signed in this week ('+D.idleRows.length+')',head:['Name','Department','Company','Last seen in these five weeks'],rows:D.idleRows.map(r=>[r.name,r.dept,r.entity,r.last?usSeen(r.last):'Not seen']),left:[0,1]});
+  }
+  return S;
+}
+function usCards(D){const c=D.cur;return [
+  {n:c.staffActive.size+' of '+D.N,l:'Staff who signed in',sub:D.pct(c.staffActive.size)+'% of staff with a login'},
+  {n:String(c.logins),l:'Staff sign-ins',sub:(c.staffActive.size?(c.logins/c.staffActive.size).toFixed(1):'0')+' per active person'},
+  {n:D.busiest?usDow(D.busiest.day):'—',l:'Busiest day',sub:D.busiest?D.busiest.active.size+' people':'no sign-ins'},
+  {n:c.adminWho.size+' of 4',l:'HR and management accounts',sub:c.adminSessions+' sign-ins'}];}
+window.usDownloadPDF=async function(){
+  await usLoad(Array.from({length:35},(_,i)=>usAdd(_usWeek||usMonday(usDay()),i-28)));
+  const D=usageReportData();
+  try{
+    await wfLoadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',()=>!!window.jspdf);
+    await wfLoadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js',()=>!!(window.jspdf&&window.jspdf.jsPDF&&window.jspdf.jsPDF.API.autoTable));
+  }catch(e){alert('Could not load the PDF tools. Please check the internet connection and try again.');return;}
+  const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const W=210,H=297,m=12,NAVY=[28,53,87],GOLD=[201,168,76];
+  let ckLogo=null,ckcLogo=null;
+  try{[ckLogo,ckcLogo]=await Promise.all([loadImageAsDataURL('ck_logo.png'),loadImageAsDataURL('ckc_logo.png')]);}catch(e){}
+  const logoH=10,today=new Date().toLocaleDateString('en-AE',{day:'2-digit',month:'long',year:'numeric'});
+  const drawn=new Set();
+  function drawHeader(){
+    const p=doc.internal.getCurrentPageInfo().pageNumber;if(drawn.has(p))return;drawn.add(p);
+    if(ckcLogo)doc.addImage(ckcLogo.dataUrl,'PNG',m,7,logoH*(ckcLogo.w/ckcLogo.h),logoH);
+    if(ckLogo)doc.addImage(ckLogo.dataUrl,'PNG',W-m-logoH*(ckLogo.w/ckLogo.h),7,logoH*(ckLogo.w/ckLogo.h),logoH);
+    doc.setFont('helvetica','bold');doc.setFontSize(15);doc.setTextColor(...NAVY);doc.text('HR Portal Weekly Usage Report',W/2,13,{align:'center'});
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(110,110,110);
+    doc.text('Week '+D.label+'  |  '+(D.ent||'All companies')+'  |  '+(D.names?'With names':'Totals only'),W/2,18.5,{align:'center'});
+    doc.setDrawColor(...NAVY);doc.setLineWidth(0.7);doc.line(m,22,W-m,22);doc.setDrawColor(...GOLD);doc.line(m,23.2,m+40,23.2);
+  }
+  drawHeader();
+  const cards=usCards(D),gap=3,cy=27,ch=17,cw=(W-2*m-gap*(cards.length-1))/cards.length;
+  cards.forEach((k,i)=>{const x=m+i*(cw+gap);
+    doc.setFillColor(250,251,253);doc.setDrawColor(222,226,232);doc.setLineWidth(0.3);doc.roundedRect(x,cy,cw,ch,1.5,1.5,'FD');
+    doc.setFillColor(...NAVY);doc.rect(x,cy,1.6,ch,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(14);doc.setTextColor(...NAVY);doc.text(String(k.n),x+5,cy+7.5);
+    doc.setFontSize(7.5);doc.setTextColor(60,60,60);doc.text(k.l,x+5,cy+11.6);
+    doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(120,120,120);doc.text(k.sub,x+5,cy+14.8);});
+  let y=cy+ch+8;
+  const common=(extra)=>Object.assign({theme:'grid',margin:{left:m,right:m,top:28,bottom:16},styles:{font:'helvetica',fontSize:8,cellPadding:1.6,lineColor:[222,226,232],lineWidth:0.2,textColor:[40,40,40],valign:'middle'},headStyles:{fillColor:NAVY,textColor:255,fontStyle:'bold',halign:'center'},alternateRowStyles:{fillColor:[247,249,252]},didDrawPage:()=>drawHeader()},extra);
+  usSections(D).forEach(sec=>{
+    if(y>H-50){doc.addPage();drawHeader();y=30;}
+    doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(...NAVY);doc.text(sec.t,m,y);
+    const cs={};sec.head.forEach((_,i)=>{cs[i]={halign:(sec.left||[0]).includes(i)?'left':'center'};});
+    doc.autoTable(common({startY:y+2,head:[sec.head],body:sec.rows,columnStyles:cs}));
+    y=doc.lastAutoTable.finalY+8;
+  });
+  const n=doc.getNumberOfPages();
+  for(let i=1;i<=n;i++){doc.setPage(i);doc.setDrawColor(200,200,200);doc.setLineWidth(0.3);doc.line(m,H-11,W-m,H-11);
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(140,140,140);
+    doc.text('CK Architecture Interiors LLC  |  CKC Building Contracting LLC  —  HR  |  Confidential',m,H-6.5);
+    doc.text('Generated '+today,W/2+30,H-6.5,{align:'center'});doc.text('Page '+i+' of '+n,W-m,H-6.5,{align:'right'});}
+  doc.save(usFileName('pdf'));
+};
+window.usDownloadExcel=async function(){
+  await usLoad(Array.from({length:35},(_,i)=>usAdd(_usWeek||usMonday(usDay()),i-28)));
+  const D=usageReportData();
+  try{await wfLoadScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js',()=>!!window.ExcelJS);}
+  catch(e){alert('Could not load the Excel tools. Please check the internet connection and try again.');return;}
+  const wb=new ExcelJS.Workbook();wb.creator='CK HR Portal';wb.created=new Date();
+  const NAVY='FF1C3557',GOLD='FFC9A84C',BAND='FFF5F7FA',LINE='FFDDE1E7';
+  const thin={style:'thin',color:{argb:LINE}},border={top:thin,left:thin,bottom:thin,right:thin};
+  const today=new Date().toLocaleDateString('en-AE',{day:'2-digit',month:'long',year:'numeric'});
+  const sub='Week '+D.label+'   |   '+(D.ent||'All companies')+'   |   '+(D.names?'With names':'Totals only')+'   |   Generated '+today;
+  const head=(ws,text,cols)=>{ws.mergeCells(1,1,1,cols);const c=ws.getCell(1,1);c.value=text;c.font={name:'Calibri',size:16,bold:true,color:{argb:NAVY}};ws.getRow(1).height=26;
+    ws.mergeCells(2,1,2,cols);const s=ws.getCell(2,1);s.value=sub;s.font={name:'Calibri',size:9,color:{argb:'FF6E6E6E'}};
+    ws.getRow(3).height=4;for(let i=1;i<=cols;i++)ws.getCell(3,i).fill={type:'pattern',pattern:'solid',fgColor:{argb:i<=3?GOLD:NAVY}};};
+  const table=(ws,r0,title,hd,rows,left)=>{
+    const t=ws.getCell(r0,1);t.value=title;t.font={name:'Calibri',size:12,bold:true,color:{argb:NAVY}};
+    const hr=ws.getRow(r0+1);hd.forEach((h,i)=>{const c=hr.getCell(i+1);c.value=h;c.font={name:'Calibri',size:10,bold:true,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:NAVY}};c.alignment={horizontal:left.includes(i)?'left':'center',vertical:'middle',wrapText:true};c.border=border;});hr.height=22;
+    rows.forEach((r,ri)=>{const row=ws.getRow(r0+2+ri);r.forEach((val,i)=>{const c=row.getCell(i+1);c.value=val;c.font={name:'Calibri',size:10};c.border=border;c.alignment={horizontal:left.includes(i)?'left':'center',vertical:'middle'};if(ri%2===1)c.fill={type:'pattern',pattern:'solid',fgColor:{argb:BAND}};});});
+    return r0+rows.length+4;};
+  const secs=usSections(D),mk=(name)=>{const ws=wb.addWorksheet(name,{views:[{showGridLines:false}]});ws.pageSetup={orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0};return ws;};
+  // Summary sheet: headline numbers + day-by-day + features
+  const ws=mk('Summary');head(ws,'HR Portal Weekly Usage Report',6);
+  usCards(D).forEach((k,i)=>{const vc=ws.getCell(5,i*2+1),lc=ws.getCell(6,i*2+1);ws.mergeCells(5,i*2+1,5,i*2+2);ws.mergeCells(6,i*2+1,6,i*2+2);
+    vc.value=k.n;vc.font={name:'Calibri',size:18,bold:true,color:{argb:NAVY}};vc.alignment={horizontal:'center',vertical:'middle'};vc.fill={type:'pattern',pattern:'solid',fgColor:{argb:BAND}};
+    lc.value=k.l+' ('+k.sub+')';lc.font={name:'Calibri',size:9,bold:true,color:{argb:'FF3C3C3C'}};lc.alignment={horizontal:'center',vertical:'middle',wrapText:true};lc.fill={type:'pattern',pattern:'solid',fgColor:{argb:BAND}};});
+  ws.getRow(5).height=30;ws.getRow(6).height=30;
+  let r=8;r=table(ws,r,secs[0].t,secs[0].head,secs[0].rows,[0]);r=table(ws,r,secs[1].t,secs[1].head,secs[1].rows,[0]);
+  [30,16,18,26,16,26].forEach((w,i)=>ws.getColumn(i+1).width=w);
+  const w2=mk('Trend and departments');head(w2,'Trend and departments',6);
+  let r2=5;r2=table(w2,r2,secs[2].t,secs[2].head,secs[2].rows,[0]);r2=table(w2,r2,secs[3].t,secs[3].head,secs[3].rows,[0]);r2=table(w2,r2,secs[4].t,secs[4].head,secs[4].rows,[0]);
+  [30,18,18,16,16,24].forEach((w,i)=>w2.getColumn(i+1).width=w);
+  if(D.names){
+    const w3=mk('People');head(w3,'People: signed in and not signed in',6);
+    let r3=5;r3=table(w3,r3,secs[5].t,secs[5].head,secs[5].rows,[0,1]);r3=table(w3,r3,secs[6].t,secs[6].head,secs[6].rows,[0,1]);
+    [30,24,12,12,12,22].forEach((w,i)=>w3.getColumn(i+1).width=w);
+  }
+  const buf=await wb.xlsx.writeBuffer();
+  const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=usFileName('xlsx');document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},4000);
+};
+
 window.doLogout=function(){
+  try{usageEnd();}catch(e){}
   _staffUnsubs.forEach(f=>{try{f();}catch(e){}});_staffUnsubs=[];
   currentAdmin='';currentRole='';currentEmpKey='';adminName='';adminTitle='';adminSignName='';
   try{const vt=document.getElementById('voiceToggleBtn');if(vt)vt.style.display='none';}catch(e){}
@@ -2867,6 +3149,7 @@ window.botAsk=function(text){
   const inp=document.getElementById('hbInput');
   const t=(text!=null?text:inp.value).trim();if(!t)return;
   botAdd('me',t);if(inp)inp.value='';
+  usageHit('bot');
   let a;try{a=botAnswer(t);}catch(err){a='Sorry, something went wrong. Please check with the HR Department directly.';}
   setTimeout(()=>botAdd('bot',a),250);
 };
@@ -4006,7 +4289,7 @@ window.submitHRLeaveOnBehalf=async function(){
     ...((outside||exc)?{noticeException:true,noticeExceptionNote:exc}:{})
   };
   try{
-    await set(push(ref(db,'leaveRequests')),record);
+    await set(push(ref(db,'leaveRequests')),record);usageHitStaff('leave_request');
     logAudit('Leave Submitted by HR for Employee',e.name,type+' '+start+' to '+end+(outside||exc?' | Notice exception'+(exc?': '+exc:''):''));
     closeModal('hrLeaveOnBehalfModal');
     alert('Submitted for '+e.name+'. It is now at HR Review.'+(e.lineManagerKey?'':'\n\nNote: this employee has no Line Manager set yet. Set one in Employee Records before completing HR Review.'));
@@ -4093,7 +4376,7 @@ function applyPROMode(){
   style.textContent=`
     .nav-item[onclick*="'loans'"] { display: none !important; }
     .nav-item[onclick*="'settlement'"] { display: none !important; }
-    #navLrep, #page-lrep, #navLro, #page-lro, #navLq, #page-lq, #navCost, #navProv, #page-cost, #page-prov, #navChecklists, #navAck, #navUnans, #page-checklists, #page-ack, #page-unanswered, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #navBackup, #backupBanner, #page-backup, #voiceToggleBtn, .briefBtn, #navHeadcount, #navSimulator, #page-headcount, #page-simulator, #greetCard, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }
+    #navUsage, #page-usage, #navLrep, #page-lrep, #navLro, #page-lro, #navLq, #page-lq, #navCost, #navProv, #page-cost, #page-prov, #navChecklists, #navAck, #navUnans, #page-checklists, #page-ack, #page-unanswered, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #navBackup, #backupBanner, #page-backup, #voiceToggleBtn, .briefBtn, #navHeadcount, #navSimulator, #page-headcount, #page-simulator, #greetCard, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }
     button[onclick*="openEmpModal"], button[onclick="delEmp"], button[onclick*="delEmp("] { display: none !important; }
   `;
   document.head.appendChild(style);
@@ -5009,6 +5292,7 @@ window.staffAck=function(id,ver){
   if(!/^[pa]_[-A-Za-z0-9_]{1,40}$/.test(id))return;
   const rec={at:Date.now(),ver:Number(ver)||1};
   _fbSet(ref(db,'acks/'+currentEmpKey+'/'+id),rec).then(()=>{
+    usageHitStaff('ack');
     DB.myAcks=Object.assign({},DB.myAcks||{});DB.myAcks[id]=rec;
     renderStaffAckCard();try{renderStaffGreeting();}catch(e){}
   }).catch(()=>{alert('Sorry, your acknowledgement could not be saved. Please try again, or tell HR.');});
@@ -6387,7 +6671,7 @@ window.submitLetterRequest=async function(){
     if(!fm){alert('Please choose the month from which your salary should go to this bank.');return;}
     rec.accNo=acc.slice(0,60);rec.fromMonth=fm;rec.purpose=('Salary transfer from '+lqMonthText(fm)).slice(0,200);
   }
-  try{await set(push(ref(db,'letterRequests/'+currentEmpKey)),rec);}
+  try{await set(push(ref(db,'letterRequests/'+currentEmpKey)),rec);usageHitStaff('letter');}
   catch(err){alert('Sorry, the request could not be sent. Please try again, or tell HR.');return;}
   closeModal('lqReqModal');
   alert('Your request has been sent to HR. You will see the letter here once it is ready.');
@@ -6799,6 +7083,7 @@ window.closeMobileSidebar=function(){
 };
 window.showPage=function(page,el){
   if(page==='comp'&&currentRole!=='admin')return; // Dev and Darleendy only
+  if(page==='usage'&&currentRole!=='admin'&&currentRole!=='ceo')return; // Dev, Darleendy and Cem
   if((page==='headcount'||page==='simulator'||page==='checklists'||page==='ack'||page==='unanswered'||page==='cost'||page==='prov'||page==='lrep'||page==='lro'||page==='lq')&&currentRole!=='admin'&&!(currentRole==='ceo'&&['headcount','simulator','ack','cost','prov','lrep','lq'].includes(page)))return; // Dev and Darleendy; Cem can view the reporting pages
   if(page==='backup'&&currentRole!=='admin'&&currentRole!=='ceo')return; // Dev and Darleendy run it; Cem can view the status
   closeMobileSidebar(); // so picking a page doesn't leave the drawer covering the content on mobile
@@ -6835,6 +7120,8 @@ window.showPage=function(page,el){
   if(page==='checklists')renderChecklistsPage();
   if(page==='ack')renderAckPage();
   if(page==='unanswered')renderUnansweredPage();
+  if(page==='usage')renderUsagePage();
+  try{if(currentRole!=='employee')usageHit('pg_'+page);}catch(e){}
   try{briefRefreshButtons();}catch(e){}
   if(page==='policyimport')renderPolicyImportList();
   if(page==='leaveapprovals')renderHRReviewQueue();
