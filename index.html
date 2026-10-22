@@ -6718,7 +6718,33 @@ window.submitLetterRequest=async function(){
   closeModal('lqReqModal');
   alert('Your request has been sent to HR. You will see the letter here once it is ready.');
 };
-function lqSaveBlob(dataUrl,name){const a=document.createElement('a');a.href=dataUrl;a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),500);}
+// Letter PDFs are stored as data URLs. Phones (iPhone, installed app, in-app browsers) often ignore a direct data-URL download,
+// so the file is turned into a real PDF file and the person taps Save / Open / Share themselves (a direct tap always works).
+function lqToBlob(dataUrl){const i=dataUrl.indexOf(',');const b=atob(dataUrl.slice(i+1));const u=new Uint8Array(b.length);for(let k=0;k<b.length;k++)u[k]=b.charCodeAt(k);return new Blob([u],{type:'application/pdf'});}
+function lqSaveBlob(dataUrl,name){
+  name=String(name||'Letter.pdf').replace(/[\\/:*?"<>|]+/g,'_');if(!/\.pdf$/i.test(name))name+='.pdf';
+  let blob;try{blob=lqToBlob(dataUrl);}catch(e){alert('The letter file could not be read. Please contact HR.');return;}
+  const url=URL.createObjectURL(blob);const old=document.getElementById('lqDlBox');if(old)old.remove();
+  let file=null;try{file=new File([blob],name,{type:'application/pdf'});}catch(e){}
+  const canShare=!!(file&&navigator.canShare&&navigator.share&&(function(){try{return navigator.canShare({files:[file]});}catch(e){return false;}})());
+  const box=document.createElement('div');box.id='lqDlBox';
+  box.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px;';
+  const btn='display:block;width:100%;box-sizing:border-box;text-align:center;padding:12px 14px;margin-top:10px;border-radius:8px;font-weight:700;font-size:15px;text-decoration:none;cursor:pointer;border:0;';
+  box.innerHTML='<div style="background:#fff;border-radius:12px;max-width:360px;width:100%;padding:20px;font-family:inherit;box-shadow:0 8px 30px rgba(0,0,0,.25);">'
+    +'<div style="font-size:17px;font-weight:700;color:#1A7A6E;">Your letter is ready</div>'
+    +'<div id="lqDlName" style="font-size:13px;color:#555;margin-top:4px;word-break:break-word;"></div>'
+    +'<a id="lqDlSave" style="'+btn+'background:#1A7A6E;color:#fff;">Save PDF</a>'
+    +'<a id="lqDlOpen" target="_blank" rel="noopener" style="'+btn+'background:#E8F3F1;color:#1A7A6E;">Open PDF</a>'
+    +(canShare?'<button id="lqDlShare" type="button" style="'+btn+'background:#E8F3F1;color:#1A7A6E;">Share or save to phone</button>':'')
+    +'<div style="font-size:12px;color:#777;margin-top:10px;line-height:1.4;">On iPhone: tap <b>Open PDF</b>'+(canShare?' or <b>Share</b>':'')+', then use the share icon and choose <b>Save to Files</b>.</div>'
+    +'<button id="lqDlClose" type="button" style="'+btn+'background:transparent;color:#555;">Close</button></div>';
+  document.body.appendChild(box);
+  box.querySelector('#lqDlName').textContent=name;
+  const sv=box.querySelector('#lqDlSave');sv.href=url;sv.download=name;box.querySelector('#lqDlOpen').href=url;
+  const close=()=>{box.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);};
+  box.querySelector('#lqDlClose').onclick=close;box.onclick=e=>{if(e.target===box)close();};
+  const sh=box.querySelector('#lqDlShare');if(sh)sh.onclick=()=>{navigator.share({files:[file],title:name}).catch(()=>{});};
+}
 window.lqEmpDownload=async function(rid){
   try{
     const s=await get(ref(db,'letterFiles/'+currentEmpKey+'/'+rid));const f=s.val();
