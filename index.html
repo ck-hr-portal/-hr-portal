@@ -1207,12 +1207,15 @@ tr:hover td{background:#fafbfc;}
         <div class="alert alert-success" id="pol-alert"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
           <div class="card" id="polFormCard"><div class="card-title">+ Add Policy</div>
-            <div class="form-group"><label>Policy Name</label><input type="text" id="polName"></div>
+            <div class="form-group"><label>Policy / Memo Name</label><input type="text" id="polName"></div>
             <div class="form-group" style="margin-top:10px;"><label>Category</label><select id="polCat"><option>Leave &amp; Attendance</option><option>Code of Conduct</option><option>Compensation</option><option>Health &amp; Safety</option><option>Recruitment</option><option>General</option></select></div>
-            <div class="form-group" style="margin-top:10px;"><label>Policy Content</label><textarea id="polContent" style="min-height:180px;" placeholder="Paste the full policy text here."></textarea><p style="font-size:11px;color:#888;margin-top:4px;">Tip: start a line with <strong>Label:</strong> to bold it, <strong>1. </strong> for a numbered list, or <strong>- </strong> for a bullet point.</p></div>
+            <div class="form-group" style="margin-top:10px;"><label>Policy Content (or a short summary if you attach a PDF)</label><textarea id="polContent" style="min-height:180px;" placeholder="Paste the full policy text here, or a short summary if you attach the PDF below."></textarea><p style="font-size:11px;color:#888;margin-top:4px;">Tip: start a line with <strong>Label:</strong> to bold it, <strong>1. </strong> for a numbered list, or <strong>- </strong> for a bullet point.</p></div>
             <div class="form-group" style="margin-top:10px;"><label>Effective Date</label><input type="date" id="polDate"></div>
+            <div class="form-group" style="margin-top:10px;"><label>Attach PDF (optional): the signed final copy, max 3 MB</label><input type="file" id="polFile" accept="application/pdf,.pdf"><p style="font-size:11px;color:#888;margin-top:4px;">The PDF is stored exactly as you upload it. Save it as PDF from Word first.</p></div>
+            <div class="form-group" style="margin-top:6px;"><label style="display:flex;gap:8px;align-items:center;font-weight:600;"><input type="checkbox" id="polStamp" checked> Print the reference number in small text at the top of each page</label></div>
+            <div style="font-size:12.5px;color:#1C3557;margin-top:8px;">Reference number: <b id="polRefPreview">—</b> <span style="color:#888;">(given automatically when you save)</span></div>
             <div class="form-group" style="margin-top:10px;"><label style="display:flex;gap:8px;align-items:center;font-weight:600;"><input type="checkbox" id="polAck"> Staff must acknowledge this policy (they confirm they have read it)</label></div>
-            <div class="btn-row"><button class="btn btn-primary" onclick="savePol()">Save Policy</button></div>
+            <div class="btn-row"><button class="btn btn-primary" id="polSaveBtn" onclick="savePol()">Save Policy</button></div>
           </div>
           <div class="card"><div class="card-title">📋 Policy Library</div><div id="polList"></div></div>
         </div>
@@ -3701,10 +3704,10 @@ function renderEmpPolicies(){
   el.innerHTML=list.length?list.map(([k,p])=>`<div style="border:1px solid #e0e0e0;border-radius:8px;margin-bottom:10px;overflow:hidden;">
     <div style="background:#f5f7fa;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
       <div><strong style="font-size:13px;color:#1C3557;">${esc(p.name)}</strong>
-      <span style="font-size:11px;color:#888;margin-left:10px;">${esc(p.category||'')} · Effective: ${p.date||'—'}</span></div>
-      <button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="togglePolicy('emppol_${k}')">View</button>
+      <span style="font-size:11px;color:#888;margin-left:10px;">${p.refNo?esc(p.refNo)+' · ':''}${esc(p.category||'')} · Effective: ${p.date||'—'}</span></div>
+      <div style="display:flex;gap:6px;">${p.hasFile?`<button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="polOpen('${k}')">📄 Open document</button>`:''}${(!p.hasFile||p.content)?`<button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="togglePolicy('emppol_${k}')">${p.hasFile?'Summary':'View'}</button>`:''}</div>
     </div>
-    <div id="emppol_${k}" style="display:none;padding:14px;font-size:12px;line-height:1.8;color:#333;background:#fff;border-top:1px solid #e0e0e0;max-height:300px;overflow-y:auto;">${p.content?formatRichText(p.content):'No content added.'}</div>
+    <div id="emppol_${k}" style="display:none;padding:14px;font-size:12px;line-height:1.8;color:#333;background:#fff;border-top:1px solid #e0e0e0;max-height:300px;overflow-y:auto;">${p.content?formatRichText(p.content):(p.hasFile?'Please open the document.':'No content added.')}</div>
   </div>`).join(''):'<div class="empty-state"><p>No policies published yet.</p></div>';
 }
 function renderMyInfo(e){
@@ -4494,7 +4497,7 @@ function parseEmpSelect(val){
 // ── DATA BACKUP (Dev and Darleendy only) ─────────────────────────────────────
 // Downloads one file with all portal data. Optional password: the file is locked with AES-256 in this
 // browser, so the password never leaves the computer. Nothing here changes any portal data.
-const BACKUP_NODES=['employees','leave','leaveAdjustments','salary','loans','repayments','assets','flightAllowance','leavers','docHistory','holidays','announcements','policies','audit','leaveRequests','ceoMessage','orgChart','pendingHires','finalSettlements','staffMap','compLeave','acks','checklists','checklistTemplates','botUnanswered','costEntries','costSettings','letterRequests','letterLog'];
+const BACKUP_NODES=['employees','leave','leaveAdjustments','salary','loans','repayments','assets','flightAllowance','leavers','docHistory','holidays','announcements','policies','audit','leaveRequests','ceoMessage','orgChart','pendingHires','finalSettlements','staffMap','compLeave','acks','checklists','checklistTemplates','botUnanswered','costEntries','costSettings','letterRequests','letterLog','policyFiles'];
 const BACKUP_DUE_DAYS=7;
 let _backupLast=null,_backupRulesOk=true,_backupBusy=false,_bkUnlocked=null,_bkUnlockedName='';
 function bkLocalLast(){try{return JSON.parse(localStorage.getItem('ckhr_last_backup')||'null');}catch(e){return null;}}
@@ -5306,7 +5309,7 @@ function b2Day(){return new Date().toISOString().slice(0,10);}
 // ---------- 1. Acknowledgements (policies, memos, circulars) ----------
 function ackItems(){
   const out=[],today=b2Day();
-  Object.entries(DB.policies||{}).forEach(([k,p])=>{if(p&&p.ackRequired)out.push({id:'p_'+k,key:k,src:'policies',kind:'Policy',title:p.name||'Policy',cat:p.category||'',ver:p.ackVer||1,body:p.content||'',date:p.date||''});});
+  Object.entries(DB.policies||{}).forEach(([k,p])=>{if(p&&p.ackRequired)out.push({id:'p_'+k,key:k,src:'policies',kind:(p.refNo?p.refNo:'Policy'),title:p.name||'Policy',cat:p.category||'',ver:p.ackVer||1,body:p.content||'',date:p.date||'',hasFile:!!p.hasFile});});
   Object.entries(DB.announcements||{}).forEach(([k,a])=>{if(a&&a.ackRequired&&!(typeof ANN_THEMES!=='undefined'&&ANN_THEMES[a.theme])&&(!a.expiryDate||a.expiryDate>=today))out.push({id:'a_'+k,key:k,src:'announcements',kind:'Memo / circular',title:a.title||'Announcement',cat:a.category||'',ver:a.ackVer||1,body:a.message||'',date:a.startDate||''});});
   return out;
 }
@@ -5325,7 +5328,8 @@ function renderStaffAckCard(){
    +'<div style="font-size:12.5px;color:#666;margin-bottom:8px;">HR needs you to confirm that you have read the following. Open each one, read it, then press the button.</div>'
    +list.map(it=>{const prev=DB.myAcks&&DB.myAcks[it.id];return '<div style="border:1px solid #e0e0e0;border-radius:8px;margin-bottom:10px;overflow:hidden;">'
     +'<div style="background:#f5f7fa;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><div><strong style="font-size:13px;color:#1C3557;">'+esc(it.title)+'</strong> <span style="font-size:11px;color:#888;">'+esc(it.kind)+(it.cat?' · '+esc(it.cat):'')+(prev?' · <b style="color:#a06a00;">Updated, please acknowledge again</b>':'')+'</span></div>'
-    +'<div style="display:flex;gap:6px;"><button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="togglePolicy(\'ack_'+it.id+'\')">Read</button><button class="btn btn-sm btn-primary" onclick="staffAck(\''+it.id+'\','+it.ver+')">✔ I have read and understood</button></div></div>'
+    +(it.hasFile?'<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"><button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="polOpen(\''+it.key+'\')">📄 Open document</button>'+(polWasOpened(it.key)?'<button class="btn btn-sm btn-primary" onclick="staffAck(\''+it.id+'\','+it.ver+')">✔ I have read and understood</button>':'<button class="btn btn-sm" disabled title="Open the document first" style="opacity:.55;cursor:not-allowed;">✔ I have read and understood</button><span style="font-size:11px;color:#a06a00;">Open the document first</span>')+'</div></div>'
+      :'<div style="display:flex;gap:6px;"><button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="togglePolicy(\'ack_'+it.id+'\')">Read</button><button class="btn btn-sm btn-primary" onclick="staffAck(\''+it.id+'\','+it.ver+')">✔ I have read and understood</button></div></div>')
     +'<div id="ack_'+it.id+'" style="display:none;padding:14px;font-size:12px;line-height:1.8;color:#333;background:#fff;border-top:1px solid #e0e0e0;max-height:300px;overflow-y:auto;">'+(it.body?formatRichText(it.body):'No text added.')+'</div></div>';}).join('')+'</div>';
 }
 window.staffAck=function(id,ver){
@@ -9698,11 +9702,89 @@ window.togglePolicy=function(id){
   const el=document.getElementById(id);
   if(el) el.style.display=el.style.display==='none'?'block':'none';
 };
-window.savePol=function(){
-  const data={name:v('polName'),category:v('polCat'),content:v('polContent'),date:v('polDate'),ts:Date.now()};
+// Policies and memos can carry a PDF (the signed final copy). The PDF is kept in its own
+// database area (policyFiles) so it is only downloaded when someone opens it.
+const POL_MAX=3*1024*1024;
+function polNextRef(){
+  const y=new Date().getFullYear();const rx=new RegExp('^CK-HR-MEMO-'+y+'-(\\d{3,})$');let m=0;
+  Object.values(DB.policies||{}).forEach(p=>{const r=p&&p.refNo&&String(p.refNo).match(rx);if(r)m=Math.max(m,parseInt(r[1],10));});
+  return 'CK-HR-MEMO-'+y+'-'+String(m+1).padStart(3,'0');
+}
+window.polRefPreview=function(){const el=document.getElementById('polRefPreview');if(el)el.textContent=polNextRef();};
+function polReadFile(f){return new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=()=>no(new Error('The file could not be read.'));r.readAsArrayBuffer(f);});}
+function polB64(u8){let s='';const CH=0x8000;for(let i=0;i<u8.length;i+=CH)s+=String.fromCharCode.apply(null,u8.subarray(i,i+CH));return btoa(s);}
+function polFileName(refNo,name){return (refNo+'_'+String(name||'Document')).replace(/[\\/:*?"<>|]+/g,'_').replace(/\s+/g,'_').slice(0,120)+'.pdf';}
+async function polPrepare(file,refNo,stamp){
+  if(file.size>POL_MAX)throw new Error('The PDF is larger than 3 MB. Please save a smaller copy and try again.');
+  let u8=new Uint8Array(await polReadFile(file));
+  if(String.fromCharCode.apply(null,u8.subarray(0,5))!=='%PDF-')throw new Error('This file is not a PDF. Please save the memo as PDF from Word first (File > Save As > PDF).');
+  if(stamp){
+    try{await wfLoadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js',()=>!!window.PDFLib);}catch(e){throw new Error('Could not load the PDF tool. Check the internet connection, or untick "Print the reference number".');}
+    const {PDFDocument,StandardFonts,rgb}=window.PDFLib;let doc;
+    try{doc=await PDFDocument.load(u8);}catch(e){throw new Error('This PDF could not be opened (it may be password-protected). Please save it again without a password.');}
+    const font=await doc.embedFont(StandardFonts.Helvetica);const txt='Ref: '+refNo;
+    doc.getPages().forEach(pg=>{const s=pg.getSize();const w=font.widthOfTextAtSize(txt,7.5);pg.drawText(txt,{x:s.width-w-28,y:s.height-16,size:7.5,font,color:rgb(0.35,0.35,0.35)});});
+    u8=await doc.save();
+    if(u8.length>POL_MAX)throw new Error('The PDF is larger than 3 MB after adding the reference number. Please save a smaller copy and try again.');
+  }
+  return {pdf:'data:application/pdf;base64,'+polB64(u8),kb:Math.round(u8.length/1024)};
+}
+window.savePol=async function(){
+  const name=v('polName');if(!name){alert('Policy name required');return;}
+  const fileEl=document.getElementById('polFile');const file=fileEl&&fileEl.files&&fileEl.files[0];
+  const refNo=polNextRef();
+  const data={name,category:v('polCat'),content:v('polContent'),date:v('polDate'),ts:Date.now(),refNo};
   if((document.getElementById('polAck')||{}).checked){data.ackRequired=true;data.ackVer=1;}
-  if(!data.name){alert('Policy name required');return;}
-  set(push(ref(db,'policies')),data).then(()=>{logAudit('Add Policy',data.name,data.category);showAlert('pol-alert','Saved!');sv('polName','');sv('polContent','');{const c=document.getElementById('polAck');if(c)c.checked=false;}});
+  const btn=document.getElementById('polSaveBtn');if(btn){btn.disabled=true;btn.textContent='Saving…';}
+  try{
+    const k=push(ref(db,'policies')).key;
+    if(file){
+      const prep=await polPrepare(file,refNo,(document.getElementById('polStamp')||{}).checked!==false);
+      const fname=polFileName(refNo,name);
+      await set(ref(db,'policyFiles/'+k),{pdf:prep.pdf,name:fname,ts:Date.now(),ver:1});
+      Object.assign(data,{hasFile:true,fileName:fname,fileKb:prep.kb,fileVer:1});
+    }
+    await set(ref(db,'policies/'+k),data);
+    logAudit('Add Policy',data.name+' ('+refNo+(file?', PDF':'')+')',data.category);
+    showAlert('pol-alert','Saved! Reference number '+refNo+'.');
+    sv('polName','');sv('polContent','');if(fileEl)fileEl.value='';{const c=document.getElementById('polAck');if(c)c.checked=false;}
+  }catch(e){alert(e&&e.message&&!/permission|PERMISSION/.test(e.message)?e.message:'Could not save. Please try again, or check that you are signed in as HR.');}
+  finally{if(btn){btn.disabled=false;btn.textContent='Save Policy';}try{polRefPreview();}catch(e){}}
+};
+window.polReplace=function(k){
+  const p=(DB.policies||{})[k];if(!p)return;
+  const inp=document.createElement('input');inp.type='file';inp.accept='application/pdf,.pdf';
+  inp.onchange=async()=>{
+    const file=inp.files&&inp.files[0];if(!file)return;
+    const again=p.ackRequired?confirm('Ask all staff to acknowledge this new version again?\n\nOK = yes, ask again.  Cancel = keep their earlier acknowledgements.'):false;
+    const refNo=p.refNo||polNextRef();
+    try{
+      const prep=await polPrepare(file,refNo,true);const ver=(p.fileVer||0)+1;const fname=polFileName(refNo,p.name);
+      await set(ref(db,'policyFiles/'+k),{pdf:prep.pdf,name:fname,ts:Date.now(),ver});
+      const np=Object.assign({},p,{refNo,hasFile:true,fileName:fname,fileKb:prep.kb,fileVer:ver,updatedAt:Date.now()});
+      if(again)np.ackVer=(p.ackVer||1)+1;
+      await set(ref(db,'policies/'+k),np);
+      logAudit(p.hasFile?'Replace Policy PDF':'Attach Policy PDF',p.name+' ('+refNo+', version '+ver+(again?', staff asked again':'')+')',p.category||'');
+      showAlert('pol-alert',(p.hasFile?'New version saved':'PDF attached')+' for '+refNo+'.');
+    }catch(e){alert(e&&e.message&&!/permission|PERMISSION/.test(e.message)?e.message:'Could not save. Please try again.');}
+  };
+  inp.click();
+};
+window.polDelete=function(k){
+  const p=(DB.policies||{})[k];if(!p)return;
+  if(!confirm('Delete "'+(p.name||'this policy')+'"'+(p.refNo?' ('+p.refNo+')':'')+'?'+(p.hasFile?' Its PDF is deleted too.':'')))return;
+  const after=()=>remove(ref(db,'policies/'+k)).then(()=>logAudit('Delete Policy',(p.name||'')+(p.refNo?' ('+p.refNo+')':''),p.category||''));
+  (p.hasFile?remove(ref(db,'policyFiles/'+k)).then(after):after()).catch(()=>{});
+};
+const _polOpened={};
+function polWasOpened(k){return !!_polOpened[k];}
+window.polOpen=async function(k){
+  try{
+    const s=await get(ref(db,'policyFiles/'+k));const f=s.val();
+    if(!f||!f.pdf){alert('This document is not available. Please tell HR.');return;}
+    _polOpened[k]=true;lqSaveBlob(f.pdf,f.name||'Document.pdf');
+    try{renderStaffAckCard();}catch(e){}
+  }catch(e){alert('The document could not be opened. Please check your connection and try again.');}
 };
 function renderPolicies(){
   const list=Object.entries(DB.policies).sort((a,b)=>b[1].ts-a[1].ts);
@@ -9710,16 +9792,18 @@ function renderPolicies(){
     <div style="background:#f5f7fa;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
       <div>
         <strong style="font-size:13px;color:#1C3557;">${esc(p.name)}</strong>
-        <span style="font-size:11px;color:#888;margin-left:10px;">${esc(p.category)} · Effective: ${p.date||'—'}</span>
+        <span style="font-size:11px;color:#888;margin-left:10px;">${p.refNo?esc(p.refNo)+' · ':''}${esc(p.category)} · Effective: ${p.date||'—'}${p.hasFile?' · PDF'+(p.fileVer>1?' version '+p.fileVer:''):''}</span>
       </div>
-      <div style="display:flex;gap:6px;">
-        <button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="togglePolicy('pol_${k}')">View</button>
-        ${currentRole==='admin'?`<button class="btn btn-sm btn-danger" onclick="if(confirm('Delete this policy?'))remove(ref(window._db,'policies/${k}'))">✕</button>`:''}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+        ${p.hasFile?`<button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="polOpen('${k}')">📄 Open</button>`:''}
+        <button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="togglePolicy('pol_${k}')">${p.hasFile?'Summary':'View'}</button>
+        ${currentRole==='admin'?`<button class="btn btn-sm" style="background:#fff4dc;color:#7a5a00;" onclick="polReplace('${k}')">${p.hasFile?'Replace PDF':'Attach PDF'}</button><button class="btn btn-sm btn-danger" onclick="polDelete('${k}')">✕</button>`:''}
       </div>
     </div>
-    <div id="pol_${k}" style="display:none;padding:14px;font-size:12px;line-height:1.8;color:#333;background:#fff;border-top:1px solid #e0e0e0;max-height:300px;overflow-y:auto;">${p.content?formatRichText(p.content):'No content added.'}</div>
+    <div id="pol_${k}" style="display:none;padding:14px;font-size:12px;line-height:1.8;color:#333;background:#fff;border-top:1px solid #e0e0e0;max-height:300px;overflow-y:auto;">${p.content?formatRichText(p.content):(p.hasFile?'No summary. Open the document.':'No content added.')}</div>
   </div>`).join(''):'<div class="empty-state"><p>No policies yet.</p></div>';
   window._db=db;
+  try{polRefPreview();}catch(e){}
 }
 
 // ── DOC GENERATOR ─────────────────────────────────────────────────────────────
