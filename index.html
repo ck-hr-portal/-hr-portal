@@ -160,6 +160,7 @@ tr:hover td{background:#fafbfc;}
   .portal-name{font-size:14px;font-weight:700;color:#fff;}
   .portal-sub{font-size:10px;color:#7a9ab5;}
 </style>
+<style>@media print{#polViewer{display:none!important;}}</style>
 </head>
 <body>
 
@@ -1213,6 +1214,7 @@ tr:hover td{background:#fafbfc;}
             <div class="form-group" style="margin-top:10px;"><label>Effective Date</label><input type="date" id="polDate"></div>
             <div class="form-group" style="margin-top:10px;"><label>Attach PDF (optional): the signed final copy, max 3 MB</label><input type="file" id="polFile" accept="application/pdf,.pdf"><p style="font-size:11px;color:#888;margin-top:4px;">The PDF is stored exactly as you upload it. Save it as PDF from Word first.</p></div>
             <div class="form-group" style="margin-top:6px;"><label style="display:flex;gap:8px;align-items:center;font-weight:600;"><input type="checkbox" id="polStamp" checked> Print the reference number in small text at the top of each page</label></div>
+            <div class="form-group" style="margin-top:6px;"><label style="display:flex;gap:8px;align-items:center;font-weight:600;"><input type="checkbox" id="polViewOnly" checked> View only: staff can read it in the portal but not save or share it (each page shows their name as a watermark)</label></div>
             <div style="font-size:12.5px;color:#1C3557;margin-top:8px;">Reference number: <b id="polRefPreview">—</b> <span style="color:#888;">(given automatically when you save)</span></div>
             <div class="form-group" style="margin-top:10px;"><label style="display:flex;gap:8px;align-items:center;font-weight:600;"><input type="checkbox" id="polAck"> Staff must acknowledge this policy (they confirm they have read it)</label></div>
             <div class="btn-row"><button class="btn btn-primary" id="polSaveBtn" onclick="savePol()">Save Policy</button></div>
@@ -9735,6 +9737,7 @@ window.savePol=async function(){
   const refNo=polNextRef();
   const data={name,category:v('polCat'),content:v('polContent'),date:v('polDate'),ts:Date.now(),refNo};
   if((document.getElementById('polAck')||{}).checked){data.ackRequired=true;data.ackVer=1;}
+  if(file&&(document.getElementById('polViewOnly')||{}).checked!==false)data.viewOnly=true;
   const btn=document.getElementById('polSaveBtn');if(btn){btn.disabled=true;btn.textContent='Saving…';}
   try{
     const k=push(ref(db,'policies')).key;
@@ -9747,7 +9750,7 @@ window.savePol=async function(){
     await set(ref(db,'policies/'+k),data);
     logAudit('Add Policy',data.name+' ('+refNo+(file?', PDF':'')+')',data.category);
     showAlert('pol-alert','Saved! Reference number '+refNo+'.');
-    sv('polName','');sv('polContent','');if(fileEl)fileEl.value='';{const c=document.getElementById('polAck');if(c)c.checked=false;}
+    sv('polName','');sv('polContent','');if(fileEl)fileEl.value='';{const c=document.getElementById('polAck');if(c)c.checked=false;const vo=document.getElementById('polViewOnly');if(vo)vo.checked=true;}
   }catch(e){alert(e&&e.message&&!/permission|PERMISSION/.test(e.message)?e.message:'Could not save. Please try again, or check that you are signed in as HR.');}
   finally{if(btn){btn.disabled=false;btn.textContent='Save Policy';}try{polRefPreview();}catch(e){}}
 };
@@ -9778,11 +9781,88 @@ window.polDelete=function(k){
 };
 const _polOpened={};
 function polWasOpened(k){return !!_polOpened[k];}
+window.polToggleView=function(k){
+  const p=(DB.policies||{})[k];if(!p||!p.hasFile)return;
+  const to=!p.viewOnly;
+  if(!confirm(to?'Make "'+p.name+'" view only? Staff will read it in the portal with their name as a watermark, and cannot save or share it.':'Allow staff to save and share "'+p.name+'"?'))return;
+  const np=Object.assign({},p);if(to)np.viewOnly=true;else delete np.viewOnly;
+  set(ref(db,'policies/'+k),np).then(()=>{logAudit(to?'Policy set to view only':'Policy set to downloadable',p.name+(p.refNo?' ('+p.refNo+')':''),p.category||'');showAlert('pol-alert',to?'Now view only.':'Staff can now save it.');}).catch(()=>{});
+};
+// View-only reader: draws each page as a picture inside the portal, with the reader's name,
+// employee ID and the time as a watermark. No save, share or download (except for HR).
+const PDFJS_VER='3.11.174';
+let _pdfjsReady=null;
+function pdfjsLoad(){
+  if(_pdfjsReady)return _pdfjsReady;
+  const base='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/'+PDFJS_VER+'/';
+  _pdfjsReady=(async()=>{
+    await wfLoadScript(base+'pdf.min.js',()=>!!window.pdfjsLib);
+    try{const r=await fetch(base+'pdf.worker.min.js');const b=new Blob([await r.text()],{type:'text/javascript'});window.pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(b);}
+    catch(e){window.pdfjsLib.GlobalWorkerOptions.workerSrc=base+'pdf.worker.min.js';}
+    return window.pdfjsLib;
+  })();
+  _pdfjsReady.catch(()=>{_pdfjsReady=null;});
+  return _pdfjsReady;
+}
+function polWmText(){
+  const me=(DB.employees||{})[currentEmpKey]||{};
+  const who=currentRole==='employee'?((me.name||adminName||'Staff')+(me.empId?' · '+me.empId:'')):(adminName||'HR');
+  const d=new Date();const ts=d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  return who+' · '+ts;
+}
+function polWatermark(cv,text){
+  const c=cv.getContext('2d');const W=cv.width,H=cv.height;const fs=Math.max(12,Math.round(W/34));
+  c.save();c.globalAlpha=0.13;c.fillStyle='#1C3557';c.font='bold '+fs+'px Arial, sans-serif';c.textAlign='center';c.textBaseline='middle';
+  c.translate(W/2,H/2);c.rotate(-Math.PI/6);
+  const step=fs*5.5;const span=Math.hypot(W,H);
+  for(let y=-span/2;y<=span/2;y+=step){const off=((Math.round(y/step))%2)*fs*6;for(let x=-span/2-off;x<=span/2;x+=c.measureText(text).width+fs*4)c.fillText(text,x,y);}
+  c.restore();
+}
+async function polView(dataUrl,p,fname){
+  const old=document.getElementById('polViewer');if(old)old.remove();
+  const box=document.createElement('div');box.id='polViewer';
+  box.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(20,28,38,.92);display:flex;flex-direction:column;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;';
+  const isHR=currentRole==='admin';
+  box.innerHTML='<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.2);">'
+    +'<div style="flex:1;min-width:0;"><div id="pvTitle" style="font-weight:700;color:#1C3557;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div><div style="font-size:11px;color:#888;">View only · not for saving or sharing</div></div>'
+    +(isHR?'<button type="button" id="pvDl" class="btn btn-sm" style="background:#eef1f5;color:#444;">Download (HR)</button>':'')
+    +'<button type="button" id="pvClose" class="btn btn-sm btn-primary">Close</button></div>'
+    +'<div id="pvPages" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:12px;display:flex;flex-direction:column;align-items:center;gap:12px;"><div id="pvMsg" style="color:#fff;font-size:14px;margin-top:40px;">Loading the document…</div></div>';
+  document.body.appendChild(box);
+  box.querySelector('#pvTitle').textContent=(p.refNo?p.refNo+' · ':'')+(p.name||'Document');
+  const close=()=>{box.remove();document.removeEventListener('keydown',kd,true);};
+  const kd=e=>{if(e.key==='Escape')close();if((e.ctrlKey||e.metaKey)&&/^[spSP]$/.test(e.key)){e.preventDefault();e.stopPropagation();}};
+  document.addEventListener('keydown',kd,true);
+  box.querySelector('#pvClose').onclick=close;
+  box.addEventListener('contextmenu',e=>e.preventDefault());
+  box.addEventListener('dragstart',e=>e.preventDefault());
+  if(isHR)box.querySelector('#pvDl').onclick=()=>lqSaveBlob(dataUrl,fname);
+  const pages=box.querySelector('#pvPages'),msg=box.querySelector('#pvMsg');
+  try{
+    const lib=await pdfjsLoad();
+    const raw=atob(dataUrl.slice(dataUrl.indexOf(',')+1));const u8=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)u8[i]=raw.charCodeAt(i);
+    const doc=await lib.getDocument({data:u8}).promise;
+    const wm=polWmText();const avail=Math.min(pages.clientWidth-24,900);const dpr=Math.min(window.devicePixelRatio||1,2);
+    msg.remove();
+    for(let n=1;n<=doc.numPages;n++){
+      if(!document.body.contains(box))return;
+      const pg=await doc.getPage(n);const vp1=pg.getViewport({scale:1});const scale=avail/vp1.width;const vp=pg.getViewport({scale:scale*dpr});
+      const cv=document.createElement('canvas');cv.width=Math.floor(vp.width);cv.height=Math.floor(vp.height);cv.style.width=Math.floor(vp.width/dpr)+'px';cv.style.height=Math.floor(vp.height/dpr)+'px';
+      cv.style.background='#fff';cv.style.boxShadow='0 2px 10px rgba(0,0,0,.35)';cv.style.maxWidth='100%';
+      pages.appendChild(cv);
+      await pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+      polWatermark(cv,wm);
+    }
+  }catch(e){
+    if(document.body.contains(box)){msg.textContent='The document could not be shown. Please check your connection and try again.';if(!msg.parentNode)pages.appendChild(msg);}
+  }
+}
 window.polOpen=async function(k){
   try{
     const s=await get(ref(db,'policyFiles/'+k));const f=s.val();
     if(!f||!f.pdf){alert('This document is not available. Please tell HR.');return;}
-    _polOpened[k]=true;lqSaveBlob(f.pdf,f.name||'Document.pdf');
+    _polOpened[k]=true;const p=(DB.policies||{})[k]||{};
+    if(p.viewOnly)await polView(f.pdf,p,f.name||'Document.pdf');else lqSaveBlob(f.pdf,f.name||'Document.pdf');
     try{renderStaffAckCard();}catch(e){}
   }catch(e){alert('The document could not be opened. Please check your connection and try again.');}
 };
@@ -9792,12 +9872,12 @@ function renderPolicies(){
     <div style="background:#f5f7fa;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
       <div>
         <strong style="font-size:13px;color:#1C3557;">${esc(p.name)}</strong>
-        <span style="font-size:11px;color:#888;margin-left:10px;">${p.refNo?esc(p.refNo)+' · ':''}${esc(p.category)} · Effective: ${p.date||'—'}${p.hasFile?' · PDF'+(p.fileVer>1?' version '+p.fileVer:''):''}</span>
+        <span style="font-size:11px;color:#888;margin-left:10px;">${p.refNo?esc(p.refNo)+' · ':''}${esc(p.category)} · Effective: ${p.date||'—'}${p.hasFile?' · PDF'+(p.fileVer>1?' version '+p.fileVer:'')+(p.viewOnly?' · view only':' · can be saved'):''}</span>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
         ${p.hasFile?`<button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="polOpen('${k}')">📄 Open</button>`:''}
         <button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="togglePolicy('pol_${k}')">${p.hasFile?'Summary':'View'}</button>
-        ${currentRole==='admin'?`<button class="btn btn-sm" style="background:#fff4dc;color:#7a5a00;" onclick="polReplace('${k}')">${p.hasFile?'Replace PDF':'Attach PDF'}</button><button class="btn btn-sm btn-danger" onclick="polDelete('${k}')">✕</button>`:''}
+        ${currentRole==='admin'?`<button class="btn btn-sm" style="background:#fff4dc;color:#7a5a00;" onclick="polReplace('${k}')">${p.hasFile?'Replace PDF':'Attach PDF'}</button>${p.hasFile?`<button class="btn btn-sm" style="background:#eef1f5;color:#444;" onclick="polToggleView('${k}')">${p.viewOnly?'Allow saving':'Make view only'}</button>`:''}<button class="btn btn-sm btn-danger" onclick="polDelete('${k}')">✕</button>`:''}
       </div>
     </div>
     <div id="pol_${k}" style="display:none;padding:14px;font-size:12px;line-height:1.8;color:#333;background:#fff;border-top:1px solid #e0e0e0;max-height:300px;overflow-y:auto;">${p.content?formatRichText(p.content):(p.hasFile?'No summary. Open the document.':'No content added.')}</div>
