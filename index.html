@@ -405,11 +405,13 @@ tr:hover td{background:#fafbfc;}
       <div class="form-group" id="lrRelWrap" style="display:none;"><label>Relationship to the person who passed away *</label>
         <select id="lrRel"><option value="">— select —</option><option value="spouse">Spouse</option><option value="other">Parent / Child / Sibling / Grandparent / Grandchild</option></select>
       </div>
+      <div class="form-group" style="grid-column:1/-1;"><label>Where do you work? *</label><select id="lrWorkWeek" onchange="calcLRDays()"><option value="">— please choose —</option><option value="site">Site based (Monday to Saturday, Sunday off)</option><option value="office">Office based (Monday to Friday, Saturday remote working)</option></select></div>
       <div class="form-group"><label id="lrStartLabel">Start Date</label><input type="date" id="lrStart" onchange="calcLRDays()"></div>
       <div class="form-group" id="lrEndWrap"><label>End Date</label><input type="date" id="lrEnd" onchange="calcLRDays()"></div>
       <div class="form-group"><label>Total Days</label><input type="text" id="lrDays" readonly style="background:#f5f5f5;font-weight:700;"></div>
       <div></div>
       <div id="lrNoticeBox" style="display:none;grid-column:1/-1;border-radius:7px;padding:10px 12px;font-size:12.5px;line-height:1.5;"></div>
+      <div id="lrAlcBox" style="display:none;grid-column:1/-1;"></div>
       <div class="form-group" style="grid-column:1/-1;"><label>Reason / Comments</label><textarea id="lrReason" rows="3" style="width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;font-family:inherit;"></textarea></div>
       <div id="lrExtraFields" style="display:none;grid-column:1/-1;">
         <div style="border-top:1px dashed #ccc;margin:4px 0 12px;"></div>
@@ -683,6 +685,7 @@ tr:hover td{background:#fafbfc;}
         <div class="page-header"><h2>Leave Register</h2><p>UAE Labour Law compliant — Federal Decree-Law No. 33/2021</p></div>
         <div class="alert alert-success" id="leave-alert"></div>
         <div class="card">
+          <div id="alCheckBox"></div>
           <div id="leaveUnlinkedNote"></div>
           <div id="leaveViewTabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
             <button class="btn btn-sm" id="lvTabActive" onclick="setLeaveView('active')">👥 Active employees <span id="lvCntActive" style="opacity:.75;"></span></button>
@@ -1104,6 +1107,7 @@ tr:hover td{background:#fafbfc;}
             <div class="form-group"><label>Holiday Name</label><input type="text" id="holName" placeholder="e.g. Eid Al Fitr"></div>
             <div class="form-group" style="margin-top:10px;"><label>Date</label><input type="date" id="holDate"></div>
             <div class="form-group" style="margin-top:10px;"><label>Type</label><select id="holType"><option>UAE Public Holiday</option><option>Company Day Off</option><option>Optional Holiday</option></select></div>
+            <div class="form-group" style="margin-top:10px;"><label>Status</label><select id="holStatus"><option value="provisional">Provisional (not yet confirmed by the UAE authorities)</option><option value="confirmed">Confirmed</option></select><p style="font-size:11px;color:#888;margin-top:4px;">Leave that depends on a provisional holiday is shown as "tentative" until you confirm it. Optional holidays are not counted as days off.</p></div>
             <div class="btn-row"><button class="btn btn-primary" onclick="saveHoliday()">Save Holiday</button></div>
           </div>
           <div class="card"><div class="card-title">📅 Holiday List</div><div id="holList"></div></div>
@@ -1924,6 +1928,7 @@ tr:hover td{background:#fafbfc;}
       <div style="text-align:center;"><div style="font-size:22px;font-weight:700;color:#e67e22;" id="lsSickUsed">—</div><div style="font-size:11px;color:#888;">Sick Leave Used</div></div>
       <div style="text-align:center;"><div style="font-size:22px;font-weight:700;color:#8e44ad;" id="lsWFHUsed">—</div><div style="font-size:11px;color:#888;">WFH Days</div></div>
     </div>
+    <div id="lsAlcNote"></div>
 
     <!-- Tabs -->
     <div class="tab-bar" style="margin-bottom:12px;">
@@ -2180,6 +2185,201 @@ function leaveDaysOf(l){
   const d=parseFloat(l.days);
   if(d>0)return d;
   return l.from&&l.to?Math.ceil((new Date(l.to)-new Date(l.from))/86400000)+1:0;
+}
+
+// ── ANNUAL LEAVE RULES (agreed with HR, 26 Oct 2026) ─────────────────────────────
+// Applies ONLY to leave booked with the "Site based / Office based" choice (requests from this version on).
+// Older records are counted exactly as before.
+// Days off: office staff = Saturday (remote working day) and Sunday; site staff = Sunday. Public holidays: both.
+// 1. Inside a leave every day counts: days off and public holidays between the first and last booked
+//    working day (office Fri-Tue = 5; Tue-Thu with a Wednesday holiday = 3, as per UAE law).
+// 2. Days off at the edges of a short leave are not counted (office Fri-Sat = 1).
+// 3. A leave covering a full working week (Monday to Friday office / Monday to Saturday site, or longer)
+//    also counts the days off right after it, up to the day before return (office Mon-Fri = 7; site Mon-Sat = 7).
+// 4. Annual / unpaid bookings separated only by days off are one absence; the days between count.
+// 5. Over the year's entitlement = unpaid; never taken from next year; each day counts in its own year.
+// Holidays have a status: confirmed / provisional (results "tentative") / cancelled (a normal working day).
+const AL_JOIN=new Set(['annual','unpaid']);
+const AL_DATE=/^\d{4}-\d{2}-\d{2}$/;
+function alAdd(s,n){const d=new Date(s+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);}
+function alDowN(s){return new Date(s+'T00:00:00Z').getUTCDay();}
+function alNice(s){const d=new Date(s+'T00:00:00Z');return['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getUTCDay()]+' '+d.getUTCDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()];}
+function alWW(x){const s=String(x||'').toLowerCase();return s==='site'?'site':s==='office'?'office':'';}
+function alWWName(x){return alWW(x)==='site'?'Site based':alWW(x)==='office'?'Office based':'';}
+function alHolStatus(h){const s=String((h&&h.status)||'').toLowerCase();return s==='provisional'||s==='cancelled'?s:'confirmed';}
+function alHolidayMap(){
+  const m={};
+  Object.values(DB.holidays||{}).forEach(h=>{
+    if(!h||!AL_DATE.test(String(h.date||'')))return;
+    if(/optional/i.test(String(h.type||'')))return; // optional holidays are not days off for everyone
+    const st=alHolStatus(h),cur=m[h.date];
+    if(!cur||(cur.st==='cancelled'&&st!=='cancelled')||(cur.st==='provisional'&&st==='confirmed'))m[h.date]={st,name:h.name||'Public holiday'};
+  });
+  return m;
+}
+function alOff(s,H,ww){const w=alDowN(s);if(w===0)return{why:'Sunday',prov:false};if(w===6&&ww==='office')return{why:'Saturday, remote working day',prov:false};const h=H[s];if(h&&h.st!=='cancelled')return{why:h.name,prov:h.st==='provisional'};return null;}
+// recs: leave records {type,from,to,status,workWeek}; cand: optional booking being requested {type,from,to,workWeek}
+function alCalc(recs,H,cand){
+  const list=[];
+  (recs||[]).forEach((r,i)=>{if(!r||!leaveStatusOK(r)||!AL_JOIN.has(leaveKind(r.type)))return;const f=String(r.from||''),t=String(r.to||r.from||'');if(!AL_DATE.test(f)||!AL_DATE.test(t)||t<f)return;list.push({i,k:leaveKind(r.type),f,t,ww:alWW(r.workWeek),cand:false});});
+  if(cand&&AL_JOIN.has(leaveKind(cand.type))&&AL_DATE.test(String(cand.from||''))){const t=String(cand.to||cand.from);if(AL_DATE.test(t)&&t>=cand.from)list.push({i:-1,k:leaveKind(cand.type),f:cand.from,t,ww:alWW(cand.workWeek),cand:true});}
+  const day={};
+  list.forEach(r=>{let d=r.f,n=0;while(d<=r.t&&n<400){const o=day[d];day[d]={k:(o&&o.k==='annual')?'annual':r.k,recs:(o?o.recs:[]).concat([r])};d=alAdd(d,1);n++;}});
+  const runs=[];
+  Object.keys(day).sort().forEach(d=>{const last=runs[runs.length-1];if(last&&alAdd(last.end,1)===d)last.end=d;else runs.push({start:d,end:d,recs:new Set(),bridged:[]});day[d].recs.forEach(r=>runs[runs.length-1].recs.add(r));});
+  const wwOf=b=>{for(const r of b.recs)if(r.ww&&r.cand)return r.ww;for(const r of b.recs)if(r.ww)return r.ww;return'';};
+  const blocks=[],uncovered=[];
+  runs.forEach(b=>{
+    const last=blocks[blocks.length-1];
+    if(last){
+      const ww=wwOf(b)||wwOf(last);
+      if(ww){
+        let d=alAdd(last.end,1),gap=[],allOff=true,cancelled=false;
+        while(d<b.start&&gap.length<15){gap.push(d);if(!alOff(d,H,ww)){allOff=false;if(H[d]&&H[d].st==='cancelled')cancelled=true;}d=alAdd(d,1);}
+        if(d<b.start){allOff=false;cancelled=false;}
+        if(allOff){last.end=b.end;b.recs.forEach(r=>last.recs.add(r));last.bridged=last.bridged.concat(gap);return;}
+        if(cancelled)gap.forEach(g=>{if(!alOff(g,H,ww))uncovered.push(g);});
+      }
+    }
+    blocks.push(b);
+  });
+  const newRec=new Set();
+  blocks.forEach(b=>{
+    b.ww=wwOf(b);b.isNew=!!b.ww;b.cand=[...b.recs].some(r=>r.cand);
+    if(!b.isNew)return;
+    b.recs.forEach(r=>{if(r.i>=0)newRec.add(r.i);});
+    const ww=b.ww,booked=[];let d=b.start,n=0;while(d<=b.end&&n<800){if(day[d])booked.push(d);d=alAdd(d,1);n++;}
+    const work=booked.filter(x=>!alOff(x,H,ww));
+    b.counted=[];b.added=[];b.dropped=[];b.tent=[];b.unpaidDates=new Set();
+    if(!work.length){b.dropped=booked.slice();b.ret=alAdd(b.end,1);return;}
+    const firstW=work[0],lastW=work[work.length-1];
+    d=firstW;n=0;while(d<=lastW&&n<800){b.counted.push(d);d=alAdd(d,1);n++;}
+    let full=false;d=firstW;n=0;while(d<=lastW&&n<800){if(alDowN(d)===1&&alAdd(d,ww==='site'?5:4)<=lastW){full=true;break;}d=alAdd(d,1);n++;}
+    b.full=full;
+    d=alAdd(lastW,1);n=0;
+    if(full){while(n<15){const o=alOff(d,H,ww);if(!o)break;b.counted.push(d);d=alAdd(d,1);n++;}}
+    else{while(n<15&&alOff(d,H,ww)){d=alAdd(d,1);n++;}}
+    b.ret=d;
+    const cs=new Set(b.counted);
+    b.added=b.counted.filter(x=>!day[x]).map(x=>{const o=alOff(x,H,ww);return{d:x,why:o?o.why:'day off'};});
+    b.dropped=booked.filter(x=>!cs.has(x));
+    b.counted.concat(b.dropped).forEach(x=>{const h=H[x];if(h&&h.st==='provisional')b.tent.push(x);});
+    b.counted.forEach(x=>{if(day[x]&&day[x].k==='unpaid')b.unpaidDates.add(x);});
+  });
+  return{blocks,newRec,uncovered,day};
+}
+// One employee, one leave year. Returns null when the year has no leave booked under the new rules
+// (then everything is shown exactly as before), unless force is true.
+function alYearSummary(empName,year,cand,idx,force){
+  const y=String(year);
+  idx=idx||buildNameIndex();
+  const recs=Object.values(DB.leave||{}).filter(l=>leaveBelongsTo(l,empName,idx));
+  const C=alCalc(recs,alHolidayMap(),cand);
+  const nb=C.blocks.filter(b=>b.isNew&&b.start.slice(0,4)<=y&&(b.ret||b.end).slice(0,4)>=y);
+  if(!nb.length&&!force)return null;
+  const emp=Object.values(DB.employees||{}).find(e=>e&&e.name===empName)||findEmpByName(empName,idx);
+  const ent=parseFloat(emp&&emp.annualLeaveEnt!=null&&emp.annualLeaveEnt!==''?emp.annualLeaveEnt:30),entitled=isNaN(ent)?30:ent;
+  const adj=Object.values(DB.leaveAdjustments||{}).filter(a=>leaveBelongsTo(a,empName,idx)&&String(a.year)===y).reduce((s,a)=>s+(parseFloat(a.days||0)||0),0);
+  let usedRaw=0,bookedUnpaid=0;
+  recs.forEach((l,i)=>{ // older records: exactly as before
+    if(C.newRec.has(i)||!leaveCounts(l)||String(l.from||'').slice(0,4)!==y)return;
+    usedRaw+=leaveDeductFor(l.type,leaveDaysOf(l),compRelation(l.relation,l.notes||l.reason));
+    if(leaveKind(l.type)==='unpaid')bookedUnpaid+=leaveDaysOf(l);
+  });
+  if(cand&&!C.blocks.some(b=>b.isNew&&b.cand)&&String(cand.from||'').slice(0,4)===y)usedRaw+=leaveDeductFor(cand.type,Math.ceil((new Date(cand.to||cand.from)-new Date(cand.from))/86400000)+1,null);
+  let added=[],dropped=[],tent=[];
+  nb.forEach(b=>{b.counted.forEach(d=>{if(d.slice(0,4)!==y)return;if(b.unpaidDates.has(d))bookedUnpaid++;else usedRaw++;});
+    added=added.concat(b.added.filter(a=>a.d.slice(0,4)===y));dropped=dropped.concat(b.dropped.filter(d=>d.slice(0,4)===y));tent=tent.concat(b.tent.filter(d=>d.slice(0,4)===y));});
+  const total=entitled+adj;
+  return{y,entitled,adj,total,usedRaw,counted:usedRaw,used:Math.min(Math.max(total,0),usedRaw),over:Math.max(0,usedRaw-Math.max(total,0)),bookedUnpaid,
+    unpaid:Math.max(0,usedRaw-Math.max(total,0))+bookedUnpaid,balance:Math.max(0,total-usedRaw),added,dropped,tentative:[...new Set(tent)],
+    uncovered:C.uncovered.filter(d=>d.slice(0,4)===y),hasNew:nb.length>0};
+}
+function alAddedTxt(list){return list.map(a=>alNice(a.d)+' ('+a.why+')').join(', ');}
+function alBlockOf(C){return C.blocks.find(b=>b.cand&&b.isNew)||null;}
+// What one booking changes: days counted, days not counted, return date, unpaid days (HR and managers see this)
+function alRequestEffect(empName,cand){
+  const idx=buildNameIndex();
+  const years=[...new Set([String(cand.from).slice(0,4),String(cand.to||cand.from).slice(0,4)])];
+  let delta=0,unpaid=0,tent=[],unc=[];
+  years.forEach(y=>{const a=alYearSummary(empName,y,null,idx,true),b=alYearSummary(empName,y,cand,idx,true);
+    delta+=(b.usedRaw+b.bookedUnpaid)-(a.usedRaw+a.bookedUnpaid);unpaid+=Math.max(0,b.unpaid-a.unpaid);tent=tent.concat(b.tentative);unc=unc.concat(b.uncovered.filter(d=>a.uncovered.indexOf(d)<0));});
+  const recs=Object.values(DB.leave||{}).filter(l=>leaveBelongsTo(l,empName,idx));
+  const H=alHolidayMap(),A=alCalc(recs,H,null),B=alCalc(recs,H,cand),blk=alBlockOf(B);
+  const prevAdded=new Set();A.blocks.forEach(b=>(b.added||[]).forEach(a=>prevAdded.add(a.d)));A.blocks.forEach(b=>{if(!b.isNew){let d=b.start;while(d<=b.end){prevAdded.add(d);d=alAdd(d,1);}}});
+  const booked=Math.ceil((new Date(cand.to||cand.from)-new Date(cand.from))/86400000)+1;
+  return{booked,counted:delta,added:blk?blk.added.filter(a=>!prevAdded.has(a.d)):[],dropped:blk?blk.dropped.filter(d=>d>=cand.from&&d<=(cand.to||cand.from)):[],ret:blk?blk.ret:null,unpaid,tentative:[...new Set(tent)],uncovered:unc,unpaidType:leaveKind(cand.type)==='unpaid'};
+}
+function alEffectText(eff){
+  if(!eff)return'';const L=[];
+  const changed=eff.counted!==eff.booked||eff.added.length||eff.dropped.length;
+  if(changed){let s='Counted as '+eff.counted+' day'+(eff.counted===1?'':'s')+' (booked '+eff.booked+')';
+    if(eff.added.length)s+='. Added: '+alAddedTxt(eff.added);
+    if(eff.dropped.length)s+='. Not counted: '+eff.dropped.map(alNice).join(', ');L.push(s+'.');}
+  if(eff.ret&&(changed||eff.unpaid))L.push('Back at work on '+alNice(eff.ret)+'.');
+  if(eff.unpaid>0&&!eff.unpaidType)L.push(eff.unpaid+' day'+(eff.unpaid>1?'s':'')+' UNPAID: the annual leave balance is used up. Leave cannot be taken from next year\'s entitlement.');
+  if(eff.uncovered.length)L.push('Working days not covered by any leave: '+eff.uncovered.map(alNice).join(', ')+' (a holiday was cancelled).');
+  if(eff.tentative.length)L.push('Tentative: holiday not yet confirmed ('+eff.tentative.map(alNice).join(', ')+').');
+  return L.join(' ');
+}
+function alBox(text,red){return text?'<div style="margin-top:6px;padding:7px 9px;border-radius:6px;font-size:11.5px;line-height:1.45;font-weight:600;'+(red?'background:#fdecea;color:#b3261e;border:1px solid #f1b0aa;':'background:#fff4dc;color:#7a5a00;border:1px solid #f0d28a;')+'">'+(red?'⚠ ':'ℹ ')+esc(text)+'</div>':'';}
+function alCheckRows(year){
+  const idx=buildNameIndex(),out=[];
+  Object.values(DB.employees||{}).forEach(e=>{
+    if(!e||!e.name||e.status==='Inactive')return;
+    const s=alYearSummary(e.name,year,null,idx);
+    if(!s||(!s.added.length&&!s.dropped.length&&!s.unpaid&&!s.tentative.length&&!s.uncovered.length))return;
+    out.push({name:e.name,s});
+  });
+  return out.sort((a,b)=>(b.s.unpaid-a.s.unpaid)||a.name.localeCompare(b.name));
+}
+window.alRenderCheck=function(){
+  const el=document.getElementById('alCheckBox');if(!el)return;
+  const y=String(window._alYear||new Date().getFullYear());
+  let rows=[];try{rows=alCheckRows(y);}catch(e){el.innerHTML='';return;}
+  if(!rows.length){el.innerHTML='';return;}
+  el.innerHTML='<details style="margin-bottom:12px;border:1px solid #f1b0aa;border-radius:8px;background:#fff8f7;"><summary style="cursor:pointer;padding:9px 12px;font-weight:700;color:#b3261e;font-size:13px;">⚠ Leave calculation check '+esc(y)+': '+rows.length+' employee'+(rows.length>1?'s':'')+' with days added, not counted, unpaid, or depending on a holiday. Click to see.</summary>'
+   +'<div style="padding:0 12px 10px;overflow-x:auto;"><table style="width:100%;font-size:12px;border-collapse:collapse;"><thead><tr style="text-align:left;color:#555;"><th style="padding:5px;">Employee</th><th>Entitled</th><th>Counted</th><th>Added</th><th>Not counted</th><th>Unpaid</th><th>Notes</th></tr></thead><tbody>'
+   +rows.map(({name,s})=>'<tr style="border-top:1px solid #f3d6d3;"><td style="padding:5px;font-weight:600;"><a href="#" onclick="openLeaveSummary(this.dataset.n);return false;" data-n="'+esc(name)+'">'+esc(name)+'</a></td><td>'+s.total+'</td><td>'+s.counted+'</td><td>'+(s.added.length?esc(alAddedTxt(s.added)):'—')+'</td><td>'+(s.dropped.length?esc(s.dropped.map(alNice).join(', ')):'—')+'</td><td style="color:#b3261e;font-weight:700;">'+(s.unpaid||'—')+'</td><td style="color:#7a5a00;">'+[s.tentative.length?'Holiday not confirmed: '+s.tentative.map(alNice).join(', '):'',s.uncovered.length?'Not covered: '+s.uncovered.map(alNice).join(', '):''].filter(Boolean).map(esc).join('<br>')+'</td></tr>').join('')
+   +'</tbody></table><div style="font-size:11px;color:#777;margin-top:6px;">Only leave booked with the Site / Office choice uses these rules. Older records are counted as before. Records are never changed automatically.</div></div></details>';
+};
+// Staff side
+function alMirrorFor(e,y,idx){
+  try{
+    if(!e||!e.name||!idx)return undefined;
+    const s=alYearSummary(e.name,y,null,idx);if(!s)return undefined;const m=[];let red=false;
+    if(s.added.length)m.push(s.added.length+' day'+(s.added.length>1?'s are':' is')+' counted as annual leave because your leave continues over them: '+alAddedTxt(s.added)+'.');
+    if(s.over>0){red=true;m.push(s.over+' day'+(s.over>1?'s are':' is')+' UNPAID: your annual leave for '+y+' is used up. Leave cannot be taken from next year\'s entitlement.');}
+    if(s.uncovered.length){red=true;m.push('Working days not covered by any leave: '+s.uncovered.map(alNice).join(', ')+'. Please contact HR.');}
+    if(s.tentative.length)m.push('Tentative: this depends on a public holiday not yet confirmed ('+s.tentative.map(alNice).join(', ')+').');
+    return m.length?{y,m,r:red}:undefined;
+  }catch(err){return undefined;}
+}
+function alStaffPreview(type,from,to,ww){
+  if(!AL_JOIN.has(leaveKind(type))||!alWW(ww)||!AL_DATE.test(String(from||''))||!AL_DATE.test(String(to||''))||to<from)return null;
+  const e=DB.employees[currentEmpKey]||{};
+  const recs=Object.values((e._leave&&e._leave.h)||{}).map(x=>({type:x.t,from:x.f,to:x.to||x.f,status:x.s,workWeek:x.w}));
+  const H=alHolidayMap(),cand={type,from,to,workWeek:ww},A=alCalc(recs,H,null),B=alCalc(recs,H,cand),blk=alBlockOf(B);
+  const cnt=C=>{let n=0;C.blocks.forEach(b=>{if(b.isNew)n+=b.counted.length;else{let d=b.start;while(d<=b.end){n++;d=alAdd(d,1);}}});return n;};
+  const booked=Math.ceil((new Date(to)-new Date(from))/86400000)+1,counted=cnt(B)-cnt(A);
+  const prevAdded=new Set();A.blocks.forEach(b=>(b.added||[]).forEach(a=>prevAdded.add(a.d)));
+  let unpaid=0;if(leaveKind(type)==='annual'){const bal=parseFloat(e.annualLeaveBalance);if(!isNaN(bal))unpaid=Math.max(0,counted-Math.max(0,bal));}
+  return{booked,counted,added:blk?blk.added.filter(a=>!prevAdded.has(a.d)):[],dropped:blk?blk.dropped.filter(d=>d>=from&&d<=to):[],ret:blk?blk.ret:null,unpaid,
+    tentative:B.blocks.reduce((t,b)=>t.concat(b.tent||[]),[]).filter(d=>!A.blocks.some(a=>(a.tent||[]).indexOf(d)>=0)),uncovered:B.uncovered.filter(d=>A.uncovered.indexOf(d)<0),unpaidType:leaveKind(type)==='unpaid'};
+}
+function alStaffShow(){
+  const box=document.getElementById('lrAlcBox');if(!box)return null;
+  const type=v('lrType'),from=v('lrStart'),to=type==='Half Day Leave'?v('lrStart'):v('lrEnd');
+  let eff=null;try{eff=alStaffPreview(type,from,to,v('lrWorkWeek'));}catch(err){eff=null;}
+  const txt=eff?alEffectText(eff):'';
+  if(!txt){box.style.display='none';box.innerHTML='';return null;}
+  box.style.display='block';box.innerHTML=alBox(txt+' (HR confirms the final count.)',eff.unpaid>0||eff.uncovered.length>0);
+  return txt;
+}
+function alStaffNoteHtml(){
+  const e=DB.employees[currentEmpKey];const a=e&&e._alc;if(!a||!a.m)return'';
+  const m=Array.isArray(a.m)?a.m:Object.values(a.m);
+  return alBox('Your annual leave '+(a.y||'')+': '+m.join(' '),!!a.r).replace('margin-top:6px;','margin:0 0 10px;');
 }
 
 // Single shared gratuity/EOSB formula — used by the Salary tab live figure, the Reports Excel, and the PDF.
@@ -2720,6 +2920,8 @@ async function syncStaffMirrors(){
       ents.sort((a,b)=>(b[1].date||'')<(a[1].date||'')?-1:(b[1].date||'')>(a[1].date||'')?1:(b[1].ts||0)-(a[1].ts||0));
       return{b:tot.bal,e:tot.earned,t:tot.taken,h:ents.slice(0,100).map(([ck,c])=>({d:c.date||'',k:c.kind||'',h:parseFloat(c.hours)||0,c:c.category||'',n:String(c.note||'').slice(0,300)}))};
     };
+    let alIdx=null;try{alIdx=buildNameIndex();}catch(err){alIdx=null;}
+    const alYr=String(new Date().getFullYear());
     activeKeys.forEach(k=>{
       const e=DB.employees[k];
       const myName=normName(e.name);
@@ -2727,7 +2929,7 @@ async function syncStaffMirrors(){
       Object.values(DB.leave||{}).forEach(l=>{
         if(normName(l.empName)!==myName)return;
         const d=leaveDaysOf(l);
-        hist.push({t:l.type||'',f:l.from||'',to:l.to||'',d,s:l.status||''});
+        hist.push({t:l.type||'',f:l.from||'',to:l.to||'',d,s:l.status||'',w:alWW(l.workWeek)||undefined});
         if(l.status==='Approved'){const ty=l.type||'Other';byType[ty]=(byType[ty]||0)+d;}
       });
       hist.sort((a,b)=>(b.f>a.f?1:b.f<a.f?-1:0));
@@ -2742,6 +2944,7 @@ async function syncStaffMirrors(){
         canViewOrgChart:!!e.canViewOrgChart,
         deptSlug:slugDept(e.dept),
         _leave:{bt:Object.entries(byType).map(([t,d])=>({t,d})),h:hist.slice(0,80)},
+        _alc:alMirrorFor(e,alYr,alIdx),
         _comp:compMirrorFor(k)
       });
     });
@@ -3748,6 +3951,7 @@ function renderMyComp(e){
 }
 function renderMyLeaveHistory(){
   const e=DB.employees[currentEmpKey];if(!e)return;
+  try{const tb=document.getElementById('empLeaveHistory');const tbl=tb&&tb.closest('table');if(tbl){let n=document.getElementById('empAlcNote');if(!n){n=document.createElement('div');n.id='empAlcNote';tbl.parentNode.insertBefore(n,tbl);}n.innerHTML=alStaffNoteHtml();}}catch(err){}
   const rows=Object.values((e._leave&&e._leave.h)||{});
   document.getElementById('empLeaveHistory').innerHTML=rows.length?rows.map(l=>{
     return`<tr><td>${esc(l.t)}</td><td>${fmt(l.f)}</td><td>${fmt(l.to)}</td><td>${l.d||'—'}</td><td>${esc(l.s)}</td></tr>`;
@@ -3845,9 +4049,10 @@ window.renderAdminMyApprovals=function(){
         <strong>${esc(r.empName)}</strong>
         <span style="font-size:11px;color:#888;">${role==='lineManager'?'As Line Manager':'As Additional Approver'}</span>
       </div>
-      <div style="font-size:13px;margin:4px 0;">${esc(r.leaveType)} — ${fmt(r.startDate)} to ${fmt(r.endDate)} (${r.totalDays} day${r.totalDays>1?'s':''})</div>
+      <div style="font-size:13px;margin:4px 0;">${esc(r.leaveType)} — ${fmt(r.startDate)} to ${fmt(r.endDate)} (${r.totalDays} day${r.totalDays>1?'s':''})${r.workWeek?' · '+esc(alWWName(r.workWeek)):''}</div>
       ${r.reason?`<div style="font-size:12px;color:#555;">Reason: ${esc(r.reason)}</div>`:''}
       ${r.hrComments?`<div style="font-size:12px;color:#1A7A6E;">HR note: ${esc(r.hrComments)}</div>`:''}
+      ${r.alCalc?alBox('Leave calculation: '+r.alCalc,!!r.alCalcRed):''}
       <textarea id="apc_${k}" rows="2" placeholder="Optional comment" style="width:100%;margin-top:8px;padding:6px;border:1px solid #ddd;border-radius:5px;font-size:12px;"></textarea>
       <div class="btn-row" style="margin-top:8px;">
         <button class="btn btn-sm btn-primary" onclick="decideLeaveApproval('${k}','${role}',true)">✓ Approve</button>
@@ -3869,9 +4074,9 @@ window.renderHRReviewQueue=function(){
     const noManager=!r.lineManagerKey;
     return`<tr style="${escalated?'background:#fdecea;':''}">
       <td><strong>${esc(r.empName)}</strong></td>
-      <td>${esc(r.leaveType)}</td>
+      <td>${esc(r.leaveType)}${r.workWeek?'<br><span style="font-size:10.5px;color:#555;">'+esc(alWWName(r.workWeek))+'</span>':''}</td>
       <td>${fmt(r.startDate)} – ${fmt(r.endDate)}${currentRole==='admin'?leaveCoverHtml(k,r):''}</td>
-      <td>${reqDays(r)}${reqDays(r)!==r.totalDays?'<br><span style="color:#c0392b;font-size:10px;font-weight:700;">⚠ staff entered '+esc(r.totalDays)+'</span>':''}</td>
+      <td>${reqDays(r)}${reqDays(r)!==r.totalDays?'<br><span style="color:#c0392b;font-size:10px;font-weight:700;">⚠ staff entered '+esc(r.totalDays)+'</span>':''}${alReqHtml(r)}</td>
       <td style="font-size:11px;max-width:180px;">${esc(r.reason||'—')}${r.attachmentName?'<br>📎 '+esc(r.attachmentName):''}
         ${r.nativeAddress?'<br><strong>Address:</strong> '+esc(r.nativeAddress):''}
         ${r.nativeContact?'<br><strong>Contact:</strong> '+esc(r.nativeContact):''}
@@ -3905,6 +4110,11 @@ window.renderHRReviewQueue=function(){
   renderHandoverTable(canAct);
   const ow=document.getElementById('hlOnBehalfWrap');if(ow)ow.style.display=canAct?'block':'none';
 };
+function alReqEffect(r){
+  if(!r||!alWW(r.workWeek)||!AL_JOIN.has(leaveKind(r.leaveType))||!AL_DATE.test(String(r.startDate||''))||!AL_DATE.test(String(r.endDate||'')))return null;
+  try{return alRequestEffect(r.empName,{type:r.leaveType,from:r.startDate,to:r.endDate,workWeek:r.workWeek});}catch(e){return null;}
+}
+function alReqHtml(r){const eff=alReqEffect(r);if(!eff)return'';const txt=alEffectText(eff);return txt?'<div style="max-width:240px;">'+alBox(txt,eff.unpaid>0&&!eff.unpaidType||eff.uncovered.length>0)+'</div>':'';}
 function reqDays(r){return r.leaveType==='Half Day Leave'?0.5:Math.ceil((new Date(r.endDate)-new Date(r.startDate))/86400000)+1;}
 window.completeHRReview=function(key){
   const r=DB.leaveRequests[key];
@@ -3914,7 +4124,10 @@ window.completeHRReview=function(key){
   if(!(realDays>=0.5&&realDays<=366)){alert('The dates on this request are not valid. Please reject it and ask the employee to submit again.');return;}
   if(r.leaveType==='Half Day Leave'&&r.startDate!==r.endDate){alert('A half-day request must be for a single date. Please reject it and ask the employee to submit again.');return;}
   const fixed=realDays!==r.totalDays;
-  set(ref(db,'leaveRequests/'+key),{...r,totalDays:realDays,stage:'Line Manager Approval',hrReviewedBy:adminName,hrReviewedAt:Date.now(),hrComments:comments}).then(()=>{
+  const alEff=alReqEffect(r),alTxt=alEff?alEffectText(alEff):'';
+  const fwd={...r,totalDays:realDays,stage:'Line Manager Approval',hrReviewedBy:adminName,hrReviewedAt:Date.now(),hrComments:comments};
+  if(alTxt){fwd.alCalc=alTxt.slice(0,1500);fwd.alCalcRed=!!((alEff.unpaid>0&&!alEff.unpaidType)||alEff.uncovered.length);}
+  set(ref(db,'leaveRequests/'+key),fwd).then(()=>{
     logAudit('HR Review Completed',r.empName,(comments||'')+(fixed?' [days corrected from '+r.totalDays+' to '+realDays+']':''));
   });
 };
@@ -3952,10 +4165,12 @@ window.syncApprovedLeaveRequests=function(){
         status:'Approved',approvedBy:r.lineManagerName||'Line Manager',
         reason:r.reason,ts:Date.now(),source:'Employee Self-Service Request',
         ...(r.leaveType==='Half Day Leave'?{days:'0.5'}:{}),
-        ...(compRelation(null,r.reason)?{relation:compRelation(null,r.reason)}:{})
+        ...(compRelation(null,r.reason)?{relation:compRelation(null,r.reason)}:{}),
+        ...(alWW(r.workWeek)?{workWeek:alWW(r.workWeek)}:{})
       });
       const emp=Object.entries(DB.employees).find(([ek,e])=>ek===r.empKey);
-      const ded=leaveDeductFor(r.leaveType,r.totalDays,compRelation(null,r.reason));
+      let ded=leaveDeductFor(r.leaveType,r.totalDays,compRelation(null,r.reason));
+      if(alWW(r.workWeek)&&leaveKind(r.leaveType)==='annual'){try{const ef=alRequestEffect(r.empName,{type:r.leaveType,from:r.startDate,to:r.endDate,workWeek:r.workWeek});if(ef)ded=Math.max(0,ef.counted);}catch(e){}}
       if(emp&&ded>0&&emp[1].annualLeaveBalance!=null){
         const newBal=Math.max(0,parseFloat(emp[1].annualLeaveBalance)-ded);
         set(ref(db,'employees/'+r.empKey+'/annualLeaveBalance'),newBal);
@@ -4123,9 +4338,10 @@ window.renderMyApprovals=function(){
         <strong>${esc(r.empName)}</strong>
         <span style="font-size:11px;color:#888;">${role==='lineManager'?'As Line Manager':'As Additional Approver'}</span>
       </div>
-      <div style="font-size:13px;margin:4px 0;">${esc(r.leaveType)} — ${fmt(r.startDate)} to ${fmt(r.endDate)} (${r.totalDays} day${r.totalDays>1?'s':''})</div>
+      <div style="font-size:13px;margin:4px 0;">${esc(r.leaveType)} — ${fmt(r.startDate)} to ${fmt(r.endDate)} (${r.totalDays} day${r.totalDays>1?'s':''})${r.workWeek?' · '+esc(alWWName(r.workWeek)):''}</div>
       ${r.reason?`<div style="font-size:12px;color:#555;">Reason: ${esc(r.reason)}</div>`:''}
       ${r.hrComments?`<div style="font-size:12px;color:#1A7A6E;">HR note: ${esc(r.hrComments)}</div>`:''}
+      ${r.alCalc?alBox('Leave calculation: '+r.alCalc,!!r.alCalcRed):''}
       <textarea id="apc_${k}" rows="2" placeholder="Optional comment" style="width:100%;margin-top:8px;padding:6px;border:1px solid #ddd;border-radius:5px;font-size:12px;"></textarea>
       <div class="btn-row" style="margin-top:8px;">
         <button class="btn btn-sm btn-primary" onclick="decideLeaveApproval('${k}','${role}',true)">✓ Approve</button>
@@ -4373,6 +4589,7 @@ window.calcLRDays=function(){
   const d=Math.ceil((new Date(to)-new Date(from))/86400000)+1;
   sv('lrDays',d>0?d+' day'+(d>1?'s':''):'Invalid dates');
   updateLeaveFormVisibility();
+  try{alStaffShow();}catch(e){}
 };
 window.submitLeaveRequest=async function(){
   const leaveType=v('lrType'),startDate=v('lrStart');
@@ -4385,6 +4602,8 @@ window.submitLeaveRequest=async function(){
     reason=('[Relationship: '+(rel==='spouse'?'Spouse':'Parent/Child/Sibling/Grandparent/Grandchild')+'] '+reason).trim();
   }
   if(!startDate||!endDate){alert(half?'Please select the date.':'Please select both a start and end date.');return;}
+  const workWeek=v('lrWorkWeek');
+  if(!alWW(workWeek)){alert('Please choose where you work: Site based or Office based.');return;}
   const totalDays=half?0.5:Math.ceil((new Date(endDate)-new Date(startDate))/86400000)+1;
   if(totalDays<0.5){alert('End date must be on or after the start date.');return;}
   const e=DB.employees[currentEmpKey];
@@ -4394,9 +4613,11 @@ window.submitLeaveRequest=async function(){
     alert('This leave request is not aligned with company rule / protocol.\n\nLeave of '+lnDaysTxt(totalDays)+' needs '+nc.rule.label+' advance notice (earliest start date: '+fmt(nc.earliest)+').\n\nPlease contact the HR department.');
     return;
   }
+  {let alT='';try{alT=alStaffShow()||'';}catch(err){alT='';}
+   if(alT&&!confirm('Please note about this leave:\n\n'+alT+'\n\nHR confirms the final count. Submit anyway?'))return;}
   if(nc&&nc.advisory&&!confirm('HR notice: leave of '+lnDaysTxt(totalDays)+' needs '+nc.rule.label+' advance notice (earliest start date: '+fmt(nc.earliest)+').\n\nYour notice is shorter than this, so HR may not approve it.\n\nSubmit anyway?'))return;
   const record={
-    empKey:currentEmpKey,empName:e.name,leaveType,startDate,endDate,totalDays,reason,
+    empKey:currentEmpKey,empName:e.name,leaveType,startDate,endDate,totalDays,reason,workWeek:alWW(workWeek),
     nativeAddress:needsExtra?v('lrNativeAddress'):'',
     nativeContact:needsExtra?v('lrNativeContact'):'',
     relieverName:needsExtra?v('lrReliever'):'',
@@ -8100,6 +8321,7 @@ function renderLeave(data){
   const rows=data||Object.entries(DB.leave).sort((a,b)=>(b[1].empName||'').localeCompare(a[1].empName||''));
   const tbody=document.getElementById('leaveBody');
   paintLeaveTabs();
+  try{alRenderCheck();}catch(e){}
   const nameIdx=buildNameIndex();
   const arch=window._leaveView==='archive';
   const hintEl=document.getElementById('leaveArchiveHint');if(hintEl)hintEl.innerHTML='';
@@ -9092,17 +9314,25 @@ window.renderExpiry=renderExpiry;
 
 // ── HOLIDAYS ──────────────────────────────────────────────────────────────────
 window.saveHoliday=function(){
-  const data={name:v('holName'),date:v('holDate'),type:v('holType'),ts:Date.now()};
+  const data={name:v('holName'),date:v('holDate'),type:v('holType'),status:v('holStatus')||'provisional',ts:Date.now()};
   if(!data.name||!data.date){alert('Name and date required');return;}
   set(push(ref(db,'holidays')),data).then(()=>{logAudit('Add Holiday',data.name,data.date);showAlert('hol-alert','Holiday saved!');sv('holName','');sv('holDate','');});
+};
+window.holSetStatus=function(k,st){
+  const h=(DB.holidays||{})[k];if(!h)return;
+  const msg=st==='confirmed'?'Confirm "'+h.name+'" ('+h.date+') as a public holiday? Leave around it becomes final.':st==='provisional'?'Mark "'+h.name+'" ('+h.date+') as provisional (not yet confirmed)? Leave around it is shown as tentative.':'Mark "'+h.name+'" ('+h.date+') as NOT a holiday? It becomes a normal working day, and leave around it is re-checked.';
+  if(!confirm(msg))return;
+  set(ref(db,'holidays/'+k),Object.assign({},h,{status:st,statusAt:Date.now(),statusBy:adminName||''})).then(()=>{logAudit(st==='confirmed'?'Holiday confirmed':st==='provisional'?'Holiday set to provisional':'Holiday marked not a holiday',h.name,h.date);showAlert('hol-alert',st==='confirmed'?'Holiday confirmed.':st==='provisional'?'Marked as provisional.':'Marked as not a holiday.');}).catch(()=>{});
 };
 function renderHolidays(){
   const list=Object.entries(DB.holidays).sort((a,b)=>a[1].date>b[1].date?1:-1);
   document.getElementById('holList').innerHTML=list.length?list.map(([k,h])=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f0f0f0;">
-    <div><strong style="font-size:13px;">${esc(h.name)}</strong><br><span style="font-size:11px;color:#888;">${h.date} · ${esc(h.type)}</span></div>
-    <button class="btn btn-sm btn-danger" onclick="remove(ref(window._db,'holidays/${k}'))">✕</button>
+    <div><strong style="font-size:13px;${alHolStatus(h)==='cancelled'?'text-decoration:line-through;color:#999;':''}">${esc(h.name)}</strong> ${alHolStatus(h)==='confirmed'?'<span class="badge badge-approved">Confirmed</span>':alHolStatus(h)==='provisional'?'<span class="badge badge-pending">Provisional</span>':'<span class="badge badge-rejected">Not a holiday (normal working day)</span>'}<br><span style="font-size:11px;color:#888;">${h.date} · ${esc(h.type)}</span></div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;">${currentRole==='admin'?(alHolStatus(h)!=='confirmed'?`<button class="btn btn-sm btn-primary" onclick="holSetStatus('${k}','confirmed')">Confirm</button>`:'')+(alHolStatus(h)==='confirmed'?`<button class="btn btn-sm" style="background:#eef1f5;color:#444;" title="Not yet confirmed by the UAE authorities" onclick="holSetStatus('${k}','provisional')">Mark provisional</button>`:'')+(alHolStatus(h)!=='cancelled'?`<button class="btn btn-sm" style="background:#fff4dc;color:#7a5a00;" title="The authorities did not confirm this day: it becomes a normal working day" onclick="holSetStatus('${k}','cancelled')">Not a holiday</button>`:''):''}
+    <button class="btn btn-sm btn-danger" onclick="if(confirm('Delete this holiday? If it was announced and then cancelled, use Not a holiday instead so leave around it is checked.'))remove(ref(window._db,'holidays/${k}'))">✕</button></div>
   </div>`).join(''):'<div class="empty-state"><p>No holidays added.</p></div>';
   window._db=db;
+  try{alRenderCheck();}catch(e){}
 }
 
 // ── ORG CHART ─────────────────────────────────────────────────────────────────
@@ -11810,8 +12040,21 @@ function refreshLeaveSummary(empName){
     return'';};
   const adjs=Object.values(DB.leaveAdjustments||{}).filter(a=>leaveBelongsTo(a,empName,lsIdx)&&String(a.year)===lsY);
   const adjTotal=adjs.reduce((s,a)=>s+parseFloat(a.days||0),0);
-  const totalUsed=alDays; // only leave that really comes off the annual balance (see leaveDeductFor)
-  const balance=entitled+adjTotal-totalUsed;
+  // New annual leave rules (only for leave booked with the Site / Office choice; older records as before)
+  let alS=null;try{alS=alYearSummary(empName,lsY,null,lsIdx);}catch(e){alS=null;}
+  const totalEnt=entitled+adjTotal;
+  const totalUsed=alS?alS.used:alDays; // only leave that really comes off the annual balance (see leaveDeductFor)
+  const balance=alS?alS.balance:entitled+adjTotal-totalUsed;
+  {const nb=document.getElementById('lsAlcNote');if(nb){const L=[];let red=false;
+    if(alS){
+      if(alS.added.length)L.push('Added to annual leave: '+alAddedTxt(alS.added)+'.');
+      if(alS.dropped.length)L.push('Booked but not counted (day off at the edge of a short leave): '+alS.dropped.map(alNice).join(', ')+'.');
+      if(alS.over>0){red=true;L.push(alS.over+' day'+(alS.over>1?'s':'')+' UNPAID: annual leave counted ('+alS.counted+') is more than the entitlement ('+totalEnt+'). Leave cannot be taken from next year.');}
+      if(alS.bookedUnpaid)L.push(alS.bookedUnpaid+' day'+(alS.bookedUnpaid>1?'s':'')+' booked as unpaid leave. Total unpaid this year: '+alS.unpaid+'.');
+      if(alS.uncovered.length){red=true;L.push('Working days not covered by any leave (holiday cancelled): '+alS.uncovered.map(alNice).join(', ')+'.');}
+      if(alS.tentative.length)L.push('Tentative: holiday not yet confirmed ('+alS.tentative.map(alNice).join(', ')+').');
+    }
+    nb.innerHTML=L.length?alBox(L.join(' '),red).replace('margin-top:6px;','margin:0 0 12px;'):'';}}
   const pct=entitled>0?Math.min(100,Math.max(0,(balance/(entitled+adjTotal))*100)):0;
   document.getElementById('lsEntitled').textContent=(entitled+adjTotal);
   document.getElementById('lsUsed').textContent=totalUsed.toFixed(1);
