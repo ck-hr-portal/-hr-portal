@@ -241,6 +241,7 @@ tr:hover td{background:#fafbfc;}
       </div>
     </div>
 
+    <div id="empMyAnni"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
       <div class="card">
         <div class="card-title">🎂 Upcoming Birthdays</div>
@@ -2934,7 +2935,7 @@ async function syncStaffMirrors(){
       });
       hist.sort((a,b)=>(b.f>a.f?1:b.f<a.f?-1:0));
       newView[k]=prune({
-        empId:e.empId,name:e.name,dept:e.dept,desig:e.desig,entity:e.entity,
+        empId:e.empId,name:e.name,dept:e.dept,desig:e.desig,entity:e.entity,join:e.join,
         passport:e.passport,passExp:e.passExp,visa:e.visa,visaExp:e.visaExp,
         eid:e.eid,eidExp:e.eidExp,lab:e.lab,labExp:e.labExp,
         annualLeaveBalance:e.annualLeaveBalance,
@@ -3843,6 +3844,7 @@ function initEmployeeListeners(empKey,uid){
     if(!view){staffAccessLost();return;}
     DB.employees={[empKey]:view}; // keep just this one record locally
     renderMyInfo(view);
+    try{const box=document.getElementById('empMyAnni');if(box)box.innerHTML=myAnniMsgHtml();}catch(err){}
     try{renderStaffGreeting();}catch(e){}
     renderMyLeaveBalance(view);
     renderMyComp(view);
@@ -4222,7 +4224,32 @@ function buildLeaveStageBreakdown(r){
   else overall={label:'Overall',status:'In Progress — currently at '+r.stage,ok:null};
   return{lines,overall};
 }
+// Personal work-anniversary message, shown only in the employee's own portal, every year,
+// from the anniversary day for 7 days. Milestones (5, 10, 15, 20, 25) also appear on all dashboards as before.
+function myAnniMsgHtml(){
+  const e=DB.employees&&DB.employees[currentEmpKey];if(!e||!e.join||!/^\d{4}-\d{2}-\d{2}/.test(String(e.join)))return'';
+  const [jy,jm,jd]=String(e.join).slice(0,10).split('-').map(Number);
+  const now=new Date(),t0=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const occ=new Date(t0.getFullYear(),jm-1,jd),years=t0.getFullYear()-jy,since=Math.round((t0-occ)/864e5);
+  if(years<1||since<0||since>6)return'';
+  const ord=n=>n+(n%100>=11&&n%100<=13?'th':['th','st','nd','rd'][n%10]||'th');
+  const first=String(e.name||'').trim().split(/\s+/)[0]||'';
+  const co=e.entity?(/ckc/i.test(e.entity)?'CKC Building Contracting':'CK Architecture Interiors'):'the company';
+  const when=since===0?'Today you complete':'This week you completed';
+  const ms=[5,10,15,20,25,30].includes(years);
+  const body=ms
+    ?`${when} <b>${years} years</b> with ${co}. That is a true milestone. Thank you for your loyalty, your dedication and everything you have contributed over these years. Your experience makes our whole team stronger, and we look forward to many more achievements together.`
+    :`${when} <b>${years} year${years>1?'s':''}</b> with ${co}. Thank you for your hard work, your commitment and the difference you make every day. We are proud to have you on the team and look forward to growing together in the year ahead.`;
+  return `<div class="card" style="border:1.5px solid #E6C977;background:linear-gradient(135deg,#FFFBF0,#FFF4DA);margin-bottom:16px;">
+    <div style="display:flex;gap:14px;align-items:flex-start;">
+      <div style="flex-shrink:0;background:${ms?'#C9A84C':'#1C3557'};color:#fff;border-radius:50%;width:52px;height:52px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;">${years}Y</div>
+      <div><div style="font-size:16px;font-weight:700;color:#1C3557;margin-bottom:4px;">🎉 Happy ${ord(years)} work anniversary${first?', '+esc(first):''}!</div>
+      <div style="font-size:13.5px;line-height:1.55;color:#333;">${body}</div>
+      <div style="font-size:12.5px;color:#7a5a00;margin-top:8px;font-weight:600;">With appreciation, HR and Management</div></div>
+    </div></div>`;
+}
 function renderEmpBirthdaysAnniversaries(){
+  {const box=document.getElementById('empMyAnni');if(box)box.innerHTML=myAnniMsgHtml();}
   const bdayEl=document.getElementById('empBdayList');
   const anniEl=document.getElementById('empAnniList');
   if(!bdayEl&&!anniEl)return;
@@ -8321,7 +8348,7 @@ function renderLeave(data){
   const rows=data||Object.entries(DB.leave).sort((a,b)=>(b[1].empName||'').localeCompare(a[1].empName||''));
   const tbody=document.getElementById('leaveBody');
   paintLeaveTabs();
-  try{alRenderCheck();}catch(e){}
+  if(!data){clearTimeout(window._alChkT);window._alChkT=setTimeout(()=>{try{alRenderCheck();}catch(e){}},300);} // leave check: only when the data changes (not on search), and after the page has drawn
   const nameIdx=buildNameIndex();
   const arch=window._leaveView==='archive';
   const hintEl=document.getElementById('leaveArchiveHint');if(hintEl)hintEl.innerHTML='';
@@ -8373,12 +8400,15 @@ function renderLeave(data){
   });
   tbody.innerHTML=html2;
 }
-window.filterLeave=function(){
+// Search waits until typing pauses, so each key press does not redraw the whole register
+let _leaveFilterT=null;
+window.filterLeave=function(){clearTimeout(_leaveFilterT);_leaveFilterT=setTimeout(filterLeaveNow,250);};
+function filterLeaveNow(){
   const q=v('leaveSearch').toLowerCase(),type=document.getElementById('leaveTypeF').value,status=document.getElementById('leaveStatusF').value;
   const fIdx=buildNameIndex();
   const filtered=Object.entries(DB.leave).filter(([k,l])=>(!q||(l.empName||'').toLowerCase().includes(q)||leaveGroupName(l.empName,fIdx).toLowerCase().includes(q))&&(!type||l.type===type)&&(!status||l.status===status));
   renderLeave(filtered);
-};
+}
 window.openLeaveModal=function(){
   ['lvEmp','lvEmpKey','lvFrom','lvTo','lvApproved','lvNotes','lvRel'].forEach(id=>sv(id,''));
   sv('lvKey','');sv('lvType','Annual Leave');sv('lvStatus','Approved');
