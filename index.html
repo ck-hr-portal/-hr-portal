@@ -4680,6 +4680,7 @@ function applyPROMode(){
     #page-leaveapprovals button[onclick*="Adjust"], #page-leaveapprovals button[onclick*="cancelApproved"], #page-leaveapprovals button[onclick*="markLeaveUnpaid"], #page-leaveapprovals button[onclick*="LeaveHandover"], #page-leaveapprovals button[onclick*="completeHRReview"], #page-leaveapprovals button[onclick*="returnLeave"], #page-leaveapprovals button[onclick*="rejectLeave"], #page-leaveapprovals textarea { display: none !important; }
     button[onclick*="openHRLeaveOnBehalf"], button[onclick*="saveOrgChart"], button[onclick*="addOrgChartNote"], button[onclick*="delOrgChart"] { display: none !important; }
     #empModal .pro-locked-note { display: block !important; }
+    #page-reports .card[onclick*="'loans'"], #page-reports .card[onclick*="'salary'"], #page-reports .card:has(button[onclick*="'gratuity'"]), #page-reports .card:has(#profileEmpSel) { display: none !important; }
   `;
   document.head.appendChild(style);
   document.getElementById('syncStatus').textContent='● PRO Access';
@@ -10812,6 +10813,7 @@ window.finalizeOfferDoc=async function(){
 
 // ── REPORTS & EXCEL DOWNLOADS ─────────────────────────────────────────────────
 window.runProfileReport=function(){
+  if(currentRole==='pro'){alert('This report is not available for your access.');return;}
   const val=document.getElementById('profileEmpSel').value;
   if(!val){alert('Please select an employee first');return;}
   const parts=val.split('|');
@@ -10969,6 +10971,7 @@ window.runProfileReport=function(){
 
 
 window.runProfilePDF=async function(){
+  if(currentRole==='pro'){alert('This report is not available for your access.');return;}
   // Load jsPDF dynamically
   if(!window.jspdf){
     await new Promise((resolve,reject)=>{
@@ -11208,6 +11211,7 @@ window.runProfilePDF=async function(){
 };
 
 window.runGratuityPDF=async function(entity){
+  if(currentRole==='pro'){alert('This report is not available for your access.');return;}
   // Load jsPDF dynamically
   if(!window.jspdf){
     await new Promise((resolve,reject)=>{
@@ -11688,6 +11692,7 @@ window.runReportPDF=function(type){
 };
 
 window.runReport=function(type){
+  if(currentRole==='pro'&&/^(loans|salary|gratuity)/.test(String(type))){alert('This report is not available for your access.');return;}
   const emps=Object.values(DB.employees);
   const now=new Date();
   let ws_data=[], filename='', sheetname='';
