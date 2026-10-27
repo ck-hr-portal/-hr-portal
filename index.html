@@ -4672,6 +4672,14 @@ function applyPROMode(){
     .nav-item[onclick*="'settlement'"] { display: none !important; }
     #navUsage, #page-usage, #navLrep, #page-lrep, #navLro, #page-lro, #navLq, #page-lq, #navCost, #navProv, #page-cost, #page-prov, #navChecklists, #navAck, #navUnans, #page-checklists, #page-ack, #page-unanswered, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #navBackup, #backupBanner, #page-backup, #voiceToggleBtn, .briefBtn, #navHeadcount, #navSimulator, #page-headcount, #page-simulator, #greetCard, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }
     button[onclick*="openEmpModal"], button[onclick="delEmp"], button[onclick*="delEmp("] { display: none !important; }
+    /* Oct 2026: Kashif (PRO) access as agreed with HR. The database rules enforce the same limits. */
+    .nav-item[onclick*="'salary'"], #page-salary, .nav-item[onclick*="'flight'"], #page-flight,
+    .nav-item[onclick*="'holidays'"], #page-holidays, .nav-item[onclick*="'announcements'"], #page-announcements { display: none !important; }
+    #page-workforce button[onclick*="downloadWorkforce"], #page-workforce button[onclick*="wfSet"], #page-workforce button[onclick*="Skill"], #page-workforce button[onclick*="Grade"], #page-workforce select[id^="wfSk_"], #wfSetupCard { display: none !important; }
+    button[onclick*="openLeaverModal"], button[onclick*="editLeaver("], button[onclick*="deleteLeaver("], button[onclick*="addInactiveToLeavers("], button[onclick*="finalizeSettlementAndAddToLeavers("] { display: none !important; }
+    #page-leaveapprovals button[onclick*="Adjust"], #page-leaveapprovals button[onclick*="cancelApproved"], #page-leaveapprovals button[onclick*="markLeaveUnpaid"], #page-leaveapprovals button[onclick*="LeaveHandover"], #page-leaveapprovals button[onclick*="completeHRReview"], #page-leaveapprovals button[onclick*="returnLeave"], #page-leaveapprovals button[onclick*="rejectLeave"], #page-leaveapprovals textarea { display: none !important; }
+    button[onclick*="openHRLeaveOnBehalf"], button[onclick*="saveOrgChart"], button[onclick*="addOrgChartNote"], button[onclick*="delOrgChart"] { display: none !important; }
+    #empModal .pro-locked-note { display: block !important; }
   `;
   document.head.appendChild(style);
   document.getElementById('syncStatus').textContent='● PRO Access';
@@ -4692,10 +4700,14 @@ function applyPROFieldLock(){
   if(currentRole!=='pro')return;
   const modal=document.getElementById('empModal');
   if(!modal)return;
-  modal.querySelectorAll('input, select, textarea').forEach(el=>{
-    if(!PRO_EDITABLE_FIELDS.includes(el.id))el.disabled=true;
-    else el.disabled=false;
+  const uae=!!empModalUAE&&isUAENational(DB.employees[v('eEditKey')]||{});
+  modal.querySelectorAll('input, select, textarea, button[onclick*="Family"], button[onclick*="family"]').forEach(el=>{
+    if(el.id==='eEditKey')return;
+    el.disabled=uae?false:!PRO_EDITABLE_FIELDS.includes(el.id);
   });
+  let note=document.getElementById('proLockNote');
+  if(!note){note=document.createElement('div');note.id='proLockNote';note.style.cssText='margin:0 0 10px;padding:8px 10px;border-radius:6px;background:#fff4dc;color:#7a5a00;font-size:12px;font-weight:600;';const body=modal.querySelector('.modal')||modal.firstElementChild;if(body)body.insertBefore(note,body.firstChild.nextSibling);}
+  note.textContent=uae?'UAE national: you can edit this record.':'View only, except Documents & Expiry: passport, visa, Emirates ID and labour card (numbers and expiry dates).';
 }
 
 function getAnniversaries(){
@@ -8170,6 +8182,17 @@ window.editEmp=function(key,uaeMode){
 
 window.saveEmp=function(){
   const editKeyForSave=document.getElementById('eEditKey').value;
+  if(currentRole==='pro'&&!(empModalUAE&&isUAENational(DB.employees[editKeyForSave]||{})&&isUAENational({nationality:v('eNat')}))){
+    // Kashif (PRO): only passport, visa, Emirates ID and labour card details are saved
+    if(!editKeyForSave){alert('Only HR can add employees.');return;}
+    const map={passport:'ePassport',passExp:'ePassExp',visa:'eVisa',visaExp:'eVisaExp',eid:'eEid',eidExp:'eEidExp',lab:'eLab',labExp:'eLabExp'};
+    const old=DB.employees[editKeyForSave]||{};const changed=Object.keys(map).filter(f=>String(old[f]||'')!==String(v(map[f])||''));
+    if(!changed.length){closeModal('empModal');return;}
+    Promise.all(changed.map(f=>set(ref(db,'employees/'+editKeyForSave+'/'+f),v(map[f])||''))).then(()=>{
+      logAudit('Edit Employee Documents',old.name||'',changed.join(', '));closeModal('empModal');showAlert('emp-alert','Document details updated.');
+    }).catch(()=>alert('Could not save. Only passport, visa, Emirates ID and labour card details can be changed.'));
+    return;
+  }
   // Start from the existing record (if any) so fields this form doesn't manage — Portal
   // Access username/password/enabled being the critical ones — survive every save, not
   // just the fields listed below. Only an explicit admin action should ever change those.
@@ -8206,7 +8229,7 @@ window.saveEmp=function(){
   const op=key?set(ref(db,'employees/'+key),data):set(push(ref(db,'employees')),data);
   op.then(async()=>{
     logAudit(key?'Edit Employee':'Add Employee',data.name,`ID:${data.empId} Dept:${data.dept}`);
-    if(key&&data.status==='Inactive')await syncToLeaversIfInactive(key,data);
+    if(key&&data.status==='Inactive'&&currentRole!=='pro')await syncToLeaversIfInactive(key,data);
     closeModal('empModal');showAlert('emp-alert',`Employee ${key?'updated':'added'} successfully!`);
   });
 };
