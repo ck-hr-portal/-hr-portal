@@ -4040,7 +4040,7 @@ window.renderAdminMyApprovals=function(){
     {card:document.getElementById('dashMyApprovalsCard'),body:document.getElementById('dashMyApprovalsBody')}
   ].filter(t=>t.card&&t.body);
   if(!targets.length)return;
-  if(!myEmpKey){targets.forEach(t=>t.card.style.display='none');return;}
+  if(!myEmpKey||currentRole==='pro'){targets.forEach(t=>t.card.style.display='none');return;} // Kashif (PRO): Leave Approvals is view only
   const asManager=Object.entries(DB.leaveRequests||{}).filter(([k,r])=>r.lineManagerKey===myEmpKey&&r.stage==='Line Manager Approval'&&r.status!=='Rejected');
   const asAdditional=Object.entries(DB.leaveRequests||{}).filter(([k,r])=>r.additionalApproverKey===myEmpKey&&r.stage==='Additional Approval'&&r.status!=='Rejected');
   const items=[...asManager.map(([k,r])=>({k,r,role:'lineManager'})),...asAdditional.map(([k,r])=>({k,r,role:'additional'}))];
