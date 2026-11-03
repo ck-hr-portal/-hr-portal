@@ -242,6 +242,7 @@ tr:hover td{background:#fafbfc;}
     </div>
 
     <div id="empMyAnni"></div>
+    <div id="empLeaveAllCard"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
       <div class="card">
         <div class="card-title">🎂 Upcoming Birthdays</div>
@@ -565,6 +566,14 @@ tr:hover td{background:#fafbfc;}
           <div class="card-title">🔍 Data Quality Check</div>
           <p style="font-size:12px;color:#888;margin-bottom:8px;">Employees missing Join Date or Basic Salary won't appear correctly in Gratuity, Flight Allowance or reports until fixed.</p>
           <div id="d-dataq" style="max-height:220px;overflow-y:auto;"><div class="empty-state"><p>Checking...</p></div></div>
+        </div>
+        <div class="card" id="dashLeaveSumCard" style="display:none;margin-bottom:16px;border-top:3px solid #1C3557;">
+          <div class="card-title">🗓 Today's leave summary</div>
+          <div id="dashLeaveSumBody"></div>
+        </div>
+        <div class="card" id="dashUnpaidFlagCard" style="display:none;margin-bottom:16px;border-top:3px solid #c0392b;">
+          <div class="card-title">🚩 Unauthorised absence: repeat flags (last 3 months)</div>
+          <div id="dashUnpaidFlagBody"></div>
         </div>
         <div class="card" id="dashHRReviewCard" style="display:none;margin-bottom:16px;border-top:3px solid #e67e22;">
           <div class="card-title">⏳ Pending HR Review</div>
@@ -1513,6 +1522,7 @@ tr:hover td{background:#fafbfc;}
           <div class="card" style="cursor:pointer;border-top:3px solid #1A7A6E;" onclick="runReport('leavers')"><div class="card-title">🚪 Leavers Report</div><p style="font-size:12px;color:#888;">Exits with turnover % by dept</p><div class="btn-row"><button class="btn btn-sm btn-teal">📥 Download Excel</button><button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="event.stopPropagation();runReportPDF('leavers')">📄 PDF</button></div></div>
           <div class="card" style="cursor:pointer;border-top:3px solid #2563A8;" onclick="runReport('newhires')"><div class="card-title">🆕 New Hires Report</div><p style="font-size:12px;color:#888;">Joiners by period and department</p><div class="btn-row"><button class="btn btn-sm btn-primary">📥 Download Excel</button><button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="event.stopPropagation();runReportPDF('newhires')">📄 PDF</button></div></div>
           <div class="card" style="cursor:pointer;border-top:3px solid #8e44ad;" onclick="runReport('leave')"><div class="card-title">📅 Leave Summary</div><p style="font-size:12px;color:#888;">Leave by type, dept, employee</p><div class="btn-row"><button class="btn btn-sm" style="background:#8e44ad;color:#fff;">📥 Download Excel</button><button class="btn btn-sm" style="background:#6c3483;color:#fff;" onclick="event.stopPropagation();runReportPDF('leave')">📄 PDF</button></div></div>
+          <div class="card" style="cursor:pointer;border-top:3px solid #c0392b;" onclick="runReport('unpaid')"><div class="card-title">🚩 Unauthorised Absence &amp; Unpaid Leave</div><p style="font-size:12px;color:#888;">Unauthorised absence per employee and month with colour flags; approved unpaid leave (no colour); extensions (12 months)</p><div class="btn-row"><button class="btn btn-sm" style="background:#c0392b;color:#fff;">📥 Download Excel</button><button class="btn btn-sm" style="background:#922b21;color:#fff;" onclick="event.stopPropagation();runReportPDF('unpaid')">📄 PDF</button></div></div>
           <div class="card" style="cursor:pointer;border-top:3px solid #e67e22;" onclick="runReport('loans')"><div class="card-title">🏦 Loan Report</div><p style="font-size:12px;color:#888;">All loans — outstanding balances</p><div class="btn-row"><button class="btn btn-sm" style="background:#e67e22;color:#fff;">📥 Download Excel</button><button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="event.stopPropagation();runReportPDF('loans')">📄 PDF</button></div></div>
           <div class="card" style="cursor:pointer;border-top:3px solid #27ae60;" onclick="runReport('assets')"><div class="card-title">💼 Asset Register</div><p style="font-size:12px;color:#888;">All issued items per employee</p><div class="btn-row"><button class="btn btn-sm" style="background:#27ae60;color:#fff;">📥 Download Excel</button><button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="event.stopPropagation();runReportPDF('assets')">📄 PDF</button></div></div>
           <div class="card" style="cursor:pointer;border-top:3px solid #1C3557;" onclick="runReport('salary')"><div class="card-title">💹 Salary Changes</div><p style="font-size:12px;color:#888;">All increments and promotions</p><div class="btn-row"><button class="btn btn-sm btn-primary">📥 Download Excel</button><button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="event.stopPropagation();runReportPDF('salary')">📄 PDF</button></div></div>
@@ -1707,7 +1717,9 @@ tr:hover td{background:#fafbfc;}
       <div class="form-group"><label>From *</label><input type="date" id="lvFrom"></div>
       <div class="form-group"><label>To *</label><input type="date" id="lvTo"></div>
       <div class="form-group"><label>Approved By</label><input type="text" id="lvApproved"></div>
-      <div class="form-group"><label>Relationship (Compassionate leave only)</label><select id="lvRel"><option value="">— not applicable —</option><option value="spouse">Spouse (5 days not deducted)</option><option value="other">Parent / Child / Sibling / Grandparent / Grandchild (3 days not deducted)</option></select></div><div class="form-group form-full"><label>Notes</label><textarea id="lvNotes"></textarea></div>
+      <div class="form-group"><label>Relationship (Compassionate leave only)</label><select id="lvRel"><option value="">— not applicable —</option><option value="spouse">Spouse (5 days not deducted)</option><option value="other">Parent / Child / Sibling / Grandparent / Grandchild (3 days not deducted)</option></select></div>
+      <div class="form-group form-full"><label style="display:flex;gap:8px;align-items:center;font-weight:600;"><input type="checkbox" id="lvExt"> Extension of an approved annual leave (the employee asked HR to extend after the leave was approved)</label></div>
+      <div class="form-group form-full"><label style="display:flex;gap:8px;align-items:center;font-weight:600;color:#c0392b;"><input type="checkbox" id="lvUa"> Unauthorised absence: no prior approval (Unpaid Leave only; approved unpaid leave stays unticked)</label></div><div class="form-group form-full"><label>Notes</label><textarea id="lvNotes"></textarea></div>
     </div>
     <input type="hidden" id="lvKey">
     <div class="btn-row"><button class="btn btn-primary" onclick="saveLeave()">Save</button><button class="btn" onclick="closeModal('leaveModal')" style="background:#f0f0f0;">Cancel</button></div>
@@ -1998,7 +2010,9 @@ tr:hover td{background:#fafbfc;}
         <div class="form-group"><label>To</label><input type="date" id="alsTo"></div>
         <div class="form-group"><label>Days (override if needed)</label><input type="number" id="alsDays" step="0.5" placeholder="Leave blank to auto-calculate"></div>
         <div class="form-group"><label>Approved By</label><input type="text" id="alsApproved"></div>
-        <div class="form-group"><label>Relationship (Compassionate leave only)</label><select id="alsRel"><option value="">— not applicable —</option><option value="spouse">Spouse (5 days not deducted)</option><option value="other">Parent / Child / Sibling / Grandparent / Grandchild (3 days not deducted)</option></select></div><div class="form-group form-full"><label>Notes</label><textarea id="alsNotes" style="min-height:50px;"></textarea></div>
+        <div class="form-group"><label>Relationship (Compassionate leave only)</label><select id="alsRel"><option value="">— not applicable —</option><option value="spouse">Spouse (5 days not deducted)</option><option value="other">Parent / Child / Sibling / Grandparent / Grandchild (3 days not deducted)</option></select></div>
+      <div class="form-group form-full"><label style="display:flex;gap:8px;align-items:center;font-weight:600;"><input type="checkbox" id="alsExt"> Extension of an approved annual leave (the employee asked HR to extend after the leave was approved)</label></div>
+      <div class="form-group form-full"><label style="display:flex;gap:8px;align-items:center;font-weight:600;color:#c0392b;"><input type="checkbox" id="alsUa"> Unauthorised absence: no prior approval (Unpaid Leave only; approved unpaid leave stays unticked)</label></div><div class="form-group form-full"><label>Notes</label><textarea id="alsNotes" style="min-height:50px;"></textarea></div>
       </div>
       <div class="btn-row"><button class="btn btn-primary" onclick="saveLeaveFromSummary()">Save Leave Record</button></div>
     </div>
@@ -2021,7 +2035,9 @@ tr:hover td{background:#fafbfc;}
       <div class="form-group"><label>To</label><input type="date" id="elTo"></div>
       <div class="form-group"><label>Days</label><input type="number" id="elDays" step="0.5"></div>
       <div class="form-group"><label>Approved By</label><input type="text" id="elApproved"></div>
-      <div class="form-group"><label>Relationship (Compassionate leave only)</label><select id="elRel"><option value="">— not applicable —</option><option value="spouse">Spouse (5 days not deducted)</option><option value="other">Parent / Child / Sibling / Grandparent / Grandchild (3 days not deducted)</option></select></div><div class="form-group form-full"><label>Notes</label><textarea id="elNotes" style="min-height:55px;"></textarea></div>
+      <div class="form-group"><label>Relationship (Compassionate leave only)</label><select id="elRel"><option value="">— not applicable —</option><option value="spouse">Spouse (5 days not deducted)</option><option value="other">Parent / Child / Sibling / Grandparent / Grandchild (3 days not deducted)</option></select></div>
+      <div class="form-group form-full"><label style="display:flex;gap:8px;align-items:center;font-weight:600;"><input type="checkbox" id="elExt"> Extension of an approved annual leave (the employee asked HR to extend after the leave was approved)</label></div>
+      <div class="form-group form-full"><label style="display:flex;gap:8px;align-items:center;font-weight:600;color:#c0392b;"><input type="checkbox" id="elUa"> Unauthorised absence: no prior approval (Unpaid Leave only; approved unpaid leave stays unticked)</label></div><div class="form-group form-full"><label>Notes</label><textarea id="elNotes" style="min-height:55px;"></textarea></div>
     </div>
     <input type="hidden" id="elKey">
     <div class="btn-row">
@@ -2494,7 +2510,7 @@ async function startStaffSession(user){
     showLoginError('Your profile is not ready yet. Please contact HR.');
     return;
   }
-  currentAdmin=user.email||''; currentRole='employee'; currentEmpKey=m.empKey;
+  currentAdmin=user.email||''; currentRole='employee'; currentEmpKey=m.empKey; window._myLeaveView=m.leaveView===true;
   adminName=view.name||''; adminTitle=view.desig||''; adminSignName=view.name||'';
   initEmployeeListeners(m.empKey,user.uid);
   applyEmployeeMode();
@@ -2960,7 +2976,7 @@ async function syncStaffMirrors(){
     }
 
     // 3. Company-wide lists, kept small on purpose: only the next few weeks, and birthdays as day + month only
-    const sh={birthdays:{},anniversaries:{},leave:{},leaveAll:{},directory:{}};
+    const sh={birthdays:{},anniversaries:{},leave:{},leaveAll:{},leaveTyped:{},directory:{}};
     const milestones=[5,10,15,20,25,30];
     const nameIdx=buildNameIndex();
     Object.entries(DB.employees).forEach(([k,e])=>{
@@ -2991,8 +3007,9 @@ async function syncStaffMirrors(){
       const slug=slugDept(emp.dept);
       (sh.leave[slug]=sh.leave[slug]||{})[lk]={n:l.empName+(l.type==='Half Day Leave'?' (half day)':''),f:l.from,t:l.to};
       if(emp.status!=='Inactive')sh.leaveAll[lk]={n:l.empName+(l.type==='Half Day Leave'?' (half day)':''),d:emp.dept||'',f:l.from,t:l.to}; // name, dept and dates only: never the type of leave
+      if(emp.status!=='Inactive'&&l.from<=localDateStr(new Date(today0.getFullYear(),today0.getMonth(),today0.getDate()+30)))sh.leaveTyped[lk]={n:emp.name||l.empName,d:emp.dept||'',ty:(l.type||'')+(l.ext===true?' (extension)':''),f:l.from,t:l.to}; // with leave type: only for staff given access (rules)
     });
-    for(const part of ['birthdays','anniversaries','leave','leaveAll','directory']){
+    for(const part of ['birthdays','anniversaries','leave','leaveAll','leaveTyped','directory']){
       const nv=prune(sh[part]);
       if(stable(nv)!==stable(prune(_mirrorCache.shared[part]))){
         if(nv===undefined)await _fbRemove(ref(db,'staffShared/'+part));
@@ -3041,7 +3058,8 @@ window.renderPortalAccess=function(){
       if(e.portalEmail&&e.portalEmail.toLowerCase()!==email.toLowerCase())status+=`<br><span style="font-size:11px;color:#c0392b;">Login still uses the old email ${esc(e.portalEmail)}</span>`;
       const on=e.portalEnabled===true;
       actions=`<button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="resendStaffEmail('${k}')">Resend password email</button>
-        <button class="btn btn-sm ${on?'btn-danger':'btn-primary'}" onclick="toggleStaffAccess('${k}',${on?'false':'true'})">${on?'Turn access off':'Turn access on'}</button>`;
+        <button class="btn btn-sm ${on?'btn-danger':'btn-primary'}" onclick="toggleStaffAccess('${k}',${on?'false':'true'})">${on?'Turn access off':'Turn access on'}</button>
+        ${currentRole==='admin'?`<button class="btn btn-sm" style="background:${e.leaveView?'#e8f6f3':'#f4f6f8'};color:${e.leaveView?'#1A7A6E':'#555'};" title="See who is on leave: all staff, today and the next 30 days, with leave type" onclick="toggleLeaveView('${k}',${e.leaveView?'false':'true'})">${e.leaveView?'✓ Sees all leave':'Let see all leave'}</button>`:''}`;
     }
     return`<tr>
       <td><strong>${esc(e.name||'')}</strong><br><span style="font-size:11px;color:#888;">${esc(e.empId||'')} — ${esc(e.dept||'')}</span></td>
@@ -3876,7 +3894,8 @@ function initEmployeeListeners(empKey,uid){
   try{lqEmpInit(empKey);}catch(e){console.error(e);}
   // Company-wide content and low-sensitivity shared lists
   optional(ref(db,'holidays'),snap=>{DB.holidays=snap.val()||{};});
-  _staffUnsubs.push(onValue(ref(db,'staffShared/leaveAll'),snap=>{DB.leaveAll=snap.val()||{};},()=>{DB.leaveAll=null;})); // company-wide leave (name, dept, dates). Needs the updated rules; falls back to own department without them
+  _staffUnsubs.push(onValue(ref(db,'staffShared/leaveAll'),snap=>{DB.leaveAll=snap.val()||{};},()=>{DB.leaveAll=null;}));
+  if(window._myLeaveView)_staffUnsubs.push(onValue(ref(db,'staffShared/leaveTyped'),snap=>{DB.leaveTyped=snap.val()||{};renderEmpLeaveAll();},()=>{DB.leaveTyped=null;renderEmpLeaveAll();})); // company-wide leave (name, dept, dates). Needs the updated rules; falls back to own department without them
   _staffUnsubs.push(onValue(ref(db,'staffShared/directory'),snap=>{DB.directory=snap.val()||{};},()=>{DB.directory=null;})); // names + departments of current staff
   optional(ref(db,'staffShared/birthdays'),snap=>{DB.sharedBdays=snap.val()||{};renderEmpBirthdaysAnniversaries();});
   optional(ref(db,'staffShared/anniversaries'),snap=>{DB.sharedAnnis=snap.val()||{};renderEmpBirthdaysAnniversaries();});
@@ -4680,7 +4699,7 @@ function applyPROMode(){
     #page-leaveapprovals button[onclick*="Adjust"], #page-leaveapprovals button[onclick*="cancelApproved"], #page-leaveapprovals button[onclick*="markLeaveUnpaid"], #page-leaveapprovals button[onclick*="LeaveHandover"], #page-leaveapprovals button[onclick*="completeHRReview"], #page-leaveapprovals button[onclick*="returnLeave"], #page-leaveapprovals button[onclick*="rejectLeave"], #page-leaveapprovals textarea { display: none !important; }
     button[onclick*="openHRLeaveOnBehalf"], button[onclick*="saveOrgChart"], button[onclick*="addOrgChartNote"], button[onclick*="delOrgChart"] { display: none !important; }
     #empModal .pro-locked-note { display: block !important; }
-    #page-reports .card[onclick*="'loans'"], #page-reports .card[onclick*="'salary'"], #page-reports .card:has(button[onclick*="'gratuity'"]), #page-reports .card:has(#profileEmpSel) { display: none !important; }
+    #page-reports .card[onclick*="'loans'"], #page-reports .card[onclick*="'salary'"], #page-reports .card[onclick*="'unpaid'"], #page-reports .card:has(button[onclick*="'gratuity'"]), #page-reports .card:has(#profileEmpSel) { display: none !important; }
   `;
   document.head.appendChild(style);
   document.getElementById('syncStatus').textContent='● PRO Access';
@@ -7789,6 +7808,7 @@ function updateDash(){
   const _liveNow=Object.values(DB.leave).filter(l=>leaveStatusOK(l)&&leaveSpanOn(l,today)&&_lvLive(l));
   const onLeave=new Set(_liveNow.filter(l=>!leaveIsWFH(l)).map(l=>normName(l.empName))).size;
   document.getElementById('s-leave').textContent=onLeave;
+  try{lsumRender();}catch(e){}
 
   const now=new Date(),in30=new Date();in30.setDate(in30.getDate()+30);
   let expC=0;
@@ -8434,7 +8454,7 @@ function filterLeaveNow(){
   renderLeave(filtered);
 }
 window.openLeaveModal=function(){
-  ['lvEmp','lvEmpKey','lvFrom','lvTo','lvApproved','lvNotes','lvRel'].forEach(id=>sv(id,''));
+  ['lvEmp','lvEmpKey','lvFrom','lvTo','lvApproved','lvNotes','lvRel'].forEach(id=>sv(id,''));{const x=document.getElementById('lvExt');if(x)x.checked=false;const u=document.getElementById('lvUa');if(u)u.checked=false;}
   sv('lvKey','');sv('lvType','Annual Leave');sv('lvStatus','Approved');
   buildEmpDropdown('lvEmpSel');
   document.getElementById('lvEmpSel').onchange=function(){
@@ -8443,12 +8463,16 @@ window.openLeaveModal=function(){
   };
   document.getElementById('leaveModal').classList.add('open');
 };
-window.editLeave=function(key){const l=DB.leave[key];sv('lvEmp',l.empName);sv('lvType',l.type);sv('lvStatus',l.status);sv('lvFrom',l.from);sv('lvTo',l.to);sv('lvApproved',l.approvedBy);sv('lvNotes',l.notes);sv('lvRel',l.relation||'');sv('lvKey',key);document.getElementById('leaveModal').classList.add('open');};
+window.editLeave=function(key){const l=DB.leave[key];{const x=document.getElementById('lvExt');if(x)x.checked=!!(l&&l.ext);const u=document.getElementById('lvUa');if(u)u.checked=!!(l&&l.ua);}sv('lvEmp',l.empName);sv('lvType',l.type);sv('lvStatus',l.status);sv('lvFrom',l.from);sv('lvTo',l.to);sv('lvApproved',l.approvedBy);sv('lvNotes',l.notes);sv('lvRel',l.relation||'');sv('lvKey',key);document.getElementById('leaveModal').classList.add('open');};
 window.saveLeave=function(){
   const data={empName:v('lvEmp'),type:v('lvType'),status:v('lvStatus'),from:v('lvFrom'),to:v('lvTo'),approvedBy:v('lvApproved'),notes:v('lvNotes'),relation:(leaveKind(v('lvType'))==='compassion'?v('lvRel'):''),ts:Date.now()};
   if(!data.empName){alert('Employee name required');return;}
   if(data.type==='Half Day Leave'){data.to=data.from;data.days='0.5';}
-  const key=v('lvKey');const op=key?set(ref(db,'leave/'+key),data):set(push(ref(db,'leave')),data);
+  const key=v('lvKey');
+  const rec=key&&DB.leave[key]?Object.assign({},DB.leave[key],data):data; // keep fields the form does not show (e.g. office/site, request link)
+  if((document.getElementById('lvExt')||{}).checked)rec.ext=true;else delete rec.ext;
+  if((document.getElementById('lvUa')||{}).checked&&leaveKind(rec.type)==='unpaid')rec.ua=true;else delete rec.ua;
+  const op=key?set(ref(db,'leave/'+key),rec):set(push(ref(db,'leave')),rec);
   op.then(()=>{logAudit(key?'Edit Leave':'Add Leave',data.empName,data.type+' '+data.from+' to '+data.to);closeModal('leaveModal');showAlert('leave-alert','Leave saved!');});
 };
 window.delLeave=function(key){if(!confirm('Delete?'))return;remove(ref(db,'leave/'+key)).then(()=>showAlert('leave-alert','Deleted.'));};
@@ -9243,14 +9267,16 @@ window.openEditLeave=function(key){
   if(!l){alert('Record not found');return;}
   sv('elEmp',l.empName);sv('elType',l.type||'Annual Leave');sv('elStatus',l.status||'Approved');
   sv('elFrom',l.from);sv('elTo',l.to);sv('elDays',l.days||'');
-  sv('elApproved',l.approvedBy||'');sv('elNotes',l.notes||'');sv('elRel',l.relation||'');sv('elKey',key);
+  sv('elApproved',l.approvedBy||'');sv('elNotes',l.notes||'');sv('elRel',l.relation||'');sv('elKey',key);{const x=document.getElementById('elExt');if(x)x.checked=!!l.ext;const u=document.getElementById('elUa');if(u)u.checked=!!l.ua;}
   document.getElementById('editLeaveModal').classList.add('open');
 };
 window.saveEditedLeave=function(){
   const key=v('elKey');if(!key)return;
   const data={empName:v('elEmp'),type:v('elType'),status:v('elStatus'),from:v('elFrom'),to:v('elTo'),days:v('elDays'),approvedBy:v('elApproved'),notes:v('elNotes'),relation:(leaveKind(v('elType'))==='compassion'?v('elRel'):''),ts:DB.leave[key]?.ts||Date.now()};
   if(data.type==='Half Day Leave'){data.days='0.5';data.to=data.from;}
-  set(ref(db,'leave/'+key),data).then(()=>{
+  const rec=Object.assign({},DB.leave[key]||{},data);if((document.getElementById('elExt')||{}).checked)rec.ext=true;else delete rec.ext;
+  if((document.getElementById('elUa')||{}).checked&&leaveKind(rec.type)==='unpaid')rec.ua=true;else delete rec.ua;
+  set(ref(db,'leave/'+key),rec).then(()=>{
     logAudit('Edit Leave',data.empName,`${data.type} ${data.from} ${data.days}d`);
     closeModal('editLeaveModal');
     refreshLeaveSummary(window._currentLSSEmp);
@@ -9272,7 +9298,10 @@ window.saveLeaveFromSummary=function(){
   if(!days) days='1';
   const data={empName,type:v('alsType'),status:v('alsStatus'),from:fromDate,to:(isHalfAdd&&!toDate)?fromDate:toDate,days,approvedBy:v('alsApproved'),notes:v('alsNotes'),relation:(leaveKind(v('alsType'))==='compassion'?v('alsRel'):''),ts:Date.now()};
   if(!fromDate){alert('From date required');return;}
+  if((document.getElementById('alsExt')||{}).checked)data.ext=true;
+  if((document.getElementById('alsUa')||{}).checked&&leaveKind(data.type)==='unpaid')data.ua=true;
   set(push(ref(db,'leave')),data).then(()=>{
+    {const x=document.getElementById('alsExt');if(x)x.checked=false;const u=document.getElementById('alsUa');if(u)u.checked=false;}
     logAudit('Add Leave',empName,`${data.type} ${data.from} ${data.days}d`);
     ['alsFrom','alsTo','alsDays','alsApproved','alsNotes','alsRel'].forEach(id=>sv(id,''));
     refreshLeaveSummary(empName);
@@ -10928,6 +10957,15 @@ window.runProfileReport=function(){
   const ws3=XLSX.utils.aoa_to_sheet(lv);
   ws3['!cols']=[{wch:14},{wch:14},{wch:8},{wch:22},{wch:12},{wch:18},{wch:30}];
   XLSX.utils.book_append_sheet(wb,ws3,'Leave History');
+  {const ms=upMonthsBack(12);const me=upCollect(ms).find(r=>r.name===emp.name||(emp.empId&&r.empId===emp.empId));
+   const up=[['UNAUTHORISED ABSENCE, UNPAID LEAVE AND EXTENSIONS (last 12 months) — '+emp.name],[''],['Unauthorised absence'],['Month','Days','Flag','Dates']];
+   const n0=up.length;if(me)ms.forEach(m=>{const c=me.m[m];if(c)up.push([upMonthName(m),c.days,UP_COL(c.days).l,c.dates.join(', ')]);});
+   if(up.length===n0)up.push(['None in the last 12 months','','','']);
+   up.push([''],['Approved unpaid leave (approved in advance, not flagged)'],['Month','Days','','Dates']);const n1=up.length;
+   if(me)ms.forEach(m=>{const c=me.ap[m];if(c)up.push([upMonthName(m),c.days,'',c.dates.join(', ')]);});if(up.length===n1)up.push(['None','','','']);
+   up.push([''],['Annual leave extensions'],['From','To','Leave type','Notes']);
+   if(me&&me.ext.length)me.ext.forEach(l=>up.push([l.from,l.to,l.type,l.notes||'']));else up.push(['None','','','']);
+   const wsU=XLSX.utils.aoa_to_sheet(up);wsU['!cols']=[{wch:14},{wch:12},{wch:22},{wch:70}];XLSX.utils.book_append_sheet(wb,wsU,'Unpaid & Extensions');}
 
   // ── SHEET 4: Loans ────────────────────────────────────────────────────────
   const loanRows=Object.entries(DB.loans)
@@ -11142,6 +11180,22 @@ window.runProfilePDF=async function(){
     doc.text('No leave records on file',margin+2,y+4);y+=8;
   }
   y+=4;
+
+  // ── Section 5b: Unauthorised / unpaid leave and extensions (12 months) ────
+  {const ms=upMonthsBack(12);const me=upCollect(ms).find(r=>r.name===emp.name||(emp.empId&&r.empId===emp.empId));
+   const lines=me?ms.filter(m=>me.m[m]).map(m=>[m,me.m[m]]):[];
+   checkPage(20);sectionHdr('5b.  UNAUTHORISED ABSENCE, UNPAID LEAVE AND EXTENSIONS  (last 12 months)');
+   if(lines.length){lines.forEach(([m,c])=>{checkPage(8);const col=UP_COL(c.days);doc.setFillColor(col.rgb[0],col.rgb[1],col.rgb[2]);doc.rect(margin,y,22,6,'F');
+       doc.setTextColor(255,255,255);doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.text(String(c.days)+' day'+(c.days===1?'':'s'),margin+2,y+4);
+       doc.setTextColor(28,53,87);doc.setFont('helvetica','normal');doc.text(upMonthName(m),margin+25,y+4);
+       doc.text(doc.splitTextToSize(c.dates.map(d=>d.slice(8,10)+(d.includes('half')?' (half)':'')).join(', '),contentW-60)[0]||'',margin+50,y+4);y+=7;});}
+   else{doc.setTextColor(150,150,150);doc.setFontSize(8);doc.setFont('helvetica','italic');doc.text('No unauthorised absence in the last 12 months',margin+2,y+4);y+=7;}
+   const apL=me?ms.filter(m=>me.ap[m]).map(m=>[m,me.ap[m]]):[];
+   if(apL.length){checkPage(10);doc.setTextColor(28,53,87);doc.setFontSize(8);doc.setFont('helvetica','bold');doc.text('Approved unpaid leave (approved in advance, not flagged)',margin+2,y+4);y+=6;doc.setFont('helvetica','normal');
+     apL.forEach(([m,c])=>{checkPage(7);doc.text('• '+upMonthName(m)+': '+c.days+' day'+(c.days===1?'':'s')+' ('+c.dates.map(d=>d.slice(8,10)).join(', ')+')',margin+4,y+4);y+=5.5;});}
+   if(me&&me.ext.length){checkPage(10);doc.setTextColor(28,53,87);doc.setFontSize(8);doc.setFont('helvetica','bold');doc.text('Annual leave extensions: '+me.ext.length,margin+2,y+4);y+=6;doc.setFont('helvetica','normal');
+     me.ext.forEach(l=>{checkPage(7);doc.text('• '+(l.from||'')+' to '+(l.to||'')+' ('+(l.type||'')+')',margin+4,y+4);y+=5.5;});}
+   y+=4;}
 
   // ── Section 6: Loans ─────────────────────────────────────────────────────
   const loanRows=Object.entries(DB.loans).filter(([k,l])=>l.empName===emp.name);
@@ -11543,6 +11597,8 @@ async function generateReportPDF(o){
     let x=margin;
     row.forEach((val,ci)=>{
       const w=o.columns[ci].width*scale;
+      const cf=o.cellFill?o.cellFill(i,ci):null;
+      if(cf){doc.setFillColor(cf[0],cf[1],cf[2]);doc.rect(x,y,w,ROW_H,'F');doc.setTextColor(255,255,255);}else doc.setTextColor(30,30,30);
       let text=String(val==null||val===undefined?'—':val);
       const avail=w-3;
       if(doc.getTextWidth(text)>avail){
@@ -11573,6 +11629,7 @@ async function generateReportPDF(o){
 }
 
 window.runReportPDF=function(type){
+  if(type==='unpaid')return upReportPdf();
   const emps=Object.values(DB.employees);
   const now=new Date();
   const today=now.toLocaleDateString('en-AE',{day:'2-digit',month:'long',year:'numeric'});
@@ -11692,6 +11749,7 @@ window.runReportPDF=function(type){
 };
 
 window.runReport=function(type){
+  if(type==='unpaid')return upReportXlsx();
   if(currentRole==='pro'&&/^(loans|salary|gratuity)/.test(String(type))){alert('This report is not available for your access.');return;}
   const emps=Object.values(DB.employees);
   const now=new Date();
@@ -12146,6 +12204,103 @@ window.openDocLink=function(inputId){
 };
 document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
 document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+// ══ Nov 2026: leave summary for admins, unauthorised (unpaid) leave flags, annual-leave extensions, "who is on leave" for chosen staff ══
+// Unauthorised absence = Unpaid Leave ticked "Unauthorised absence" (field ua). Unpaid leave approved in advance is never flagged. An extension of an approved annual leave is any leave record
+// (annual or unpaid) with the tick "Extension of an approved annual leave" (field ext).
+const UP_COL = d => d >= 4 ? { c: '#c0392b', bg: '#fdecea', rgb: [192, 57, 43], l: 'Red (4+ days)' } : d >= 3 ? { c: '#9a5b00', bg: '#fbe3c0', rgb: [185, 119, 14], l: 'Dark amber (3 days)' } : d > 0 ? { c: '#d35400', bg: '#fff1e0', rgb: [230, 126, 34], l: 'Orange (1-2 days)' } : null;
+function upDays(l) { // [{d: 'YYYY-MM-DD', n: 1 or 0.5}]
+  const f = String(l.from || ''), t0 = String(l.to || l.from || ''); if (!/^\d{4}-\d{2}-\d{2}$/.test(f)) return [];
+  if (l.type === 'Half Day Leave' || String(l.days) === '0.5') return [{ d: f, n: 0.5 }];
+  const t = /^\d{4}-\d{2}-\d{2}$/.test(t0) && t0 >= f ? t0 : f, out = []; let d = new Date(f + 'T00:00:00'), n = 0; const e = new Date(t + 'T00:00:00');
+  while (d <= e && n < 400) { out.push({ d: localDateStr(d), n: 1 }); d.setDate(d.getDate() + 1); n++; } return out;
+}
+const upMonthName = m => new Date(m + '-01T00:00:00').toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+// Per employee: unpaid days by month (with the dates) and extensions, for the months given
+function upCollect(months, idx) {
+  idx = idx || buildNameIndex(); const set = new Set(months), by = {};
+  const get = name => { const m = matchEmpByName(name, idx); const e = m && m.e ? m.e : null; const key = e ? (e.empId || e.name) : normName(name); return by[key] = by[key] || { name: e ? e.name : name, dept: e ? (e.dept || '') : '', empId: e ? (e.empId || '') : '', inactive: !!(e && e.status === 'Inactive'), m: {}, ap: {}, ext: [] }; };
+  Object.values(DB.leave || {}).forEach(l => { if (!l || !leaveStatusOK(l)) return;
+    if (leaveKind(l.type) === 'unpaid') upDays(l).forEach(x => { const mo = x.d.slice(0, 7); if (!set.has(mo)) return; const r = get(l.empName); const bag = l.ua === true ? r.m : r.ap; const c = bag[mo] = bag[mo] || { days: 0, dates: [] }; c.days += x.n; c.dates.push(x.n === 0.5 ? x.d + ' (half)' : x.d); });
+    if (l.ext === true) { const mo = String(l.from || '').slice(0, 7); if (set.has(mo)) get(l.empName).ext.push(l); } });
+  Object.values(by).forEach(r => { Object.values(r.m).forEach(c => c.dates.sort()); Object.values(r.ap).forEach(c => c.dates.sort()); });
+  return Object.values(by);
+}
+function upMonthsBack(n) { const out = [], d = new Date(); d.setDate(1); for (let i = 0; i < n; i++) { out.unshift(localDateStr(d).slice(0, 7)); d.setMonth(d.getMonth() - 1); } return out; }
+const upChip = d => { const c = UP_COL(d); return c ? `<span style="display:inline-block;min-width:34px;text-align:center;padding:2px 8px;border-radius:10px;font-weight:700;font-size:12px;background:${c.bg};color:${c.c};border:1px solid ${c.c}">${d}</span>` : '<span style="color:#bbb">—</span>'; };
+function lsumRender() {
+  const card = document.getElementById('dashLeaveSumCard'), fcard = document.getElementById('dashUnpaidFlagCard'); if (!card || !fcard) return;
+  if (currentRole !== 'admin') { card.style.display = 'none'; fcard.style.display = 'none'; return; }
+  card.style.display = 'block'; fcard.style.display = 'block';
+  const today = localDateStr(new Date()), idx = buildNameIndex();
+  const live = Object.values(DB.leave || {}).filter(l => leaveStatusOK(l) && leaveSpanOn(l, today)).map(l => { const m = matchEmpByName(l.empName, idx); return { l, e: m && m.e }; }).filter(x => !(x.e && x.e.status === 'Inactive'));
+  const groups = [
+    ['🌴 On annual leave', live.filter(x => leaveKind(x.l.type) === 'annual' && x.l.ext !== true), '#1A7A6E'],
+    ['⛔ On unauthorised absence', live.filter(x => leaveKind(x.l.type) === 'unpaid' && x.l.ua === true && x.l.ext !== true), '#c0392b'],
+    ['📝 On approved unpaid leave', live.filter(x => leaveKind(x.l.type) === 'unpaid' && x.l.ua !== true && x.l.ext !== true), '#7f8c8d'],
+    ['⏩ On extended annual leave', live.filter(x => x.l.ext === true), '#b9770e'],
+    ['🔁 On compensatory leave', Object.values(DB.compLeave || {}).filter(c => c && c.kind === 'taken' && c.date === today).map(c => ({ l: { empName: c.empName, from: c.date, to: c.date }, e: DB.employees[c.empKey] })), '#2471a3']];
+  document.getElementById('dashLeaveSumBody').innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;">' + groups.map(([t, L, col]) =>
+    `<details style="border:1px solid #e6e9ee;border-left:4px solid ${col};border-radius:8px;padding:10px 12px;background:#fff;"><summary style="cursor:pointer;list-style:none;"><div style="font-size:12px;color:#666;">${t}</div><div style="font-size:26px;font-weight:700;color:${col};line-height:1.2;">${L.length}</div><div style="font-size:11px;color:#999;">${L.length ? 'tap to see names' : 'nobody today'}</div></summary>
+      ${L.length ? '<div style="margin-top:6px;font-size:12.5px;">' + L.sort((a, b) => String(a.l.empName).localeCompare(b.l.empName)).map(x => `<div style="padding:3px 0;border-top:1px solid #f2f2f2;"><b>${esc(x.e ? x.e.name : x.l.empName)}</b> · ${esc(x.e ? x.e.dept || '' : '')}${x.l.to && x.l.to !== x.l.from ? `<span style="color:#888;"> · until ${fmt(x.l.to)}</span>` : ''}</div>`).join('') + '</div>' : ''}</details>`).join('') + '</div>';
+  const months = upMonthsBack(3), rows = upCollect(upMonthsBack(12), idx).filter(r => !r.inactive && months.some(m => r.m[m] && r.m[m].days > 0));
+  const extBy = upCollect(upMonthsBack(12), idx).filter(r => !r.inactive);
+  rows.sort((a, b) => months.reduce((s, m) => s + ((b.m[m] || {}).days || 0), 0) - months.reduce((s, m) => s + ((a.m[m] || {}).days || 0), 0));
+  const extOnly = extBy.filter(r => r.ext.length && !rows.some(x => x.name === r.name));
+  document.getElementById('dashUnpaidFlagBody').innerHTML = (rows.length || extOnly.length) ? `<div style="overflow-x:auto;"><table style="width:100%;font-size:12.5px;border-collapse:collapse;"><thead><tr style="text-align:left;color:#555;"><th style="padding:6px;">Employee</th><th>Department</th>${months.map(m => `<th style="text-align:center;">${upMonthName(m)}</th>`).join('')}<th style="text-align:center;">Extensions (12 months)</th></tr></thead><tbody>
+      ${rows.concat(extOnly).map(r => { const ex = (extBy.find(x => x.name === r.name) || { ext: [] }).ext; return `<tr style="border-top:1px solid #f0f0f0;"><td style="padding:6px;font-weight:600;">${esc(r.name)}</td><td>${esc(r.dept)}</td>${months.map(m => `<td style="text-align:center;" title="${esc(((r.m[m] || {}).dates || []).join(', '))}">${upChip((r.m[m] || {}).days || 0)}</td>`).join('')}<td style="text-align:center;">${ex.length ? `<b title="${esc(ex.map(l => fmt(l.from) + ' to ' + fmt(l.to)).join('; '))}">${ex.length}</b>` : '<span style="color:#bbb">—</span>'}</td></tr>`; }).join('')}</tbody></table></div>
+    <div style="font-size:11px;color:#888;margin-top:8px;">Days of unauthorised absence per month (Unpaid Leave ticked "Unauthorised absence"; unpaid leave approved in advance is never coloured): <span style="color:#d35400;font-weight:700;">orange</span> 1-2 days · <span style="color:#9a5b00;font-weight:700;">dark amber</span> 3 days · <span style="color:#c0392b;font-weight:700;">red</span> 4 or more. Hover a number to see the dates. Full details: Reports &amp; Downloads, "Unauthorised Absence &amp; Unpaid Leave".</div>`
+    : '<div class="empty-state"><p>No unauthorised absence or extensions in the last 3 months.</p></div>';
+}
+// ── Reports & Downloads: "Unauthorised / unpaid leave" (12 months)
+function upReportRows() { const months = upMonthsBack(12), L = upCollect(months).filter(r => Object.keys(r.m).length || Object.keys(r.ap).length || r.ext.length);
+  L.sort((a, b) => Object.values(b.m).reduce((s, x) => s + x.days, 0) - Object.values(a.m).reduce((s, x) => s + x.days, 0) || a.name.localeCompare(b.name)); return { months, L }; }
+function upReportXlsx() {
+  if (currentRole !== 'admin') { alert('This report is for HR admins only.'); return; }
+  const { months, L } = upReportRows(), today = new Date().toLocaleDateString('en-AE', { day: '2-digit', month: 'long', year: 'numeric' });
+  const flagTxt = d => { const c = UP_COL(d); return c ? (d >= 4 ? '🔴 ' : d >= 3 ? '🟧 ' : '🟠 ') + c.l : ''; };
+  const a = [['CK ARCHITECTURE INTERIORS LLC  |  CKC BUILDING CONTRACTING LLC'], ['UNAUTHORISED ABSENCE (last 12 months) — Generated: ' + today], ['Only Unpaid Leave ticked "Unauthorised absence". Unpaid leave approved in advance: see tab "Approved unpaid leave" (never flagged).'], ['Employee', 'Emp ID', 'Department', 'Month', 'Days', 'Flag', 'Dates']];
+  L.forEach(r => months.forEach(m => { const c = r.m[m]; if (c) a.push([r.name, r.empId, r.dept, upMonthName(m), c.days, flagTxt(c.days), c.dates.join(', ')]); }));
+  a.push([''], ['TOTAL PER EMPLOYEE (12 months)'], ['Employee', 'Department', 'Unauthorised days', 'Months flagged red', 'Approved unpaid days', 'Extensions']);
+  L.forEach(r => a.push([r.name, r.dept, Object.values(r.m).reduce((s, x) => s + x.days, 0), Object.values(r.m).filter(x => x.days >= 4).length, Object.values(r.ap).reduce((s, x) => s + x.days, 0), r.ext.length]));
+  const c3 = [['APPROVED UNPAID LEAVE (approved in advance, never flagged) — last 12 months'], [''], ['Employee', 'Emp ID', 'Department', 'Month', 'Days', 'Dates']];
+  L.forEach(r => months.forEach(m => { const c = r.ap[m]; if (c) c3.push([r.name, r.empId, r.dept, upMonthName(m), c.days, c.dates.join(', ')]); }));
+  const b = [['ANNUAL LEAVE EXTENSIONS (last 12 months)'], [''], ['Employee', 'Department', 'From', 'To', 'Leave type', 'Notes']];
+  L.forEach(r => r.ext.forEach(l => b.push([r.name, r.dept, l.from, l.to, l.type, l.notes || ''])));
+  const wb = XLSX.utils.book_new(), w1 = XLSX.utils.aoa_to_sheet(a), w2 = XLSX.utils.aoa_to_sheet(b);
+  w1['!cols'] = [{ wch: 28 }, { wch: 13 }, { wch: 20 }, { wch: 11 }, { wch: 7 }, { wch: 24 }, { wch: 70 }]; w2['!cols'] = [{ wch: 28 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 40 }];
+  const w3 = XLSX.utils.aoa_to_sheet(c3); w3['!cols'] = [{ wch: 28 }, { wch: 13 }, { wch: 20 }, { wch: 11 }, { wch: 7 }, { wch: 70 }];
+  XLSX.utils.book_append_sheet(wb, w1, 'Unauthorised by month'); XLSX.utils.book_append_sheet(wb, w3, 'Approved unpaid leave'); XLSX.utils.book_append_sheet(wb, w2, 'Extensions');
+  XLSX.writeFile(wb, 'CK_Unauthorised_Unpaid_Leave_' + new Date().toISOString().split('T')[0] + '.xlsx'); logAudit('Download Report', 'Unauthorised / unpaid leave', L.length + ' employees');
+}
+function upReportPdf() {
+  if (currentRole !== 'admin') { alert('This report is for HR admins only.'); return; }
+  const { months, L } = upReportRows(), rows = [], fills = [];
+  L.forEach(r => { months.forEach(m => { const c = r.m[m]; if (!c) return; rows.push([r.name, r.dept, upMonthName(m), String(c.days), UP_COL(c.days).l, c.dates.map(d => d.slice(8, 10) + (d.includes('half') ? '½' : '')).join(', ')]); fills.push(UP_COL(c.days).rgb); });
+    months.forEach(m => { const c = r.ap[m]; if (!c) return; rows.push([r.name, r.dept, upMonthName(m), String(c.days), 'Approved unpaid (no flag)', c.dates.map(d => d.slice(8, 10) + (d.includes('half') ? '½' : '')).join(', ')]); fills.push(null); });
+    r.ext.forEach(l => { rows.push([r.name, r.dept, upMonthName(String(l.from).slice(0, 7)), '', 'Extension of annual leave', (l.from || '') + ' to ' + (l.to || '') + ' · ' + (l.type || '')]); fills.push(null); }); });
+  generateReportPDF({ title: 'UNAUTHORISED ABSENCE AND UNPAID LEAVE', subtitle: 'Last 12 months. Coloured: days of unauthorised absence per month (orange 1-2, dark amber 3, red 4 or more). Unpaid leave approved in advance is listed without colour. Dates = days of the month. Annual leave extensions listed under the same employee.',
+    filename: 'CK_Unauthorised_Unpaid_Leave', columns: [{ label: 'Employee', width: 40 }, { label: 'Department', width: 30 }, { label: 'Month', width: 20 }, { label: 'Days', width: 10 }, { label: 'Flag', width: 34 }, { label: 'Dates (day of month)', width: 70 }],
+    rows: rows.length ? rows : [['No unauthorised absence, unpaid leave or extensions in the last 12 months', '', '', '', '', '']], cellFill: (ri, ci) => ci === 4 && fills[ri] ? fills[ri] : null,
+    summaryLines: [`Employees listed: ${L.length}`, `Unauthorised absence days: ${L.reduce((s, r) => s + Object.values(r.m).reduce((a, x) => a + x.days, 0), 0)} · approved unpaid days: ${L.reduce((s, r) => s + Object.values(r.ap).reduce((a, x) => a + x.days, 0), 0)}`, `Red months (4+ days): ${L.reduce((s, r) => s + Object.values(r.m).filter(x => x.days >= 4).length, 0)}`, `Extensions recorded: ${L.reduce((s, r) => s + r.ext.length, 0)}`] });
+}
+// ── "Who is on leave" for chosen staff (e.g. Zaheer Islam, Arlenne): all departments, with leave type
+window.toggleLeaveView = async function (k, on) {
+  if (currentRole !== 'admin') return; const e = DB.employees[k]; if (!e || !e.portalUid) { alert('This employee needs a portal login first.'); return; }
+  if (!confirm((on ? 'Let ' : 'Stop ') + e.name + (on ? ' see who is on leave (all staff, today and the next 30 days, with leave type)?' : ' seeing the company-wide leave list?'))) return;
+  try { await set(ref(db, 'staffMap/' + e.portalUid + '/leaveView'), on ? true : null); await set(ref(db, 'employees/' + k + '/leaveView'), on ? true : null); logAudit(on ? 'Leave list access given' : 'Leave list access removed', e.name, ''); renderPortalAccess(); }
+  catch (err) { alert('Could not save: ' + ((err && err.code) || 'unknown error')); }
+};
+function renderEmpLeaveAll() {
+  const box = document.getElementById('empLeaveAllCard'); if (!box) return;
+  if (!window._myLeaveView || !DB.leaveTyped) { box.innerHTML = ''; return; }
+  const today = localDateStr(new Date()), L = Object.values(DB.leaveTyped).filter(x => x.t >= today).sort((a, b) => a.f > b.f ? 1 : -1);
+  const now = L.filter(x => x.f <= today), next = L.filter(x => x.f > today);
+  const row = x => `<tr><td style="padding:5px 6px;"><b>${esc(x.n)}</b></td><td>${esc(x.d || '')}</td><td>${esc(x.ty || '')}</td><td style="white-space:nowrap;">${fmt(x.f)} – ${fmt(x.t)}</td></tr>`;
+  const tbl = (t, A) => `<div style="font-weight:700;color:#1C3557;margin:10px 0 4px;">${t} (${A.length})</div>` + (A.length ? `<div style="overflow-x:auto;"><table style="width:100%;font-size:12.5px;border-collapse:collapse;"><thead><tr style="text-align:left;color:#666;"><th style="padding:5px 6px;">Name</th><th>Department</th><th>Leave type</th><th>Dates</th></tr></thead><tbody>${A.map(row).join('')}</tbody></table></div>` : '<div style="font-size:12px;color:#888;">Nobody.</div>');
+  box.innerHTML = `<div class="card" style="margin-bottom:16px;border-top:3px solid #1A7A6E;"><div class="card-title">🗓 Who is on leave (all staff)</div>${tbl('On leave today', now)}${tbl('Starting in the next 30 days', next)}<div style="font-size:11px;color:#999;margin-top:8px;">Approved leave only. Please keep this information to yourself.</div></div>`;
+}
+
 </script>
 <script>
 if('serviceWorker' in navigator){
