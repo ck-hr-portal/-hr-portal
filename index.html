@@ -232,6 +232,12 @@ tr:hover td{background:#fafbfc;}
       </div>
     </div>
 
+    <div class="card" id="empLicCard" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><div class="card-title" style="margin:0;">🪪 My licences and cards</div><button class="btn btn-sm btn-primary" onclick="licAddMine()">+ Add a card</button></div>
+      <p style="font-size:12px;color:#888;margin:6px 0 10px;">Professional licences and cards (e.g. SOE, Dubai Municipality, Civil Defence, Trakhees, HSE) with a copy. HR checks them and reminds you before they expire. Every change is recorded.</p>
+      <div id="empLicBody"></div>
+    </div>
+
     <div class="card" id="empCompCard">
       <div class="card-title">⏱️ My Compensatory Leave</div>
       <p style="font-size:12px;color:#888;margin-bottom:10px;">Time earned for extra hours worked (late nights, public holidays, rest days, work during annual leave) and time already taken. HR keeps this updated. It cannot be requested here — to claim compensatory leave, please email Darleendy.</p>
@@ -243,6 +249,7 @@ tr:hover td{background:#fafbfc;}
 
     <div id="empMyAnni"></div>
     <div id="empLeaveAllCard"></div>
+    <div id="empLicReminder"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
       <div class="card">
         <div class="card-title">🎂 Upcoming Birthdays</div>
@@ -1098,13 +1105,26 @@ tr:hover td{background:#fafbfc;}
         <div class="card">
           <div class="toolbar">
             <input class="search-box" type="text" id="expSearch" placeholder="🔍 Search employee..." oninput="renderExpiry()">
-            <select id="expDocF" onchange="renderExpiry()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="">All Documents</option><option>Passport</option><option>Visa</option><option>Emirates ID</option><option>Labour Card</option></select>
+            <select id="expDocF" onchange="renderExpiry()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="">All Documents</option><option>Passport</option><option>Visa</option><option>Emirates ID</option><option>Labour Card</option><option>Licences &amp; cards</option></select>
             <select id="expRange" onchange="renderExpiry()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="30">30 Days</option><option value="60">60 Days</option><option value="90">90 Days</option><option value="180">180 Days</option><option value="9999">All</option></select>
           </div>
           <div class="table-wrap">
             <table><thead><tr><th>Employee</th><th>Department</th><th>Entity</th><th>Document</th><th>Expiry Date</th><th>Days Left</th><th>Status</th></tr></thead>
             <tbody id="expBody"></tbody></table>
           </div>
+        </div>
+        <div class="card" id="licHRCard" style="display:none;margin-top:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+            <div class="card-title" style="margin:0;">🪪 Professional licences and cards</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <input id="licQ" placeholder="Search name, card, number" oninput="renderLicHR()" style="padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;">
+              <select id="licF" onchange="renderLicHR()" style="padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="">All cards</option><option value="due">Expiring within 60 days or expired</option><option value="exp">Expired</option><option value="nv">Not yet verified by HR</option></select>
+              <select id="licAddEmp" style="padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="">Add a card for…</option></select>
+              <button class="btn btn-sm btn-primary" onclick="licAddFor()">+ Add</button>
+              <button class="btn btn-sm" onclick="licExcel()">📥 Excel</button>
+            </div>
+          </div>
+          <div id="licHRBody"></div>
         </div>
       </div>
 
@@ -2097,7 +2117,7 @@ function set(...args){
   }
   if(currentRole==='employee'){
     const path=args[0]?.toString()||'';
-    if(!path.includes('leaveRequests')&&!path.includes('letterRequests')){
+    if(!path.includes('leaveRequests')&&!path.includes('letterRequests')&&!/(^|\/)(lic|licFiles|licHist)\//.test(path)){ // + own licences and cards (rules check it is their own)
       return Promise.reject(new Error('employee-restricted-write'));
     }
   }
@@ -2510,7 +2530,7 @@ async function startStaffSession(user){
     showLoginError('Your profile is not ready yet. Please contact HR.');
     return;
   }
-  currentAdmin=user.email||''; currentRole='employee'; currentEmpKey=m.empKey; window._myLeaveView=m.leaveView===true;
+  currentAdmin=user.email||''; currentRole='employee'; currentEmpKey=m.empKey; window._myLeaveView=m.leaveView===true; window._myLicOn=m.licOn===true;
   adminName=view.name||''; adminTitle=view.desig||''; adminSignName=view.name||'';
   initEmployeeListeners(m.empKey,user.uid);
   applyEmployeeMode();
@@ -3059,6 +3079,7 @@ window.renderPortalAccess=function(){
       const on=e.portalEnabled===true;
       actions=`<button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="resendStaffEmail('${k}')">Resend password email</button>
         <button class="btn btn-sm ${on?'btn-danger':'btn-primary'}" onclick="toggleStaffAccess('${k}',${on?'false':'true'})">${on?'Turn access off':'Turn access on'}</button>
+        ${currentRole==='admin'?`<button class="btn btn-sm" style="background:${e.licOn?'#e8f6f3':'#f4f6f8'};color:${e.licOn?'#1A7A6E':'#555'};" title="Record professional licences and cards in the portal" onclick="toggleLicOn('${k}',${e.licOn?'false':'true'})">${e.licOn?'✓ Licences & cards':'Licences & cards'}</button>`:''}
         ${currentRole==='admin'?`<button class="btn btn-sm" style="background:${e.leaveView?'#e8f6f3':'#f4f6f8'};color:${e.leaveView?'#1A7A6E':'#555'};" title="See who is on leave: all staff, today and the next 30 days, with leave type" onclick="toggleLeaveView('${k}',${e.leaveView?'false':'true'})">${e.leaveView?'✓ Sees all leave':'Let see all leave'}</button>`:''}`;
     }
     return`<tr>
@@ -3895,6 +3916,7 @@ function initEmployeeListeners(empKey,uid){
   // Company-wide content and low-sensitivity shared lists
   optional(ref(db,'holidays'),snap=>{DB.holidays=snap.val()||{};});
   _staffUnsubs.push(onValue(ref(db,'staffShared/leaveAll'),snap=>{DB.leaveAll=snap.val()||{};},()=>{DB.leaveAll=null;}));
+  if(window._myLicOn)_staffUnsubs.push(onValue(ref(db,'lic/'+currentEmpKey),snap=>{DB.myLic=snap.val()||{};renderMyLic();},()=>{DB.myLic={};renderMyLic();}));
   if(window._myLeaveView)_staffUnsubs.push(onValue(ref(db,'staffShared/leaveTyped'),snap=>{DB.leaveTyped=snap.val()||{};renderEmpLeaveAll();},()=>{DB.leaveTyped=null;renderEmpLeaveAll();})); // company-wide leave (name, dept, dates). Needs the updated rules; falls back to own department without them
   _staffUnsubs.push(onValue(ref(db,'staffShared/directory'),snap=>{DB.directory=snap.val()||{};},()=>{DB.directory=null;})); // names + departments of current staff
   optional(ref(db,'staffShared/birthdays'),snap=>{DB.sharedBdays=snap.val()||{};renderEmpBirthdaysAnniversaries();});
@@ -7360,6 +7382,10 @@ const ref_db=(path)=>ref(db,path);
 function initListeners(){
   try{botInit();}catch(e){}
   const tables=['employees','leave','salary','loans','repayments','assets','holidays','announcements','policies','audit','flightAllowance','leavers','leaveAdjustments','docHistory','leaveRequests','ceoMessage','orgChart','pendingHires','finalSettlements'];
+  if(currentRole==='admin'){ // licences and cards: HR (Dev, Darleendy) only
+    onValue(ref(db,'lic'),snap=>{DB.lic=snap.val()||{};try{renderLicHR();renderExpiry();updateDash();}catch(e){}},()=>{DB.lic={};});
+    onValue(ref(db,'licHist'),snap=>{DB.licHist=snap.val()||{};},()=>{DB.licHist={};});
+  }
   tables.forEach(t=>{
     onValue(ref(db,t),snap=>{
       DB[t]=snap.val()||{};
@@ -7834,6 +7860,7 @@ function updateDash(){
   emps.forEach(e=>[{f:'passExp',l:'Passport'},{f:'visaExp',l:'Visa'},{f:'eidExp',l:'Emirates ID'},{f:'labExp',l:'Labour Card'}].forEach(({f,l})=>{
     if(e[f]){const days=daysLeft(e[f]);if(days!==null&&days<=30)expList.push({name:e.name,doc:l,days});}
   }));
+  if(currentRole==='admin')Object.entries(DB.lic||{}).forEach(([ek,L])=>{const e=DB.employees[ek]||{};if(e.status==='Inactive')return;Object.values(L||{}).forEach(r=>{const days=daysLeft(r.exp);if(days!==null&&days<=30)expList.push({name:e.name,doc:licName(r),days});});});
   document.getElementById('d-exp').innerHTML=expList.length?expList.sort((a,b)=>a.days-b.days).map(x=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;"><span style="font-size:13px;">${esc(x.name)} — ${x.doc}</span><span class="${expClass(x.days)}" style="font-size:12px;">${x.days<0?'EXPIRED':x.days+'d'}</span></div>`).join(''):'<div class="empty-state"><p>None in 30 days</p></div>';
   // Birthdays
   const bdEmps=emps.filter(e=>e.dob&&new Date(e.dob).getMonth()===m);
@@ -9383,7 +9410,11 @@ function renderExpiry(){
       if(dl!==null&&dl<=days)rows.push({name:e.name,dept:e.dept,entity:e.entity,doc:l,date:e[f],days:dl});
     });
   });
+  if(!docF||docF==='Licences & cards')Object.entries(DB.lic||{}).forEach(([ek,L])=>{const e=DB.employees[ek]||{};if(e.status==='Inactive')return;Object.values(L||{}).forEach(r=>{if(q&&!String(e.name||'').toLowerCase().includes(q))return;const dl=daysLeft(r.exp);if(dl!==null&&dl<=days)rows.push({name:e.name,dept:e.dept,entity:e.entity,doc:licName(r),date:r.exp,days:dl});});});
+  if(docF==='Licences & cards'){for(let i=rows.length-1;i>=0;i--)if(['Passport','Visa','Emirates ID','Labour Card'].includes(rows[i].doc))rows.splice(i,1);}
   rows.sort((a,b)=>a.days-b.days);
+  {const s=document.getElementById('licAddEmp');if(s&&s.options.length<=1)Object.entries(DB.employees).filter(([k,e])=>e.status!=='Inactive').sort((a,b)=>String(a[1].name).localeCompare(b[1].name)).forEach(([k,e])=>{const o=document.createElement('option');o.value=k;o.textContent=e.name+(e.licOn?' ✓':'');s.appendChild(o);});}
+  try{renderLicHR();}catch(e){}
   const tbody=document.getElementById('expBody');
   if(!rows.length){tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><p>No expiries in this period.</p></div></td></tr>';return;}
   tbody.innerHTML=rows.map(r=>`<tr>
@@ -12300,6 +12331,146 @@ function renderEmpLeaveAll() {
   const tbl = (t, A) => `<div style="font-weight:700;color:#1C3557;margin:10px 0 4px;">${t} (${A.length})</div>` + (A.length ? `<div style="overflow-x:auto;"><table style="width:100%;font-size:12.5px;border-collapse:collapse;"><thead><tr style="text-align:left;color:#666;"><th style="padding:5px 6px;">Name</th><th>Department</th><th>Leave type</th><th>Dates</th></tr></thead><tbody>${A.map(row).join('')}</tbody></table></div>` : '<div style="font-size:12px;color:#888;">Nobody.</div>');
   box.innerHTML = `<div class="card" style="margin-bottom:16px;border-top:3px solid #1A7A6E;"><div class="card-title">🗓 Who is on leave (all staff)</div>${tbl('On leave today', now)}${tbl('Starting in the next 30 days', next)}<div style="font-size:11px;color:#999;margin-top:8px;">Approved leave only. Please keep this information to yourself.</div></div>`;
 }
+
+
+// ══ Nov 2026: professional licences and cards (SOE, Dubai Municipality, Civil Defence, Trakhees, HSE ...) ══
+// Chosen staff (switched on in Portal Access) record their own cards in their portal, with a copy.
+// HR sees everything, verifies, and every change is kept in a history that cannot be edited.
+// Reminders: amber 60 days before expiry, red 30 days before / expired (portal only, no email).
+const LIC_TYPES = [['SOE', 'Society of Engineers (SOE) card'], ['DM', 'Dubai Municipality licence'], ['DCD', 'Civil Defence (DCD) card'], ['TRK', 'Trakhees card'], ['HSE', 'HSE card'], ['OTH', 'Other']];
+const LIC_DM_GRADES = ['G+1', 'G+2', 'G+4', 'G+12'];
+const licName = r => (r.type === 'OTH' ? (r.other || 'Other card') : ((LIC_TYPES.find(x => x[0] === r.type) || [0, r.type])[1])) + (r.grade ? ' · ' + r.grade : '');
+const licDays = r => r && r.exp ? daysLeft(r.exp) : null;
+const licLvl = d => d == null ? '' : d < 0 ? 'exp' : d <= 30 ? 'red' : d <= 60 ? 'amber' : 'ok';
+const licChip = d => { const l = licLvl(d); if (!l) return ''; const s = { exp: ['#fdecea', '#c0392b', 'EXPIRED ' + (-d) + ' d ago'], red: ['#fdecea', '#c0392b', d + ' days left'], amber: ['#fff4dc', '#9a5b00', d + ' days left'], ok: ['#e8f6f3', '#1A7A6E', d + ' days left'] }[l];
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;background:${s[0]};color:${s[1]};border:1px solid ${s[1]}33">${s[2]}</span>`; };
+const LIC_HR = ['dev@ckhr.internal', 'darleendy@ckhr.internal'];
+const licIsHR = () => currentRole === 'admin';
+function licFileRead(f) { return new Promise((ok, no) => {
+  if (!f) return ok(null); const isImg = /^image\//.test(f.type), isPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+  if (!isImg && !isPdf) return no(new Error('Please choose a photo (JPG / PNG) or a PDF of the card.'));
+  if (isPdf && f.size > 1500000) return no(new Error('The PDF is larger than 1.5 MB. Please take a photo of the card instead, or reduce the PDF.'));
+  const rd = new FileReader(); rd.onerror = () => no(new Error('The file could not be read.'));
+  rd.onload = () => { if (isPdf) return ok({ data: rd.result, name: f.name, mime: 'application/pdf' });
+    const im = new Image(); im.onload = () => { const s = Math.min(1, 1600 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * s); c.height = Math.round(im.height * s);
+      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); let d = c.toDataURL('image/jpeg', 0.72); if (d.length > 1400000) d = c.toDataURL('image/jpeg', 0.5); ok({ data: d, name: f.name.replace(/\.[^.]+$/, '') + '.jpg', mime: 'image/jpeg' }); };
+    im.onerror = () => no(new Error('This photo could not be opened. Please try another one.')); im.src = rd.result; };
+  rd.readAsDataURL(f); }); }
+async function licOpenCopy(ek, id) { try { const s = await get(ref(db, 'licFiles/' + ek + '/' + id)); const f = s.val(); if (!f || !f.data) { alert('No copy uploaded for this card.'); return; } lqSaveBlob(f.data, f.name || 'card'); } catch (e) { alert('The copy could not be opened. Please try again.'); } }
+window.licOpenCopy = licOpenCopy;
+// The form (used by staff in their portal and by HR on their behalf)
+function licForm(ek, id) {
+  const r = id ? (((DB.lic || {})[ek] || {})[id] || (DB.myLic || {})[id] || {}) : {};
+  const emp = DB.employees[ek] || {}; const old = document.getElementById('licModal'); if (old) old.remove();
+  const box = document.createElement('div'); box.id = 'licModal'; box.className = 'modal-overlay open';
+  const isDM = r.type === 'DM', gOther = isDM && r.grade && !LIC_DM_GRADES.includes(r.grade);
+  box.innerHTML = `<div class="modal" style="max-width:560px;"><h3>${id ? 'Update' : 'Add'} licence or card${licIsHR() ? ' · ' + esc(emp.name || '') : ''}</h3>
+    <div class="form-grid">
+      <div class="form-group form-full"><label>Type *</label><select id="licType" onchange="licTypeChange()">${LIC_TYPES.map(([k, l]) => `<option value="${k}" ${r.type === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+      <div class="form-group form-full" id="licOtherWrap" style="display:${r.type === 'OTH' ? '' : 'none'}"><label>Name of the card *</label><input id="licOther" value="${esc(r.other || '')}"></div>
+      <div class="form-group" id="licGradeDMWrap" style="display:${isDM ? '' : 'none'}"><label>Grade *</label><select id="licGradeDM" onchange="licTypeChange()">${LIC_DM_GRADES.map(g => `<option ${r.grade === g ? 'selected' : ''}>${g}</option>`).join('')}<option value="__o" ${gOther ? 'selected' : ''}>Other (type it)</option></select></div>
+      <div class="form-group" id="licGradeWrap"><label id="licGradeLbl">${isDM ? 'Other grade *' : 'Grade / category (if any)'}</label><input id="licGrade" value="${esc(isDM ? (gOther ? r.grade : '') : (r.grade || ''))}"></div>
+      <div class="form-group"><label>Card / licence number *</label><input id="licNo" value="${esc(r.no || '')}"></div>
+      <div class="form-group"><label>Issued by</label><input id="licIssuer" value="${esc(r.issuer || '')}" placeholder="e.g. Dubai Municipality"></div>
+      <div class="form-group"><label>Issue date</label><input type="date" id="licIssue" value="${esc(r.issue || '')}"></div>
+      <div class="form-group"><label>Expiry date *</label><input type="date" id="licExp" value="${esc(r.exp || '')}"></div>
+      <div class="form-group form-full"><label>Copy of the card (photo or PDF) ${id ? '(needed if the card was renewed)' : '*'}</label><input type="file" id="licFile" accept="image/*,application/pdf">${id && r.hasFile ? '<div style="font-size:11px;color:#1A7A6E;margin-top:4px;">A copy is on file. Upload a new one only if the card changed.</div>' : ''}</div>
+    </div>
+    <div id="licErr" style="color:#c0392b;font-size:12px;margin-top:6px;"></div>
+    <div class="btn-row" style="margin-top:12px;"><button class="btn btn-primary" id="licSaveBtn" onclick="licSave('${ek}','${id || ''}')">Save</button><button class="btn" onclick="document.getElementById('licModal').remove()">Cancel</button></div></div>`;
+  document.body.appendChild(box); licTypeChange();
+}
+window.licForm = licForm;
+window.licAddMine = () => licForm(currentEmpKey, '');
+window.licTypeChange = function () { const t = v('licType'), dm = t === 'DM'; document.getElementById('licOtherWrap').style.display = t === 'OTH' ? '' : 'none';
+  document.getElementById('licGradeDMWrap').style.display = dm ? '' : 'none';
+  const showG = !dm || v('licGradeDM') === '__o'; document.getElementById('licGradeWrap').style.display = showG ? '' : 'none'; document.getElementById('licGradeLbl').textContent = dm ? 'Other grade *' : 'Grade / category (if any)'; };
+window.licSave = async function (ek, id) {
+  const err = m => { document.getElementById('licErr').textContent = m; };
+  const type = v('licType'), dm = type === 'DM'; const grade = dm ? (v('licGradeDM') === '__o' ? v('licGrade').trim() : v('licGradeDM')) : v('licGrade').trim();
+  const rec = { type, no: v('licNo').trim(), exp: v('licExp') }; if (type === 'OTH') rec.other = v('licOther').trim(); if (grade) rec.grade = grade.slice(0, 40);
+  if (v('licIssuer').trim()) rec.issuer = v('licIssuer').trim().slice(0, 120); if (v('licIssue')) rec.issue = v('licIssue');
+  if (type === 'OTH' && !rec.other) return err('Type the name of the card.'); if (dm && !grade) return err('Choose or type the grade.');
+  if (!rec.no) return err('Enter the card / licence number.'); if (!rec.exp) return err('Enter the expiry date.'); if (rec.issue && rec.issue > rec.exp) return err('The issue date is after the expiry date.');
+  const old = id ? ((((DB.lic || {})[ek] || {})[id]) || (DB.myLic || {})[id] || null) : null;
+  const f = (document.getElementById('licFile').files || [])[0];
+  if (!id && !f) return err('Please attach a copy of the card (photo or PDF).');
+  if (old && old.exp !== rec.exp && !f) return err('The expiry date changed (renewal): please attach the new copy of the card.');
+  let file = null; try { file = await licFileRead(f); } catch (e) { return err(e.message); }
+  const btn = document.getElementById('licSaveBtn'); btn.disabled = true; btn.textContent = 'Saving…';
+  const who = licIsHR() ? (adminName || currentAdmin) : ((DB.employees[currentEmpKey] || {}).name || currentAdmin);
+  const lid = id || push(ref(db, 'lic/' + ek)).key; rec.hasFile = !!(file || (old && old.hasFile));
+  rec.upd = Date.now(); rec.updBy = who;
+  if (licIsHR()) { rec.ver = !!(old && old.ver && !f && JSON.stringify(licCmp(old)) === JSON.stringify(licCmp(rec))); if (rec.ver) { rec.verBy = old.verBy; rec.verAt = old.verAt; } }
+  else rec.ver = false;
+  const changes = []; const F = [['type', 'Type'], ['other', 'Name'], ['grade', 'Grade'], ['no', 'Number'], ['issuer', 'Issued by'], ['issue', 'Issue date'], ['exp', 'Expiry date']];
+  F.forEach(([k, l]) => { const a = old ? (k === 'type' ? licName({ type: old.type, other: old.other }) : old[k] || '') : '', b = k === 'type' ? licName({ type: rec.type, other: rec.other }) : rec[k] || ''; if (String(a) !== String(b)) changes.push(l + ': ' + (a || '—') + ' → ' + (b || '—')); });
+  if (file) changes.push('Copy: ' + (old && old.hasFile ? 'replaced' : 'uploaded') + ' (' + file.name + ')');
+  try {
+    if (file) await set(ref(db, 'licFiles/' + ek + '/' + lid), { data: file.data, name: file.name.slice(0, 120), mime: file.mime, at: Date.now() });
+    await set(ref(db, 'lic/' + ek + '/' + lid), rec);
+    await set(push(ref(db, 'licHist/' + ek + '/' + lid)), { at: Date.now(), by: String(who).slice(0, 120), role: licIsHR() ? 'HR' : 'Employee', act: id ? 'Updated' : 'Added', ch: (changes.join(' | ') || 'No change').slice(0, 1500) });
+    if (licIsHR()) logAudit(id ? 'Licence updated' : 'Licence added', (DB.employees[ek] || {}).name || '', licName(rec));
+    document.getElementById('licModal').remove(); if (licIsHR()) renderLicHR(); else renderMyLic();
+  } catch (e) { btn.disabled = false; btn.textContent = 'Save'; err('Could not save (' + ((e && e.code) || 'error') + '). Please try again.'); }
+};
+const licCmp = r => ({ type: r.type, other: r.other || '', grade: r.grade || '', no: r.no || '', issuer: r.issuer || '', issue: r.issue || '', exp: r.exp || '' });
+// ── Staff portal: "My licences and cards"
+function renderMyLic() {
+  const card = document.getElementById('empLicCard'), rem = document.getElementById('empLicReminder'); if (!card) return;
+  if (!window._myLicOn) { card.style.display = 'none'; if (rem) rem.innerHTML = ''; return; }
+  card.style.display = 'block'; const L = Object.entries(DB.myLic || {}).sort((a, b) => String(a[1].exp).localeCompare(b[1].exp));
+  document.getElementById('empLicBody').innerHTML = L.length ? L.map(([id, r]) => { const d = licDays(r); return `<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #f0f0f0;flex-wrap:wrap;">
+      <div><strong>${esc(licName(r))}</strong><div style="font-size:12px;color:#666;">No. ${esc(r.no || '')}${r.issuer ? ' · ' + esc(r.issuer) : ''} · expires ${fmt(r.exp)}</div>
+      <div style="font-size:11px;margin-top:2px;">${licChip(d)} ${r.ver ? '<span style="color:#1A7A6E;">✓ checked by HR</span>' : '<span style="color:#9a5b00;">waiting for HR check</span>'}</div></div>
+      <div style="display:flex;gap:6px;">${r.hasFile ? `<button class="btn btn-sm" onclick="licOpenCopy('${currentEmpKey}','${id}')">View copy</button>` : ''}<button class="btn btn-sm btn-primary" onclick="licForm('${currentEmpKey}','${id}')">Update / renew</button></div></div>`; }).join('')
+    : '<div style="font-size:12px;color:#888;">No cards yet. Add each licence or card you hold, with a photo of it.</div>';
+  if (rem) { const due = L.filter(([, r]) => { const d = licDays(r); return d != null && d <= 60; });
+    rem.innerHTML = due.length ? `<div class="card" style="margin-bottom:16px;border-left:4px solid ${due.some(([, r]) => licDays(r) <= 30) ? '#c0392b' : '#e67e22'};background:${due.some(([, r]) => licDays(r) <= 30) ? '#fdecea' : '#fff8ec'};"><div style="font-weight:700;margin-bottom:4px;">🪪 Licence / card renewal</div>${due.map(([, r]) => `<div style="font-size:13px;">${esc(licName(r))}: ${licChip(licDays(r))} (expiry ${fmt(r.exp)})</div>`).join('')}<div style="font-size:12px;color:#555;margin-top:6px;">Please renew in time, then update the card below with the new expiry date and a copy.</div></div>` : ''; }
+}
+// ── HR side (Expiry Alerts page): all licences and cards
+function licRows() { const out = []; Object.entries(DB.lic || {}).forEach(([ek, L]) => Object.entries(L || {}).forEach(([id, r]) => { const e = DB.employees[ek] || {}; out.push({ ek, id, r, e, d: licDays(r) }); })); return out; }
+function renderLicHR() {
+  const box = document.getElementById('licHRBody'); if (!box) return; const card = document.getElementById('licHRCard');
+  if (!licIsHR()) { if (card) card.style.display = 'none'; return; } if (card) card.style.display = 'block';
+  const f = v('licF') || '', q = (v('licQ') || '').toLowerCase();
+  const rows = licRows().filter(x => (!q || (x.e.name + ' ' + x.e.dept + ' ' + licName(x.r) + ' ' + x.r.no).toLowerCase().includes(q)) &&
+      (!f || (f === 'due' && x.d != null && x.d <= 60) || (f === 'exp' && x.d != null && x.d < 0) || (f === 'nv' && !x.r.ver)))
+    .sort((a, b) => (a.d == null ? 9e9 : a.d) - (b.d == null ? 9e9 : b.d));
+  const on = Object.entries(DB.employees).filter(([k, e]) => e.licOn && e.status !== 'Inactive');
+  box.innerHTML = `<div style="font-size:12px;color:#666;margin-bottom:8px;">Staff who can record cards: ${on.length ? on.map(([k, e]) => esc(e.name)).join(', ') : 'none yet (Portal Access → "Licences & cards")'}.</div>` +
+    (rows.length ? `<div class="table-wrap"><table><thead><tr><th>Employee</th><th>Card / licence</th><th>Number</th><th>Issued by</th><th>Expiry</th><th>Status</th><th>HR check</th><th>Actions</th></tr></thead><tbody>${rows.map(x => `<tr>
+      <td><strong>${esc(x.e.name || '(removed)')}</strong><div style="font-size:11px;color:#888;">${esc(x.e.dept || '')}</div></td><td>${esc(licName(x.r))}</td><td>${esc(x.r.no || '')}</td><td>${esc(x.r.issuer || '')}</td>
+      <td>${fmt(x.r.exp)}${x.r.issue ? `<div style="font-size:11px;color:#888;">issued ${fmt(x.r.issue)}</div>` : ''}</td><td>${licChip(x.d)}</td>
+      <td>${x.r.ver ? `<span style="color:#1A7A6E;font-size:12px;">✓ ${esc(x.r.verBy || '')}</span>` : `<button class="btn btn-sm" style="background:#fff4dc;color:#7a5a00;" onclick="licVerify('${x.ek}','${x.id}')">Verify</button><div style="font-size:10px;color:#9a5b00;">changed by ${esc(x.r.updBy || '')}</div>`}</td>
+      <td style="white-space:nowrap;">${x.r.hasFile ? `<button class="btn btn-sm" onclick="licOpenCopy('${x.ek}','${x.id}')">Copy</button> ` : '<span style="font-size:11px;color:#c0392b;">no copy</span> '}<button class="btn btn-sm" onclick="licHistory('${x.ek}','${x.id}')">History</button> <button class="btn btn-sm" onclick="licForm('${x.ek}','${x.id}')">Edit</button> <button class="btn btn-sm btn-danger" onclick="licDelete('${x.ek}','${x.id}')">✕</button></td></tr>`).join('')}</tbody></table></div>`
+      : '<div class="empty-state"><p>No cards match.</p></div>');
+}
+window.renderLicHR = renderLicHR;
+window.licAddFor = function () { const k = v('licAddEmp'); if (!k) { alert('Choose the employee first.'); return; } licForm(k, ''); };
+window.licVerify = async function (ek, id) { const r = ((DB.lic || {})[ek] || {})[id]; if (!r) return; if (!confirm('Mark "' + licName(r) + '" of ' + ((DB.employees[ek] || {}).name || '') + ' as checked against the original?')) return;
+  const now = Date.now(); await set(ref(db, 'lic/' + ek + '/' + id), Object.assign({}, r, { ver: true, verBy: adminName || currentAdmin, verAt: now }));
+  await set(push(ref(db, 'licHist/' + ek + '/' + id)), { at: now, by: adminName || currentAdmin, role: 'HR', act: 'Verified', ch: 'Checked against the original (expiry ' + r.exp + ')' }); logAudit('Licence verified', (DB.employees[ek] || {}).name || '', licName(r)); };
+window.licDelete = async function (ek, id) { const r = ((DB.lic || {})[ek] || {})[id]; if (!r || !confirm('Delete "' + licName(r) + '" of ' + ((DB.employees[ek] || {}).name || '') + '? The history is kept.')) return;
+  await set(push(ref(db, 'licHist/' + ek + '/' + id)), { at: Date.now(), by: adminName || currentAdmin, role: 'HR', act: 'Deleted', ch: licName(r) + ' · No. ' + (r.no || '') + ' · expiry ' + r.exp });
+  await remove(ref(db, 'licFiles/' + ek + '/' + id)); await remove(ref(db, 'lic/' + ek + '/' + id)); logAudit('Licence deleted', (DB.employees[ek] || {}).name || '', licName(r)); };
+window.licHistory = function (ek, id) { const H = Object.values(((DB.licHist || {})[ek] || {})[id] || {}).sort((a, b) => b.at - a.at), r = ((DB.lic || {})[ek] || {})[id] || {};
+  const old = document.getElementById('licModal'); if (old) old.remove(); const box = document.createElement('div'); box.id = 'licModal'; box.className = 'modal-overlay open';
+  box.innerHTML = `<div class="modal" style="max-width:640px;"><h3>History · ${esc(licName(r))} · ${esc((DB.employees[ek] || {}).name || '')}</h3><div style="max-height:420px;overflow-y:auto;">${H.length ? H.map(h => `<div style="padding:8px 0;border-bottom:1px solid #eee;font-size:12.5px;"><b>${new Date(h.at).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</b> · ${esc(h.act)} by ${esc(h.by)} <span style="color:#888;">(${esc(h.role || '')})</span><div style="color:#444;margin-top:2px;">${esc(h.ch || '').split(' | ').join('<br>')}</div></div>`).join('') : '<p>No history.</p>'}</div>
+    <div class="btn-row" style="margin-top:12px;"><button class="btn" onclick="document.getElementById('licModal').remove()">Close</button></div></div>`; document.body.appendChild(box); };
+window.licExcel = function () { const rows = [['CK / CKC · PROFESSIONAL LICENCES AND CARDS · ' + new Date().toLocaleDateString('en-GB')], [''], ['Employee', 'Emp ID', 'Department', 'Card / licence', 'Grade', 'Number', 'Issued by', 'Issue date', 'Expiry date', 'Days left', 'Status', 'HR check', 'Copy on file', 'Last change by', 'Last change']];
+  licRows().sort((a, b) => (a.d ?? 9e9) - (b.d ?? 9e9)).forEach(x => rows.push([x.e.name || '', x.e.empId || '', x.e.dept || '', licName({ type: x.r.type, other: x.r.other }), x.r.grade || '', x.r.no || '', x.r.issuer || '', x.r.issue || '', x.r.exp || '', x.d, { exp: 'EXPIRED', red: 'Within 30 days', amber: 'Within 60 days', ok: 'OK' }[licLvl(x.d)] || '', x.r.ver ? 'Verified by ' + (x.r.verBy || '') : 'Not verified', x.r.hasFile ? 'Yes' : 'No', x.r.updBy || '', x.r.upd ? new Date(x.r.upd).toLocaleString('en-GB') : '']));
+  const hs = [['History of changes'], [''], ['Employee', 'Card', 'Date and time', 'Action', 'By', 'Role', 'Changes']];
+  Object.entries(DB.licHist || {}).forEach(([ek, C]) => Object.entries(C || {}).forEach(([id, H]) => Object.values(H || {}).sort((a, b) => a.at - b.at).forEach(h => hs.push([(DB.employees[ek] || {}).name || '', licName(((DB.lic || {})[ek] || {})[id] || { type: '' }), new Date(h.at).toLocaleString('en-GB'), h.act, h.by, h.role || '', h.ch || '']))));
+  const wb = XLSX.utils.book_new(), w1 = XLSX.utils.aoa_to_sheet(rows), w2 = XLSX.utils.aoa_to_sheet(hs);
+  w1['!cols'] = [28, 12, 18, 30, 8, 16, 20, 12, 12, 9, 15, 22, 10, 20, 18].map(w => ({ wch: w })); w2['!cols'] = [26, 30, 20, 10, 20, 9, 80].map(w => ({ wch: w }));
+  XLSX.utils.book_append_sheet(wb, w1, 'Licences & cards'); XLSX.utils.book_append_sheet(wb, w2, 'History'); XLSX.writeFile(wb, 'CK_Licences_and_Cards_' + new Date().toISOString().split('T')[0] + '.xlsx'); logAudit('Download Report', 'Licences and cards', ''); };
+window.toggleLicOn = async function (k, on) {
+  if (currentRole !== 'admin') return; const e = DB.employees[k]; if (!e || !e.portalUid) { alert('This employee needs a portal login first.'); return; }
+  if (!confirm((on ? 'Let ' : 'Stop ') + e.name + (on ? ' record his / her licences and cards in the portal?' : ' recording licences and cards? Cards already recorded stay.'))) return;
+  try { await set(ref(db, 'staffMap/' + e.portalUid + '/licOn'), on ? true : null); await set(ref(db, 'employees/' + k + '/licOn'), on ? true : null); logAudit(on ? 'Licences & cards switched on' : 'Licences & cards switched off', e.name, ''); renderPortalAccess(); renderLicHR(); }
+  catch (err) { alert('Could not save: ' + ((err && err.code) || 'unknown error')); }
+};
 
 </script>
 <script>
