@@ -12629,7 +12629,7 @@ const PR_COLS = [['sn', /^sn$/], ['emp', /^employee number/], ['name', /^employe
   ['exp', /^work expenses/], ['pension', /^pension/], ['loan', /^employee loan/], ['air', /^air ticket/], ['sadj', /^salary adjustment/], ['totAdj', /^total of differences/], ['net', /^current month net/], ['comment', /^comment/]];
 const PR_PAY = ['basic', 'housing', 'transport', 'bonus', 'others', 'col', 'edu', 'fuel', 'mobile'], PR_ADJ = ['exp', 'pension', 'loan', 'air', 'sadj'];
 const PR_LBL = { basic: 'Basic', housing: 'Housing', transport: 'Transport', bonus: 'Temp bonus', others: 'Others', col: 'Cost of living', edu: 'Education', fuel: 'Fuel', mobile: 'Mobile', exp: 'Work exp. / reimb.', pension: 'Pension', loan: 'Loan deduction', air: 'Air ticket', sadj: 'Salary adjustment' };
-const PR_ST = { draft: ['Prepared by HR', '#7f8c8d'], review: ['Waiting for HR Director review', '#8e44ad'], sent: ['Waiting for Cem', '#b9770e'], returned: ['Sent back to HR', '#c0392b'], approved: ['Approved by Cem · waiting for Finance check', '#2471a3'], ok: ['OK to pay · Finance checked', '#1A7A6E'] };
+const PR_ST = { draft: ['Prepared by HR', '#7f8c8d'], review: ['Waiting for HR Director review', '#8e44ad'], sent: ['Waiting for Cem', '#b9770e'], returned: ['Sent back to HR', '#c0392b'], approved: ['Approved by Cem · waiting for Finance check', '#2471a3'], ok: ['OK to pay · Finance checked', '#1A7A6E'], paid: ['Salaries paid · month closed', '#1C3557'] };
 const prR2 = n => Math.round((Number(n) || 0) * 100) / 100;
 const prAED = n => (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const prMon = m => new Date(m + '-01T00:00:00').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
@@ -12699,6 +12699,7 @@ async function prStep(m, status, act, needNote) {
       const D = await prLoad(m), snap = {}; ['CK', 'CKC'].forEach(co => { if (D[co]) snap[co] = D[co].upAt; }); await set(ref(db, base + 'apprSnap'), snap); } // which upload Cem approved
     if (act === 'Reopened by Cem') await set(ref(db, base + 'reopenedAt'), now);
     if (status === 'ok') { await set(ref(db, base + 'okBy'), who); await set(ref(db, base + 'okAt'), now); }
+    if (status === 'paid') { await set(ref(db, base + 'paidBy'), who); await set(ref(db, base + 'paidAt'), now); }
     await set(push(ref(db, base + 'hist')), { at: now, by: who, act, note: note.slice(0, 1000) });
     if (currentRole !== 'employee') logAudit('Payroll: ' + act, prMon(m), note.slice(0, 120));
   } catch (e) { alert('Could not save (' + ((e && e.code) || 'error') + ').'); }
@@ -12706,7 +12707,8 @@ async function prStep(m, status, act, needNote) {
 window.prAct = function (m, a) {
   if (a === 'reopen') { const sf = (PR.st[m] || {}).sif || {}; if (Object.values(sf).some(x => x && x.bank)) { alert('The SIF has already been uploaded to ADCB, so this month cannot be reopened. Use "Correction note" and HR includes it in next month\'s payroll.'); return; }
     if (!confirm('Reopen the payroll for ' + prMon(m) + '? It goes back to HR. Sruthi\'s check and any SIF check are cancelled until you approve again.')) return; }
-  const S = { review: ['review', 'Sent to HR Director for review', false], devback: ['returned', 'Sent back by HR Director', true], send: ['sent', 'Sent to Cem for approval', false], approve: ['approved', 'Approved', false], back: ['returned', 'Sent back to HR', true], ok: ['ok', 'OK to pay (Finance check)', false], query: ['returned', 'Query from Finance', true], reopen: ['returned', 'Reopened by Cem', true] }[a];
+  if (a === 'close' && !confirm('Close ' + prMon(m) + ': salaries have been paid and received? After this the month cannot be reopened; later changes go into next month as a correction.')) return;
+  const S = { close: ['paid', 'Salaries paid · month closed', false], review: ['review', 'Sent to HR Director for review', false], devback: ['returned', 'Sent back by HR Director', true], send: ['sent', 'Sent to Cem for approval', false], approve: ['approved', 'Approved', false], back: ['returned', 'Sent back to HR', true], ok: ['ok', 'OK to pay (Finance check)', false], query: ['returned', 'Query from Finance', true], reopen: ['returned', 'Reopened by Cem', true] }[a];
   if (a === 'approve' && !confirm('Approve the payroll for ' + prMon(m) + '? It will be locked.')) return; if (a === 'ok' && !confirm('Confirm the payroll for ' + prMon(m) + ' is OK to pay?')) return; prStep(m, S[0], S[1], S[2]); };
 // ── SIF check (the SIF is made the usual way; the portal only compares it)
 function prSifCheck(text, m, co) {
@@ -12741,7 +12743,21 @@ window.prCorr = async function (m) { const note = prompt('Correction note for ' 
   const now = Date.now(); try { await set(push(ref(db, 'payrollState/' + m + '/corr')), { at: now, by: prWho(), note: note.slice(0, 1000), done: false }); await set(push(ref(db, 'payrollState/' + m + '/hist')), { at: now, by: prWho(), act: 'Correction note (next month)', note: note.slice(0, 1000) }); } catch (e) { alert('Could not save (' + ((e && e.code) || 'error') + ').'); } };
 window.prCorrDone = async function (m, k) { if (!confirm('Mark this correction as included in a later payroll?')) return; const now = Date.now();
   try { await set(ref(db, 'payrollState/' + m + '/corr/' + k + '/done'), true); await set(ref(db, 'payrollState/' + m + '/corr/' + k + '/doneBy'), prWho()); await set(push(ref(db, 'payrollState/' + m + '/hist')), { at: now, by: prWho(), act: 'Correction included in payroll', note: ((((PR.st[m] || {}).corr || {})[k]) || {}).note || '' }); } catch (e) { alert('Could not save.'); } };
-window.prBank = async function (m, co) { const S0 = PR.st[m] || {}, c = (S0.sif || {})[co] || {}; if (S0.status !== 'ok') { alert('This month is not OK to pay (it may have been reopened by Cem). Do not upload the SIF.'); return; }
+// HR (Darleendy) uploads the SIF made the usual way after "OK to pay"; it is checked and, only if it passes, kept for Noushad to download.
+window.prSifUpload = async function (inp, m, co) { const f = (inp.files || [])[0]; inp.value = ''; if (!f) return; const txt = await f.text(); try { await prLoad(m); } catch (e) {}
+  if ((PR.st[m] || {}).status !== 'ok') { alert('The SIF can be added only when the payroll is OK to pay.'); return; }
+  const r = prSifCheck(txt, m, co); r.file = f.name; PR.sifRes[m + co] = r; const now = Date.now(), who = prWho();
+  try { await set(ref(db, 'payrollState/' + m + '/sif/' + co + '/check'), { at: now, by: who, file: f.name.slice(0, 120), ok: r.ok, lines: r.lines, total: r.total, issues: r.bad.slice(0, 20).join(' | ').slice(0, 1500) });
+    if (r.ok) { await set(ref(db, 'payrollSif/' + m + '/' + co), { name: f.name.slice(0, 120), text: txt, at: now, by: who }); await set(push(ref(db, 'payrollState/' + m + '/hist')), { at: now, by: who, act: co + ' SIF ready for the bank', note: f.name + ' · ' + r.lines + ' employees · AED ' + prAED(r.total) }); }
+    else alert('The SIF file does not match the approved payroll, so it was NOT made available to Noushad. See the problems listed under ' + co + '.');
+  } catch (e) { alert('Could not save (' + ((e && e.code) || 'error') + ').'); }
+  renderPayroll(); };
+window.prSifDownload = async function (m, co) { const S0 = PR.st[m] || {}, c = ((S0.sif || {})[co] || {}).check;
+  if (S0.status !== 'ok' || !c || !c.ok || c.at < (S0.approvedAt || 0)) { alert('This SIF is not ready (the payroll may have been reopened). Do not upload anything to the bank.'); return; }
+  try { const s = (await get(ref(db, 'payrollSif/' + m + '/' + co))).val(); if (!s || !s.text) { alert('The SIF file is not in the portal yet.'); return; }
+    const url = URL.createObjectURL(new Blob([s.text], { type: 'text/plain' })), a = document.createElement('a'); a.href = url; a.download = s.name || ('SIF_' + co + '.SIF'); document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
+    await set(push(ref(db, 'payrollState/' + m + '/hist')), { at: Date.now(), by: prWho(), act: co + ' SIF downloaded' + (prRole() === 'hr' ? ' by HR (to email)' : ''), note: s.name || '' }); } catch (e) { alert('Could not download (' + ((e && e.code) || 'error') + ').'); } };
+window.prBank = async function (m, co) { const S0 = PR.st[m] || {}, c = (S0.sif || {})[co] || {}; if (S0.status !== 'ok' && S0.status !== 'paid') { alert('This month is not OK to pay (it may have been reopened by Cem). Do not upload the SIF.'); return; }
   if (!c.check || !c.check.ok || c.check.at < (S0.approvedAt || 0)) { alert('Check the SIF file first (again, after Cem\'s latest approval): it must pass all checks.'); return; }
   const refNo = prompt('Uploaded to ADCB: bank reference (optional)'); if (refNo === null) return;
   const now = Date.now(); try { await set(ref(db, 'payrollState/' + m + '/sif/' + co + '/bank'), { at: now, by: prWho(), ref: String(refNo).slice(0, 80) }); await set(push(ref(db, 'payrollState/' + m + '/hist')), { at: now, by: prWho(), act: co + ' SIF uploaded to ADCB', note: refNo || '' }); } catch (e) { alert('Could not save (' + ((e && e.code) || 'error') + ').'); } };
@@ -12760,7 +12776,7 @@ function prBoxEl() { return document.getElementById(currentRole === 'employee' ?
 function renderPayroll() {
   const box = prBoxEl(); if (!box) return; const role = prRole(); if (!role) { box.innerHTML = ''; return; }
   if (PR.imp && role === 'hr') return prRenderImport(box);
-  const months = Object.keys(PR.st).filter(m => role === 'hr' || role === 'ceo' ? true : role === 'rev' ? ['approved', 'ok', 'returned'].includes(PR.st[m].status) && PR.st[m].approvedAt : (PR.st[m].status === 'ok' || (PR.st[m].reopenedAt && PR.st[m].sif))).sort().reverse();
+  const months = Object.keys(PR.st).filter(m => role === 'hr' || role === 'ceo' ? true : role === 'rev' ? ['approved', 'ok', 'paid', 'returned'].includes(PR.st[m].status) && PR.st[m].approvedAt : (PR.st[m].status === 'ok' || PR.st[m].status === 'paid' || (PR.st[m].reopenedAt && PR.st[m].sif))).sort().reverse();
   if (!PR.open || !months.includes(PR.open)) PR.open = months[0] || '';
   let h = '';
   if (role === 'hr' || role === 'ceo') { const C = []; Object.entries(PR.st).forEach(([m, s]) => Object.entries((s && s.corr) || {}).forEach(([k, c]) => { if (!c.done) C.push([m, k, c]); }));
@@ -12777,19 +12793,22 @@ function prMonthHtml(m, role) {
   const S = PR.st[m] || {}, st = S.status || 'draft', D = PR.data[m], T = PR.tot[m] || {};
   const cos = ['CK', 'CKC'].filter(co => T[co] || (D && D[co]));
   let h = `<div class="card" style="margin-bottom:14px;"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><div class="card-title" style="margin:0;">💼 Payroll ${prMon(m)}</div>${prChip(st)}</div>`;
-  if (S.reopenedAt && !['approved', 'ok'].includes(st)) h += `<div style="margin-top:10px;background:#fdecea;color:#c0392b;border-radius:8px;padding:8px 10px;font-size:13px;font-weight:600;">⛔ Reopened by Cem on ${new Date(S.reopenedAt).toLocaleString('en-GB')}${role === 'sif' ? ': do not upload the SIF until it is approved and OK to pay again.' : '. Earlier approvals and SIF checks are cancelled.'}</div>`;
+  if (st === 'paid') h += `<div style="margin-top:10px;background:#eef2f8;border-radius:8px;padding:8px 10px;font-size:13px;">✓ Closed by ${esc(S.paidBy || '')} on ${S.paidAt ? new Date(S.paidAt).toLocaleString('en-GB') : ''}: salaries paid. Changes now go into next month (Cem: "Correction note").</div>`;
+  if (S.reopenedAt && !['approved', 'ok', 'paid'].includes(st)) h += `<div style="margin-top:10px;background:#fdecea;color:#c0392b;border-radius:8px;padding:8px 10px;font-size:13px;font-weight:600;">⛔ Reopened by Cem on ${new Date(S.reopenedAt).toLocaleString('en-GB')}${role === 'sif' ? ': do not upload the SIF until it is approved and OK to pay again.' : '. Earlier approvals and SIF checks are cancelled.'}</div>`;
   h += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px;margin-top:12px;">${cos.map(co => { const t = (T[co] || {}).totals || (D && D[co] && D[co].totals); if (!t) return ''; const sif = (S.sif || {})[co] || {};
     return `<div style="border:1px solid #e6e9ee;border-radius:10px;padding:12px;"><div style="font-weight:700;color:#1C3557;">${co === 'CK' ? 'CK Architecture Interiors' : 'CKC Building Contracting'}</div>
       <div style="font-size:12.5px;margin-top:6px;line-height:1.8;">WPS: <b>${t.W.count}</b> employees · net <b>AED ${prAED(t.W.net)}</b><br>Non WPS: <b>${t.N.count}</b> · net AED ${prAED(t.N.net)}<br>Total net payroll: <b style="font-size:15px;">AED ${prAED(t.all.net)}</b><br><span style="color:#888;">Gross ${prAED(t.all.gross)} · prior month gross ${prAED(t.all.prior)}</span></div>
       ${st === 'ok' || sif.check ? `<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #ddd;font-size:12px;">🏦 SIF: ${sif.check ? (sif.check.at < (S.approvedAt || 0) ? '<span style="color:#9a5b00;font-weight:700;">earlier check, before Cem\'s latest approval: check again</span>' : sif.check.ok ? '<span style="color:#1A7A6E;font-weight:700;">checked ✓</span>' : '<span style="color:#c0392b;font-weight:700;">check failed</span>') + ' (' + esc(sif.check.by) + ', ' + new Date(sif.check.at).toLocaleString('en-GB') + ')' : 'not checked yet'}${sif.bank ? '<br><span style="color:#1A7A6E;font-weight:700;">Uploaded to ADCB</span> by ' + esc(sif.bank.by) + ', ' + new Date(sif.bank.at).toLocaleString('en-GB') + (sif.bank.ref ? ' · ref ' + esc(sif.bank.ref) : '') : ''}
-        ${(role === 'sif' || role === 'hr') && st === 'ok' ? `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;"><label class="btn btn-sm" style="position:relative;">Check SIF file<input type="file" accept=".sif,.SIF,.txt" style="position:absolute;inset:0;opacity:0;cursor:pointer;" onchange="prSifFile(this,'${m}','${co}')"></label>${role === 'sif' && !sif.bank ? `<button class="btn btn-sm btn-primary" onclick="prBank('${m}','${co}')">Mark uploaded to ADCB</button>` : ''}</div>` : ''}
+        ${role === 'hr' && st === 'ok' && !sif.bank ? `<div style="margin-top:6px;"><label class="btn btn-sm btn-primary" style="position:relative;">${sif.check && sif.check.ok && sif.check.at >= (S.approvedAt || 0) ? 'Replace SIF file' : 'Add SIF file for the bank'}<input type="file" accept=".sif,.SIF,.txt" style="position:absolute;inset:0;opacity:0;cursor:pointer;" onchange="prSifUpload(this,'${m}','${co}')"></label>${sif.check && sif.check.ok && sif.check.at >= (S.approvedAt || 0) ? ` <button class="btn btn-sm" onclick="prSifDownload('${m}','${co}')">⬇️ Download checked SIF (to email)</button>` : ''}<div style="font-size:11px;color:#888;margin-top:4px;">Made the usual way. It is checked against the approved payroll; only a file that passes is given to Noushad. Noushad downloads it here, or you email him the checked file.</div></div>` : ''}
+        ${role === 'sif' && (st === 'ok' || st === 'paid') ? (sif.check && sif.check.ok && sif.check.at >= (S.approvedAt || 0) ? `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;"><button class="btn btn-sm btn-primary" onclick="prSifDownload('${m}','${co}')">⬇️ Download SIF</button>${!sif.bank ? `<button class="btn btn-sm" onclick="prBank('${m}','${co}')">Mark uploaded to ADCB</button>` : ''}</div>` : '<div style="margin-top:6px;color:#9a5b00;">Waiting for HR to add the checked SIF file. Do not upload a SIF that has not passed the check here.</div>') : ''}
         ${PR.sifRes[m + co] ? prSifHtml(PR.sifRes[m + co]) : ''}</div>` : ''}</div>`; }).join('')}</div>`;
   const B = [];
   if (role === 'hr' && ['draft', 'returned'].includes(st) && cos.length) B.push(prIsDev() ? `<button class="btn btn-primary" onclick="prAct('${m}','send')">Reviewed · send to Cem for approval</button>` : `<button class="btn btn-primary" onclick="prAct('${m}','review')">Send to Dev (HR Director) for review</button>`);
   if (role === 'hr' && st === 'review' && prIsDev()) B.push(`<button class="btn btn-primary" onclick="prAct('${m}','send')">Reviewed · send to Cem for approval</button><button class="btn btn-danger" onclick="prAct('${m}','devback')">Send back to Darleendy</button>`);
   if (role === 'hr' && st === 'review' && !prIsDev()) B.push(`<span style="font-size:12.5px;color:#8e44ad;">Waiting for Dev's review. You can still upload a corrected file.</span>`);
   if (role === 'ceo' && st === 'sent') B.push(`<button class="btn btn-primary" onclick="prAct('${m}','approve')">✓ Approve</button><button class="btn btn-danger" onclick="prAct('${m}','back')">Send back to HR</button>`);
-  const paid = Object.values(S.sif || {}).some(x => x && x.bank);
+  const paid = st === 'paid' || Object.values(S.sif || {}).some(x => x && x.bank);
+  if (role === 'hr' && st === 'ok') B.push(`<button class="btn btn-primary" onclick="prAct('${m}','close')">✓ Salaries received · close month</button>`);
   if (role === 'ceo' && (st === 'approved' || st === 'ok') && !paid) B.push(`<button class="btn" onclick="prAct('${m}','reopen')">Reopen (change after approval)</button>`);
   if (role === 'ceo' && paid) B.push(`<button class="btn" onclick="prCorr('${m}')">Correction note (for next month)</button>`);
   if (role === 'rev' && st === 'approved') B.push(`<button class="btn btn-primary" onclick="prAct('${m}','ok')">✓ OK to pay</button><button class="btn btn-danger" onclick="prAct('${m}','query')">Query (back to HR)</button>`);
@@ -12910,3 +12929,4 @@ if('serviceWorker' in navigator){
 </script>
 </body>
 </html>
+
