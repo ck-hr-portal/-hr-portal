@@ -247,6 +247,7 @@ tr:hover td{background:#fafbfc;}
       </div>
     </div>
 
+    <div id="empMyBday"></div>
     <div id="empMyAnni"></div>
     <div id="empLeaveAllCard"></div>
     <div id="empLicReminder"></div>
@@ -1211,7 +1212,12 @@ tr:hover td{background:#fafbfc;}
             <div class="form-group" style="margin-top:10px;"><label>🎉 Festive theme (optional)</label>
               <div style="display:flex;gap:8px;flex-wrap:wrap;"><select id="annTheme" onchange="annThemeChanged(true)" style="flex:1;min-width:180px;"><option value="">None — normal announcement</option><option value="diwali">🪔 Diwali</option><option value="christmas">🎄 Christmas</option><option value="newyear">🎆 New Year</option><option value="eid">🌙 Eid</option><option value="ramadan">🕌 Ramadan</option><option value="uae">🏛️ UAE National Day</option><option value="celebration">🎉 General celebration / Congratulations</option></select><button type="button" class="btn btn-sm" style="background:#fff8e1;color:#8a6d00;" onclick="annThemeChanged(true)">✨ Suggest greeting text</button></div>
               <p style="font-size:11px;color:#888;margin-top:4px;">Pick a theme and the title and message are filled in for you (you can edit them). Staff see a decorated greeting card instead of plain text.</p>
-              <div id="annPreview"></div></div>
+              <div id="annPreview"></div>
+              <div id="annLiveBox" style="display:none;margin-top:10px;padding:12px;border:1px dashed #F2B705;border-radius:8px;background:#fffaf0;">
+                <label style="display:flex;gap:8px;align-items:center;font-weight:600;"><input type="checkbox" id="annLive" checked> ✨ Live animated background for everyone (staff portal and HR) between Live From and Live Until</label>
+                <div class="form-grid" style="margin-top:8px;"><div class="form-group"><label>Main festival day (the full greeting shows from this day)</label><input type="date" id="annMain"></div><div class="form-group"><label>Build-up title (before the main day)</label><input id="annPreTitle"></div></div>
+                <div class="form-group"><label>Build-up message (before the main day)</label><textarea id="annPreMsg" rows="3"></textarea></div>
+              </div></div>
             <div class="form-group" style="margin-top:10px;"><label>Category</label><select id="annCat"><option>General</option><option>HR Policy</option><option>Safety</option><option>Event</option><option>Urgent</option></select></div>
             <div class="form-grid" style="margin-top:10px;">
               <div class="form-group"><label>Live From</label><input type="date" id="annStart"></div>
@@ -2971,7 +2977,7 @@ async function syncStaffMirrors(){
       });
       hist.sort((a,b)=>(b.f>a.f?1:b.f<a.f?-1:0));
       newView[k]=prune({
-        empId:e.empId,name:e.name,dept:e.dept,desig:e.desig,entity:e.entity,join:e.join,
+        empId:e.empId,name:e.name,dept:e.dept,desig:e.desig,entity:e.entity,join:e.join,dob:e.dob, // own birthday: for the personal birthday card
         passport:e.passport,passExp:e.passExp,visa:e.visa,visaExp:e.visaExp,
         eid:e.eid,eidExp:e.eidExp,lab:e.lab,labExp:e.labExp,
         annualLeaveBalance:e.annualLeaveBalance,
@@ -3884,6 +3890,7 @@ function initEmployeeListeners(empKey,uid){
     DB.employees={[empKey]:view}; // keep just this one record locally
     renderMyInfo(view);
     try{const box=document.getElementById('empMyAnni');if(box)box.innerHTML=myAnniMsgHtml();}catch(err){}
+    try{const bb=document.getElementById('empMyBday');if(bb)bb.innerHTML=myBdayHtml();}catch(err){}
     try{renderStaffGreeting();}catch(e){}
     renderMyLeaveBalance(view);
     renderMyComp(view);
@@ -4291,6 +4298,7 @@ function myAnniMsgHtml(){
 }
 function renderEmpBirthdaysAnniversaries(){
   {const box=document.getElementById('empMyAnni');if(box)box.innerHTML=myAnniMsgHtml();}
+  {const bb=document.getElementById('empMyBday');if(bb)bb.innerHTML=myBdayHtml();}
   const bdayEl=document.getElementById('empBdayList');
   const anniEl=document.getElementById('empAnniList');
   if(!bdayEl&&!anniEl)return;
@@ -9948,15 +9956,19 @@ window.dismissFest=function(key){try{localStorage.setItem('festHide_'+key,'1');}
 function _festHidden(key){try{return localStorage.getItem('festHide_'+key)==='1';}catch(e){return false;}}
 // Shows ONLY the newest themed greeting that is inside its Live From – Live Until dates; vanishes by itself afterwards
 function renderFestiveBanners(){
-  const t=new Date().toISOString().split('T')[0];
-  const live=Object.entries(DB.announcements||{}).filter(([k,a])=>ANN_THEMES[a.theme]&&(!a.expiryDate||a.expiryDate>=t)&&(!a.startDate||a.startDate<=t)&&!_festHidden(k)).sort((a,b)=>(b[1].ts||0)-(a[1].ts||0));
+  const t=localDateStr(new Date());
+  const all=Object.entries(DB.announcements||{}).filter(([k,a])=>ANN_THEMES[a.theme]&&(!a.expiryDate||a.expiryDate>=t)&&(!a.startDate||a.startDate<=t)).sort((a,b)=>(b[1].ts||0)-(a[1].ts||0));
+  const lv=all.find(([k,a])=>a.live===true&&FEST_LIVE_THEMES[a.theme]); // live animated theme (e.g. Diwali)
+  try{festLiveApply(lv?lv[0]:null,lv?lv[1]:null);}catch(e){}
+  if(lv){const pre=!!(lv[1].mainDate&&t<lv[1].mainDate);const h=festLiveCard(lv[0],lv[1],pre);['empFestive','dashFestive'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=h;});return;}
+  const live=all.filter(([k])=>!_festHidden(k));
   const html=live.length?annCard(live[0][1],{footer:'HR Department · until '+fmt(live[0][1].expiryDate),dismissKey:live[0][0]}):'';
   ['empFestive','dashFestive'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=html;});
 }
 const _festCss='.fest-card{position:relative;overflow:hidden;border-radius:14px;margin-bottom:12px;box-shadow:0 4px 14px rgba(0,0,0,.12);background:#fff;}.fest-head{display:flex;align-items:center;gap:14px;background:#fff;padding:8px 18px;border-bottom:2px solid #C9A84C;position:relative;}.fest-head img{height:30px;width:auto;display:block;}.fest-div{width:1px;height:24px;background:#d9d9d9;}.fest-body{position:relative;padding:14px 20px;min-height:116px;}.fest-art{position:absolute;top:0;right:0;bottom:0;width:min(42%,260px);pointer-events:none;}.fest-text{position:relative;max-width:60%;}.fest-x{position:absolute;top:50%;right:10px;transform:translateY(-50%);z-index:3;border:none;background:#f1f1f1;color:#666;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:11px;line-height:22px;padding:0;}.fest-x:hover{background:#e2e2e2;}@media(max-width:760px){.fest-text{max-width:100%;}.fest-art{opacity:.2;width:70%;}}';
 (()=>{const st=document.createElement('style');st.textContent=_festCss;document.head.appendChild(st);})();
 window.annThemeChanged=function(fill){
-  const key=v('annTheme');const T=ANN_THEMES[key];
+  const key=v('annTheme');const T=ANN_THEMES[key];try{annLiveToggleForm();}catch(e){}
   if(fill&&T){
     if(!v('annTitle')||confirm('Replace the current title and message with the suggested '+T.label+' greeting?')){sv('annTitle',T.title);sv('annMsg',T.msg);sv('annCat','Event');}
   }
@@ -9981,6 +9993,8 @@ window.saveAnn=function(){
     lastEditedBy:editKey?adminName:'',lastEditedAt:editKey?Date.now():''
   };
   { const prev=editKey?(DB.announcements[editKey]||{}):{}; const want=!!(document.getElementById('annAck')||{}).checked; if(want){data.ackRequired=true;data.ackVer=prev.ackVer||1;} }
+  if(FEST_LIVE_THEMES[data.theme]&&(document.getElementById('annLive')||{}).checked){data.live=true;if(v('annMain'))data.mainDate=v('annMain');data.preTitle=v('annPreTitle')||'';data.preMsg=v('annPreMsg')||'';
+    if(data.mainDate&&((data.startDate&&data.mainDate<data.startDate)||(data.expiryDate&&data.mainDate>data.expiryDate))){alert('The main festival day must be between Live From and Live Until.');return;}}
   if(!data.title){alert('Title required');return;}
   if(!data.expiryDate){alert('Please set a "Live Until" date so this announcement moves to the log automatically once it expires.');return;}
   const op=editKey?set(ref(db,'announcements/'+editKey),data):set(push(ref(db,'announcements')),data);
@@ -9994,13 +10008,14 @@ window.editAnn=function(key){
   const a=DB.announcements[key];
   sv('annEditKey',key);sv('annTitle',a.title);sv('annMsg',a.message);sv('annCat',a.category);sv('annTheme',a.theme||'');annPreview();
   sv('annStart',a.startDate||'');sv('annExpiry',a.expiryDate||'');{const c=document.getElementById('annAck');if(c)c.checked=!!a.ackRequired;}
+  {const c=document.getElementById('annLive');if(c)c.checked=a.live!==false;sv('annMain',a.mainDate||'');sv('annPreTitle',a.preTitle||'');sv('annPreMsg',a.preMsg||'');annLiveToggleForm();}
   document.getElementById('annFormTitle').textContent='✏️ Editing Announcement';
   document.getElementById('annSaveBtn').textContent='Save Changes';
   document.getElementById('annCancelBtn').style.display='inline-block';
   window.scrollTo(0,0);
 };
 window.cancelAnnEdit=function(){
-  sv('annEditKey','');sv('annTitle','');sv('annMsg','');sv('annStart','');sv('annExpiry','');sv('annTheme','');{const c=document.getElementById('annAck');if(c)c.checked=false;}annPreview();
+  sv('annEditKey','');sv('annTitle','');sv('annMsg','');sv('annStart','');sv('annExpiry','');sv('annTheme','');{const c=document.getElementById('annAck');if(c)c.checked=false;}sv('annMain','');sv('annPreTitle','');sv('annPreMsg','');{const c=document.getElementById('annLive');if(c)c.checked=true;}try{annLiveToggleForm();}catch(e){}annPreview();
   document.getElementById('annFormTitle').textContent='+ New Announcement';
   document.getElementById('annSaveBtn').textContent='Publish';
   document.getElementById('annCancelBtn').style.display='none';
@@ -10039,8 +10054,8 @@ function renderBirthdays(){
   const thisMonth=emps.filter(e=>e.dob&&new Date(e.dob).getMonth()===m);
   const next30=new Date();next30.setDate(next30.getDate()+30);
   const upcoming=emps.filter(e=>{if(!e.dob)return false;const bd=new Date(e.dob);const ty=new Date(now.getFullYear(),bd.getMonth(),bd.getDate());return ty>now&&ty<=next30;});
-  document.getElementById('bdayList').innerHTML=thisMonth.length?thisMonth.map(e=>`<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #f0f0f0;"><span style="font-size:22px;">🎂</span><div><strong>${esc(e.name)}</strong><br><span style="font-size:12px;color:#888;">${esc(e.dept||'')} · ${new Date(e.dob).toLocaleDateString('en-AE',{day:'numeric',month:'long'})}</span></div></div>`).join(''):'<div class="empty-state"><p>None this month.</p></div>';
-  document.getElementById('bdayUpcoming').innerHTML=upcoming.length?upcoming.map(e=>`<div style="padding:7px 0;border-bottom:1px solid #f0f0f0;"><strong>${esc(e.name)}</strong> · ${new Date(e.dob).toLocaleDateString('en-AE',{day:'numeric',month:'long'})}</div>`).join(''):'<div class="empty-state"><p>None in next 30 days.</p></div>';
+  document.getElementById('bdayList').innerHTML=thisMonth.length?thisMonth.map(e=>`<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #f0f0f0;"><span style="font-size:22px;">🎂</span><div><strong>${esc(e.name)}</strong> <button class="btn btn-sm" style="padding:2px 8px;font-size:11px;margin-left:6px;" onclick='bdayPreview(${esc(JSON.stringify(e.name||""))})'>🎂 Preview card</button><br><span style="font-size:12px;color:#888;">${esc(e.dept||'')} · ${new Date(e.dob).toLocaleDateString('en-AE',{day:'numeric',month:'long'})}</span></div></div>`).join(''):'<div class="empty-state"><p>None this month.</p></div>';
+  document.getElementById('bdayUpcoming').innerHTML=upcoming.length?upcoming.map(e=>`<div style="padding:7px 0;border-bottom:1px solid #f0f0f0;"><strong>${esc(e.name)}</strong> <button class="btn btn-sm" style="padding:2px 8px;font-size:11px;margin-left:6px;" onclick='bdayPreview(${esc(JSON.stringify(e.name||""))})'>🎂 Preview card</button> · ${new Date(e.dob).toLocaleDateString('en-AE',{day:'numeric',month:'long'})}</div>`).join(''):'<div class="empty-state"><p>None in next 30 days.</p></div>';
 }
 
 // ── POLICIES ──────────────────────────────────────────────────────────────────
@@ -12356,7 +12371,20 @@ function licFileRead(f) { return new Promise((ok, no) => {
       c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); let d = c.toDataURL('image/jpeg', 0.72); if (d.length > 1400000) d = c.toDataURL('image/jpeg', 0.5); ok({ data: d, name: f.name.replace(/\.[^.]+$/, '') + '.jpg', mime: 'image/jpeg' }); };
     im.onerror = () => no(new Error('This photo could not be opened. Please try another one.')); im.src = rd.result; };
   rd.readAsDataURL(f); }); }
-async function licOpenCopy(ek, id) { try { const s = await get(ref(db, 'licFiles/' + ek + '/' + id)); const f = s.val(); if (!f || !f.data) { alert('No copy uploaded for this card.'); return; } lqSaveBlob(f.data, f.name || 'card'); } catch (e) { alert('The copy could not be opened. Please try again.'); } }
+// Show a photo (JPG / PNG) in a viewer inside the portal, with a Download that keeps the right file type.
+// PDFs still go through the letter-download tool. (Fix: card copies and birthday cards were saved as ".pdf".)
+function imgView(dataUrl, name) {
+  const mime = (/^data:([^;,]+)/.exec(String(dataUrl)) || [0, 'image/jpeg'])[1], ext = mime === 'image/png' ? '.png' : '.jpg';
+  name = String(name || 'image').replace(/\.(pdf|jpe?g|png)$/i, '').replace(/[\\/:*?"<>|]+/g, '_') + ext;
+  let url = dataUrl; try { const i = dataUrl.indexOf(','), s = atob(dataUrl.slice(i + 1)), u = new Uint8Array(s.length); for (let k = 0; k < s.length; k++) u[k] = s.charCodeAt(k); url = URL.createObjectURL(new Blob([u], { type: mime })); } catch (e) {}
+  const old = document.getElementById('imgViewBox'); if (old) old.remove(); const box = document.createElement('div'); box.id = 'imgViewBox';
+  box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px;';
+  box.innerHTML = `<div style="background:#fff;border-radius:12px;padding:14px;max-width:96vw;max-height:94vh;display:flex;flex-direction:column;gap:10px;"><div style="overflow:auto;max-height:80vh;text-align:center;"><img src="${url}" alt="" style="max-width:100%;height:auto;border-radius:6px;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;"><a class="btn btn-primary" href="${url}" download="${esc(name)}" style="text-decoration:none;">📥 Download</a><button class="btn" onclick="document.getElementById('imgViewBox').remove()">Close</button></div></div>`;
+  box.addEventListener('click', ev => { if (ev.target === box) box.remove(); }); document.body.appendChild(box);
+}
+window.imgView = imgView;
+async function licOpenCopy(ek, id) { try { const s = await get(ref(db, 'licFiles/' + ek + '/' + id)); const f = s.val(); if (!f || !f.data) { alert('No copy uploaded for this card.'); return; } if (/^data:image\//.test(f.data)) imgView(f.data, f.name || 'card'); else lqSaveBlob(f.data, f.name || 'card'); } catch (e) { alert('The copy could not be opened. Please try again.'); } }
 window.licOpenCopy = licOpenCopy;
 // The form (used by staff in their portal and by HR on their behalf)
 function licForm(ek, id) {
@@ -12471,6 +12499,112 @@ window.toggleLicOn = async function (k, on) {
   try { await set(ref(db, 'staffMap/' + e.portalUid + '/licOn'), on ? true : null); await set(ref(db, 'employees/' + k + '/licOn'), on ? true : null); logAudit(on ? 'Licences & cards switched on' : 'Licences & cards switched off', e.name, ''); renderPortalAccess(); renderLicHR(); }
   catch (err) { alert('Could not save: ' + ((err && err.code) || 'unknown error')); }
 };
+
+
+// ══ Nov 2026: personal birthday card in the employee's own portal (on the birthday only) ══
+function bdayFirst(name) { const p = String(name || '').trim().split(/\s+/); return p[0] && p[0].length > 2 ? p[0] : (p.slice(0, 2).join(' ') || 'Friend'); }
+function bdayIsToday(dob) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(dob || '')); if (!m) return false; const n = new Date(), mm = n.getMonth() + 1, dd = n.getDate(), y = n.getFullYear();
+  const leap = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0; let bm = +m[2], bd = +m[3]; if (bm === 2 && bd === 29 && !leap) bd = 28; return bm === mm && bd === dd; }
+function bdayCardSvg(name) {
+  const x = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'), first = x(bdayFirst(name));
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 440" width="100%" style="display:block;max-width:680px;margin:0 auto;" role="img" aria-label="Birthday card">
+<rect x="0" y="0" width="680" height="440" rx="18" fill="#1C3557"/><rect x="14" y="14" width="652" height="412" rx="12" fill="none" stroke="#C9A84C" stroke-width="1.5"/>
+<g opacity="0.9"><rect x="50" y="44" width="8" height="8" fill="#C9A84C" transform="rotate(20 54 48)"/><rect x="600" y="54" width="7" height="7" fill="#E8B4B8" transform="rotate(35 603 57)"/><circle cx="100" cy="390" r="4" fill="#9FE1CB"/><circle cx="620" cy="384" r="4" fill="#C9A84C"/><rect x="560" y="400" width="8" height="8" fill="#9FE1CB" transform="rotate(15 564 404)"/><rect x="70" y="320" width="6" height="6" fill="#E8B4B8" transform="rotate(40 73 323)"/><circle cx="230" cy="44" r="3" fill="#E8B4B8"/><circle cx="450" cy="42" r="3" fill="#9FE1CB"/><rect x="640" y="200" width="7" height="7" fill="#C9A84C" transform="rotate(25 643 203)"/><circle cx="38" cy="210" r="3.5" fill="#C9A84C"/></g>
+<path d="M78 192 Q72 242 86 290" fill="none" stroke="#C9A84C" stroke-width="1"/><ellipse cx="78" cy="160" rx="26" ry="32" fill="#C9A84C"/><path d="M74 192 L82 192 L78 198 Z" fill="#C9A84C"/>
+<path d="M118 212 Q112 258 106 305" fill="none" stroke="#E8B4B8" stroke-width="1"/><ellipse cx="118" cy="184" rx="22" ry="28" fill="#E8B4B8"/><path d="M114 212 L122 212 L118 217 Z" fill="#E8B4B8"/>
+<path d="M602 197 Q609 242 597 292" fill="none" stroke="#9FE1CB" stroke-width="1"/><ellipse cx="602" cy="165" rx="25" ry="31" fill="#9FE1CB"/><path d="M598 196 L606 196 L602 202 Z" fill="#9FE1CB"/>
+<path d="M565 217 Q561 257 569 302" fill="none" stroke="#C9A84C" stroke-width="1"/><ellipse cx="565" cy="192" rx="20" ry="25" fill="#C9A84C"/><path d="M561 217 L569 217 L565 222 Z" fill="#C9A84C"/>
+<text x="340" y="62" text-anchor="middle" fill="#C9A84C" font-family="Arial,Helvetica,sans-serif" font-size="12" letter-spacing="2">CK ARCHITECTURE INTERIORS  ·  CKC BUILDING CONTRACTING</text>
+<text x="340" y="124" text-anchor="middle" fill="#FFFFFF" font-family="Georgia,'Times New Roman',serif" font-size="38">Happy Birthday,</text>
+<text x="340" y="172" text-anchor="middle" fill="#C9A84C" font-family="Georgia,'Times New Roman',serif" font-size="38" font-style="italic">${first}!</text>
+<g font-family="Arial,Helvetica,sans-serif" font-size="14" fill="#E6EAF0" text-anchor="middle">
+<text x="340" y="216">On behalf of the entire CK &amp; CKC team, we wish you a wonderful</text>
+<text x="340" y="237">birthday filled with joy, good health and happiness.</text>
+<text x="340" y="268">Thank you for your hard work, your dedication and everything</text>
+<text x="340" y="289">you bring to our company every day. We are proud to have you</text>
+<text x="340" y="310">with us and look forward to celebrating many more successes together.</text></g>
+<line x1="290" y1="336" x2="390" y2="336" stroke="#C9A84C" stroke-width="1"/>
+<g font-family="Georgia,'Times New Roman',serif" font-size="15" font-style="italic" fill="#C9A84C" text-anchor="middle"><text x="340" y="364">With warm wishes from all of us at</text><text x="340" y="387">CK Architecture Interiors &amp; CKC Building Contracting</text></g>
+</svg>`;
+}
+window.bdayDownload = function (name) {
+  const svg = bdayCardSvg(name).replace('width="100%" style="display:block;max-width:680px;margin:0 auto;"', 'width="2040" height="1320"');
+  const img = new Image(); img.onload = () => { const c = document.createElement('canvas'); c.width = 2040; c.height = 1320; const x = c.getContext('2d'); x.drawImage(img, 0, 0, 2040, 1320);
+    imgView(c.toDataURL('image/png'), 'Happy_Birthday_' + bdayFirst(name).replace(/\W+/g, '_')); };
+  img.onerror = () => alert('The card could not be saved. Please try again.');
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+};
+function myBdayHtml() {
+  const v = (DB.employees || {})[currentEmpKey]; if (!v || !bdayIsToday(v.dob)) return '';
+  return `<div class="card" style="margin-bottom:16px;padding:14px;">${bdayCardSvg(v.name)}<div style="text-align:center;margin-top:10px;"><button class="btn btn-sm btn-primary" onclick="bdayDownload(${esc(JSON.stringify(v.name || ''))})">📥 Download card</button></div></div>`;
+}
+window.bdayPreview = function (name) {
+  const old = document.getElementById('bdayModal'); if (old) old.remove(); const box = document.createElement('div'); box.id = 'bdayModal'; box.className = 'modal-overlay open';
+  box.innerHTML = `<div class="modal" style="max-width:740px;"><h3>Birthday card · ${esc(name)}</h3><p style="font-size:12px;color:#888;margin:-4px 0 10px;">This is what ${esc(bdayFirst(name))} sees in the portal on the birthday (only the birthday person sees it).</p>${bdayCardSvg(name)}
+    <div class="btn-row" style="margin-top:12px;"><button class="btn btn-primary" onclick="bdayDownload(${esc(JSON.stringify(name))})">📥 Download card</button><button class="btn" onclick="document.getElementById('bdayModal').remove()">Close</button></div></div>`;
+  document.body.appendChild(box);
+};
+
+
+// ══ Nov 2026: live festive theme (animated background) — Diwali first ══
+// On a themed announcement with "Live animated background" ticked, every portal (staff and HR) shows an animated
+// warm-dusk Diwali scene behind the page between "Live from" and "Live until". Before the main festival day the
+// build-up message is shown; from the main day the full greeting. Each person can switch the animation off.
+const FEST_LIVE_THEMES = { diwali: { preTitle: 'Diwali is almost here', preMsg: 'The festival of lights is almost here! As Diwali approaches, we wish you and your family a joyful and bright festive season.\nWarm wishes from all of us at CK & CKC.' } };
+function festFonts() { if (document.getElementById('festFontLink')) return; const l = document.createElement('link'); l.id = 'festFontLink'; l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500&family=Playfair+Display:ital,wght@1,500&display=swap'; document.head.appendChild(l); }
+(() => { const st = document.createElement('style'); st.textContent = `
+#festLive{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;background:#C2410C}
+#festLive .fb1,#festLive .fb2{position:absolute;inset:auto 0 0 0}#festLive .fb1{height:170px;background:#9A3412}#festLive .fb2{height:80px;background:#7C2D12}
+#festLive .bk{position:absolute;border-radius:50%;opacity:0;animation:fbk 7s ease-in-out infinite}
+@keyframes fbk{0%,100%{opacity:0;transform:scale(.6)}40%{opacity:.75;transform:scale(1)}70%{opacity:.4}}
+#festLive .bulb{animation:ftw 1.8s ease-in-out infinite}@keyframes ftw{0%,100%{opacity:.45}50%{opacity:1}}
+#festLive .flame{transform-origin:50% 100%;transform-box:fill-box;animation:ffl 1s ease-in-out infinite alternate}
+#festLive .halo{animation:fha 1.4s ease-in-out infinite alternate}
+@keyframes ffl{0%{transform:scale(1,1) skewX(0)}50%{transform:scale(.9,1.12) skewX(4deg)}100%{transform:scale(1.06,.94) skewX(-4deg)}}
+@keyframes fha{0%{opacity:.45}100%{opacity:.85}}
+#festLive .fw{position:absolute;width:4px;height:4px}#festLive .fw i{position:absolute;left:0;top:0;width:4px;height:4px;border-radius:50%;opacity:0;animation:fburst 3.2s ease-out infinite}
+@keyframes fburst{0%{transform:translate(0,0);opacity:0}8%{opacity:1}70%{opacity:.9}100%{transform:translate(var(--dx),var(--dy));opacity:0}}
+#festLive .sp{position:absolute;width:4px;height:4px;border-radius:50%;background:#FFC107;opacity:0;animation:fup 6s linear infinite}
+@keyframes fup{0%{transform:translateY(0);opacity:0}15%{opacity:1}100%{transform:translateY(-320px);opacity:0}}
+@media (prefers-reduced-motion:reduce){#festLive *{animation:none!important}}
+.fl-card{position:relative;background:#FFFDF7;border:1.5px solid #F2B705;border-radius:16px;padding:18px 22px;margin-bottom:14px;font-family:'Poppins','Segoe UI',Arial,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.18)}
+.fl-card .fl-sub{font-size:11.5px;color:#C77700;letter-spacing:.6px;margin-bottom:4px}
+.fl-card .fl-hl{font-family:'Playfair Display',Georgia,serif;font-style:italic;font-weight:500;font-size:32px;color:#B3261E;line-height:1.15;margin-bottom:6px}
+.fl-card .fl-msg{font-size:14px;line-height:1.7;color:#4a3b2a;white-space:pre-line}
+.fl-card .fl-foot{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:11.5px;color:#9a7b4a}
+.fl-card .fl-foot button{background:none;border:0;color:#9a7b4a;text-decoration:underline;cursor:pointer;font-size:11.5px;padding:0}
+`; document.head.appendChild(st); })();
+function festOffKey(k) { return 'festOff_' + k; }
+function festIsOff(k) { try { return localStorage.getItem(festOffKey(k)) === '1'; } catch (e) { return false; } }
+window.festToggle = function (k) { try { if (festIsOff(k)) localStorage.removeItem(festOffKey(k)); else localStorage.setItem(festOffKey(k), '1'); } catch (e) {} renderFestiveBanners(); };
+function festLiveScene() {
+  const gold = ['#FFD54A', '#FFB300', '#FF8F00', '#FF5E7E', '#FFE08A', '#FF7043'], R = Math.random; let h = '';
+  for (let i = 0; i < 26; i++) { const s = 10 + R() * 34; h += `<div class="bk" style="width:${s}px;height:${s}px;left:${R() * 96}%;top:${90 + R() * 55}vh;margin-top:-45vh;background:${gold[i % 6]};animation-delay:${R() * 7}s;animation-duration:${5 + R() * 5}s"></div>`; }
+  [[10, 22], [88, 18], [72, 40], [24, 46]].forEach((p, n) => { const fc = ['#FFD54A', '#FF5E7E', '#29B6F6', '#FFB300'][n]; let d = ''; for (let k = 0; k < 14; k++) { const a = k / 14 * Math.PI * 2, r = 34 + R() * 12; d += `<i style="background:${fc};--dx:${Math.cos(a) * r}px;--dy:${Math.sin(a) * r}px;animation-delay:${n * 0.8}s"></i>`; } h += `<div class="fw" style="left:${p[0]}%;top:${p[1]}vh">${d}</div>`; });
+  let t = '<path d="M0 6 Q85 46 170 8 Q255 46 340 8 Q425 46 510 8 Q595 46 680 6" fill="none" stroke="#2E7D32" stroke-width="2"/>';
+  for (let i = 0; i < 34; i++) { const x = 4 + i * 20.2, y = 7 + Math.sin(((x % 170) / 170) * Math.PI) * 36; t += `<circle cx="${x}" cy="${y}" r="7" fill="${i % 2 ? '#FF9800' : '#FFC107'}"/><circle cx="${x}" cy="${y}" r="3" fill="#E65100" opacity=".6"/>`; }
+  for (let j = 0; j < 11; j++) { const x = 31 + j * 62, yy = Math.sin(((x % 170) / 170) * Math.PI) * 36; t += `<line x1="${x}" y1="${10 + yy}" x2="${x}" y2="${46 + yy}" stroke="#FFB300" stroke-width="1"/><circle cx="${x}" cy="${50 + yy}" r="5" fill="#FFD54A"/>`; }
+  t += '<path d="M0 64 Q113 96 226 66 Q340 96 453 66 Q566 96 680 64" fill="none" stroke="#8D6E63" stroke-width="1"/>';
+  for (let m = 0; m < 30; m++) { const x = 10 + m * 22.4, y = 66 + Math.sin(((x % 226) / 226) * Math.PI) * 28; t += `<circle class="bulb" cx="${x}" cy="${y + 5}" r="4" fill="${gold[m % 6]}" style="animation-delay:${(m % 5) * 0.3}s"/>`; }
+  let g = '<g transform="translate(340 132)"><circle r="26" fill="#FF5E7E"/><circle r="19" fill="#FFD54A"/><circle r="12" fill="#26C6DA"/><circle r="6" fill="#FFFFFF"/>'; for (let q = 0; q < 8; q++) g += `<ellipse rx="7" ry="13" fill="#FF9800" transform="rotate(${q * 45}) translate(0 -34)"/>`; g += '</g>';
+  for (let k = 0; k < 9; k++) { const cx = 40 + k * 75; if (Math.abs(cx - 340) < 50) continue;
+    g += `<ellipse class="halo" cx="${cx}" cy="94" rx="40" ry="36" fill="#FFB300" opacity=".6" style="animation-delay:${k * 0.2}s"/><ellipse class="halo" cx="${cx}" cy="96" rx="22" ry="20" fill="#FFE08A" opacity=".7" style="animation-delay:${k * 0.2}s"/><path d="M${cx - 28} 120 Q${cx} 152 ${cx + 28} 120 Z" fill="#D84315"/><path d="M${cx - 28} 120 L${cx + 28} 120" stroke="#FFB300" stroke-width="3"/><g class="flame" style="animation-delay:${k * 0.15}s"><path d="M${cx} 82 Q${cx + 11} 102 ${cx} 118 Q${cx - 11} 102 ${cx} 82 Z" fill="#FF8F00"/><path d="M${cx} 92 Q${cx + 6} 106 ${cx} 117 Q${cx - 6} 106 ${cx} 92 Z" fill="#FFF59D"/></g>`; }
+  let sp = ''; for (let z = 0; z < 24; z++) sp += `<div class="sp" style="left:${R() * 96 + 2}%;bottom:${60 + R() * 60}px;animation-delay:${R() * 6}s;animation-duration:${4 + R() * 4}s"></div>`;
+  return h + `<svg style="position:absolute;top:56px;left:0;width:100%;height:110px" viewBox="0 0 680 110" preserveAspectRatio="none">${t}</svg><div class="fb1"></div><div class="fb2"></div>${sp}<svg style="position:absolute;left:0;bottom:0;width:100%;height:150px" viewBox="0 0 680 150" preserveAspectRatio="xMidYMax meet">${g}</svg>`;
+}
+function festLiveCard(k, a, pre) {
+  const title = pre ? (a.preTitle || FEST_LIVE_THEMES[a.theme].preTitle) : (a.title || ''), msg = pre ? (a.preMsg || FEST_LIVE_THEMES[a.theme].preMsg) : (a.message || '');
+  return `<div class="fl-card"><div class="fl-sub">CK ARCHITECTURE INTERIORS · CKC BUILDING CONTRACTING</div><div class="fl-hl">${esc(title)}</div><div class="fl-msg">${esc(msg)}</div>
+    <div class="fl-foot"><span>HR Department</span><button onclick="festToggle('${k}')">${festIsOff(k) ? '✨ Turn festive lights on' : 'Turn festive lights off'}</button></div></div>`;
+}
+function festLiveApply(k, a) { // k = announcement key, or null to remove
+  const el = document.getElementById('festLive');
+  if (!k || festIsOff(k)) { if (el) el.remove(); return; }
+  if (el && el.dataset.k === k) return; if (el) el.remove();
+  festFonts(); const d = document.createElement('div'); d.id = 'festLive'; d.dataset.k = k; d.setAttribute('aria-hidden', 'true'); d.innerHTML = festLiveScene(); document.body.appendChild(d);
+}
+window.annLiveToggleForm = function () { const th = v('annTheme'), box = document.getElementById('annLiveBox'); if (!box) return; const ok = !!FEST_LIVE_THEMES[th]; box.style.display = ok ? '' : 'none';
+  if (ok) { if (!v('annPreTitle')) sv('annPreTitle', FEST_LIVE_THEMES[th].preTitle); if (!v('annPreMsg')) sv('annPreMsg', FEST_LIVE_THEMES[th].preMsg); } };
 
 </script>
 <script>
