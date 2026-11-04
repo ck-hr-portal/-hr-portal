@@ -952,7 +952,7 @@ tr:hover td{background:#fafbfc;}
         <div class="card">
           <div class="toolbar">
             <input class="search-box" type="text" id="salSearch" placeholder="🔍 Search employee..." oninput="filterSal()">
-            <select id="salTypeF" onchange="filterSal()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="">All Types</option><option>Salary Increment</option><option>Promotion</option><option>Grade Change</option><option>Bonus</option><option>Allowance Change</option><option>Salary Reduction</option><option>Reinstatement</option></select>
+            <select id="salTypeF" onchange="filterSal()" style="padding:8px 11px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="">All Types</option><option>Salary Increment</option><option>Promotion</option><option>Grade Change</option><option>Bonus</option><option>Bonus Revoked</option><option>Allowance Change</option><option>Salary Reduction</option><option>Reinstatement</option></select>
             <button class="btn btn-primary" onclick="openSalModal()">+ Add Record</button>
           </div>
           <div class="table-wrap">
@@ -1807,8 +1807,13 @@ tr:hover td{background:#fafbfc;}
         <input type="hidden" id="slEmp">
         <input type="hidden" id="slEmpKey">
       </div>
-      <div class="form-group"><label>Record Type *</label><select id="slType"><option>Salary Increment</option><option>Promotion</option><option>Grade Change</option><option>Bonus</option><option>Allowance Change</option><option>Salary Reduction</option><option>Reinstatement</option></select></div>
+      <div class="form-group"><label>Record Type *</label><select id="slType" onchange="slTypeChange()"><option>Salary Increment</option><option>Promotion</option><option>Grade Change</option><option>Bonus</option><option>Bonus Revoked</option><option>Allowance Change</option><option>Salary Reduction</option><option>Reinstatement</option></select></div>
       <div class="form-group"><label>Effective Date</label><input type="date" id="slDate"></div>
+      <div class="form-group form-full" id="slBonusWrap" style="display:none;background:#fff8ec;border:1px dashed #e0b25c;border-radius:8px;padding:10px;">
+        <label>Type of bonus *</label>
+        <select id="slBonusKind" onchange="slBonusCalc()"><option value="">— choose —</option><option value="one">One-time bonus (one-off payment, salary not changed)</option><option value="monthly">Temporary monthly bonus (paid every month until revoked; updates the employee's gross salary)</option></select>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap;"><label style="margin:0;">Bonus amount (AED)</label><input type="number" id="slBonusAmt" oninput="slBonusCalc()" style="max-width:160px;"><span id="slBonusHint" style="font-size:11.5px;color:#7a5a20;"></span></div>
+      </div>
       <div class="form-group"><label>Previous Amount / Grade</label><input type="text" id="slPrev"></div>
       <div class="form-group"><label>New Amount / Grade</label><input type="text" id="slNew"></div>
       <div class="form-group"><label>Approved By</label><input type="text" id="slApproved"></div>
@@ -8652,9 +8657,10 @@ function renderSal(data){
     const prev=parseFloat(s.prev)||0,nw=parseFloat(s.newVal)||0;
     const pct=prev?((nw-prev)/prev*100).toFixed(1):'—';
     const pctColor=nw>=prev?'color:#1A7A6E':'color:#e74c3c';
-    return`<tr><td><strong>${esc(s.empName||'')}</strong></td><td>${esc(s.type||'')}</td>
-    <td>${fmt(s.date)}</td><td>AED ${esc(s.prev||'')}</td><td>AED ${esc(s.newVal||'')}</td>
-    <td style="${pctColor};font-weight:700;">${pct!=='—'?pct+'%':'—'}</td>
+    const one=s.type==='Bonus'&&s.bonusKind==='one';
+    return`<tr><td><strong>${esc(s.empName||'')}</strong></td><td>${esc(s.type||'')}${s.type==='Bonus'?`<div style="font-size:11px;color:${one?'#7a5a20':'#1A7A6E'};">${s.bonusKind==='one'?'one-time · salary unchanged':s.bonusKind==='monthly'?'temporary monthly · in gross':'type not recorded'}</div>`:''}</td>
+    <td>${fmt(s.date)}</td><td>${one?'—':'AED '+esc(s.prev||'')}</td><td>AED ${esc(one?(s.bonusAmt||s.newVal):(s.newVal||''))}</td>
+    <td style="${pctColor};font-weight:700;">${!one&&pct!=='—'?pct+'%':'—'}</td>
     <td style="font-size:11px;">${esc(s.reason||'')}</td><td>${esc(s.approvedBy||'')}</td>
     <td><button class="btn btn-sm btn-primary" onclick="editSal('${k}')">Edit</button>
     <button class="btn btn-sm btn-danger" onclick="delSal('${k}')">Del</button></td></tr>`;
@@ -8663,15 +8669,22 @@ function renderSal(data){
 window.filterSal=function(){const q=v('salSearch').toLowerCase(),type=document.getElementById('salTypeF').value;renderSal(Object.entries(DB.salary).filter(([k,s])=>(!q||s.empName?.toLowerCase().includes(q))&&(!type||s.type===type)));};
 window.openSalModal=function(){
   ['slEmp','slEmpKey','slDate','slPrev','slNew','slApproved','slReason'].forEach(id=>sv(id,''));
-  sv('slKey','');sv('slType','Salary Increment');
+  sv('slKey','');sv('slType','Salary Increment');sv('slBonusKind','');sv('slBonusAmt','');slTypeChange(true);
   buildEmpDropdown('slEmpSel');
   document.getElementById('slEmpSel').onchange=function(){
     const p=parseEmpSelect(this.value);
     sv('slEmp',p.name);sv('slEmpKey',p.key);
+    const e=DB.employees[p.key];if(e&&!v('slPrev')&&v('slType')!=='Promotion'&&v('slType')!=='Grade Change')sv('slPrev',e.grossSalary||e.gross||'');slBonusCalc();
   };
   document.getElementById('salModal').classList.add('open');
 };
-window.editSal=function(key){const s=DB.salary[key];sv('slEmp',s.empName);sv('slType',s.type);sv('slDate',s.date);sv('slPrev',s.prev);sv('slNew',s.newVal);sv('slApproved',s.approvedBy);sv('slReason',s.reason);sv('slKey',key);document.getElementById('salModal').classList.add('open');};
+window.editSal=function(key){const s=DB.salary[key];sv('slEmp',s.empName);sv('slEmpKey',s.empId||'');sv('slType',s.type);sv('slBonusKind',s.bonusKind||'');sv('slBonusAmt',s.bonusAmt||'');setTimeout(()=>slTypeChange(true),0);sv('slDate',s.date);sv('slPrev',s.prev);sv('slNew',s.newVal);sv('slApproved',s.approvedBy);sv('slReason',s.reason);sv('slKey',key);document.getElementById('salModal').classList.add('open');};
+// Bonus: one-time (no change to the employee record) or temporary monthly (part of the salary until revoked: updates the gross salary).
+window.slTypeChange=function(keep){const b=v('slType')==='Bonus';document.getElementById('slBonusWrap').style.display=b?'':'none';if(!keep&&!b){sv('slBonusKind','');sv('slBonusAmt','');}slBonusCalc();};
+window.slBonusCalc=function(){const h=document.getElementById('slBonusHint');if(!h)return;if(v('slType')!=='Bonus'){h.textContent='';return;}
+  const k=v('slBonusKind'),amt=parseFloat(v('slBonusAmt'))||0,e=DB.employees[v('slEmpKey')]||{},g=parseFloat(e.grossSalary||e.gross||0)||0;
+  if(k==='monthly'){if(!v('slPrev')&&g)sv('slPrev',g);const pv=parseFloat(v('slPrev'))||g;if(amt)sv('slNew',(pv+amt).toFixed(2).replace(/\.00$/,''));h.textContent=amt?'New gross '+(pv+amt).toLocaleString('en-US')+' AED (updates the employee record)':'';}
+  else if(k==='one'){h.textContent='Paid once; the employee\'s salary is not changed.';}else h.textContent='';};
 window.saveSal=function(){
   const empKey=v('slEmpKey');
   const data={
@@ -8680,20 +8693,30 @@ window.saveSal=function(){
     approvedBy:v('slApproved'),reason:v('slReason'),ts:Date.now()
   };
   if(!data.empName){alert('Please select an employee');return;}
+  if(data.type==='Bonus'){const k=v('slBonusKind'),amt=parseFloat(v('slBonusAmt'))||0;
+    if(!k){alert('Choose the type of bonus: one-time or temporary monthly.');return;}
+    if(!amt){alert('Enter the bonus amount.');return;}
+    data.bonusKind=k;data.bonusAmt=amt;
+    if(k==='one'){data.prev='';data.newVal=String(amt);}
+    else if(!parseFloat(data.newVal)){alert('Enter the previous gross salary, so the new gross can be calculated.');return;}}
+  const isOneOff=data.type==='Bonus'&&data.bonusKind==='one';
   const key=v('slKey');
   const op=key?set(ref(db,'salary/'+key),data):set(push(ref(db,'salary')),data);
   op.then(()=>{
     // Auto-update employee gross salary if it's a salary change
-    if(empKey && data.newVal && (data.type==='Salary Increment'||data.type==='Salary Reduction'||data.type==='Reinstatement')){
+    let upd=false;
+    if(empKey && data.newVal && !isOneOff && (data.type==='Salary Increment'||data.type==='Salary Reduction'||data.type==='Reinstatement'||data.type==='Bonus'||data.type==='Bonus Revoked')){
       const emp=DB.employees[empKey];
       if(emp){
         const updated={...emp, grossSalary:data.newVal, lastSalaryChange:data.date, lastSalaryBy:data.approvedBy};
-        set(ref(db,'employees/'+empKey), updated);
+        if(data.type==='Bonus')updated.tempBonus=Math.round(((parseFloat(emp.tempBonus)||0)+data.bonusAmt)*100)/100; // monthly temporary bonus included in gross
+        if(data.type==='Bonus Revoked'){const cut=(parseFloat(data.prev)||0)-(parseFloat(data.newVal)||0);updated.tempBonus=Math.max(0,Math.round(((parseFloat(emp.tempBonus)||0)-cut)*100)/100);}
+        set(ref(db,'employees/'+empKey), updated);upd=true;
       }
     }
-    logAudit(key?'Edit Salary':'Add Salary Record',data.empName,`${data.type}: ${data.prev} → ${data.newVal}`);
+    logAudit(key?'Edit Salary':'Add Salary Record',data.empName,isOneOff?`One-time bonus: AED ${data.bonusAmt}`:`${data.type}${data.bonusKind==='monthly'?' (temporary monthly)':''}: ${data.prev} → ${data.newVal}`);
     closeModal('salModal');
-    showAlert('sal-alert','Record saved! Employee profile updated.');
+    showAlert('sal-alert',upd?'Record saved! Employee profile updated (gross salary).':isOneOff?'Record saved. One-time bonus: the employee\'s salary is not changed.':'Record saved.');
   });
 };
 window.delSal=function(key){if(!confirm('Delete?'))return;remove(ref(db,'salary/'+key)).then(()=>showAlert('sal-alert','Deleted.'));};
