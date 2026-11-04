@@ -251,6 +251,7 @@ tr:hover td{background:#fafbfc;}
     <div id="empMyAnni"></div>
     <div id="empLeaveAllCard"></div>
     <div id="empLicReminder"></div>
+    <div class="card" id="empPayCard" style="display:none;margin-bottom:16px;border-top:3px solid #1C3557;"><div class="card-title" id="empPayTitle">💼 Payroll</div><div id="empPayBody"></div></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
       <div class="card">
         <div class="card-title">🎂 Upcoming Birthdays</div>
@@ -517,6 +518,7 @@ tr:hover td{background:#fafbfc;}
       <div class="nav-item" id="navLro" onclick="showPage('lro',this)"><span class="icon">🔁</span>Leave Year Rollover</div>
       <div class="nav-item" id="navLq" onclick="showPage('lq',this)"><span class="icon">📨</span>Instruction Box <span id="lqBadge" style="display:none;background:#c0392b;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px;"></span></div>
       <div class="nav-item" onclick="showPage('salary',this)"><span class="icon">💰</span>Salary &amp; Promotions</div>
+      <div class="nav-item" id="navPayroll" onclick="showPage('payroll',this)"><span class="icon">💼</span>Payroll</div>
       <div class="nav-item" id="navSimulator" onclick="showPage('simulator',this)"><span class="icon">🧮</span>Cost Simulator</div>
       <div class="nav-item" id="navCost" onclick="showPage('cost',this)"><span class="icon">💰</span>Total Cost Analysis</div>
       <div class="nav-item" id="navProv" onclick="showPage('prov',this)"><span class="icon">🏦</span>Year-End Provision</div>
@@ -1236,6 +1238,11 @@ tr:hover td{background:#fafbfc;}
       </div>
 
       <!-- BIRTHDAYS -->
+      <div id="page-payroll" class="page">
+        <div class="page-header"><h2>Payroll</h2></div>
+        <p style="font-size:12.5px;color:#666;margin:-6px 0 14px;">Monthly payroll authorisation: HR uploads → Cem approves → Finance (Sruthi) checks → SIF checked and uploaded to ADCB (Noushad). A separate module: it never changes salaries, loans or any other HR Portal data.</p>
+        <div id="prBox"></div>
+      </div>
       <div id="page-birthdays" class="page">
         <div class="page-header"><h2>Birthdays</h2></div>
         <div class="card"><div class="card-title">🎂 This Month</div><div id="bdayList"></div></div>
@@ -2116,14 +2123,14 @@ function set(...args){
     // One deliberate, narrow exception: recording a leave approval decision (as a line
     // manager or additional approver) is allowed. Everything else stays fully blocked.
     const path=args[0]?.toString()||'';
-    if(!path.includes('leaveRequests')){
+    if(!path.includes('leaveRequests')&&!path.includes('payrollState')){ // + payroll approval
       alert('This account has view-only access. Changes are not saved.');
       return Promise.reject(new Error('read-only-ceo'));
     }
   }
   if(currentRole==='employee'){
     const path=args[0]?.toString()||'';
-    if(!path.includes('leaveRequests')&&!path.includes('letterRequests')&&!/(^|\/)(lic|licFiles|licHist)\//.test(path)){ // + own licences and cards (rules check it is their own)
+    if(!path.includes('leaveRequests')&&!path.includes('letterRequests')&&!path.includes('payrollState')&&!/(^|\/)(lic|licFiles|licHist)\//.test(path)){ // + own licences and cards (rules check it is their own)
       return Promise.reject(new Error('employee-restricted-write'));
     }
   }
@@ -2536,7 +2543,7 @@ async function startStaffSession(user){
     showLoginError('Your profile is not ready yet. Please contact HR.');
     return;
   }
-  currentAdmin=user.email||''; currentRole='employee'; currentEmpKey=m.empKey; window._myLeaveView=m.leaveView===true; window._myLicOn=m.licOn===true;
+  currentAdmin=user.email||''; currentRole='employee'; currentEmpKey=m.empKey; window._myLeaveView=m.leaveView===true; window._myLicOn=m.licOn===true; window._myPayRev=m.payRev===true; window._myPaySif=m.paySif===true;
   adminName=view.name||''; adminTitle=view.desig||''; adminSignName=view.name||'';
   initEmployeeListeners(m.empKey,user.uid);
   applyEmployeeMode();
@@ -3085,6 +3092,7 @@ window.renderPortalAccess=function(){
       const on=e.portalEnabled===true;
       actions=`<button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;" onclick="resendStaffEmail('${k}')">Resend password email</button>
         <button class="btn btn-sm ${on?'btn-danger':'btn-primary'}" onclick="toggleStaffAccess('${k}',${on?'false':'true'})">${on?'Turn access off':'Turn access on'}</button>
+        ${currentRole==='admin'?`<button class="btn btn-sm" style="background:${e.payRev?'#e8f6f3':'#f4f6f8'};color:${e.payRev?'#1A7A6E':'#555'};" title="Finance review of the approved payroll (all lines)" onclick="togglePayAccess('${k}','rev',${e.payRev?'false':'true'})">${e.payRev?'✓ Payroll review':'Payroll review'}</button><button class="btn btn-sm" style="background:${e.paySif?'#e8f6f3':'#f4f6f8'};color:${e.paySif?'#1A7A6E':'#555'};" title="SIF check and bank upload (totals only)" onclick="togglePayAccess('${k}','sif',${e.paySif?'false':'true'})">${e.paySif?'✓ SIF check':'SIF check'}</button>`:''}
         ${currentRole==='admin'?`<button class="btn btn-sm" style="background:${e.licOn?'#e8f6f3':'#f4f6f8'};color:${e.licOn?'#1A7A6E':'#555'};" title="Record professional licences and cards in the portal" onclick="toggleLicOn('${k}',${e.licOn?'false':'true'})">${e.licOn?'✓ Licences & cards':'Licences & cards'}</button>`:''}
         ${currentRole==='admin'?`<button class="btn btn-sm" style="background:${e.leaveView?'#e8f6f3':'#f4f6f8'};color:${e.leaveView?'#1A7A6E':'#555'};" title="See who is on leave: all staff, today and the next 30 days, with leave type" onclick="toggleLeaveView('${k}',${e.leaveView?'false':'true'})">${e.leaveView?'✓ Sees all leave':'Let see all leave'}</button>`:''}`;
     }
@@ -3923,6 +3931,7 @@ function initEmployeeListeners(empKey,uid){
   // Company-wide content and low-sensitivity shared lists
   optional(ref(db,'holidays'),snap=>{DB.holidays=snap.val()||{};});
   _staffUnsubs.push(onValue(ref(db,'staffShared/leaveAll'),snap=>{DB.leaveAll=snap.val()||{};},()=>{DB.leaveAll=null;}));
+  if(window._myPayRev||window._myPaySif){try{prListen();}catch(e){}}
   if(window._myLicOn)_staffUnsubs.push(onValue(ref(db,'lic/'+currentEmpKey),snap=>{DB.myLic=snap.val()||{};renderMyLic();},()=>{DB.myLic={};renderMyLic();}));
   if(window._myLeaveView)_staffUnsubs.push(onValue(ref(db,'staffShared/leaveTyped'),snap=>{DB.leaveTyped=snap.val()||{};renderEmpLeaveAll();},()=>{DB.leaveTyped=null;renderEmpLeaveAll();})); // company-wide leave (name, dept, dates). Needs the updated rules; falls back to own department without them
   _staffUnsubs.push(onValue(ref(db,'staffShared/directory'),snap=>{DB.directory=snap.val()||{};},()=>{DB.directory=null;})); // names + departments of current staff
@@ -4719,7 +4728,7 @@ function applyPROMode(){
   style.textContent=`
     .nav-item[onclick*="'loans'"] { display: none !important; }
     .nav-item[onclick*="'settlement'"] { display: none !important; }
-    #navUsage, #page-usage, #navLrep, #page-lrep, #navLro, #page-lro, #navLq, #page-lq, #navCost, #navProv, #page-cost, #page-prov, #navChecklists, #navAck, #navUnans, #page-checklists, #page-ack, #page-unanswered, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #navBackup, #backupBanner, #page-backup, #voiceToggleBtn, .briefBtn, #navHeadcount, #navSimulator, #page-headcount, #page-simulator, #greetCard, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }
+    #navPayroll, #page-payroll, #navUsage, #page-usage, #navLrep, #page-lrep, #navLro, #page-lro, #navLq, #page-lq, #navCost, #navProv, #page-cost, #page-prov, #navChecklists, #navAck, #navUnans, #page-checklists, #page-ack, #page-unanswered, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #navBackup, #backupBanner, #page-backup, #voiceToggleBtn, .briefBtn, #navHeadcount, #navSimulator, #page-headcount, #page-simulator, #greetCard, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }
     button[onclick*="openEmpModal"], button[onclick="delEmp"], button[onclick*="delEmp("] { display: none !important; }
     /* Oct 2026: Kashif (PRO) access as agreed with HR. The database rules enforce the same limits. */
     .nav-item[onclick*="'salary'"], #page-salary, .nav-item[onclick*="'flight'"], #page-flight,
@@ -7390,6 +7399,7 @@ const ref_db=(path)=>ref(db,path);
 function initListeners(){
   try{botInit();}catch(e){}
   const tables=['employees','leave','salary','loans','repayments','assets','holidays','announcements','policies','audit','flightAllowance','leavers','leaveAdjustments','docHistory','leaveRequests','ceoMessage','orgChart','pendingHires','finalSettlements'];
+  if(currentRole==='admin'||currentRole==='ceo'){try{prListen();}catch(e){}} // payroll
   if(currentRole==='admin'){ // licences and cards: HR (Dev, Darleendy) only
     onValue(ref(db,'lic'),snap=>{DB.lic=snap.val()||{};try{renderLicHR();renderExpiry();updateDash();}catch(e){}},()=>{DB.lic={};});
     onValue(ref(db,'licHist'),snap=>{DB.licHist=snap.val()||{};},()=>{DB.licHist={};});
@@ -7473,7 +7483,8 @@ window.showPage=function(page,el){
   if(page==='comp'&&currentRole!=='admin')return; // Dev and Darleendy only
   if(page==='usage'&&currentRole!=='admin'&&currentRole!=='ceo')return; // Dev, Darleendy and Cem
   if((page==='headcount'||page==='simulator'||page==='checklists'||page==='ack'||page==='unanswered'||page==='cost'||page==='prov'||page==='lrep'||page==='lro'||page==='lq')&&currentRole!=='admin'&&!(currentRole==='ceo'&&['headcount','simulator','ack','cost','prov','lrep','lq'].includes(page)))return; // Dev and Darleendy; Cem can view the reporting pages
-  if(page==='backup'&&currentRole!=='admin'&&currentRole!=='ceo')return; // Dev and Darleendy run it; Cem can view the status
+  if(page==='backup'&&currentRole!=='admin'&&currentRole!=='ceo')return;
+  if(page==='payroll'&&currentRole!=='admin'&&currentRole!=='ceo')return; // Dev, Darleendy and Cem // Dev and Darleendy run it; Cem can view the status
   closeMobileSidebar(); // so picking a page doesn't leave the drawer covering the content on mobile
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -7485,6 +7496,7 @@ window.showPage=function(page,el){
   if(page==='uaenationals')renderUAE();
   if(page==='workforce')renderWorkforce();
   if(page==='birthdays')renderBirthdays();
+  if(page==='payroll')renderPayroll();
   if(page==='reports'){
     document.getElementById('reportOutput').style.display='none';
     setTimeout(()=>buildEmpDropdown('profileEmpSel'),100);
@@ -12605,6 +12617,282 @@ function festLiveApply(k, a) { // k = announcement key, or null to remove
 }
 window.annLiveToggleForm = function () { const th = v('annTheme'), box = document.getElementById('annLiveBox'); if (!box) return; const ok = !!FEST_LIVE_THEMES[th]; box.style.display = ok ? '' : 'none';
   if (ok) { if (!v('annPreTitle')) sv('annPreTitle', FEST_LIVE_THEMES[th].preTitle); if (!v('annPreMsg')) sv('annPreMsg', FEST_LIVE_THEMES[th].preMsg); } };
+
+
+// ══ Nov 2026: PAYROLL module (separate; never changes other HR Portal data) ══
+// HR uploads the monthly payroll authorisation Excel (CK, CKC) exactly as prepared, sends to Cem; Cem approves or sends back;
+// Sruthi (Finance review) spot-checks and gives "OK to pay" or a query; Noushad checks the SIF file made the usual way
+// against the approved WPS totals, then marks it uploaded to ADCB. Every step is recorded (who, when, comment).
+const PR_COLS = [['sn', /^sn$/], ['emp', /^employee number/], ['name', /^employee name/], ['desig', /^designation/], ['proj', /^project/],
+  ['basic', /^basic/], ['housing', /^housing/], ['transport', /^transport/], ['bonus', /^temp bonus/], ['others', /^others/], ['col', /^cost of living/], ['edu', /^education/], ['fuel', /^fuel/], ['mobile', /^mobile/],
+  ['gross', /^current month gross/], ['prior', /^prior month gross/], ['diff', /^difference$/], ['diffNote', /^details of difference/],
+  ['exp', /^work expenses/], ['pension', /^pension/], ['loan', /^employee loan/], ['air', /^air ticket/], ['sadj', /^salary adjustment/], ['totAdj', /^total of differences/], ['net', /^current month net/], ['comment', /^comment/]];
+const PR_PAY = ['basic', 'housing', 'transport', 'bonus', 'others', 'col', 'edu', 'fuel', 'mobile'], PR_ADJ = ['exp', 'pension', 'loan', 'air', 'sadj'];
+const PR_LBL = { basic: 'Basic', housing: 'Housing', transport: 'Transport', bonus: 'Temp bonus', others: 'Others', col: 'Cost of living', edu: 'Education', fuel: 'Fuel', mobile: 'Mobile', exp: 'Work exp. / reimb.', pension: 'Pension', loan: 'Loan deduction', air: 'Air ticket', sadj: 'Salary adjustment' };
+const PR_ST = { draft: ['Prepared by HR', '#7f8c8d'], sent: ['Waiting for Cem', '#b9770e'], returned: ['Sent back to HR', '#c0392b'], approved: ['Approved by Cem · waiting for Finance check', '#2471a3'], ok: ['OK to pay · Finance checked', '#1A7A6E'] };
+const prR2 = n => Math.round((Number(n) || 0) * 100) / 100;
+const prAED = n => (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const prMon = m => new Date(m + '-01T00:00:00').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+const prRole = () => currentRole === 'admin' ? 'hr' : currentRole === 'ceo' ? 'ceo' : (currentRole === 'employee' && window._myPayRev) ? 'rev' : (currentRole === 'employee' && window._myPaySif) ? 'sif' : '';
+const prWho = () => currentRole === 'employee' ? ((DB.employees[currentEmpKey] || {}).name || currentAdmin) : (adminName || currentAdmin);
+const PR = { st: {}, tot: {}, data: {}, open: '', imp: null, sifRes: {}, q: '' };
+// ── read the Excel
+function prParse(wb, fname) {
+  const ws = wb.Sheets[wb.SheetNames[0]]; const A = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
+  const title = String((A[0] || [])[0] || '') + ' ' + fname; const co = /ckc|building/i.test(title) ? 'CKC' : 'CK';
+  let month = ''; for (let r = 0; r < 6 && !month; r++) { const row = A[r] || []; if (/^month$/i.test(String(row[0]).trim())) { const v = row[1]; if (typeof v === 'number') month = new Date(Date.UTC(1899, 11, 30) + Math.floor(v) * 864e5).toISOString().slice(0, 7); else { const s = String(v); const m1 = /(\d{4})-(\d{2})/.exec(s); if (m1) month = m1[1] + '-' + m1[2]; else { const d = new Date(s); if (!isNaN(d)) month = localDateStr(d).slice(0, 7); } } } }
+  const hi = A.findIndex(r => r.some(c => /^employee name/i.test(String(c).trim()))); if (hi < 0) throw new Error('This is not the payroll authorisation template (no "Employee Name" column).');
+  const col = {}; A[hi].forEach((h, i) => { const s = String(h).trim().toLowerCase().replace(/\s+/g, ' '); const m = PR_COLS.find(([k, rx]) => rx.test(s) && col[k] == null); if (m) col[m[0]] = i; });
+  ['name', 'net', 'gross'].forEach(k => { if (col[k] == null) throw new Error('Column missing in the Excel: ' + k); });
+  // formulas without saved results are recalculated the same way as the template does
+  const cellNum = (r, k) => { if (col[k] == null) return null; const ref = XLSX.utils.encode_cell({ r, c: col[k] }), c = ws[ref]; if (!c) return null; if (typeof c.v === 'number') return c.v; if (c.f && c.v == null) return null; const n = Number(String(c.v).replace(/,/g, '')); return isNaN(n) || c.v === '' ? null : n; };
+  const rows = []; let sec = 'W', E = [];
+  for (let r = hi + 1; r < A.length; r++) { const row = A[r] || [], name = String(col.name != null ? row[col.name] : '').trim();
+    if (/non\s*wps/i.test(row.map(String).join(' '))) { sec = 'N'; continue; }
+    if (/prepared by|checked by/i.test(row.map(String).join(' '))) break; // signatures: end of the payroll
+    if (/total payroll/i.test(row.map(String).join(' '))) continue;
+    if (!name) continue;
+    if (cellNum(r, 'net') == null && cellNum(r, 'gross') == null && !PR_PAY.some(k => cellNum(r, k) != null)) continue; // not an employee line (no amounts)
+    const o = { sec, name: name.slice(0, 120) }; ['sn', 'emp', 'desig', 'proj', 'diffNote', 'comment'].forEach(k => { if (col[k] != null && String(row[col[k]]).trim() !== '') o[k] = String(row[col[k]]).trim().slice(0, 500); });
+    PR_PAY.concat(PR_ADJ, ['prior']).forEach(k => { const n = cellNum(r, k); if (n != null && n !== 0) o[k] = prR2(n); });
+    let g = cellNum(r, 'gross'); if (g == null) g = PR_PAY.reduce((s, k) => s + (o[k] || 0), 0); o.gross = prR2(g);
+    let ta = cellNum(r, 'totAdj'); if (ta == null) ta = PR_ADJ.reduce((s, k) => s + (o[k] || 0), 0); o.totAdj = prR2(ta);
+    let n = cellNum(r, 'net'); if (n == null) n = o.gross + o.totAdj; o.net = prR2(n);
+    let d = cellNum(r, 'diff'); if (d == null) d = o.gross - (o.prior || 0); o.diff = prR2(d);
+    if (Math.abs(o.net - (o.gross + o.totAdj)) > 0.01) E.push(o.name + ': net ' + prAED(o.net) + ' is not gross ' + prAED(o.gross) + ' + adjustments ' + prAED(o.totAdj) + '.');
+    rows.push(o); }
+  if (!rows.length) throw new Error('No employee lines found.');
+  const tot = s => { const L = rows.filter(x => !s || x.sec === s); return { count: L.length, gross: prR2(L.reduce((a, x) => a + x.gross, 0)), adj: prR2(L.reduce((a, x) => a + x.totAdj, 0)), net: prR2(L.reduce((a, x) => a + x.net, 0)), prior: prR2(L.reduce((a, x) => a + (x.prior || 0), 0)) }; };
+  return { co, month, file: fname.slice(0, 160), rows, totals: { W: tot('W'), N: tot('N'), all: tot('') }, warn: E };
+}
+window.prFiles = async function (inp) {
+  const fs = [...(inp.files || [])]; inp.value = ''; if (!fs.length) return; const out = [], errs = [];
+  for (const f of fs) { try { const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' }); out.push(prParse(wb, f.name)); } catch (e) { errs.push(f.name + ': ' + e.message); } }
+  const months = [...new Set(out.map(x => x.month))]; if (out.some(x => !x.month)) errs.push('The month (cell B3) could not be read.');
+  if (months.length > 1) errs.push('The files are for different months (' + months.join(', ') + '). Upload one month at a time.');
+  if (out.length > 1 && new Set(out.map(x => x.co)).size < out.length) errs.push('Two files for the same company.');
+  PR.imp = { list: out, errs }; renderPayroll();
+};
+function prPrevApproved(m) { return Object.keys(PR.st).filter(k => k < m && ['approved', 'ok'].includes((PR.st[k] || {}).status)).sort().pop(); }
+async function prLoad(m) { if (PR.data[m]) return PR.data[m]; const s = await get(ref(db, 'payroll/' + m)); PR.data[m] = s.val() || {}; return PR.data[m]; }
+window.prSave = async function () {
+  const I = PR.imp; if (!I || I.errs.length || !I.list.length) return; const m = I.list[0].month, st = (PR.st[m] || {}).status || '';
+  if (st && !['draft', 'returned'].includes(st)) { alert('This month is ' + PR_ST[st][0].toLowerCase() + ' and locked. Ask Cem to send it back first if it must change.'); return; }
+  if (!confirm('Save the payroll for ' + prMon(m) + ' (' + I.list.map(x => x.co).join(' + ') + ')? Nothing else in the HR Portal is changed.')) return;
+  const now = Date.now(), who = prWho();
+  try { const cur = await prLoad(m);
+    for (const x of I.list) { if (cur[x.co]) await set(push(ref(db, 'payrollVers/' + m + '/' + x.co)), Object.assign({}, cur[x.co], { replacedAt: now, replacedBy: who }));
+      const rec = { co: x.co, month: m, file: x.file, rows: x.rows, totals: x.totals, upBy: who, upAt: now }; await set(ref(db, 'payroll/' + m + '/' + x.co), rec);
+      await set(ref(db, 'payrollTot/' + m + '/' + x.co), { totals: x.totals, upAt: now }); }
+    if (!st) await set(ref(db, 'payrollState/' + m + '/status'), 'draft');
+    await set(push(ref(db, 'payrollState/' + m + '/hist')), { at: now, by: who, act: 'Uploaded', note: I.list.map(x => x.co + ': ' + x.file).join(' · ').slice(0, 500) });
+    logAudit('Payroll uploaded', prMon(m), I.list.map(x => x.co).join(' + ')); delete PR.data[m]; PR.imp = null; PR.open = m; renderPayroll();
+  } catch (e) { alert('Could not save: ' + ((e && e.code) || e.message || 'error')); }
+};
+async function prStep(m, status, act, needNote) {
+  let note = ''; if (needNote) { note = prompt(act + ': please write the reason or what to check (it is kept in the history).') || ''; if (!note.trim()) return; }
+  else { const p = prompt(act === 'Sent to Cem for approval' ? 'Note for Cem (shown at the top of his summary), e.g. "Salary increment for X effective this month; air tickets for 3 staff":' : act + ': comment (optional)'); if (p === null) return; note = p; }
+  const now = Date.now(), who = prWho(), base = 'payrollState/' + m + '/';
+  try { await set(ref(db, base + 'status'), status);
+    if (status === 'approved') { await set(ref(db, base + 'approvedBy'), who); await set(ref(db, base + 'approvedAt'), now);
+      const D = await prLoad(m), snap = {}; ['CK', 'CKC'].forEach(co => { if (D[co]) snap[co] = D[co].upAt; }); await set(ref(db, base + 'apprSnap'), snap); } // which upload Cem approved
+    if (act === 'Reopened by Cem') await set(ref(db, base + 'reopenedAt'), now);
+    if (status === 'ok') { await set(ref(db, base + 'okBy'), who); await set(ref(db, base + 'okAt'), now); }
+    await set(push(ref(db, base + 'hist')), { at: now, by: who, act, note: note.slice(0, 1000) });
+    if (currentRole !== 'employee') logAudit('Payroll: ' + act, prMon(m), note.slice(0, 120));
+  } catch (e) { alert('Could not save (' + ((e && e.code) || 'error') + ').'); }
+}
+window.prAct = function (m, a) {
+  if (a === 'reopen') { const sf = (PR.st[m] || {}).sif || {}; if (Object.values(sf).some(x => x && x.bank)) { alert('The SIF has already been uploaded to ADCB, so this month cannot be reopened. Use "Correction note" and HR includes it in next month\'s payroll.'); return; }
+    if (!confirm('Reopen the payroll for ' + prMon(m) + '? It goes back to HR. Sruthi\'s check and any SIF check are cancelled until you approve again.')) return; }
+  const S = { send: ['sent', 'Sent to Cem for approval', false], approve: ['approved', 'Approved', false], back: ['returned', 'Sent back to HR', true], ok: ['ok', 'OK to pay (Finance check)', false], query: ['returned', 'Query from Finance', true], reopen: ['returned', 'Reopened by Cem', true] }[a];
+  if (a === 'approve' && !confirm('Approve the payroll for ' + prMon(m) + '? It will be locked.')) return; if (a === 'ok' && !confirm('Confirm the payroll for ' + prMon(m) + ' is OK to pay?')) return; prStep(m, S[0], S[1], S[2]); };
+// ── SIF check (the SIF is made the usual way; the portal only compares it)
+function prSifCheck(text, m, co) {
+  const T = PR.tot[m] && PR.tot[m][co] && PR.tot[m][co].totals; const L = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean), res = [], bad = [];
+  const edr = L.filter(l => /^EDR,/.test(l)).map(l => l.split(',')), scr = L.filter(l => /^SCR,/.test(l)).map(l => l.split(','));
+  if (L.some(l => !/^(EDR|SCR),/.test(l))) bad.push('Lines that are not EDR or SCR: ' + L.filter(l => !/^(EDR|SCR),/.test(l)).length);
+  if (scr.length !== 1) bad.push('There must be exactly one company line (SCR); found ' + scr.length + '.');
+  edr.forEach((e, i) => { const n = i + 1; if (e.length !== 10) bad.push('Line ' + n + ': ' + e.length + ' fields instead of 10.');
+    if (!/^\d{14}$/.test(e[1] || '')) bad.push('Line ' + n + ': person ID is not 14 digits.'); if (!/^\d{9}$/.test(e[2] || '')) bad.push('Line ' + n + ': bank routing code is not 9 digits.');
+    if (!/^AE\d{21}$/.test(e[3] || '')) bad.push('Line ' + n + ': IBAN is not AE + 21 digits.'); if (!/^\d{4}-\d{2}-\d{2}$/.test(e[4] || '') || !/^\d{4}-\d{2}-\d{2}$/.test(e[5] || '')) bad.push('Line ' + n + ': pay period dates are not YYYY-MM-DD.');
+    else if (e[4].slice(0, 7) !== m || e[5].slice(0, 7) !== m) bad.push('Line ' + n + ': pay period ' + e[4] + ' to ' + e[5] + ' is not in ' + prMon(m) + '.');
+    if (!/^-?\d+\.\d{2}$/.test(e[7] || '') || !/^-?\d+\.\d{2}$/.test(e[8] || '')) bad.push('Line ' + n + ': amounts must have 2 decimals.'); });
+  const ids = edr.map(e => e[1]), dup = ids.filter((x, i) => ids.indexOf(x) !== i); if (dup.length) bad.push('The same person ID appears twice: ' + [...new Set(dup)].length + ' time(s).');
+  const sum = prR2(edr.reduce((a, e) => a + (Number(e[7]) || 0) + (Number(e[8]) || 0), 0));
+  if (scr[0]) { const s = scr[0]; if (s.length !== 10) bad.push('Company line has ' + s.length + ' fields instead of 10.');
+    if (s[5] !== m.slice(5, 7) + m.slice(0, 4)) bad.push('Company line salary month ' + s[5] + ' is not ' + m.slice(5, 7) + m.slice(0, 4) + '.');
+    if (Number(s[6]) !== edr.length) bad.push('Company line says ' + s[6] + ' employees, the file has ' + edr.length + ' employee lines.');
+    if (Math.abs(Number(s[7]) - sum) > 0.005) bad.push('Company line total ' + s[7] + ' is not the sum of the employee lines (' + prAED(sum) + ').');
+    if (s[8] !== 'AED') bad.push('Currency is ' + s[8] + ', not AED.'); }
+  if (T) { if (edr.length !== T.W.count) bad.push('Employees: SIF ' + edr.length + ', approved WPS payroll ' + T.W.count + '.'); else res.push('Employees: ' + edr.length + ' = approved WPS payroll ✓');
+    if (Math.abs(sum - T.W.net) > 0.005) bad.push('Total: SIF ' + prAED(sum) + ', approved WPS net payroll ' + prAED(T.W.net) + ' (difference ' + prAED(sum - T.W.net) + ').'); else res.push('Total: AED ' + prAED(sum) + ' = approved WPS net payroll ✓'); }
+  const D = PR.data[m] && PR.data[m][co]; if (D && D.rows) { const a = D.rows.filter(x => x.sec === 'W').map(x => prR2(x.net)).sort((x, y) => x - y), b = edr.map(e => prR2((Number(e[7]) || 0) + (Number(e[8]) || 0))).sort((x, y) => x - y);
+    const miss = [], extra = b.slice(); a.forEach(v => { const i = extra.findIndex(w => Math.abs(w - v) < 0.005); if (i >= 0) extra.splice(i, 1); else miss.push(v); });
+    if (miss.length || extra.length) bad.push('Amounts per person do not all match: in the payroll but not in the SIF: ' + (miss.map(prAED).join(', ') || 'none') + '; in the SIF but not in the payroll: ' + (extra.map(prAED).join(', ') || 'none') + '.'); else res.push('Every person\'s amount matches the approved payroll ✓'); }
+  return { ok: !bad.length, bad, res, lines: edr.length, total: sum };
+}
+window.prSifFile = async function (inp, m, co) { const f = (inp.files || [])[0]; inp.value = ''; if (!f) return; const txt = await f.text(); if (prRole() !== 'sif') { try { await prLoad(m); } catch (e) {} }
+  const r = prSifCheck(txt, m, co); r.file = f.name; PR.sifRes[m + co] = r;
+  try { await set(ref(db, 'payrollState/' + m + '/sif/' + co + '/check'), { at: Date.now(), by: prWho(), file: f.name.slice(0, 120), ok: r.ok, lines: r.lines, total: r.total, issues: r.bad.slice(0, 20).join(' | ').slice(0, 1500) }); } catch (e) {}
+  renderPayroll(); };
+window.prCorr = async function (m) { const note = prompt('Correction note for ' + prMon(m) + ' (already paid): what should change? HR includes it in next month\'s payroll.'); if (!note || !note.trim()) return;
+  const now = Date.now(); try { await set(push(ref(db, 'payrollState/' + m + '/corr')), { at: now, by: prWho(), note: note.slice(0, 1000), done: false }); await set(push(ref(db, 'payrollState/' + m + '/hist')), { at: now, by: prWho(), act: 'Correction note (next month)', note: note.slice(0, 1000) }); } catch (e) { alert('Could not save (' + ((e && e.code) || 'error') + ').'); } };
+window.prCorrDone = async function (m, k) { if (!confirm('Mark this correction as included in a later payroll?')) return; const now = Date.now();
+  try { await set(ref(db, 'payrollState/' + m + '/corr/' + k + '/done'), true); await set(ref(db, 'payrollState/' + m + '/corr/' + k + '/doneBy'), prWho()); await set(push(ref(db, 'payrollState/' + m + '/hist')), { at: now, by: prWho(), act: 'Correction included in payroll', note: ((((PR.st[m] || {}).corr || {})[k]) || {}).note || '' }); } catch (e) { alert('Could not save.'); } };
+window.prBank = async function (m, co) { const S0 = PR.st[m] || {}, c = (S0.sif || {})[co] || {}; if (S0.status !== 'ok') { alert('This month is not OK to pay (it may have been reopened by Cem). Do not upload the SIF.'); return; }
+  if (!c.check || !c.check.ok || c.check.at < (S0.approvedAt || 0)) { alert('Check the SIF file first (again, after Cem\'s latest approval): it must pass all checks.'); return; }
+  const refNo = prompt('Uploaded to ADCB: bank reference (optional)'); if (refNo === null) return;
+  const now = Date.now(); try { await set(ref(db, 'payrollState/' + m + '/sif/' + co + '/bank'), { at: now, by: prWho(), ref: String(refNo).slice(0, 80) }); await set(push(ref(db, 'payrollState/' + m + '/hist')), { at: now, by: prWho(), act: co + ' SIF uploaded to ADCB', note: refNo || '' }); } catch (e) { alert('Could not save (' + ((e && e.code) || 'error') + ').'); } };
+// ── exports
+window.prExcel = async function (m) { const D = await prLoad(m); const wb = XLSX.utils.book_new();
+  { const pv = prPrevApproved(m); if (pv) { try { await prLoad(pv); } catch (e) {} } const ws0 = XLSX.utils.aoa_to_sheet(prSummaryRows(m, D)); ws0['!cols'] = [{ wch: 8 }, { wch: 22 }, { wch: 30 }, { wch: 24 }, { wch: 14 }, { wch: 60 }]; XLSX.utils.book_append_sheet(wb, ws0, 'Summary'); }
+  ['CK', 'CKC'].forEach(co => { const x = D[co]; if (!x) return; const H = ['Section', 'SN', 'Employee number', 'Employee name', 'Designation', 'Project'].concat(PR_PAY.map(k => PR_LBL[k]), ['Current gross', 'Prior gross', 'Difference', 'Details of difference'], PR_ADJ.map(k => PR_LBL[k]), ['Total of differences', 'Net salary', 'Comment']);
+    const a = [[(co === 'CK' ? 'CK Architecture Interiors LLC' : 'CKC Building Contracting LLC') + ' · Payroll ' + prMon(m)], [''], H];
+    x.rows.forEach(r => a.push([r.sec === 'W' ? 'WPS' : 'Non WPS', r.sn || '', r.emp || '', r.name, r.desig || '', r.proj || ''].concat(PR_PAY.map(k => r[k] || 0), [r.gross, r.prior || 0, r.diff, r.diffNote || ''], PR_ADJ.map(k => r[k] || 0), [r.totAdj, r.net, r.comment || ''])));
+    a.push([''], ['WPS: ' + x.totals.W.count + ' employees, net ' + prAED(x.totals.W.net)], ['Non WPS: ' + x.totals.N.count + ' employees, net ' + prAED(x.totals.N.net)], ['Total net payroll: ' + prAED(x.totals.all.net)]);
+    const ws = XLSX.utils.aoa_to_sheet(a); XLSX.utils.book_append_sheet(wb, ws, co); });
+  XLSX.writeFile(wb, 'Payroll_' + m + '.xlsx'); if (currentRole !== 'employee') logAudit('Download Report', 'Payroll ' + prMon(m), ''); };
+// ── page
+function prChip(st) { const s = PR_ST[st] || ['Not started', '#999']; return `<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:11.5px;font-weight:700;background:${s[1]}1a;color:${s[1]};border:1px solid ${s[1]}55">${s[0]}</span>`; }
+function prBoxEl() { return document.getElementById(currentRole === 'employee' ? 'empPayBody' : 'prBox'); }
+function renderPayroll() {
+  const box = prBoxEl(); if (!box) return; const role = prRole(); if (!role) { box.innerHTML = ''; return; }
+  if (PR.imp && role === 'hr') return prRenderImport(box);
+  const months = Object.keys(PR.st).filter(m => role === 'hr' || role === 'ceo' ? true : role === 'rev' ? ['approved', 'ok', 'returned'].includes(PR.st[m].status) && PR.st[m].approvedAt : (PR.st[m].status === 'ok' || (PR.st[m].reopenedAt && PR.st[m].sif))).sort().reverse();
+  if (!PR.open || !months.includes(PR.open)) PR.open = months[0] || '';
+  let h = '';
+  if (role === 'hr' || role === 'ceo') { const C = []; Object.entries(PR.st).forEach(([m, s]) => Object.entries((s && s.corr) || {}).forEach(([k, c]) => { if (!c.done) C.push([m, k, c]); }));
+    if (C.length) h += `<div class="card" style="margin-bottom:14px;border-left:4px solid #b9770e;background:#fff8ec;"><div class="card-title">🔁 Corrections to include in the next payroll (${C.length})</div>${C.map(([m, k, c]) => `<div style="font-size:13px;padding:6px 0;border-bottom:1px solid #f3e3c3;"><b>${prMon(m)}</b> · ${esc(c.note)} <span style="color:#888;">(${esc(c.by)}, ${new Date(c.at).toLocaleDateString('en-GB')})</span>${role === 'hr' ? ` <button class="btn btn-sm" onclick="prCorrDone('${m}','${k}')">Included ✓</button>` : ''}</div>`).join('')}</div>`; }
+  if (role === 'hr') h += `<div class="card" style="margin-bottom:14px;"><div class="card-title">⬆️ Upload the payroll Excel</div><p style="font-size:12.5px;color:#666;margin:0 0 8px;">Choose the CK and CKC payroll authorisation files for one month (both at once, or one at a time). The portal reads them exactly as prepared and shows a review first. Nothing else in the HR Portal changes.</p><input type="file" accept=".xlsx,.xls" multiple onchange="prFiles(this)"></div>`;
+  h += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">${months.map(m => `<button class="btn btn-sm ${m === PR.open ? 'btn-primary' : ''}" onclick="PR_open('${m}')">${prMon(m)}</button>`).join('') || '<span style="color:#888;font-size:13px;">No payroll months yet.</span>'}</div>`;
+  if (PR.open) h += prMonthHtml(PR.open, role);
+  box.innerHTML = h;
+  if (PR.open && role !== 'sif' && !PR.data[PR.open]) prLoad(PR.open).then(() => renderPayroll()).catch(() => {});
+}
+window.renderPayroll = renderPayroll;
+window.PR_open = m => { PR.open = m; renderPayroll(); };
+function prMonthHtml(m, role) {
+  const S = PR.st[m] || {}, st = S.status || 'draft', D = PR.data[m], T = PR.tot[m] || {};
+  const cos = ['CK', 'CKC'].filter(co => T[co] || (D && D[co]));
+  let h = `<div class="card" style="margin-bottom:14px;"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><div class="card-title" style="margin:0;">💼 Payroll ${prMon(m)}</div>${prChip(st)}</div>`;
+  if (S.reopenedAt && !['approved', 'ok'].includes(st)) h += `<div style="margin-top:10px;background:#fdecea;color:#c0392b;border-radius:8px;padding:8px 10px;font-size:13px;font-weight:600;">⛔ Reopened by Cem on ${new Date(S.reopenedAt).toLocaleString('en-GB')}${role === 'sif' ? ': do not upload the SIF until it is approved and OK to pay again.' : '. Earlier approvals and SIF checks are cancelled.'}</div>`;
+  h += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px;margin-top:12px;">${cos.map(co => { const t = (T[co] || {}).totals || (D && D[co] && D[co].totals); if (!t) return ''; const sif = (S.sif || {})[co] || {};
+    return `<div style="border:1px solid #e6e9ee;border-radius:10px;padding:12px;"><div style="font-weight:700;color:#1C3557;">${co === 'CK' ? 'CK Architecture Interiors' : 'CKC Building Contracting'}</div>
+      <div style="font-size:12.5px;margin-top:6px;line-height:1.8;">WPS: <b>${t.W.count}</b> employees · net <b>AED ${prAED(t.W.net)}</b><br>Non WPS: <b>${t.N.count}</b> · net AED ${prAED(t.N.net)}<br>Total net payroll: <b style="font-size:15px;">AED ${prAED(t.all.net)}</b><br><span style="color:#888;">Gross ${prAED(t.all.gross)} · prior month gross ${prAED(t.all.prior)}</span></div>
+      ${st === 'ok' || sif.check ? `<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #ddd;font-size:12px;">🏦 SIF: ${sif.check ? (sif.check.at < (S.approvedAt || 0) ? '<span style="color:#9a5b00;font-weight:700;">earlier check, before Cem\'s latest approval: check again</span>' : sif.check.ok ? '<span style="color:#1A7A6E;font-weight:700;">checked ✓</span>' : '<span style="color:#c0392b;font-weight:700;">check failed</span>') + ' (' + esc(sif.check.by) + ', ' + new Date(sif.check.at).toLocaleString('en-GB') + ')' : 'not checked yet'}${sif.bank ? '<br><span style="color:#1A7A6E;font-weight:700;">Uploaded to ADCB</span> by ' + esc(sif.bank.by) + ', ' + new Date(sif.bank.at).toLocaleString('en-GB') + (sif.bank.ref ? ' · ref ' + esc(sif.bank.ref) : '') : ''}
+        ${(role === 'sif' || role === 'hr') && st === 'ok' ? `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;"><label class="btn btn-sm" style="position:relative;">Check SIF file<input type="file" accept=".sif,.SIF,.txt" style="position:absolute;inset:0;opacity:0;cursor:pointer;" onchange="prSifFile(this,'${m}','${co}')"></label>${role === 'sif' && !sif.bank ? `<button class="btn btn-sm btn-primary" onclick="prBank('${m}','${co}')">Mark uploaded to ADCB</button>` : ''}</div>` : ''}
+        ${PR.sifRes[m + co] ? prSifHtml(PR.sifRes[m + co]) : ''}</div>` : ''}</div>`; }).join('')}</div>`;
+  const B = []; if (role === 'hr' && ['draft', 'returned'].includes(st) && cos.length) B.push(`<button class="btn btn-primary" onclick="prAct('${m}','send')">Send to Cem for approval</button>`);
+  if (role === 'ceo' && st === 'sent') B.push(`<button class="btn btn-primary" onclick="prAct('${m}','approve')">✓ Approve</button><button class="btn btn-danger" onclick="prAct('${m}','back')">Send back to HR</button>`);
+  const paid = Object.values(S.sif || {}).some(x => x && x.bank);
+  if (role === 'ceo' && (st === 'approved' || st === 'ok') && !paid) B.push(`<button class="btn" onclick="prAct('${m}','reopen')">Reopen (change after approval)</button>`);
+  if (role === 'ceo' && paid) B.push(`<button class="btn" onclick="prCorr('${m}')">Correction note (for next month)</button>`);
+  if (role === 'rev' && st === 'approved') B.push(`<button class="btn btn-primary" onclick="prAct('${m}','ok')">✓ OK to pay</button><button class="btn btn-danger" onclick="prAct('${m}','query')">Query (back to HR)</button>`);
+  if (role !== 'sif') B.push(`<button class="btn" onclick="prExcel('${m}')">📥 Excel</button>`);
+  h += `<div class="btn-row" style="margin-top:12px;">${B.join('')}</div>`;
+  const H = Object.values(S.hist || {}).sort((a, b) => b.at - a.at);
+  h += `<details style="margin-top:12px;"><summary style="cursor:pointer;font-weight:600;font-size:13px;">History (${H.length})</summary>${H.map(x => `<div style="font-size:12.5px;padding:5px 0;border-bottom:1px solid #f0f0f0;"><b>${new Date(x.at).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</b> · ${esc(x.act)} · ${esc(x.by)}${x.note ? `<div style="color:#555;">${esc(x.note)}</div>` : ''}</div>`).join('')}</details></div>`;
+  if (role !== 'sif' && D && S.apprSnap) h += prChangesHtml(m, S, D);
+  if (role !== 'sif') h += D ? cos.map(co => D[co] ? prTableHtml(D[co]) : '').join('') : '<div style="color:#888;font-size:13px;">Loading the details…</div>';
+  return ((role !== 'sif' && D) ? prSummaryHtml(m, S, D) : '') + h;
+}
+
+// ── Summary for Cem: totals, change against the last approved month, and what he should be aware of
+function prSummaryData(m, D) {
+  const prev = prPrevApproved(m), P = prev ? PR.data[prev] : null; if (prev && !P) { prLoad(prev).then(() => renderPayroll()).catch(() => {}); }
+  const out = { prev, cos: [] }; const key = r => (r.emp || '') + '|' + String(r.name).toLowerCase();
+  ['CK', 'CKC'].forEach(co => { const x = D[co]; if (!x) return; const p = P && P[co]; const rows = x.rows;
+    const pk = {}; (p ? p.rows : []).forEach(r => pk[key(r)] = r);
+    const joiners = p ? rows.filter(r => !pk[key(r)]) : rows.filter(r => !r.prior);
+    const leavers = p ? p.rows.filter(r => !rows.some(y => key(y) === key(r))) : [];
+    const ups = rows.filter(r => r.diff > 0.005 && !joiners.includes(r)).sort((a, b) => b.diff - a.diff), downs = rows.filter(r => r.diff < -0.005 && !joiners.includes(r)).sort((a, b) => a.diff - b.diff);
+    const sumOf = f => prR2(rows.reduce((a, r) => a + (r[f] || 0), 0)), cnt = f => rows.filter(r => r[f]).length;
+    const extras = [['bonus', 'Temp bonus'], ['air', 'Air tickets'], ['exp', 'Work expenses / reimbursements'], ['loan', 'Loan deductions'], ['sadj', 'Salary adjustments'], ['pension', 'Pension']].map(([f, l]) => ({ l, n: cnt(f), v: sumOf(f), f })).filter(e => e.n);
+    out.cos.push({ co, t: x.totals, pt: p ? p.totals : null, joiners, leavers, ups, downs, extras, notes: rows.filter(r => r.comment) }); });
+  return out;
+}
+function prSummaryHtml(m, S, D) {
+  const s = prSummaryData(m, D); if (!s.cos.length) return '';
+  const tot = s.cos.reduce((a, c) => ({ net: a.net + c.t.all.net, cnt: a.cnt + c.t.all.count, pnet: a.pnet + (c.pt ? c.pt.all.net : 0), pcnt: a.pcnt + (c.pt ? c.pt.all.count : 0), has: a.has && !!c.pt }), { net: 0, cnt: 0, pnet: 0, pcnt: 0, has: !!s.prev });
+  const chg = (a, b) => { const d = prR2(a - b), pc = b ? (d / b * 100) : 0; return `<span style="color:${d > 0 ? '#c0392b' : d < 0 ? '#1A7A6E' : '#888'};font-weight:600;">${d >= 0 ? '+' : ''}${prAED(d)}${b ? ' (' + (pc >= 0 ? '+' : '') + pc.toFixed(1) + '%)' : ''}</span>`; };
+  const pl = r => `${esc(r.name)}${r.desig ? ' <span style="color:#888;">(' + esc(r.desig) + ')</span>' : ''}`;
+  const sendNote = Object.values(S.hist || {}).filter(h => /^Sent to Cem/.test(h.act) && h.note).sort((a, b) => b.at - a.at)[0];
+  let h = `<div class="card" style="margin-bottom:14px;border-top:3px solid #C9A84C;"><div class="card-title">📝 Summary for approval · ${prMon(m)}</div>`;
+  if (sendNote) h += `<div style="background:#fff8ec;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:10px;"><b>Note from HR:</b> ${esc(sendNote.note)}</div>`;
+  h += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:10px;">
+    <div style="background:#1C3557;color:#fff;border-radius:10px;padding:12px;"><div style="font-size:12px;opacity:.8;">Total net payroll, CK + CKC</div><div style="font-size:22px;font-weight:700;">AED ${prAED(tot.net)}</div><div style="font-size:12px;opacity:.85;">${tot.cnt} employees${tot.has ? ' · last month AED ' + prAED(tot.pnet) + ' (' + tot.pcnt + ')' : ''}</div></div>
+    ${s.cos.map(c => `<div style="border:1px solid #e6e9ee;border-radius:10px;padding:12px;"><div style="font-size:12px;color:#666;">${c.co === 'CK' ? 'CK Architecture Interiors' : 'CKC Building Contracting'}</div><div style="font-size:18px;font-weight:700;color:#1C3557;">AED ${prAED(c.t.all.net)}</div><div style="font-size:12px;">${c.t.all.count} employees (WPS ${c.t.W.count} · Non WPS ${c.t.N.count})${c.pt ? '<br>vs last month: ' + chg(c.t.all.net, c.pt.all.net) + ', ' + (c.t.all.count - c.pt.all.count >= 0 ? '+' : '') + (c.t.all.count - c.pt.all.count) + ' people' : ''}</div></div>`).join('')}</div>`;
+  if (!s.prev) h += `<div style="font-size:12px;color:#888;margin-bottom:8px;">First month in the portal: changes are taken from the "Prior month gross" column of the Excel.</div>`;
+  s.cos.forEach(c => { const L = [];
+    if (c.joiners.length) L.push(`<b>New in the payroll (${c.joiners.length}):</b> ${c.joiners.map(r => pl(r) + ' · net ' + prAED(r.net)).join('; ')}`);
+    if (c.leavers.length) L.push(`<b>No longer in the payroll (${c.leavers.length}):</b> ${c.leavers.map(r => pl(r) + ' · last net ' + prAED(r.net)).join('; ')}`);
+    if (c.ups.length) L.push(`<b>Higher gross than last month (${c.ups.length}):</b><br>${c.ups.slice(0, 12).map(r => '• ' + pl(r) + ': <b>+' + prAED(r.diff) + '</b>' + (r.diffNote ? ' · ' + esc(r.diffNote) : '')).join('<br>')}${c.ups.length > 12 ? '<br>… and ' + (c.ups.length - 12) + ' more' : ''}`);
+    if (c.downs.length) L.push(`<b>Lower gross than last month (${c.downs.length}):</b><br>${c.downs.slice(0, 12).map(r => '• ' + pl(r) + ': <b>' + prAED(r.diff) + '</b>' + (r.diffNote ? ' · ' + esc(r.diffNote) : '')).join('<br>')}${c.downs.length > 12 ? '<br>… and ' + (c.downs.length - 12) + ' more' : ''}`);
+    if (c.extras.length) L.push(`<b>One-time and other items:</b> ${c.extras.map(e => e.l + ' ' + e.n + ' × = AED ' + prAED(e.v)).join(' · ')}`);
+    if (c.notes.length) L.push(`<b>Comments in the payroll (${c.notes.length}):</b><br>${c.notes.slice(0, 10).map(r => '• ' + pl(r) + ': ' + esc(r.comment)).join('<br>')}${c.notes.length > 10 ? '<br>… and ' + (c.notes.length - 10) + ' more' : ''}`);
+    h += `<div style="border-top:1px solid #eee;padding-top:8px;margin-top:8px;font-size:13px;line-height:1.7;"><div style="font-weight:700;color:#1C3557;margin-bottom:2px;">${c.co}</div>${L.length ? L.map(x => `<div style="margin-bottom:6px;">${x}</div>`).join('') : '<span style="color:#888;">No changes against last month.</span>'}</div>`; });
+  return h + '</div>';
+}
+function prSummaryRows(m, D) { const s = prSummaryData(m, D), a = [['Payroll summary · ' + prMon(m)], ['']];
+  s.cos.forEach(c => { a.push([c.co, 'Total net', c.t.all.net, 'Employees', c.t.all.count, 'WPS net', c.t.W.net, 'Non WPS net', c.t.N.net].concat(c.pt ? ['Last month net', c.pt.all.net, 'Change', prR2(c.t.all.net - c.pt.all.net)] : []));
+    c.joiners.forEach(r => a.push(['', 'New', r.name, r.desig || '', r.net])); c.leavers.forEach(r => a.push(['', 'No longer in payroll', r.name, r.desig || '', r.net]));
+    c.ups.concat(c.downs).forEach(r => a.push(['', r.diff > 0 ? 'Higher gross' : 'Lower gross', r.name, r.desig || '', r.diff, r.diffNote || '']));
+    c.extras.forEach(e => a.push(['', 'Item', e.l, e.n + ' employees', e.v])); a.push(['']); });
+  return a; }
+
+// Changes between the version Cem approved and the current upload (after a reopen)
+const PR_VS = {};
+async function prLoadVers(m) { if (PR_VS[m]) return PR_VS[m]; try { PR_VS[m] = (await get(ref(db, 'payrollVers/' + m))).val() || {}; } catch (e) { PR_VS[m] = {}; } return PR_VS[m]; }
+function prDiff(a, b) { const key = r => (r.emp || '') + '|' + String(r.name).toLowerCase(), A = {}, Bm = {}; (a.rows || []).forEach(r => A[key(r)] = r); (b.rows || []).forEach(r => Bm[key(r)] = r); const out = [];
+  Object.keys(Bm).forEach(k => { const x = A[k], y = Bm[k]; if (!x) { out.push({ name: y.name, txt: 'added · net ' + prAED(y.net), d: y.net }); return; }
+    const ch = PR_PAY.concat(PR_ADJ).filter(f => prR2(x[f] || 0) !== prR2(y[f] || 0)).map(f => PR_LBL[f] + ' ' + prAED(x[f] || 0) + ' → ' + prAED(y[f] || 0));
+    if (prR2(x.net) !== prR2(y.net) || ch.length || (x.comment || '') !== (y.comment || '') || (x.diffNote || '') !== (y.diffNote || '') || x.sec !== y.sec) out.push({ name: y.name, txt: ch.concat(prR2(x.net) !== prR2(y.net) ? ['Net ' + prAED(x.net) + ' → ' + prAED(y.net)] : [], x.sec !== y.sec ? ['moved to ' + (y.sec === 'W' ? 'WPS' : 'Non WPS')] : [], (x.comment || '') !== (y.comment || '') ? ['comment changed'] : [], (x.diffNote || '') !== (y.diffNote || '') ? ['details of difference changed'] : []).join(' · '), d: prR2(y.net - x.net) }); });
+  Object.keys(A).forEach(k => { if (!Bm[k]) out.push({ name: A[k].name, txt: 'removed · net was ' + prAED(A[k].net), d: -A[k].net }); }); return out; }
+function prChangesHtml(m, S, D) {
+  const cos = ['CK', 'CKC'].filter(co => D[co] && S.apprSnap[co] && D[co].upAt !== S.apprSnap[co]); if (!cos.length) return '';
+  const V = PR_VS[m]; if (!V) { prLoadVers(m).then(() => renderPayroll()); return ''; }
+  return `<div class="card" style="margin-bottom:14px;border-left:4px solid #2471a3;"><div class="card-title">🔎 Changes since the version Cem approved${S.approvedBy ? ' (' + esc(S.approvedBy) + ', ' + new Date(S.approvedAt).toLocaleString('en-GB') + ')' : ''}</div>${cos.map(co => {
+    const old = Object.values(V[co] || {}).find(x => x.upAt === S.apprSnap[co]); if (!old) return `<div style="font-size:12.5px;color:#888;">${co}: the approved version could not be found.</div>`;
+    const L = prDiff(old, D[co]), dt = prR2(D[co].totals.all.net - old.totals.all.net);
+    return `<div style="margin:6px 0 10px;"><b>${co}</b>: total net ${prAED(old.totals.all.net)} → <b>${prAED(D[co].totals.all.net)}</b> (${dt >= 0 ? '+' : ''}${prAED(dt)}) · ${L.length} employee(s) changed${L.map(x => `<div style="font-size:12.5px;padding:3px 0;border-bottom:1px solid #f0f0f0;"><b>${esc(x.name)}</b>: ${esc(x.txt)}</div>`).join('')}</div>`; }).join('')}</div>`;
+}
+function prSifHtml(r) { return `<div style="margin-top:8px;font-size:12px;background:${r.ok ? '#e8f6f3' : '#fdecea'};border-radius:8px;padding:8px;"><b>${r.ok ? '✓ The SIF file matches the approved payroll' : '✕ Do not upload: the SIF file has problems'}</b> (${esc(r.file)})${r.res.map(x => `<div>${esc(x)}</div>`).join('')}${r.bad.map(x => `<div style="color:#c0392b;">• ${esc(x)}</div>`).join('')}</div>`; }
+function prTableHtml(x) {
+  const q = (PR.q || '').toLowerCase(), L = x.rows.filter(r => !q || (r.name + ' ' + (r.emp || '') + ' ' + (r.proj || '')).toLowerCase().includes(q));
+  const row = r => `<tr${Math.abs(r.diff) > 0.005 ? ' style="background:#fffaf0;"' : ''}><td>${esc(r.sn || '')}</td><td><b>${esc(r.name)}</b><div style="font-size:11px;color:#888;">${esc(r.emp || '')} · ${esc(r.desig || '')}${r.proj ? ' · ' + esc(r.proj) : ''}</div></td>
+    <td class="num" title="${esc(PR_PAY.filter(k => r[k]).map(k => PR_LBL[k] + ' ' + prAED(r[k])).join(' + '))}">${prAED(r.gross)}</td><td class="num" style="color:#888;">${prAED(r.prior || 0)}</td><td class="num" style="color:${r.diff < 0 ? '#c0392b' : r.diff > 0 ? '#1A7A6E' : '#999'}">${prAED(r.diff)}</td><td style="font-size:11.5px;max-width:200px;">${esc(r.diffNote || '')}</td>
+    <td class="num" title="${esc(PR_ADJ.filter(k => r[k]).map(k => PR_LBL[k] + ' ' + prAED(r[k])).join(' · '))}">${r.totAdj ? prAED(r.totAdj) : ''}</td><td class="num"><b>${prAED(r.net)}</b></td><td style="font-size:11.5px;max-width:200px;">${esc(r.comment || '')}</td></tr>`;
+  const sec = (s, t) => { const R = L.filter(r => r.sec === s); return R.length ? `<tr><td colspan="9" style="background:#f4f6f9;font-weight:700;color:#1C3557;">${t} (${R.length})</td></tr>` + R.map(row).join('') : ''; };
+  return `<div class="card" style="margin-bottom:14px;"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><div class="card-title" style="margin:0;">${x.co === 'CK' ? 'CK Architecture Interiors LLC' : 'CKC Building Contracting LLC'}</div><input placeholder="Search name, number, project" value="${esc(PR.q)}" oninput="PR.q=this.value;clearTimeout(PR.t);PR.t=setTimeout(renderPayroll,300)" style="padding:6px 10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"></div>
+    <div style="font-size:11.5px;color:#888;margin:4px 0 8px;">File: ${esc(x.file)} · uploaded by ${esc(x.upBy)} ${new Date(x.upAt).toLocaleString('en-GB')} · hover gross / adjustments for the breakdown · lines with a difference are highlighted</div>
+    <div class="table-wrap"><table><thead><tr><th>SN</th><th>Employee</th><th class="num">Gross</th><th class="num">Prior gross</th><th class="num">Difference</th><th>Details of difference</th><th class="num">Adjustments</th><th class="num">Net salary</th><th>Comment</th></tr></thead><tbody>${sec('W', 'WPS')}${sec('N', 'Non WPS')}
+    <tr style="font-weight:700;border-top:2px solid #1C3557;"><td></td><td>Total (${x.totals.all.count})</td><td class="num">${prAED(x.totals.all.gross)}</td><td class="num">${prAED(x.totals.all.prior)}</td><td class="num">${prAED(x.totals.all.gross - x.totals.all.prior)}</td><td></td><td class="num">${prAED(x.totals.all.adj)}</td><td class="num">${prAED(x.totals.all.net)}</td><td></td></tr></tbody></table></div></div>`;
+}
+function prRenderImport(box) {
+  const I = PR.imp; const m = I.list[0] && I.list[0].month, prev = m ? prPrevApproved(m) : '';
+  let h = `<div class="card" style="margin-bottom:14px;"><div class="card-title">Review before saving${m ? ' · ' + prMon(m) : ''}</div><p style="font-size:12.5px;color:#666;margin:0 0 8px;">Nothing is saved yet. The figures below are read exactly from your Excel.</p>`;
+  if (I.errs.length) h += `<div style="background:#fdecea;border-radius:8px;padding:10px;color:#c0392b;font-size:13px;margin-bottom:10px;"><b>Please fix and upload again:</b>${I.errs.map(e => `<div>• ${esc(e)}</div>`).join('')}</div>`;
+  I.list.forEach(x => { const pT = prev && PR.tot[prev] && PR.tot[prev][x.co] && PR.tot[prev][x.co].totals; const chg = x.rows.filter(r => Math.abs(r.diff) > 0.005);
+    const idx = buildNameIndex(); const unk = x.rows.filter(r => !(r.emp && Object.values(DB.employees).some(e => e.empId === r.emp)) && !(matchEmpByName(r.name, idx) || {}).e);
+    h += `<div style="border:1px solid #e6e9ee;border-radius:10px;padding:12px;margin-bottom:10px;"><b>${x.co}</b> · ${esc(x.file)}<div style="font-size:12.5px;line-height:1.8;margin-top:4px;">WPS <b>${x.totals.W.count}</b> · net AED <b>${prAED(x.totals.W.net)}</b> &nbsp;|&nbsp; Non WPS <b>${x.totals.N.count}</b> · net AED ${prAED(x.totals.N.net)} &nbsp;|&nbsp; Total net <b>AED ${prAED(x.totals.all.net)}</b>
+      ${pT ? `<br>Last approved month (${prMon(prev)}): ${pT.all.count} employees, net AED ${prAED(pT.all.net)} → change ${x.totals.all.count - pT.all.count >= 0 ? '+' : ''}${x.totals.all.count - pT.all.count} employees, AED ${prAED(x.totals.all.net - pT.all.net)}` : ''}
+      <br>${chg.length} employee(s) with a difference against last month${unk.length ? `<br><span style="color:#9a5b00;">Not found in the HR Portal employee list (information only): ${unk.map(r => esc(r.name)).join(', ')}</span>` : ''}
+      ${x.warn.length ? `<br><span style="color:#c0392b;">${x.warn.map(esc).join('<br>')}</span>` : ''}</div></div>`; });
+  h += `<div class="btn-row"><button class="btn btn-primary" ${I.errs.length || !I.list.length ? 'disabled' : ''} onclick="prSave()">Save payroll</button><button class="btn" onclick="PR.imp=null;renderPayroll()">Cancel</button></div></div>`;
+  box.innerHTML = h;
+}
+window.PR = PR;
+// ── data listeners
+function prListen() { const role = prRole(); if (!role) return; const add = u => { if (currentRole === 'employee') _staffUnsubs.push(u); };
+  add(onValue(ref(db, 'payrollState'), s => { PR.st = s.val() || {}; renderPayroll(); }, () => {}));
+  add(onValue(ref(db, 'payrollTot'), s => { PR.tot = s.val() || {}; renderPayroll(); }, () => {}));
+  if (currentRole === 'employee') { const c = document.getElementById('empPayCard'); if (c) c.style.display = 'block'; const t = document.getElementById('empPayTitle'); if (t) t.textContent = role === 'rev' ? '💼 Payroll review (Finance)' : '🏦 Salary file (SIF) check'; } }
+window.prListen = prListen;
+window.togglePayAccess = async function (k, kind, on) { if (currentRole !== 'admin') return; const e = DB.employees[k]; if (!e || !e.portalUid) { alert('This employee needs a portal login first.'); return; }
+  const f = kind === 'rev' ? 'payRev' : 'paySif', lbl = kind === 'rev' ? 'review the payroll (all lines, after Cem\'s approval)' : 'check the SIF files (totals only)';
+  if (!confirm((on ? 'Let ' : 'Stop ') + e.name + ' ' + lbl + '?')) return;
+  try { await set(ref(db, 'staffMap/' + e.portalUid + '/' + f), on ? true : null); await set(ref(db, 'employees/' + k + '/' + f), on ? true : null); logAudit('Payroll access ' + (on ? 'given' : 'removed'), e.name, f); renderPortalAccess(); } catch (err) { alert('Could not save: ' + ((err && err.code) || 'error')); } };
 
 </script>
 <script>
