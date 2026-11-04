@@ -8678,7 +8678,13 @@ window.openSalModal=function(){
   };
   document.getElementById('salModal').classList.add('open');
 };
-window.editSal=function(key){const s=DB.salary[key];sv('slEmp',s.empName);sv('slEmpKey',s.empId||'');sv('slType',s.type);sv('slBonusKind',s.bonusKind||'');sv('slBonusAmt',s.bonusAmt||'');setTimeout(()=>slTypeChange(true),0);sv('slDate',s.date);sv('slPrev',s.prev);sv('slNew',s.newVal);sv('slApproved',s.approvedBy);sv('slReason',s.reason);sv('slKey',key);document.getElementById('salModal').classList.add('open');};
+window.editSal=function(key){const s=DB.salary[key];
+  // the employee: by the saved link, or found by name for older records
+  let ek=s.empId&&DB.employees[s.empId]?s.empId:'';if(!ek){const nm=String(s.empName||'').trim().toLowerCase();const hit=Object.entries(DB.employees).find(([k,e])=>String(e.name||'').trim().toLowerCase()===nm);if(hit)ek=hit[0];}
+  buildEmpDropdown('slEmpSel');{const sel=document.getElementById('slEmpSel');const o=[...sel.options].find(x=>ek&&x.value.split('|')[0]===ek);sel.value=o?o.value:'';
+    sel.onchange=function(){const p=parseEmpSelect(this.value);sv('slEmp',p.name);sv('slEmpKey',p.key);slBonusCalc();};}
+  sv('slEmp',s.empName);sv('slEmpKey',ek);sv('slType',s.type);sv('slBonusKind',s.bonusKind||'');
+  sv('slBonusAmt',s.bonusAmt||(s.type!=='Bonus'&&parseFloat(s.newVal)&&parseFloat(s.prev)&&parseFloat(s.newVal)>parseFloat(s.prev)?parseFloat(s.newVal)-parseFloat(s.prev):''));setTimeout(()=>slTypeChange(true),0);sv('slDate',s.date);sv('slPrev',s.prev);sv('slNew',s.newVal);sv('slApproved',s.approvedBy);sv('slReason',s.reason);sv('slKey',key);document.getElementById('salModal').classList.add('open');};
 // Bonus: one-time (no change to the employee record) or temporary monthly (part of the salary until revoked: updates the gross salary).
 window.slTypeChange=function(keep){const b=v('slType')==='Bonus';document.getElementById('slBonusWrap').style.display=b?'':'none';if(!keep&&!b){sv('slBonusKind','');sv('slBonusAmt','');}slBonusCalc();};
 window.slBonusCalc=function(){const h=document.getElementById('slBonusHint');if(!h)return;if(v('slType')!=='Bonus'){h.textContent='';return;}
@@ -8692,7 +8698,9 @@ window.saveSal=function(){
     date:v('slDate'),prev:v('slPrev'),newVal:v('slNew'),
     approvedBy:v('slApproved'),reason:v('slReason'),ts:Date.now()
   };
+  {const k0=v('slKey');if(k0&&DB.salary[k0]&&DB.salary[k0].ts){data.ts=DB.salary[k0].ts;data.editedAt=Date.now();}} // keep the original date order when editing
   if(!data.empName){alert('Please select an employee');return;}
+  if(!empKey){alert('Choose the employee in the list (needed to link the record to the employee).');return;}
   if(data.type==='Bonus'){const k=v('slBonusKind'),amt=parseFloat(v('slBonusAmt'))||0;
     if(!k){alert('Choose the type of bonus: one-time or temporary monthly.');return;}
     if(!amt){alert('Enter the bonus amount.');return;}
@@ -8709,7 +8717,8 @@ window.saveSal=function(){
       const emp=DB.employees[empKey];
       if(emp){
         const updated={...emp, grossSalary:data.newVal, lastSalaryChange:data.date, lastSalaryBy:data.approvedBy};
-        if(data.type==='Bonus')updated.tempBonus=Math.round(((parseFloat(emp.tempBonus)||0)+data.bonusAmt)*100)/100; // monthly temporary bonus included in gross
+        if(data.type==='Bonus'){const was=key&&DB.salary[key]&&DB.salary[key].type==='Bonus'&&DB.salary[key].bonusKind==='monthly'?(parseFloat(DB.salary[key].bonusAmt)||0):0;
+          updated.tempBonus=Math.max(0,Math.round(((parseFloat(emp.tempBonus)||0)+data.bonusAmt-was)*100)/100);} // monthly temporary bonus included in gross (an edited record counts once)
         if(data.type==='Bonus Revoked'){const cut=(parseFloat(data.prev)||0)-(parseFloat(data.newVal)||0);updated.tempBonus=Math.max(0,Math.round(((parseFloat(emp.tempBonus)||0)-cut)*100)/100);}
         set(ref(db,'employees/'+empKey), updated);upd=true;
       }
