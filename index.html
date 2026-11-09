@@ -1559,6 +1559,28 @@ tr:hover td{background:#fafbfc;}
           <div class="card" style="cursor:pointer;border-top:3px solid #e67e22;" onclick="runReport('loans')"><div class="card-title">🏦 Loan Report</div><p style="font-size:12px;color:#888;">All loans — outstanding balances</p><div class="btn-row"><button class="btn btn-sm" style="background:#e67e22;color:#fff;">📥 Download Excel</button><button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="event.stopPropagation();runReportPDF('loans')">📄 PDF</button></div></div>
           <div class="card" style="cursor:pointer;border-top:3px solid #27ae60;" onclick="runReport('assets')"><div class="card-title">💼 Asset Register</div><p style="font-size:12px;color:#888;">All issued items per employee</p><div class="btn-row"><button class="btn btn-sm" style="background:#27ae60;color:#fff;">📥 Download Excel</button><button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="event.stopPropagation();runReportPDF('assets')">📄 PDF</button></div></div>
           <div class="card" style="cursor:pointer;border-top:3px solid #1C3557;" onclick="runReport('salary')"><div class="card-title">💹 Salary Changes</div><p style="font-size:12px;color:#888;">All increments and promotions</p><div class="btn-row"><button class="btn btn-sm btn-primary">📥 Download Excel</button><button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="event.stopPropagation();runReportPDF('salary')">📄 PDF</button></div></div>
+          <div class="card" id="salRepCard" style="border-top:3px solid #1A7A6E;grid-column:1/-1;">
+            <div class="card-title">💵 Salary Report (choose the staff)</div>
+            <p style="font-size:12px;color:#888;margin-bottom:12px;">Pick companies, departments, grade (Labour / White Collar), or tick individual people. Sort by clicking a column heading. Download as Excel or PDF. Confidential: salaries.</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center;">
+              <select id="srCo" onchange="srDraw()" style="padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="">Both companies</option><option value="Architecture">CK Architecture Interiors</option><option value="Building">CKC Building Contracting</option></select>
+              <select id="srGrade" onchange="srDraw()" style="padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="">All grades</option><option>Labour</option><option>White Collar</option></select>
+              <select id="srStatus" onchange="srDraw()" style="padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="active">Active staff only</option><option value="all">Include inactive</option></select>
+              <input id="srQ" placeholder="Search name, ID or designation" oninput="srDraw()" style="flex:1;min-width:200px;padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;">
+            </div>
+            <div style="font-size:12.5px;margin-bottom:6px;"><b>Departments</b> <a href="#" onclick="srDepts(true);return false;" style="margin-left:8px;">all</a> · <a href="#" onclick="srDepts(false);return false;">none</a></div>
+            <div id="srDeptBox" style="display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;margin-bottom:10px;"></div>
+            <div style="font-size:12.5px;margin-bottom:10px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;"><b>Columns</b>
+              <label><input type="checkbox" class="srCol" value="basic" checked onchange="srDraw()"> Basic</label><label><input type="checkbox" class="srCol" value="house" checked onchange="srDraw()"> Housing</label><label><input type="checkbox" class="srCol" value="transport" checked onchange="srDraw()"> Transport</label><label><input type="checkbox" class="srCol" value="other" checked onchange="srDraw()"> Other allowances</label><label><input type="checkbox" class="srCol" value="gross" checked onchange="srDraw()"> Gross</label><label><input type="checkbox" class="srCol" value="mol" onchange="srDraw()"> MOL salary</label><label><input type="checkbox" class="srCol" value="join" onchange="srDraw()"> Joining date</label><label><input type="checkbox" class="srCol" value="nat" onchange="srDraw()"> Nationality</label>
+            </div>
+            <div id="srSum" style="font-size:13px;margin-bottom:8px;"></div>
+            <div class="table-wrap" style="max-height:420px;overflow:auto;"><table><thead id="srHead"></thead><tbody id="srBody"></tbody></table></div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px;">
+              <input id="srTitle" value="Salary Report" style="flex:1;min-width:220px;padding:8px 12px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;" title="Report title (e.g. Salaries: Joinery and selected Civil staff)">
+              <button class="btn btn-gold" onclick="srExcel()">📥 Excel</button>
+              <button class="btn btn-primary" onclick="srPDF()">📄 PDF</button>
+            </div>
+          </div>
           <div class="card" style="border-top:3px solid #C9A84C;grid-column:1/-1;">
             <div class="card-title">👤 Individual Employee Profile Report</div>
             <p style="font-size:12px;color:#888;margin-bottom:12px;">Full employment history for a single employee — profile, salary history, leave, loans, assets. Download as Excel.</p>
@@ -4746,7 +4768,7 @@ function applyPROMode(){
     #page-leaveapprovals button[onclick*="Adjust"], #page-leaveapprovals button[onclick*="cancelApproved"], #page-leaveapprovals button[onclick*="markLeaveUnpaid"], #page-leaveapprovals button[onclick*="LeaveHandover"], #page-leaveapprovals button[onclick*="completeHRReview"], #page-leaveapprovals button[onclick*="returnLeave"], #page-leaveapprovals button[onclick*="rejectLeave"], #page-leaveapprovals textarea { display: none !important; }
     button[onclick*="openHRLeaveOnBehalf"], button[onclick*="saveOrgChart"], button[onclick*="addOrgChartNote"], button[onclick*="delOrgChart"] { display: none !important; }
     #empModal .pro-locked-note { display: block !important; }
-    #page-reports .card[onclick*="'loans'"], #page-reports .card[onclick*="'salary'"], #page-reports .card[onclick*="'unpaid'"], #page-reports .card:has(button[onclick*="'gratuity'"]), #page-reports .card:has(#profileEmpSel) { display: none !important; }
+    #page-reports .card[onclick*="'loans'"], #page-reports .card[onclick*="'salary'"], #page-reports .card[onclick*="'unpaid'"], #page-reports .card:has(button[onclick*="'gratuity'"]), #page-reports .card:has(#profileEmpSel), #salRepCard { display: none !important; }
   `;
   document.head.appendChild(style);
   document.getElementById('syncStatus').textContent='● PRO Access';
@@ -7505,6 +7527,7 @@ window.showPage=function(page,el){
   if(page==='workforce')renderWorkforce();
   if(page==='birthdays')renderBirthdays();
   if(page==='payroll')renderPayroll();
+  if(page==='reports'){try{srDraw()}catch(e){}}
   if(page==='reports'){
     document.getElementById('reportOutput').style.display='none';
     setTimeout(()=>buildEmpDropdown('profileEmpSel'),100);
@@ -13026,6 +13049,48 @@ window.togglePayAccess = async function (k, kind, on) { if (currentRole !== 'adm
   if (!confirm((on ? 'Let ' : 'Stop ') + e.name + ' ' + lbl + '?')) return;
   try { await set(ref(db, 'staffMap/' + e.portalUid + '/' + f), on ? true : null); await set(ref(db, 'employees/' + k + '/' + f), on ? true : null); logAudit('Payroll access ' + (on ? 'given' : 'removed'), e.name, f); renderPortalAccess(); } catch (err) { alert('Could not save: ' + ((err && err.code) || 'error')); } };
 
+
+// ══ Nov 2026: Salary report with free selection (companies, departments, grade, individual people) · Excel and PDF
+const SR={off:new Set(),depts:null,sort:'dept',dir:1};
+const srNum=x=>{const n=parseFloat(String(x==null?'':x).replace(/,/g,''));return isNaN(n)?0:n};
+const SRCOLS={basic:['Basic','basicSalary',1],house:['Housing','house',1],transport:['Transport','transport',1],other:['Other allowances','otherAllowances',1],gross:['Gross','grossSalary',1],mol:['MOL salary','molSalary',1],join:['Joining date','join',0],nat:['Nationality','nationality',0]};
+function srCols(){return [...document.querySelectorAll('.srCol')].filter(c=>c.checked).map(c=>c.value)}
+function srAllDepts(){return [...new Set(Object.values(DB.employees).map(e=>e.dept||'(no department)'))].sort()}
+function srMatch(){const co=v('srCo'),gr=v('srGrade'),st=v('srStatus'),q=(v('srQ')||'').toLowerCase();
+ return Object.entries(DB.employees).filter(([k,e])=>(st==='all'||e.status!=='Inactive')&&(!co||String(e.entity||'').includes(co))&&(!gr||(e.grade||'')===gr)&&SR.depts.has(e.dept||'(no department)')&&(!q||[e.name,e.empId,e.desig].join(' ').toLowerCase().includes(q)))
+  .sort((a,b)=>{const s=SR.sort,x=a[1],y=b[1];let r;if(s==='gross')r=srNum(x.grossSalary)-srNum(y.grossSalary);else if(s==='name')r=String(x.name||'').localeCompare(y.name||'');else r=String(x.dept||'').localeCompare(y.dept||'')||String(x.name||'').localeCompare(y.name||'');return r*SR.dir})}
+window.srDepts=function(on){SR.depts=new Set(on?srAllDepts():[]);srDraw()};
+window.srSort=function(s){SR.dir=SR.sort===s?-SR.dir:1;SR.sort=s;srDraw()};
+window.srTick=function(k,on){if(on)SR.off.delete(k);else SR.off.add(k);srDraw(true)};
+window.srTickAll=function(on){srMatch().forEach(([k])=>{if(on)SR.off.delete(k);else SR.off.add(k)});srDraw()};
+window.srDraw=function(keepScroll){if(currentRole==='pro')return;const box=document.getElementById('srDeptBox');if(!box)return;
+ if(!SR.depts)SR.depts=new Set(srAllDepts());
+ box.innerHTML=srAllDepts().map(d=>`<label style="white-space:nowrap;"><input type="checkbox" ${SR.depts.has(d)?'checked':''} onchange="(this.checked?SR_D.add(${JSON.stringify(d).replace(/"/g,'&quot;')}):SR_D.delete(${JSON.stringify(d).replace(/"/g,'&quot;')}));srDraw()"> ${esc(d)} <span style="color:#999;">(${Object.values(DB.employees).filter(e=>(e.dept||'(no department)')===d&&(v('srStatus')==='all'||e.status!=='Inactive')).length})</span></label>`).join('');
+ window.SR_D=SR.depts;const cols=srCols(),rows=srMatch(),sel=rows.filter(([k])=>!SR.off.has(k));
+ const arrow=s=>SR.sort===s?(SR.dir>0?' ▲':' ▼'):'';
+ document.getElementById('srHead').innerHTML=`<tr><th><input type="checkbox" ${sel.length===rows.length&&rows.length?'checked':''} onchange="srTickAll(this.checked)" title="Tick / untick all shown"></th><th style="cursor:pointer" onclick="srSort('name')">Name${arrow('name')}</th><th>Emp ID</th><th>Designation</th><th style="cursor:pointer" onclick="srSort('dept')">Department${arrow('dept')}</th><th>Grade</th><th>Company</th>${cols.map(c=>`<th${SRCOLS[c][2]?' style="text-align:right;cursor:pointer"':''}${c==='gross'?' onclick="srSort(\'gross\')"':''}>${SRCOLS[c][0]}${c==='gross'?arrow('gross'):''}</th>`).join('')}</tr>`;
+ document.getElementById('srBody').innerHTML=rows.map(([k,e])=>`<tr style="${SR.off.has(k)?'opacity:.45':''}"><td><input type="checkbox" ${SR.off.has(k)?'':'checked'} onchange="srTick('${k}',this.checked)"></td><td>${esc(e.name||'')}</td><td>${esc(e.empId||'')}</td><td>${esc(e.desig||'')}</td><td>${esc(e.dept||'')}</td><td>${esc(e.grade||'')}</td><td>${String(e.entity||'').includes('Building')?'CKC':'CK'}</td>${cols.map(c=>{const f=SRCOLS[c];return SRCOLS[c][2]?`<td style="text-align:right">${srNum(e[f[1]]).toLocaleString('en-US')}</td>`:`<td>${c==='join'?fmt(e.join):esc(e[f[1]]||'')}</td>`}).join('')}</tr>`).join('')||'<tr><td colspan="12" style="color:#888;">No staff match these filters.</td></tr>';
+ const tg=sel.reduce((s,[k,e])=>s+srNum(e.grossSalary),0);
+ document.getElementById('srSum').innerHTML=`<b>${sel.length}</b> of ${rows.length} shown are selected · total gross <b>AED ${tg.toLocaleString('en-US')}</b>`};
+function srData(){const cols=srCols(),rows=srMatch().filter(([k])=>!SR.off.has(k)).map(([k,e])=>e);
+ const head=['#','Name','Emp ID','Designation','Department','Grade','Company'].concat(cols.map(c=>SRCOLS[c][0]));
+ const body=rows.map((e,i)=>[i+1,e.name||'',e.empId||'',e.desig||'',e.dept||'',e.grade||'',String(e.entity||'').includes('Building')?'CKC':'CK'].concat(cols.map(c=>SRCOLS[c][2]?srNum(e[SRCOLS[c][1]]):(c==='join'?fmt(e.join):(e[SRCOLS[c][1]]||'')))));
+ const tot=['','Total ('+rows.length+' staff)','','','','',''].concat(cols.map(c=>SRCOLS[c][2]?rows.reduce((s,e)=>s+srNum(e[SRCOLS[c][1]]),0):''));
+ const f=[v('srCo')?(v('srCo')==='Building'?'CKC Building Contracting':'CK Architecture Interiors'):'Both companies',v('srGrade')||'All grades',SR.depts.size===srAllDepts().length?'All departments':[...SR.depts].join(', ')].join(' · ');
+ return {cols,head,body,tot,n:rows.length,filters:f,title:(v('srTitle')||'Salary Report').trim()}}
+window.srExcel=function(){if(currentRole==='pro'){alert('This report is not available for your access.');return}const d=srData();if(!d.n){alert('No staff selected.');return}
+ const a=[[d.title],['CK Architecture Interiors LLC | CKC Building Contracting LLC · as of '+fmt(localDateStr(new Date()))],[d.filters],['Confidential: salary information'],[],d.head].concat(d.body,[d.tot]);
+ const ws=XLSX.utils.aoa_to_sheet(a);ws['!cols']=d.head.map((h,i)=>({wch:i===0?5:i===1?30:i===3?26:i===4?20:14}));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Salaries');
+ XLSX.writeFile(wb,d.title.replace(/[^\w\- ]+/g,'').replace(/\s+/g,'_')+'_'+localDateStr(new Date())+'.xlsx');logAudit('Download Report','Salary report (Excel)',d.n+' staff · '+d.filters.slice(0,120))};
+window.srPDF=async function(){if(currentRole==='pro'){alert('This report is not available for your access.');return}const d=srData();if(!d.n){alert('No staff selected.');return}
+ try{await wfLoadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',()=>!!window.jspdf);await wfLoadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js',()=>!!(window.jspdf&&window.jspdf.jsPDF&&window.jspdf.jsPDF.API.autoTable));}catch(e){alert('Could not load the PDF tool: check the internet connection.');return}
+ const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+ doc.setFont('helvetica','bold');doc.setFontSize(15);doc.setTextColor(28,53,87);doc.text(d.title,12,15);doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(90);
+ doc.text('CK Architecture Interiors LLC | CKC Building Contracting LLC · as of '+fmt(localDateStr(new Date())),12,21);doc.text(doc.splitTextToSize(d.filters,270),12,26);
+ const num=(x)=>typeof x==='number'?x.toLocaleString('en-US'):x;const right={};d.cols.forEach((c,i)=>{if(SRCOLS[c][2])right[7+i]={halign:'right'}});
+ doc.autoTable({startY:32,head:[d.head],body:d.body.map(r=>r.map(num)),foot:[d.tot.map(num)],styles:{fontSize:8,cellPadding:1.6},headStyles:{fillColor:[28,53,87],textColor:255},footStyles:{fillColor:[238,242,247],textColor:[28,53,87],fontStyle:'bold'},alternateRowStyles:{fillColor:[250,251,253]},columnStyles:right,margin:{left:12,right:12},
+  didDrawPage:()=>{const pg=doc.internal.getCurrentPageInfo().pageNumber;doc.setFontSize(8);doc.setTextColor(140);doc.text('Confidential: salary information · HR Department',12,203);doc.text('Page '+pg,285,203,{align:'right'})}});
+ doc.save(d.title.replace(/[^\w\- ]+/g,'').replace(/\s+/g,'_')+'_'+localDateStr(new Date())+'.pdf');logAudit('Download Report','Salary report (PDF)',d.n+' staff · '+d.filters.slice(0,120))};
 </script>
 <script>
 if('serviceWorker' in navigator){
