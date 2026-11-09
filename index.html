@@ -406,12 +406,12 @@ tr:hover td{background:#fafbfc;}
         <select id="lrType" onchange="calcLRDays()">
           <option>Annual Leave</option><option>Sick Leave</option><option>Emergency Leave</option><option>Maternity Leave</option>
           <option>Paternity/Parental Leave</option><option>Compassionate/Bereavement Leave</option>
-          <option>Study Leave</option><option>Business Leave</option><option>Work From Home</option><option>Half Day Leave</option>
+          <option>Study Leave</option><option>Business Leave</option><option>Work From Home</option>
           <option>Unpaid Leave</option>
         </select>
       </div>
-      <div class="form-group" id="lrSessionWrap" style="display:none;"><label>Which half of the day?</label>
-        <select id="lrSession"><option>Morning (first half)</option><option>Afternoon (second half)</option></select>
+      <div class="form-group" id="lrSessionWrap"><label>Full or half day?</label>
+        <select id="lrSession" onchange="calcLRDays()"><option value="full">Full day(s)</option><option value="first">Half day: first half</option><option value="second">Half day: second half</option></select>
       </div>
       <div class="form-group" id="lrRelWrap" style="display:none;"><label>Relationship to the person who passed away *</label>
         <select id="lrRel"><option value="">— select —</option><option value="spouse">Spouse</option><option value="other">Parent / Child / Sibling / Grandparent / Grandchild</option></select>
@@ -2424,7 +2424,8 @@ function alStaffPreview(type,from,to,ww){
 }
 function alStaffShow(){
   const box=document.getElementById('lrAlcBox');if(!box)return null;
-  const type=v('lrType'),from=v('lrStart'),to=type==='Half Day Leave'?v('lrStart'):v('lrEnd');
+  const type=v('lrType'),hs=v('lrSession'),hf=hs==='first'||hs==='second',from=v('lrStart'),to=hf?v('lrStart'):v('lrEnd');
+  if(hf){if(from&&leaveKind(type)==='annual'){const t2='Half day ('+halfLbl(hs)+'): 0.5 day is taken from your annual leave balance.';box.style.display='block';box.innerHTML=alBox(t2+' (HR confirms the final count.)',false);return t2}box.style.display='none';box.innerHTML='';return null}
   let eff=null;try{eff=alStaffPreview(type,from,to,v('lrWorkWeek'));}catch(err){eff=null;}
   const txt=eff?alEffectText(eff):'';
   if(!txt){box.style.display='none';box.innerHTML='';return null;}
@@ -3043,8 +3044,8 @@ async function syncStaffMirrors(){
       const emp=findEmpByName(l.empName,nameIdx);
       if(!emp)return;
       const slug=slugDept(emp.dept);
-      (sh.leave[slug]=sh.leave[slug]||{})[lk]={n:l.empName+(l.type==='Half Day Leave'?' (half day)':''),f:l.from,t:l.to};
-      if(emp.status!=='Inactive')sh.leaveAll[lk]={n:l.empName+(l.type==='Half Day Leave'?' (half day)':''),d:emp.dept||'',f:l.from,t:l.to}; // name, dept and dates only: never the type of leave
+      (sh.leave[slug]=sh.leave[slug]||{})[lk]={n:l.empName+((l.type==='Half Day Leave'||String(l.days)==='0.5')?' (half day)':''),f:l.from,t:l.to};
+      if(emp.status!=='Inactive')sh.leaveAll[lk]={n:l.empName+((l.type==='Half Day Leave'||String(l.days)==='0.5')?' (half day)':''),d:emp.dept||'',f:l.from,t:l.to}; // name, dept and dates only: never the type of leave
       if(emp.status!=='Inactive'&&l.from<=localDateStr(new Date(today0.getFullYear(),today0.getMonth(),today0.getDate()+30)))sh.leaveTyped[lk]={n:emp.name||l.empName,d:emp.dept||'',ty:(l.type||'')+(l.ext===true?' (extension)':''),f:l.from,t:l.to}; // with leave type: only for staff given access (rules)
     });
     for(const part of ['birthdays','anniversaries','leave','leaveAll','leaveTyped','directory']){
@@ -3418,7 +3419,7 @@ function botStaffAnswer(raw){
   if(botHas(q,['status','approved','pending','rejected','my request','my requests','waiting','leave approval'])&&botHas(q,['leave','request','requests','status','approved','pending','rejected'])){
     const rows=Object.values(DB.leaveRequests||{}).filter(r=>r.empKey===currentEmpKey).sort((a,b)=>(b.submittedAt||0)-(a.submittedAt||0)).slice(0,3);
     if(!rows.length)return'You have not submitted any leave requests yet.';
-    return'Your latest requests:<br>'+rows.map(r=>{let st='';try{st=buildLeaveStageBreakdown(r).overall.status;}catch(x){st=r.status||'';}return`• ${esc(r.leaveType)}, ${fmt(r.startDate)} to ${fmt(r.endDate)} (${esc(r.totalDays)}d): <b>${esc(st)}</b>`;}).join('<br>')+'<br><button class="hb-go" onclick="botGo(\'empMyRequests\')">See full details</button>';}
+    return'Your latest requests:<br>'+rows.map(r=>{let st='';try{st=buildLeaveStageBreakdown(r).overall.status;}catch(x){st=r.status||'';}return`• ${esc(r.leaveType+(r.half?' · half day ('+(r.half==='first'?'first half':'second half')+')':''))}, ${fmt(r.startDate)} to ${fmt(r.endDate)} (${esc(r.totalDays)}d): <b>${esc(st)}</b>`;}).join('<br>')+'<br><button class="hb-go" onclick="botGo(\'empMyRequests\')">See full details</button>';}
   if(!asksEntitle&&q.includes('leave')&&botHas(q,['apply','request leave','take leave','book leave','submit leave','how do i','how to','how can i','want to take','need leave','need to take'])||q.includes('apply for leave')||q.includes('submit leave')){
     return'To request leave:<br>1. Go to <b>My Leave Requests</b> on this page.<br>2. Click <b>+ Submit Leave Request</b>.<br>3. Choose the leave type and dates, then submit.<br>Your line manager (and HR) will review it, and you can track the status in the same table. For sick leave, please also share the medical certificate with HR.<br><button class="hb-go" onclick="botGo(\'empMyRequests\')">Go to My Leave Requests</button>';}
   if(botHas(q,['holiday','holidays','public holiday','eid','national day','day off','off day'])){
@@ -3611,7 +3612,7 @@ function botPersonAnswer(q,found){
     const bt=Object.entries(by);
     add(bt.length?`Approved leave taken in ${yr}: `+bt.map(([t,d])=>esc(t)+' '+d+'d').join(', '):`No approved leave recorded in ${yr}`);}
   if(has(['request','requests'])){topic=true;const rs=Object.values(DB.leaveRequests||{}).filter(r=>r.empKey===k).sort((a,b)=>(b.submittedAt||0)-(a.submittedAt||0)).slice(0,3);
-    if(!rs.length)add('No leave requests submitted');else rs.forEach(r=>{let st='';try{st=buildLeaveStageBreakdown(r).overall.status;}catch(x){st=r.status||'';}add(`${esc(r.leaveType)}, ${fmt(r.startDate)} to ${fmt(r.endDate)}: <b>${esc(st)}</b>`);});}
+    if(!rs.length)add('No leave requests submitted');else rs.forEach(r=>{let st='';try{st=buildLeaveStageBreakdown(r).overall.status;}catch(x){st=r.status||'';}add(`${esc(r.leaveType+(r.half?' · half day ('+(r.half==='first'?'first half':'second half')+')':''))}, ${fmt(r.startDate)} to ${fmt(r.endDate)}: <b>${esc(st)}</b>`);});}
   if(has(['birthday','dob','born'])){topic=true;
     if(!e.dob)add('Birthday: <b>not recorded</b>');
     else{const d=new Date(e.dob),n=new Date();n.setHours(0,0,0,0);let nx=new Date(n.getFullYear(),d.getMonth(),d.getDate());if(nx<n)nx=new Date(n.getFullYear()+1,d.getMonth(),d.getDate());const diff=Math.round((nx-n)/864e5);
@@ -4041,13 +4042,13 @@ let currentAdjustKey=null;
 window.openAdjustLeave=function(key){
   currentAdjustKey=key;
   const r=DB.leaveRequests[key];
-  document.getElementById('alSummary').innerHTML=`<strong>${esc(r.empName)}</strong> — ${esc(r.leaveType)}, currently ${fmt(r.startDate)} to ${fmt(r.endDate)} (${r.totalDays} day${r.totalDays>1?'s':''}, approved).`;
+  document.getElementById('alSummary').innerHTML=`<strong>${esc(r.empName)}</strong> — ${esc(r.leaveType+(r.half?' · half day ('+(r.half==='first'?'first half':'second half')+')':''))}, currently ${fmt(r.startDate)} to ${fmt(r.endDate)} (${r.totalDays} day${r.totalDays>1?'s':''}, approved).`;
   sv('alStart',r.startDate);sv('alEnd',r.endDate);sv('alReason','');
   document.getElementById('adjustLeaveModal').classList.add('open');
 };
 window.saveLeaveAdjustment=async function(){
   const key=currentAdjustKey;const r=DB.leaveRequests[key];
-  const isHalfAdj=r.leaveType==='Half Day Leave';
+  const isHalfAdj=isHalfReq(r);
   const newStart=v('alStart'),newEnd=isHalfAdj?v('alStart'):v('alEnd'),reason=v('alReason');
   if(!newStart||!newEnd){alert('Please set both dates.');return;}
   const newDays=isHalfAdj?0.5:Math.ceil((new Date(newEnd)-new Date(newStart))/86400000)+1;
@@ -4113,7 +4114,7 @@ window.renderAdminMyApprovals=function(){
         <strong>${esc(r.empName)}</strong>
         <span style="font-size:11px;color:#888;">${role==='lineManager'?'As Line Manager':'As Additional Approver'}</span>
       </div>
-      <div style="font-size:13px;margin:4px 0;">${esc(r.leaveType)} — ${fmt(r.startDate)} to ${fmt(r.endDate)} (${r.totalDays} day${r.totalDays>1?'s':''})${r.workWeek?' · '+esc(alWWName(r.workWeek)):''}</div>
+      <div style="font-size:13px;margin:4px 0;">${esc(r.leaveType+(r.half?' · half day ('+(r.half==='first'?'first half':'second half')+')':''))} — ${fmt(r.startDate)} to ${fmt(r.endDate)} (${r.totalDays} day${r.totalDays>1?'s':''})${r.workWeek?' · '+esc(alWWName(r.workWeek)):''}</div>
       ${r.reason?`<div style="font-size:12px;color:#555;">Reason: ${esc(r.reason)}</div>`:''}
       ${r.hrComments?`<div style="font-size:12px;color:#1A7A6E;">HR note: ${esc(r.hrComments)}</div>`:''}
       ${r.alCalc?alBox('Leave calculation: '+r.alCalc,!!r.alCalcRed):''}
@@ -4138,7 +4139,7 @@ window.renderHRReviewQueue=function(){
     const noManager=!r.lineManagerKey;
     return`<tr style="${escalated?'background:#fdecea;':''}">
       <td><strong>${esc(r.empName)}</strong></td>
-      <td>${esc(r.leaveType)}${r.workWeek?'<br><span style="font-size:10.5px;color:#555;">'+esc(alWWName(r.workWeek))+'</span>':''}</td>
+      <td>${esc(r.leaveType+(r.half?' · half day ('+(r.half==='first'?'first half':'second half')+')':''))}${r.workWeek?'<br><span style="font-size:10.5px;color:#555;">'+esc(alWWName(r.workWeek))+'</span>':''}</td>
       <td>${fmt(r.startDate)} – ${fmt(r.endDate)}${currentRole==='admin'?leaveCoverHtml(k,r):''}</td>
       <td>${reqDays(r)}${reqDays(r)!==r.totalDays?'<br><span style="color:#c0392b;font-size:10px;font-weight:700;">⚠ staff entered '+esc(r.totalDays)+'</span>':''}${alReqHtml(r)}</td>
       <td style="font-size:11px;max-width:180px;">${esc(r.reason||'—')}${r.attachmentName?'<br>📎 '+esc(r.attachmentName):''}
@@ -4163,7 +4164,7 @@ window.renderHRReviewQueue=function(){
     histBody.innerHTML=all.map(([k,r])=>{
       const st=describeLeaveStage(r);
       const canAdjust=canAct&&r.stage==='Completed'&&r.status==='Approved'&&r.status!=='Cancelled';
-      return`<tr><td>${esc(r.empName)}</td><td>${esc(r.leaveType)}</td><td>${fmt(r.startDate)} – ${fmt(r.endDate)}</td>
+      return`<tr><td>${esc(r.empName)}</td><td>${esc(r.leaveType+(r.half?' · half day ('+(r.half==='first'?'first half':'second half')+')':''))}</td><td>${fmt(r.startDate)} – ${fmt(r.endDate)}</td>
         <td><span class="badge ${st.cls}">${esc(st.label)}</span></td>
         <td style="font-size:11px;">${esc(r.hrComments||'—')}</td>
         <td style="font-size:11px;">${esc(r.lmComments||'—')}</td>
@@ -4179,14 +4180,16 @@ function alReqEffect(r){
   try{return alRequestEffect(r.empName,{type:r.leaveType,from:r.startDate,to:r.endDate,workWeek:r.workWeek});}catch(e){return null;}
 }
 function alReqHtml(r){const eff=alReqEffect(r);if(!eff)return'';const txt=alEffectText(eff);return txt?'<div style="max-width:240px;">'+alBox(txt,eff.unpaid>0&&!eff.unpaidType||eff.uncovered.length>0)+'</div>':'';}
-function reqDays(r){return r.leaveType==='Half Day Leave'?0.5:Math.ceil((new Date(r.endDate)-new Date(r.startDate))/86400000)+1;}
+function isHalfReq(r){return !!r&&(r.leaveType==='Half Day Leave'||r.half==='first'||r.half==='second');}
+function halfLbl(h){return h==='first'?'first half':h==='second'?'second half':'';}
+function reqDays(r){return isHalfReq(r)?0.5:Math.ceil((new Date(r.endDate)-new Date(r.startDate))/86400000)+1;}
 window.completeHRReview=function(key){
   const r=DB.leaveRequests[key];
   if(!r.lineManagerKey){alert('This employee has no Line Manager set. Please add one in Employee Records first.');return;}
   const comments=v('hrc_'+key);
   const realDays=reqDays(r);
   if(!(realDays>=0.5&&realDays<=366)){alert('The dates on this request are not valid. Please reject it and ask the employee to submit again.');return;}
-  if(r.leaveType==='Half Day Leave'&&r.startDate!==r.endDate){alert('A half-day request must be for a single date. Please reject it and ask the employee to submit again.');return;}
+  if(isHalfReq(r)&&r.startDate!==r.endDate){alert('A half-day request must be for a single date. Please reject it and ask the employee to submit again.');return;}
   const fixed=realDays!==r.totalDays;
   const alEff=alReqEffect(r),alTxt=alEff?alEffectText(alEff):'';
   const fwd={...r,totalDays:realDays,stage:'Line Manager Approval',hrReviewedBy:adminName,hrReviewedAt:Date.now(),hrComments:comments};
@@ -4228,13 +4231,13 @@ window.syncApprovedLeaveRequests=function(){
         empName:r.empName,type:r.leaveType,from:r.startDate,to:r.endDate,
         status:'Approved',approvedBy:r.lineManagerName||'Line Manager',
         reason:r.reason,ts:Date.now(),source:'Employee Self-Service Request',
-        ...(r.leaveType==='Half Day Leave'?{days:'0.5'}:{}),
+        ...(isHalfReq(r)?{days:'0.5'}:{}),...(r.half?{half:r.half,notes:'Half day ('+halfLbl(r.half)+')'}:{}),
         ...(compRelation(null,r.reason)?{relation:compRelation(null,r.reason)}:{}),
-        ...(alWW(r.workWeek)?{workWeek:alWW(r.workWeek)}:{})
+        ...(alWW(r.workWeek)&&!isHalfReq(r)?{workWeek:alWW(r.workWeek)}:{})
       });
       const emp=Object.entries(DB.employees).find(([ek,e])=>ek===r.empKey);
       let ded=leaveDeductFor(r.leaveType,r.totalDays,compRelation(null,r.reason));
-      if(alWW(r.workWeek)&&leaveKind(r.leaveType)==='annual'){try{const ef=alRequestEffect(r.empName,{type:r.leaveType,from:r.startDate,to:r.endDate,workWeek:r.workWeek});if(ef)ded=Math.max(0,ef.counted);}catch(e){}}
+      if(alWW(r.workWeek)&&leaveKind(r.leaveType)==='annual'&&!isHalfReq(r)){try{const ef=alRequestEffect(r.empName,{type:r.leaveType,from:r.startDate,to:r.endDate,workWeek:r.workWeek});if(ef)ded=Math.max(0,ef.counted);}catch(e){}}
       if(emp&&ded>0&&emp[1].annualLeaveBalance!=null){
         const newBal=Math.max(0,parseFloat(emp[1].annualLeaveBalance)-ded);
         set(ref(db,'employees/'+r.empKey+'/annualLeaveBalance'),newBal);
@@ -4372,8 +4375,8 @@ window.renderMyLeaveRequests=function(){
     const hw=rows.filter(r=>handoverApplies(r)&&handoverLevel(r)==='waiting');
     const hu=rows.filter(r=>handoverApplies(r)&&handoverState(r)==='unpaid');
     let bh='';
-    if(hw.length)bh+=`<div style="margin-bottom:10px;padding:10px 12px;background:#fff3e0;border:1px solid #f0c27b;border-radius:7px;color:#a35a00;font-size:12.5px;line-height:1.5;"><strong>Approved, handover pending.</strong> Your leave (${hw.map(r=>esc(r.leaveType)+', '+fmt(r.startDate)+' to '+fmt(r.endDate)).join('; ')}) is approved by all approvers. The last step is the handover, which HR confirms about 1 week before you go. Once confirmed, it turns green. ${esc(HANDOVER_WARN)}</div>`;
-    if(hp.length)bh+=`<div style="margin-bottom:10px;padding:10px 12px;background:#fdecea;border:1px solid #e6b0aa;border-radius:7px;color:#c0392b;font-size:12.5px;line-height:1.5;"><strong>Handover needed now.</strong> Your approved leave (${hp.map(r=>esc(r.leaveType)+', '+fmt(r.startDate)+' to '+fmt(r.endDate)).join('; ')}) shows as <strong>Unauthorised / Incomplete</strong> because HR has not confirmed your handover and your leave starts within a week. ${esc(HANDOVER_WARN)}</div>`;
+    if(hw.length)bh+=`<div style="margin-bottom:10px;padding:10px 12px;background:#fff3e0;border:1px solid #f0c27b;border-radius:7px;color:#a35a00;font-size:12.5px;line-height:1.5;"><strong>Approved, handover pending.</strong> Your leave (${hw.map(r=>esc(r.leaveType+(r.half?' · half day ('+(r.half==='first'?'first half':'second half')+')':''))+', '+fmt(r.startDate)+' to '+fmt(r.endDate)).join('; ')}) is approved by all approvers. The last step is the handover, which HR confirms about 1 week before you go. Once confirmed, it turns green. ${esc(HANDOVER_WARN)}</div>`;
+    if(hp.length)bh+=`<div style="margin-bottom:10px;padding:10px 12px;background:#fdecea;border:1px solid #e6b0aa;border-radius:7px;color:#c0392b;font-size:12.5px;line-height:1.5;"><strong>Handover needed now.</strong> Your approved leave (${hp.map(r=>esc(r.leaveType+(r.half?' · half day ('+(r.half==='first'?'first half':'second half')+')':''))+', '+fmt(r.startDate)+' to '+fmt(r.endDate)).join('; ')}) shows as <strong>Unauthorised / Incomplete</strong> because HR has not confirmed your handover and your leave starts within a week. ${esc(HANDOVER_WARN)}</div>`;
     if(hu.length)bh+=`<div style="margin-bottom:10px;padding:10px 12px;background:#fdecea;border:1px solid #e6b0aa;border-radius:7px;color:#c0392b;font-size:12.5px;line-height:1.5;"><strong>Marked as unpaid.</strong> HR has marked this leave as unpaid because the handover was not completed: ${hu.map(r=>fmt(r.startDate)+' to '+fmt(r.endDate)).join('; ')}.</div>`;
     bn.style.display=bh?'block':'none';bn.innerHTML=bh;
   }
@@ -4385,7 +4388,7 @@ window.renderMyLeaveRequests=function(){
     }).join('');
     const overallColor=overall.ok===true?'#1A7A6E':overall.ok===false?'#c0392b':'#e67e22';
     const warn=overall.handover==='overdue'?`<div style="margin-top:6px;padding:6px 8px;background:#fdecea;border:1px solid #e6b0aa;border-radius:6px;color:#c0392b;font-size:11px;">Your leave is approved by all approvers, but your handover is still not confirmed by HR and your leave starts within a week. ${esc(HANDOVER_WARN)}</div>`:overall.handover==='waiting'?`<div style="margin-top:6px;padding:6px 8px;background:#fff3e0;border:1px solid #f0c27b;border-radius:6px;color:#a35a00;font-size:11px;">Your leave is approved by all approvers. The only step left is your handover, which HR confirms about 1 week before you go. ${esc(HANDOVER_WARN)}</div>`:'';
-    return`<tr><td>${esc(r.leaveType)}</td><td>${fmt(r.startDate)}</td><td>${fmt(r.endDate)}</td><td>${r.totalDays}</td>
+    return`<tr><td>${esc(r.leaveType+(r.half?' · half day ('+(r.half==='first'?'first half':'second half')+')':''))}</td><td>${fmt(r.startDate)}</td><td>${fmt(r.endDate)}</td><td>${r.totalDays}</td>
       <td style="font-size:11px;">${rowHtml}<div style="margin-top:4px;font-weight:700;color:${overallColor};">${esc(overall.status)}</div>${warn}</td></tr>`;
   }).join(''):'<tr><td colspan="5"><div class="empty-state"><p>No requests submitted yet</p></div></td></tr>';
 };
@@ -4409,7 +4412,7 @@ window.renderMyApprovals=function(){
         const myComment=asLM?r.lmComments:r.addlComments;
         const {overall}=buildLeaveStageBreakdown(r);
         const overallColor=overall.ok===true?'#1A7A6E':overall.ok===false?'#c0392b':'#e67e22';
-        return`<tr><td>${esc(r.empName)}</td><td>${esc(r.leaveType)}</td><td>${fmt(r.startDate)} – ${fmt(r.endDate)}</td>
+        return`<tr><td>${esc(r.empName)}</td><td>${esc(r.leaveType+(r.half?' · half day ('+(r.half==='first'?'first half':'second half')+')':''))}</td><td>${fmt(r.startDate)} – ${fmt(r.endDate)}</td>
           <td><span class="badge ${myDecision==='Approved'?'badge-approved':'badge-rejected'}">${esc(myDecision||'—')}</span></td>
           <td style="font-size:11px;">${esc(myComment||'—')}</td>
           <td style="font-size:11px;color:${overallColor};font-weight:600;">${esc(overall.status)}</td></tr>`;
@@ -4428,7 +4431,7 @@ window.renderMyApprovals=function(){
         <strong>${esc(r.empName)}</strong>
         <span style="font-size:11px;color:#888;">${role==='lineManager'?'As Line Manager':'As Additional Approver'}</span>
       </div>
-      <div style="font-size:13px;margin:4px 0;">${esc(r.leaveType)} — ${fmt(r.startDate)} to ${fmt(r.endDate)} (${r.totalDays} day${r.totalDays>1?'s':''})${r.workWeek?' · '+esc(alWWName(r.workWeek)):''}</div>
+      <div style="font-size:13px;margin:4px 0;">${esc(r.leaveType+(r.half?' · half day ('+(r.half==='first'?'first half':'second half')+')':''))} — ${fmt(r.startDate)} to ${fmt(r.endDate)} (${r.totalDays} day${r.totalDays>1?'s':''})${r.workWeek?' · '+esc(alWWName(r.workWeek)):''}</div>
       ${r.reason?`<div style="font-size:12px;color:#555;">Reason: ${esc(r.reason)}</div>`:''}
       ${r.hrComments?`<div style="font-size:12px;color:#1A7A6E;">HR note: ${esc(r.hrComments)}</div>`:''}
       ${r.alCalc?alBox('Leave calculation: '+r.alCalc,!!r.alCalcRed):''}
@@ -4546,7 +4549,7 @@ window.renderHandoverTable=function(canAct){
     else if(st==='unpaid'){stTxt='<span style="color:#c0392b;font-weight:700;">Marked as Unpaid Leave</span><br><span style="font-size:11px;color:#666;">by '+esc(r.unpaidBy||'HR')+', '+fmt(r.unpaidAt)+'</span>';}
     else{stTxt=overdue?'<span style="color:#c0392b;font-weight:700;">Unauthorised / Incomplete</span><br><span style="color:#c0392b;font-size:11px;font-weight:700;">⚠ OVERDUE: due '+dueTxt+'</span>':'<span style="color:#a35a00;font-weight:700;">Approved, handover pending</span>';
       if(canAct)act='<button class="btn btn-sm btn-primary" onclick="confirmLeaveHandover(\''+k+'\')">✓ Confirm handover</button> <button class="btn btn-sm" style="background:#e67e22;color:#fff;" title="Change this leave to unpaid leave" onclick="markLeaveUnpaid(\''+k+'\')">Mark unpaid</button> <button class="btn btn-sm btn-danger" title="Reject: cancel this approved leave" onclick="openAdjustLeave(\''+k+'\')">Reject / Cancel</button>';}
-    return'<tr style="'+(st==='pending'&&overdue?'background:#fdecea;':'')+'"><td><strong>'+esc(r.empName)+'</strong></td><td>'+esc(r.leaveType)+(r.originalLeaveType?'<br><span style="font-size:10.5px;color:#888;">was '+esc(r.originalLeaveType)+'</span>':'')+'</td><td>'+fmt(r.startDate)+' – '+fmt(r.endDate)+'</td><td>'+esc(reqDays(r))+'</td><td style="font-size:12px;">'+esc(r.relieverName||'—')+'</td><td>'+dueTxt+'</td><td>'+stTxt+'</td><td>'+act+'</td></tr>';
+    return'<tr style="'+(st==='pending'&&overdue?'background:#fdecea;':'')+'"><td><strong>'+esc(r.empName)+'</strong></td><td>'+esc(r.leaveType+(r.half?' · half day ('+(r.half==='first'?'first half':'second half')+')':''))+(r.originalLeaveType?'<br><span style="font-size:10.5px;color:#888;">was '+esc(r.originalLeaveType)+'</span>':'')+'</td><td>'+fmt(r.startDate)+' – '+fmt(r.endDate)+'</td><td>'+esc(reqDays(r))+'</td><td style="font-size:12px;">'+esc(r.relieverName||'—')+'</td><td>'+dueTxt+'</td><td>'+stTxt+'</td><td>'+act+'</td></tr>';
   }).join(''):'<tr><td colspan="8"><div class="empty-state"><p>No approved leave of more than 3 days waiting for handover</p></div></td></tr>';
 };
 window.confirmLeaveHandover=function(key){
@@ -4648,7 +4651,7 @@ window.submitHRLeaveOnBehalf=async function(){
   }catch(err){alert('Could not save ('+((err&&err.code)||(err&&err.message)||'unknown error')+'). Please refresh and try again.');}
 };
 window.openLeaveRequestForm=function(){
-  sv('lrStart','');sv('lrEnd','');sv('lrDays','');sv('lrReason','');
+  sv('lrStart','');sv('lrEnd','');sv('lrDays','');sv('lrReason','');sv('lrSession','full');
   const _lt=document.getElementById('lrType');if(_lt)_lt.selectedIndex=0;
   updateLeaveFormVisibility();
   sv('lrNativeAddress','');sv('lrNativeContact','');sv('lrReliever','');sv('lrRemarks','');
@@ -4659,9 +4662,9 @@ window.openLeaveRequestForm=function(){
 // Annual/Sick/Emergency leave longer than 2 days.
 window.updateLeaveFormVisibility=function(){
   const type=v('lrType');
-  const half=type==='Half Day Leave';
+  const half=v('lrSession')==='first'||v('lrSession')==='second';
   const sw=document.getElementById('lrSessionWrap'),ew=document.getElementById('lrEndWrap'),sl=document.getElementById('lrStartLabel');
-  if(sw)sw.style.display=half?'':'none';
+  if(sw)sw.style.display='';
   if(ew)ew.style.display=half?'none':'';
   if(sl)sl.textContent=half?'Date':'Start Date';
   const rw=document.getElementById('lrRelWrap');if(rw)rw.style.display=(leaveKind(type)==='compassion')?'':'none';
@@ -4672,10 +4675,10 @@ window.updateLeaveFormVisibility=function(){
   updateLeaveNoticeBox(type,from,days);
 };
 window.calcLRDays=function(){
-  const half=v('lrType')==='Half Day Leave';
+  const half=v('lrSession')==='first'||v('lrSession')==='second';
   const from=v('lrStart'),to=half?v('lrStart'):v('lrEnd');
   if(!from||!to){sv('lrDays','');updateLeaveFormVisibility();return;}
-  if(half){sv('lrDays','0.5 day (half day)');updateLeaveFormVisibility();return;}
+  if(half){sv('lrDays','0.5 day ('+halfLbl(v('lrSession'))+')');updateLeaveFormVisibility();try{alStaffShow();}catch(e){}return;}
   const d=Math.ceil((new Date(to)-new Date(from))/86400000)+1;
   sv('lrDays',d>0?d+' day'+(d>1?'s':''):'Invalid dates');
   updateLeaveFormVisibility();
@@ -4683,9 +4686,9 @@ window.calcLRDays=function(){
 };
 window.submitLeaveRequest=async function(){
   const leaveType=v('lrType'),startDate=v('lrStart');
-  const half=leaveType==='Half Day Leave';
+  const halfSel=v('lrSession'),half=halfSel==='first'||halfSel==='second';
   const endDate=half?startDate:v('lrEnd');
-  let reason=half?('['+v('lrSession')+'] '+v('lrReason')).trim():v('lrReason');
+  let reason=half?('[Half day: '+halfLbl(halfSel)+'] '+v('lrReason')).trim():v('lrReason');
   if(leaveKind(leaveType)==='compassion'){
     const rel=v('lrRel');
     if(!rel){alert('Please select your relationship to the person who passed away.');return;}
@@ -4707,7 +4710,7 @@ window.submitLeaveRequest=async function(){
    if(alT&&!confirm('Please note about this leave:\n\n'+alT+'\n\nHR confirms the final count. Submit anyway?'))return;}
   if(nc&&nc.advisory&&!confirm('HR notice: leave of '+lnDaysTxt(totalDays)+' needs '+nc.rule.label+' advance notice (earliest start date: '+fmt(nc.earliest)+').\n\nYour notice is shorter than this, so HR may not approve it.\n\nSubmit anyway?'))return;
   const record={
-    empKey:currentEmpKey,empName:e.name,leaveType,startDate,endDate,totalDays,reason,workWeek:alWW(workWeek),
+    empKey:currentEmpKey,empName:e.name,leaveType,startDate,endDate,totalDays,reason,workWeek:alWW(workWeek),...(half?{half:halfSel}:{}),
     nativeAddress:needsExtra?v('lrNativeAddress'):'',
     nativeContact:needsExtra?v('lrNativeContact'):'',
     relieverName:needsExtra?v('lrReliever'):'',
@@ -7847,7 +7850,7 @@ function updateDash(){
           const hours=(Date.now()-r.submittedAt)/3600000;
           const escalated=hours>48;
           return`<div style="padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:13px;">
-            <strong>${esc(r.empName)}</strong> — ${esc(r.leaveType)}, ${fmt(r.startDate)} to ${fmt(r.endDate)}
+            <strong>${esc(r.empName)}</strong> — ${esc(r.leaveType+(r.half?' · half day ('+(r.half==='first'?'first half':'second half')+')':''))}, ${fmt(r.startDate)} to ${fmt(r.endDate)}
             ${escalated?' <span style="color:#c0392b;font-weight:700;">⚠️ Escalated to Dev</span>':''}
           </div>`;
         }).join('');
