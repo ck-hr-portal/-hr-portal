@@ -4726,7 +4726,7 @@ window.submitLeaveRequest=async function(){
     addlDecision:'',addlComments:'',addlActedAt:''
   };
   if(!e.lineManagerKey){alert('Your Line Manager has not been set up yet in the system. Please ask HR to configure it before your request can be reviewed. It will still be submitted.');}
-  await set(push(ref(db,'leaveRequests')),record);
+  try{await set(push(ref(db,'leaveRequests')),record);}catch(err){const c=(err&&err.code)||(err&&err.message)||'unknown error';alert('Your request could not be sent ('+c+').'+(/permission/i.test(c)?'\n\nThe portal settings were updated recently: please tell HR (message: permission denied).':'\n\nPlease check your internet connection and try again.'));return;}
   closeModal('leaveReqModal');
   alert('Your leave request has been submitted for review.'+(totalDays>3?'\n\nBecause this leave is more than 3 days, HR must also confirm your handover about 1 week before you go. Once approved, the status shows amber (handover pending) and turns green when HR confirms. If it is still unconfirmed 1 week before you go, it turns red (Unauthorised / Incomplete).':''));
 };
