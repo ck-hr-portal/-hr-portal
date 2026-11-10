@@ -1124,7 +1124,7 @@ tr:hover td{background:#fafbfc;}
               <select id="licF" onchange="renderLicHR()" style="padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="">All cards</option><option value="due">Expiring within 60 days or expired</option><option value="exp">Expired</option><option value="nv">Not yet verified by HR</option></select>
               <select id="licAddEmp" style="padding:7px 10px;border:1.5px solid #e0e0e0;border-radius:7px;font-size:13px;"><option value="">Add a card for…</option></select>
               <button class="btn btn-sm btn-primary" onclick="licAddFor()">+ Add</button>
-              <button class="btn btn-sm" onclick="licExcel()">📥 Excel</button>
+              <button class="btn btn-sm" onclick="licExcel()">📥 Excel</button> <button class="btn btn-sm btn-primary" onclick="licSumPDF()">📄 Summary PDF</button> <button class="btn btn-sm" onclick="licSumExcel()">📥 Summary Excel</button>
             </div>
           </div>
           <div id="licHRBody"></div>
@@ -1559,6 +1559,7 @@ tr:hover td{background:#fafbfc;}
           <div class="card" style="cursor:pointer;border-top:3px solid #e67e22;" onclick="runReport('loans')"><div class="card-title">🏦 Loan Report</div><p style="font-size:12px;color:#888;">All loans — outstanding balances</p><div class="btn-row"><button class="btn btn-sm" style="background:#e67e22;color:#fff;">📥 Download Excel</button><button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="event.stopPropagation();runReportPDF('loans')">📄 PDF</button></div></div>
           <div class="card" style="cursor:pointer;border-top:3px solid #27ae60;" onclick="runReport('assets')"><div class="card-title">💼 Asset Register</div><p style="font-size:12px;color:#888;">All issued items per employee</p><div class="btn-row"><button class="btn btn-sm" style="background:#27ae60;color:#fff;">📥 Download Excel</button><button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="event.stopPropagation();runReportPDF('assets')">📄 PDF</button></div></div>
           <div class="card" style="cursor:pointer;border-top:3px solid #1C3557;" onclick="runReport('salary')"><div class="card-title">💹 Salary Changes</div><p style="font-size:12px;color:#888;">All increments and promotions</p><div class="btn-row"><button class="btn btn-sm btn-primary">📥 Download Excel</button><button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="event.stopPropagation();runReportPDF('salary')">📄 PDF</button></div></div>
+          <div class="card" id="licSumCard" style="border-top:3px solid #1C3557;"><div class="card-title">🪪 Licences &amp; Cards Summary</div><p style="font-size:12px;color:#888;">All professional licences and cards in one go: expired, due within 30 / 60 days, no expiry, not yet checked.</p><div class="btn-row"><button class="btn btn-sm btn-gold" onclick="licSumExcel()">📥 Excel</button><button class="btn btn-sm btn-primary" onclick="licSumPDF()">📄 PDF</button></div></div>
           <div class="card" id="salRepCard" style="border-top:3px solid #1A7A6E;grid-column:1/-1;">
             <div class="card-title">💵 Salary Report (choose the staff)</div>
             <p style="font-size:12px;color:#888;margin-bottom:12px;">Pick companies, departments, grade (Labour / White Collar), or tick individual people. Sort by clicking a column heading. Download as Excel or PDF. Confidential: salaries.</p>
@@ -4768,7 +4769,7 @@ function applyPROMode(){
     #page-leaveapprovals button[onclick*="Adjust"], #page-leaveapprovals button[onclick*="cancelApproved"], #page-leaveapprovals button[onclick*="markLeaveUnpaid"], #page-leaveapprovals button[onclick*="LeaveHandover"], #page-leaveapprovals button[onclick*="completeHRReview"], #page-leaveapprovals button[onclick*="returnLeave"], #page-leaveapprovals button[onclick*="rejectLeave"], #page-leaveapprovals textarea { display: none !important; }
     button[onclick*="openHRLeaveOnBehalf"], button[onclick*="saveOrgChart"], button[onclick*="addOrgChartNote"], button[onclick*="delOrgChart"] { display: none !important; }
     #empModal .pro-locked-note { display: block !important; }
-    #page-reports .card[onclick*="'loans'"], #page-reports .card[onclick*="'salary'"], #page-reports .card[onclick*="'unpaid'"], #page-reports .card:has(button[onclick*="'gratuity'"]), #page-reports .card:has(#profileEmpSel), #salRepCard { display: none !important; }
+    #page-reports .card[onclick*="'loans'"], #page-reports .card[onclick*="'salary'"], #page-reports .card[onclick*="'unpaid'"], #page-reports .card:has(button[onclick*="'gratuity'"]), #page-reports .card:has(#profileEmpSel), #salRepCard, #licSumCard { display: none !important; }
   `;
   document.head.appendChild(style);
   document.getElementById('syncStatus').textContent='● PRO Access';
@@ -7430,6 +7431,7 @@ function initListeners(){
   try{botInit();}catch(e){}
   const tables=['employees','leave','salary','loans','repayments','assets','holidays','announcements','policies','audit','flightAllowance','leavers','leaveAdjustments','docHistory','leaveRequests','ceoMessage','orgChart','pendingHires','finalSettlements'];
   if(currentRole==='admin'||currentRole==='ceo'){try{prListen();}catch(e){}} // payroll
+  if(currentRole==='ceo'){onValue(ref(db,'lic'),snap=>{DB.lic=snap.val()||{};},()=>{DB.lic={};});} // Cem: summary report only (no copies)
   if(currentRole==='admin'){ // licences and cards: HR (Dev, Darleendy) only
     onValue(ref(db,'lic'),snap=>{DB.lic=snap.val()||{};try{renderLicHR();renderExpiry();updateDash();}catch(e){}},()=>{DB.lic={};});
     onValue(ref(db,'licHist'),snap=>{DB.licHist=snap.val()||{};},()=>{DB.licHist={};});
@@ -12433,7 +12435,7 @@ const LIC_DM_GRADES = ['G+1', 'G+2', 'G+4', 'G+12'];
 const licName = r => (r.type === 'OTH' ? (r.other || 'Other card') : ((LIC_TYPES.find(x => x[0] === r.type) || [0, r.type])[1])) + (r.grade ? ' · ' + r.grade : '');
 const licDays = r => r && r.exp ? daysLeft(r.exp) : null;
 const licLvl = d => d == null ? '' : d < 0 ? 'exp' : d <= 30 ? 'red' : d <= 60 ? 'amber' : 'ok';
-const licChip = d => { const l = licLvl(d); if (!l) return ''; const s = { exp: ['#fdecea', '#c0392b', 'EXPIRED ' + (-d) + ' d ago'], red: ['#fdecea', '#c0392b', d + ' days left'], amber: ['#fff4dc', '#9a5b00', d + ' days left'], ok: ['#e8f6f3', '#1A7A6E', d + ' days left'] }[l];
+const licChip = (d, r) => { const l = licLvl(d); if (!l) return r && (r.noExp || !r.exp) ? '<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;background:#eef2f7;color:#1C3557;border:1px solid #1C355733">No expiry</span>' : ''; const s = { exp: ['#fdecea', '#c0392b', 'EXPIRED ' + (-d) + ' d ago'], red: ['#fdecea', '#c0392b', d + ' days left'], amber: ['#fff4dc', '#9a5b00', d + ' days left'], ok: ['#e8f6f3', '#1A7A6E', d + ' days left'] }[l];
   return `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;background:${s[0]};color:${s[1]};border:1px solid ${s[1]}33">${s[2]}</span>`; };
 const LIC_HR = ['dev@ckhr.internal', 'darleendy@ckhr.internal'];
 const licIsHR = () => currentRole === 'admin';
@@ -12477,12 +12479,14 @@ function licForm(ek, id) {
       <div class="form-group"><label>Card / licence number *</label><input id="licNo" value="${esc(r.no || '')}"></div>
       <div class="form-group"><label>Issued by</label><input id="licIssuer" value="${esc(r.issuer || '')}" placeholder="e.g. Dubai Municipality"></div>
       <div class="form-group"><label>Issue date</label><input type="date" id="licIssue" value="${esc(r.issue || '')}"></div>
-      <div class="form-group"><label>Expiry date *</label><input type="date" id="licExp" value="${esc(r.exp || '')}"></div>
-      <div class="form-group form-full"><label>Copy of the card (photo or PDF) ${id ? '(needed if the card was renewed)' : '*'}</label><input type="file" id="licFile" accept="image/*,application/pdf">${id && r.hasFile ? '<div style="font-size:11px;color:#1A7A6E;margin-top:4px;">A copy is on file. Upload a new one only if the card changed.</div>' : ''}</div>
+      <div class="form-group"><label>Expiry date ${r.noExp ? '' : '*'}</label><input type="date" id="licExp" value="${esc(r.exp || '')}" ${r.noExp ? 'disabled' : ''}><label style="font-size:12px;display:flex;gap:6px;align-items:center;margin-top:6px;font-weight:400;"><input type="checkbox" id="licNoExp" ${r.noExp ? 'checked' : ''} onchange="licNoExpChange()"> This card has no expiry date</label></div>
+      <div class="form-group form-full"><label>Copy of the card (photo or PDF) ${id ? '(needed if the card was renewed)' : '*'}</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><input type="file" id="licFile" accept="image/*,application/pdf" onchange="licPicked(this)"><label class="btn btn-sm" style="position:relative;cursor:pointer;background:#1C3557;color:#fff;">📷 Scan the card<input type="file" id="licScan" accept="image/*" capture="environment" onchange="licPicked(this)" style="position:absolute;inset:0;opacity:0;cursor:pointer;"></label></div>
+        <div id="licOcr" style="font-size:12px;margin-top:6px;color:#555;">The portal reads the number and the dates from the copy and fills them in for you to check.</div>${id && r.hasFile ? '<div style="font-size:11px;color:#1A7A6E;margin-top:4px;">A copy is on file. Upload a new one only if the card changed.</div>' : ''}</div>
     </div>
     <div id="licErr" style="color:#c0392b;font-size:12px;margin-top:6px;"></div>
     <div class="btn-row" style="margin-top:12px;"><button class="btn btn-primary" id="licSaveBtn" onclick="licSave('${ek}','${id || ''}')">Save</button><button class="btn" onclick="document.getElementById('licModal').remove()">Cancel</button></div></div>`;
-  document.body.appendChild(box); licTypeChange();
+  document.body.appendChild(box); window._licPick = null; licTypeChange();
 }
 window.licForm = licForm;
 window.licAddMine = () => licForm(currentEmpKey, '');
@@ -12492,14 +12496,14 @@ window.licTypeChange = function () { const t = v('licType'), dm = t === 'DM'; do
 window.licSave = async function (ek, id) {
   const err = m => { document.getElementById('licErr').textContent = m; };
   const type = v('licType'), dm = type === 'DM'; const grade = dm ? (v('licGradeDM') === '__o' ? v('licGrade').trim() : v('licGradeDM')) : v('licGrade').trim();
-  const rec = { type, no: v('licNo').trim(), exp: v('licExp') }; if (type === 'OTH') rec.other = v('licOther').trim(); if (grade) rec.grade = grade.slice(0, 40);
+  const noExp = !!(document.getElementById('licNoExp') || {}).checked; const rec = { type, no: v('licNo').trim() }; if (noExp) rec.noExp = true; else rec.exp = v('licExp'); if (type === 'OTH') rec.other = v('licOther').trim(); if (grade) rec.grade = grade.slice(0, 40);
   if (v('licIssuer').trim()) rec.issuer = v('licIssuer').trim().slice(0, 120); if (v('licIssue')) rec.issue = v('licIssue');
   if (type === 'OTH' && !rec.other) return err('Type the name of the card.'); if (dm && !grade) return err('Choose or type the grade.');
-  if (!rec.no) return err('Enter the card / licence number.'); if (!rec.exp) return err('Enter the expiry date.'); if (rec.issue && rec.issue > rec.exp) return err('The issue date is after the expiry date.');
+  if (!rec.no) return err('Enter the card / licence number.'); if (!noExp && !rec.exp) return err('Enter the expiry date, or tick "This card has no expiry date".'); if (rec.exp && rec.issue && rec.issue > rec.exp) return err('The issue date is after the expiry date.');
   const old = id ? ((((DB.lic || {})[ek] || {})[id]) || (DB.myLic || {})[id] || null) : null;
-  const f = (document.getElementById('licFile').files || [])[0];
+  const f = window._licPick || (document.getElementById('licFile').files || [])[0];
   if (!id && !f) return err('Please attach a copy of the card (photo or PDF).');
-  if (old && old.exp !== rec.exp && !f) return err('The expiry date changed (renewal): please attach the new copy of the card.');
+  if (old && rec.exp && old.exp && old.exp !== rec.exp && !f) return err('The expiry date changed (renewal): please attach the new copy of the card.');
   let file = null; try { file = await licFileRead(f); } catch (e) { return err(e.message); }
   const btn = document.getElementById('licSaveBtn'); btn.disabled = true; btn.textContent = 'Saving…';
   const who = licIsHR() ? (adminName || currentAdmin) : ((DB.employees[currentEmpKey] || {}).name || currentAdmin);
@@ -12507,8 +12511,8 @@ window.licSave = async function (ek, id) {
   rec.upd = Date.now(); rec.updBy = who;
   if (licIsHR()) { rec.ver = !!(old && old.ver && !f && JSON.stringify(licCmp(old)) === JSON.stringify(licCmp(rec))); if (rec.ver) { rec.verBy = old.verBy; rec.verAt = old.verAt; } }
   else rec.ver = false;
-  const changes = []; const F = [['type', 'Type'], ['other', 'Name'], ['grade', 'Grade'], ['no', 'Number'], ['issuer', 'Issued by'], ['issue', 'Issue date'], ['exp', 'Expiry date']];
-  F.forEach(([k, l]) => { const a = old ? (k === 'type' ? licName({ type: old.type, other: old.other }) : old[k] || '') : '', b = k === 'type' ? licName({ type: rec.type, other: rec.other }) : rec[k] || ''; if (String(a) !== String(b)) changes.push(l + ': ' + (a || '—') + ' → ' + (b || '—')); });
+  const changes = []; const F = [['type', 'Type'], ['other', 'Name'], ['grade', 'Grade'], ['no', 'Number'], ['issuer', 'Issued by'], ['issue', 'Issue date'], ['exp', 'Expiry date'], ['noExp', 'No expiry']];
+  F.forEach(([k, l]) => { const yn = x => x === true ? 'Yes' : x; const a = old ? (k === 'type' ? licName({ type: old.type, other: old.other }) : yn(old[k]) || '') : '', b = k === 'type' ? licName({ type: rec.type, other: rec.other }) : yn(rec[k]) || ''; if (String(a) !== String(b)) changes.push(l + ': ' + (a || '—') + ' → ' + (b || '—')); });
   if (file) changes.push('Copy: ' + (old && old.hasFile ? 'replaced' : 'uploaded') + ' (' + file.name + ')');
   try {
     if (file) await set(ref(db, 'licFiles/' + ek + '/' + lid), { data: file.data, name: file.name.slice(0, 120), mime: file.mime, at: Date.now() });
@@ -12518,15 +12522,15 @@ window.licSave = async function (ek, id) {
     document.getElementById('licModal').remove(); if (licIsHR()) renderLicHR(); else renderMyLic();
   } catch (e) { btn.disabled = false; btn.textContent = 'Save'; err('Could not save (' + ((e && e.code) || 'error') + '). Please try again.'); }
 };
-const licCmp = r => ({ type: r.type, other: r.other || '', grade: r.grade || '', no: r.no || '', issuer: r.issuer || '', issue: r.issue || '', exp: r.exp || '' });
+const licCmp = r => ({ type: r.type, other: r.other || '', grade: r.grade || '', no: r.no || '', issuer: r.issuer || '', issue: r.issue || '', exp: r.exp || '', noExp: !!r.noExp });
 // ── Staff portal: "My licences and cards"
 function renderMyLic() {
   const card = document.getElementById('empLicCard'), rem = document.getElementById('empLicReminder'); if (!card) return;
   if (!window._myLicOn) { card.style.display = 'none'; if (rem) rem.innerHTML = ''; return; }
-  card.style.display = 'block'; const L = Object.entries(DB.myLic || {}).sort((a, b) => String(a[1].exp).localeCompare(b[1].exp));
+  card.style.display = 'block'; const L = Object.entries(DB.myLic || {}).sort((a, b) => String(a[1].exp || '9999').localeCompare(String(b[1].exp || '9999')));
   document.getElementById('empLicBody').innerHTML = L.length ? L.map(([id, r]) => { const d = licDays(r); return `<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #f0f0f0;flex-wrap:wrap;">
-      <div><strong>${esc(licName(r))}</strong><div style="font-size:12px;color:#666;">No. ${esc(r.no || '')}${r.issuer ? ' · ' + esc(r.issuer) : ''} · expires ${fmt(r.exp)}</div>
-      <div style="font-size:11px;margin-top:2px;">${licChip(d)} ${r.ver ? '<span style="color:#1A7A6E;">✓ checked by HR</span>' : '<span style="color:#9a5b00;">waiting for HR check</span>'}</div></div>
+      <div><strong>${esc(licName(r))}</strong><div style="font-size:12px;color:#666;">No. ${esc(r.no || '')}${r.issuer ? ' · ' + esc(r.issuer) : ''} · ${r.noExp || !r.exp ? 'no expiry date' : 'expires ' + fmt(r.exp)}</div>
+      <div style="font-size:11px;margin-top:2px;">${licChip(d, r)} ${r.ver ? '<span style="color:#1A7A6E;">✓ checked by HR</span>' : '<span style="color:#9a5b00;">waiting for HR check</span>'}</div></div>
       <div style="display:flex;gap:6px;">${r.hasFile ? `<button class="btn btn-sm" onclick="licOpenCopy('${currentEmpKey}','${id}')">View copy</button>` : ''}<button class="btn btn-sm btn-primary" onclick="licForm('${currentEmpKey}','${id}')">Update / renew</button></div></div>`; }).join('')
     : '<div style="font-size:12px;color:#888;">No cards yet. Add each licence or card you hold, with a photo of it.</div>';
   if (rem) { const due = L.filter(([, r]) => { const d = licDays(r); return d != null && d <= 60; });
@@ -12545,7 +12549,7 @@ function renderLicHR() {
   box.innerHTML = `<div style="font-size:12px;color:#666;margin-bottom:8px;">Staff who can record cards: ${on.length ? on.map(([k, e]) => esc(e.name)).join(', ') : 'none yet (Portal Access → "Licences & cards")'}.</div>` +
     (rows.length ? `<div class="table-wrap"><table><thead><tr><th>Employee</th><th>Card / licence</th><th>Number</th><th>Issued by</th><th>Expiry</th><th>Status</th><th>HR check</th><th>Actions</th></tr></thead><tbody>${rows.map(x => `<tr>
       <td><strong>${esc(x.e.name || '(removed)')}</strong><div style="font-size:11px;color:#888;">${esc(x.e.dept || '')}</div></td><td>${esc(licName(x.r))}</td><td>${esc(x.r.no || '')}</td><td>${esc(x.r.issuer || '')}</td>
-      <td>${fmt(x.r.exp)}${x.r.issue ? `<div style="font-size:11px;color:#888;">issued ${fmt(x.r.issue)}</div>` : ''}</td><td>${licChip(x.d)}</td>
+      <td>${x.r.noExp || !x.r.exp ? '<span style="color:#555;">No expiry</span>' : fmt(x.r.exp)}${x.r.issue ? `<div style="font-size:11px;color:#888;">issued ${fmt(x.r.issue)}</div>` : ''}</td><td>${licChip(x.d, x.r)}</td>
       <td>${x.r.ver ? `<span style="color:#1A7A6E;font-size:12px;">✓ ${esc(x.r.verBy || '')}</span>` : `<button class="btn btn-sm" style="background:#fff4dc;color:#7a5a00;" onclick="licVerify('${x.ek}','${x.id}')">Verify</button><div style="font-size:10px;color:#9a5b00;">changed by ${esc(x.r.updBy || '')}</div>`}</td>
       <td style="white-space:nowrap;">${x.r.hasFile ? `<button class="btn btn-sm" onclick="licOpenCopy('${x.ek}','${x.id}')">Copy</button> ` : '<span style="font-size:11px;color:#c0392b;">no copy</span> '}<button class="btn btn-sm" onclick="licHistory('${x.ek}','${x.id}')">History</button> <button class="btn btn-sm" onclick="licForm('${x.ek}','${x.id}')">Edit</button> <button class="btn btn-sm btn-danger" onclick="licDelete('${x.ek}','${x.id}')">✕</button></td></tr>`).join('')}</tbody></table></div>`
       : '<div class="empty-state"><p>No cards match.</p></div>');
@@ -13091,6 +13095,70 @@ window.srPDF=async function(){if(currentRole==='pro'){alert('This report is not 
  doc.autoTable({startY:32,head:[d.head],body:d.body.map(r=>r.map(num)),foot:[d.tot.map(num)],styles:{fontSize:8,cellPadding:1.6},headStyles:{fillColor:[28,53,87],textColor:255},footStyles:{fillColor:[238,242,247],textColor:[28,53,87],fontStyle:'bold'},alternateRowStyles:{fillColor:[250,251,253]},columnStyles:right,margin:{left:12,right:12},
   didDrawPage:()=>{const pg=doc.internal.getCurrentPageInfo().pageNumber;doc.setFontSize(8);doc.setTextColor(140);doc.text('Confidential: salary information · HR Department',12,203);doc.text('Page '+pg,285,203,{align:'right'})}});
  doc.save(d.title.replace(/[^\w\- ]+/g,'').replace(/\s+/g,'_')+'_'+localDateStr(new Date())+'.pdf');logAudit('Download Report','Salary report (PDF)',d.n+' staff · '+d.filters.slice(0,120))};
+
+// ══ Nov 2026: read the card copy (free OCR in the browser: Tesseract.js; PDFs via pdf.js) and fill number / dates / issuer
+window.licNoExpChange = function () { const c = document.getElementById('licNoExp').checked, x = document.getElementById('licExp'); x.disabled = c; if (c) x.value = ''; };
+const LIC_MON = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, sept: 9, oct: 10, nov: 11, dec: 12 };
+function licDatesAt(s) { const out = []; const push = (y, m, d, i) => { y = +y; if (y < 100) y += 2000; m = +m; d = +d; if (y < 1990 || y > 2100 || m < 1 || m > 12 || d < 1 || d > 31) return; out.push({ d: y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0'), i }); };
+  let m; const r2 = /(?<!\d)(\d{4})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{1,2})(?!\d)/g; const taken = []; while ((m = r2.exec(s))) { push(m[1], m[2], m[3], m.index); taken.push([m.index, m.index + m[0].length]); }
+  const r1 = /(?<!\d)(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{4}|\d{2})(?!\d)/g; while ((m = r1.exec(s))) { if (taken.some(([a, b]) => m.index >= a && m.index < b)) continue; push(m[3], m[2], m[1], m.index); }
+  const r3 = /\b(\d{1,2})[\s\-\/]*(jan|feb|mar|apr|may|jun|jul|aug|sept?|oct|nov|dec)[a-z]*[\s\-\/,]*(\d{4})\b/gi; while ((m = r3.exec(s))) push(m[3], LIC_MON[m[2].toLowerCase()], m[1], m.index);
+  const r4 = /\b(jan|feb|mar|apr|may|jun|jul|aug|sept?|oct|nov|dec)[a-z]*\s+(\d{1,2}),?\s+(\d{4})\b/gi; while ((m = r4.exec(s))) push(m[3], LIC_MON[m[1].toLowerCase()], m[2], m.index);
+  return out.sort((a, b) => a.i - b.i); }
+const licDatesIn = s => licDatesAt(s).map(x => x.d);
+function licParse(text) { const lines = String(text || '').split(/\r?\n/).map(x => x.trim()).filter(Boolean), res = {}; const all = [];
+  const EXP = /(expir|valid\s*(until|till|up\s*to|to)|exp\.?\s*date|end\s*date|انتهاء)/i, ISS = /(issu|start|from|اصدار|إصدار)/i;
+  lines.forEach((l, i) => { licDatesAt(l).forEach(({ d, i: at }) => { all.push(d); const before = l.slice(Math.max(0, at - 28), at); const ctx = before.trim() ? before : (lines[i - 1] || '');
+    const e = EXP.test(ctx), s = ISS.test(ctx); if (e && !s && !res.exp) res.exp = d; else if (s && !e && !res.issue) res.issue = d; else if (e && s) { const le = ctx.search(EXP), ls = ctx.search(ISS); if (le > ls && !res.exp) res.exp = d; else if (!res.issue) res.issue = d; } }); });
+  const uniq = [...new Set(all)].sort(); if (!res.exp && uniq.length >= 2) res.exp = uniq[uniq.length - 1]; if (!res.issue && uniq.length >= 2) res.issue = uniq[0]; if (!res.exp && uniq.length === 1 && uniq[0] > localDateStr(new Date())) res.exp = uniq[0];
+  if (res.issue && res.exp && res.issue > res.exp) { const x = res.issue; res.issue = res.exp; res.exp = x; }
+  for (const l of lines) { const m = /(?:licen[cs]e|card|membership|reg(?:istration)?|permit|certificate|ref(?:erence)?|serial)?\s*(?:no\.?|number|#|num)\s*[:.\-]?\s*([A-Z0-9][A-Z0-9\/\-]{3,})/i.exec(l); if (m && /\d/.test(m[1])) { res.no = m[1].replace(/[.,;:]+$/, ''); break; } }
+  if (!res.no) { const cand = (text.match(/\b[A-Z]{0,4}[\-\/]?\d{4,}[A-Z0-9\-\/]*\b/g) || []).filter(x => !licDatesIn(x).length && !/^(19|20)\d{2}$/.test(x)); if (cand.length) res.no = cand.sort((a, b) => b.length - a.length)[0]; }
+  const T = text.toLowerCase(); if (/municipality|بلدية/.test(T)) { res.issuer = 'Dubai Municipality'; res.type = 'DM'; } else if (/civil\s*defen[cs]e|الدفاع المدني/.test(T)) { res.issuer = 'Dubai Civil Defence'; res.type = 'DCD'; } else if (/society\s*of\s*engineers|جمعية المهندسين/.test(T)) { res.issuer = 'Society of Engineers'; res.type = 'SOE'; } else if (/trakhees|ports.*customs.*free\s*zone/.test(T)) { res.issuer = 'Trakhees'; res.type = 'TRK'; } else if (/\b(hse|health\s*(and|&)\s*safety|nebosh|iosh)\b/.test(T)) { res.type = 'HSE'; }
+  const g = /\bG\s*\+\s*(\d{1,2})\b/i.exec(text); if (g) res.grade = 'G+' + g[1];
+  return res; }
+async function licImageFromPdf(file) { await wfLoadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js', () => !!window.pdfjsLib);
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const pdf = await window.pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise, pg = await pdf.getPage(1), vp = pg.getViewport({ scale: 2.2 }), c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+  await pg.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise; return c; }
+window.licPicked = async function (inp) { const f = (inp.files || [])[0]; if (!f) return; window._licPick = f; const st = document.getElementById('licOcr');
+  const other = inp.id === 'licScan' ? document.getElementById('licFile') : document.getElementById('licScan'); if (other) other.value = '';
+  st.innerHTML = '📎 ' + esc(f.name || 'photo') + ' attached. <b>Reading the card…</b> (the first time takes a little longer)';
+  try { await wfLoadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js', () => !!window.Tesseract);
+    const src = (f.type === 'application/pdf' || /\.pdf$/i.test(f.name)) ? await licImageFromPdf(f) : f;
+    const out = await window.Tesseract.recognize(src, 'eng', { logger: m => { if (m.status === 'recognizing text') st.innerHTML = '📎 ' + esc(f.name || 'photo') + ' attached. <b>Reading the card… ' + Math.round((m.progress || 0) * 100) + '%</b>'; } });
+    const r = licParse(out.data.text || ''), filled = [];
+    const put = (id, val, lbl) => { const el = document.getElementById(id); if (!el || !val || el.disabled) return; if (el.value && el.value !== val) { el.dataset.was = el.value; } el.value = val; el.style.background = '#fff8e1'; filled.push(lbl); };
+    if (r.type && !document.getElementById('licType').dataset.touched && !window._licEditing) { const s = document.getElementById('licType'); if (s.value !== r.type) { s.value = r.type; licTypeChange(); filled.push('type'); } }
+    put('licNo', r.no, 'number'); put('licIssue', r.issue, 'issue date'); put('licIssuer', r.issuer, 'issued by');
+    if (r.grade && v('licType') === 'DM') { const gs = document.getElementById('licGradeDM'); if ([...gs.options].some(o => o.value === r.grade)) { gs.value = r.grade; filled.push('grade'); } }
+    if (r.exp && !document.getElementById('licNoExp').checked) put('licExp', r.exp, 'expiry date');
+    st.innerHTML = filled.length ? '✅ Read from the card: <b>' + filled.join(', ') + '</b>. Fields in yellow were filled in: please check them against the card before saving.' + (r.exp ? '' : ' No expiry date found: type it, or tick "no expiry date".') : '⚠️ The card was attached, but the details could not be read clearly. Please type them in (a sharper, straight photo helps).';
+  } catch (e) { st.innerHTML = '📎 Attached. Automatic reading is not available right now (' + esc((e && e.message) || 'no connection') + '): please type the details.'; } };
+// ── Licences and cards summary report (Excel and PDF) for HR and Cem
+function licSumRows() { return licRows().filter(x => x.e.status !== 'Inactive').map(x => { const l = x.r.noExp || !x.r.exp ? 'none' : licLvl(x.d); return Object.assign(x, { st: { exp: 'Expired', red: 'Expires within 30 days', amber: 'Expires within 60 days', ok: 'Valid', none: 'No expiry date' }[l] || 'Valid', lvl: l }); })
+  .sort((a, b) => (a.d ?? 9e9) - (b.d ?? 9e9) || String(a.e.name).localeCompare(b.e.name)); }
+function licSumCounts(R) { const c = { total: R.length, exp: 0, red: 0, amber: 0, ok: 0, none: 0, nv: 0, nocopy: 0 }; R.forEach(x => { c[x.lvl] = (c[x.lvl] || 0) + 1; if (!x.r.ver) c.nv++; if (!x.r.hasFile) c.nocopy++; }); return c; }
+window.licSumExcel = function () { if (!(currentRole === 'admin' || currentRole === 'ceo')) return; const R = licSumRows(), c = licSumCounts(R), today = new Date().toLocaleDateString('en-GB');
+  const s1 = [['CK / CKC · LICENCES AND CARDS · SUMMARY · ' + today], [''], ['Cards recorded', c.total], ['Expired', c.exp], ['Expire within 30 days', c.red], ['Expire within 60 days', c.amber], ['Valid (more than 60 days)', c.ok], ['No expiry date', c.none], ['Not yet checked by HR', c.nv], ['No copy on file', c.nocopy], [''], ['By type', 'Cards', 'Expired', 'Within 60 days', 'No expiry']];
+  const byT = {}; R.forEach(x => { const k = licName({ type: x.r.type, other: x.r.other }); byT[k] = byT[k] || [0, 0, 0, 0]; byT[k][0]++; if (x.lvl === 'exp') byT[k][1]++; if (x.lvl === 'red' || x.lvl === 'amber') byT[k][2]++; if (x.lvl === 'none') byT[k][3]++; });
+  Object.entries(byT).sort().forEach(([k, a]) => s1.push([k].concat(a)));
+  const s2 = [['Employee', 'Emp ID', 'Department', 'Company', 'Card / licence', 'Grade', 'Number', 'Issued by', 'Issue date', 'Expiry date', 'Days left', 'Status', 'HR check', 'Copy on file']];
+  R.forEach(x => s2.push([x.e.name || '', x.e.empId || '', x.e.dept || '', String(x.e.entity || '').includes('Building') ? 'CKC' : 'CK', licName({ type: x.r.type, other: x.r.other }), x.r.grade || '', x.r.no || '', x.r.issuer || '', x.r.issue || '', x.r.noExp || !x.r.exp ? 'No expiry' : x.r.exp, x.d == null ? '' : x.d, x.st, x.r.ver ? 'Checked by ' + (x.r.verBy || 'HR') : 'Not yet checked', x.r.hasFile ? 'Yes' : 'No']));
+  const wb = XLSX.utils.book_new(), w1 = XLSX.utils.aoa_to_sheet(s1), w2 = XLSX.utils.aoa_to_sheet(s2); w1['!cols'] = [{ wch: 40 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 11 }]; w2['!cols'] = [28, 12, 18, 7, 30, 8, 18, 22, 12, 12, 9, 22, 22, 10].map(w => ({ wch: w }));
+  XLSX.utils.book_append_sheet(wb, w1, 'Summary'); XLSX.utils.book_append_sheet(wb, w2, 'All cards'); XLSX.writeFile(wb, 'CK_Licences_and_Cards_Summary_' + localDateStr(new Date()) + '.xlsx'); logAudit('Download Report', 'Licences and cards summary (Excel)', c.total + ' cards'); };
+window.licSumPDF = async function () { if (!(currentRole === 'admin' || currentRole === 'ceo')) return; const R = licSumRows(), c = licSumCounts(R);
+  try { await wfLoadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', () => !!window.jspdf); await wfLoadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js', () => !!(window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API.autoTable)); } catch (e) { alert('Could not load the PDF tool: check the internet connection.'); return; }
+  const { jsPDF } = window.jspdf, doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor(28, 53, 87); doc.text('Professional licences and cards · summary', 12, 15); doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(90); doc.text('CK Architecture Interiors LLC | CKC Building Contracting LLC · as of ' + fmt(localDateStr(new Date())), 12, 21);
+  const boxes = [['Cards', c.total, [28, 53, 87]], ['Expired', c.exp, [192, 57, 43]], ['Within 30 days', c.red, [192, 57, 43]], ['Within 60 days', c.amber, [183, 121, 31]], ['Valid', c.ok, [26, 122, 94]], ['No expiry', c.none, [28, 53, 87]], ['Not checked by HR', c.nv, [183, 121, 31]]];
+  boxes.forEach((b, i) => { const x = 12 + i * 39; doc.setDrawColor(220); doc.setFillColor(250, 251, 253); doc.roundedRect(x, 26, 36, 17, 2, 2, 'FD'); doc.setFontSize(8); doc.setTextColor(110); doc.text(b[0], x + 3, 31); doc.setFontSize(14); doc.setTextColor(...b[2]); doc.setFont('helvetica', 'bold'); doc.text(String(b[1]), x + 3, 40); doc.setFont('helvetica', 'normal'); });
+  const col = { Expired: [192, 57, 43], 'Expires within 30 days': [192, 57, 43], 'Expires within 60 days': [183, 121, 31] };
+  doc.autoTable({ startY: 48, head: [['Employee', 'Department', 'Card / licence', 'Number', 'Issued by', 'Expiry', 'Days left', 'Status', 'HR check']], body: R.map(x => [x.e.name || '', x.e.dept || '', licName({ type: x.r.type, other: x.r.other }) + (x.r.grade ? ' · ' + x.r.grade : ''), x.r.no || '', x.r.issuer || '', x.r.noExp || !x.r.exp ? 'No expiry' : fmt(x.r.exp), x.d == null ? '' : String(x.d), x.st, x.r.ver ? 'Checked' : 'Not yet']),
+    styles: { fontSize: 8, cellPadding: 1.6 }, headStyles: { fillColor: [28, 53, 87], textColor: 255 }, alternateRowStyles: { fillColor: [250, 251, 253] }, margin: { left: 12, right: 12 },
+    didParseCell: h => { if (h.section === 'body' && h.column.index === 7 && col[h.cell.raw]) { h.cell.styles.textColor = col[h.cell.raw]; h.cell.styles.fontStyle = 'bold'; } },
+    didDrawPage: () => { const pg = doc.internal.getCurrentPageInfo().pageNumber; doc.setFontSize(8); doc.setTextColor(140); doc.text('HR Department · professional licences and cards', 12, 203); doc.text('Page ' + pg, 285, 203, { align: 'right' }); } });
+  doc.save('CK_Licences_and_Cards_Summary_' + localDateStr(new Date()) + '.pdf'); logAudit('Download Report', 'Licences and cards summary (PDF)', c.total + ' cards'); };
 </script>
 <script>
 if('serviceWorker' in navigator){
