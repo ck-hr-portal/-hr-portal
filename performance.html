@@ -28,16 +28,107 @@ input,select,textarea{font:inherit;font-size:13px;padding:6px 9px;border:1px sol
 .sc{display:inline-block;min-width:38px;text-align:center;padding:1px 8px;border-radius:7px;font-weight:700}
 .bar{height:8px;border-radius:5px;background:var(--soft);overflow:hidden;min-width:80px}.bar i{display:block;height:100%}
 .hide{display:none!important}.err{color:var(--bad);font-size:12.5px}
-#gate{display:grid;place-items:center;min-height:70vh}#gate .card{max-width:460px;text-align:center}
+#gate{display:grid;place-items:center;min-height:70vh}
+#hero{display:flex;gap:18px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:14px}#hero .hg{font-size:24px;font-weight:700;color:var(--navy)}#hero .hs{color:var(--muted);font-size:13px;margin-top:2px}
+@media(max-width:860px){#hero .pscn{width:100%}}#gate .card{max-width:460px;text-align:center}
 @media(max-width:860px){.app{grid-template-columns:1fr}aside{position:static;height:auto}.fg{grid-template-columns:1fr}}
 </style></head><body>
-<div class="pbar"><span class="logo"><i>CK</i>CK Portal</span><button class="mod" id="toHR">HR</button><button class="mod on">Performance</button><span class="user" id="who">Checking your sign-in…</span></div>
+<div class="pbar"><span class="logo"><i>CK</i>CK Portal</span><button class="mod" id="toHR" title="Back to the HR Portal tab">HR</button><button class="mod on">Performance</button><span class="user" id="who">Checking your sign-in…</span></div>
 <div id="gate"><div class="card"><h2 id="gateT">Opening Performance…</h2><p class="note" id="gateM">One moment.</p><p id="gateB"></p></div></div>
-<div class="app hide" id="app"><aside><div class="grp">Performance</div><div id="nav"></div><div class="grp">Other modules</div><div class="ni" id="toHR2">🏠 HR Portal</div></aside><main id="main"></main></div>
+<div class="app hide" id="app"><aside><div class="grp">Performance</div><div id="nav"></div><div class="grp">Other modules</div><div class="ni" id="toHR2">🏠 HR Portal</div></aside><main><div id="hero" class="hide"><div class="hl"><div class="hg" id="heroG">Hello</div><div class="hs" id="heroS"></div></div><div class="pscn" id="pscn" aria-hidden="true">
+<style>
+.pscn{position:relative;width:420px;max-width:100%;aspect-ratio:420/170;border-radius:18px;overflow:hidden;border:1px solid #E3E7ED;background:#F4F8FD;flex:0 0 auto}
+.pscn svg{position:absolute;inset:0;width:100%;height:100%;opacity:0;transition:opacity .9s ease}.pscn svg.on{opacity:1}
+.pscn .cap{position:absolute;left:12px;bottom:10px;font:700 11.5px "Segoe UI",Arial,sans-serif;color:#1C3557;background:rgba(255,255,255,.92);padding:3px 10px;border-radius:999px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.pscn .dots{position:absolute;right:12px;bottom:13px;display:flex;gap:5px}.pscn .dots i{width:6px;height:6px;border-radius:50%;background:#C8D3E3}.pscn .dots i.on{background:#C9A84C}
+.fb{transform-box:fill-box}
+@keyframes p-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@keyframes p-grow{0%,10%{transform:scaleY(.05)}45%,85%{transform:scaleY(1)}100%{transform:scaleY(.05)}}
+@keyframes p-type{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+@keyframes p-wave{0%,100%{transform:rotate(0)}50%{transform:rotate(-22deg)}}
+@keyframes p-hook{0%,100%{transform:translateY(0)}50%{transform:translateY(18px)}}
+@keyframes p-floor{0%,6%{opacity:0;transform:translateY(-10px)}14%,88%{opacity:1;transform:translateY(0)}100%{opacity:0}}
+@keyframes p-tick{0%,15%{stroke-dashoffset:22}30%,90%{stroke-dashoffset:0}100%{stroke-dashoffset:22}}
+@keyframes p-climb{0%{transform:translate(0,0)}25%{transform:translate(34px,-16px)}50%{transform:translate(68px,-32px)}75%,100%{transform:translate(102px,-48px)}}
+@keyframes p-flag{0%,100%{transform:skewY(0)}50%{transform:skewY(-8deg)}}
+@keyframes p-cloud{from{transform:translateX(-40px)}to{transform:translateX(460px)}}
+@keyframes p-blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+@keyframes p-hammer{0%,100%{transform:rotate(-35deg)}50%{transform:rotate(20deg)}}
+@keyframes p-line{0%{stroke-dashoffset:300}60%,90%{stroke-dashoffset:0}100%{stroke-dashoffset:300}}
+@media (prefers-reduced-motion:reduce){.pscn *{animation:none!important}}
+</style>
+<svg viewBox="0 0 420 170" class="on"><defs>
+ <linearGradient id="skyA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E6EEF9"/><stop offset="1" stop-color="#F7FAFE"/></linearGradient>
+ <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#EEF3FA"/></linearGradient></defs>
+ <!-- 1. Office: team reviewing the scorecard -->
+ <rect width="420" height="170" fill="url(#skyA)"/>
+ <rect x="0" y="128" width="420" height="42" fill="#E9DFCB"/><rect x="0" y="128" width="420" height="3" fill="#DCCFB5"/>
+ <g transform="translate(150 22)"><rect width="150" height="92" rx="8" fill="#1C3557"/><rect x="6" y="6" width="138" height="72" rx="4" fill="url(#screen)"/>
+  <g transform="translate(18 70)"><rect class="fb" x="0" y="-26" width="14" height="26" rx="2" fill="#C9A84C" style="transform-origin:50% 100%;animation:p-grow 7s ease-in-out infinite"/><rect class="fb" x="22" y="-40" width="14" height="40" rx="2" fill="#3E7CC4" style="transform-origin:50% 100%;animation:p-grow 7s .2s ease-in-out infinite"/><rect class="fb" x="44" y="-33" width="14" height="33" rx="2" fill="#2E8B6A" style="transform-origin:50% 100%;animation:p-grow 7s .4s ease-in-out infinite"/><rect class="fb" x="66" y="-52" width="14" height="52" rx="2" fill="#C9A84C" style="transform-origin:50% 100%;animation:p-grow 7s .6s ease-in-out infinite"/><rect class="fb" x="88" y="-58" width="14" height="58" rx="2" fill="#2E8B6A" style="transform-origin:50% 100%;animation:p-grow 7s .8s ease-in-out infinite"/></g>
+  <rect x="70" y="92" width="10" height="14" fill="#1C3557"/><rect x="52" y="104" width="46" height="4" rx="2" fill="#1C3557"/></g>
+ <!-- presenter -->
+ <g transform="translate(318 56)"><ellipse cx="14" cy="74" rx="18" ry="4" fill="#000" opacity=".08"/>
+  <rect x="5" y="44" width="8" height="28" rx="3" fill="#2B3A55"/><rect x="15" y="44" width="8" height="28" rx="3" fill="#2B3A55"/>
+  <path d="M2 24c0-8 6-12 12-12s12 4 12 12v22H2z" fill="#C9A84C"/>
+  <g class="fb" style="transform-origin:90% 10%;animation:p-wave 2.4s ease-in-out infinite"><path d="M4 22 L-14 6" stroke="#C98D63" stroke-width="5" stroke-linecap="round"/></g>
+  <circle cx="14" cy="4" r="11" fill="#C98D63"/><path d="M3 2c1-9 21-9 22 0c-4-4-18-4-22 0z" fill="#3B2A20"/>
+  <g class="fb" style="transform-origin:50% 50%;animation:p-blink 4s infinite"><circle cx="10" cy="5" r="1.4" fill="#1b1b1b"/><circle cx="18" cy="5" r="1.4" fill="#1b1b1b"/></g><path d="M10 10q4 3 8 0" stroke="#1b1b1b" stroke-width="1.3" fill="none" stroke-linecap="round"/></g>
+ <!-- two seated colleagues -->
+ <g transform="translate(40 70)"><rect x="-6" y="40" width="110" height="7" rx="3" fill="#B98A5A"/><rect x="2" y="47" width="5" height="12" fill="#8C6A44"/><rect x="92" y="47" width="5" height="12" fill="#8C6A44"/>
+  <g style="animation:p-bob 3s ease-in-out infinite"><path d="M6 40c0-12 6-18 13-18s13 6 13 18z" fill="#3E7CC4"/><circle cx="19" cy="12" r="10" fill="#E6B98F"/><path d="M9 10c1-8 19-9 20 0c-5-3-15-3-20 0z" fill="#1b1b1b"/><circle cx="15.5" cy="13" r="1.3" fill="#1b1b1b"/><circle cx="22.5" cy="13" r="1.3" fill="#1b1b1b"/><path d="M15 17q4 3 8 0" stroke="#1b1b1b" stroke-width="1.2" fill="none"/></g>
+  <g style="animation:p-bob 3s 1.2s ease-in-out infinite"><path d="M58 40c0-12 6-18 13-18s13 6 13 18z" fill="#2E8B6A"/><circle cx="71" cy="12" r="10" fill="#C98D63"/><path d="M60 12c0-12 22-12 22 0c-3-2-5 2-11 0s-8 2-11 0z" fill="#5A3A22"/><circle cx="67.5" cy="13" r="1.3" fill="#1b1b1b"/><circle cx="74.5" cy="13" r="1.3" fill="#1b1b1b"/><path d="M67 17q4 3 8 0" stroke="#1b1b1b" stroke-width="1.2" fill="none"/></g>
+  <rect x="34" y="31" width="18" height="10" rx="2" fill="#1C3557"/><rect x="36" y="33" width="14" height="6" fill="#9DB4D6"/></g>
+</svg>
+<svg viewBox="0 0 420 170"><defs><linearGradient id="skyB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#DDEBFA"/><stop offset="1" stop-color="#F6FAFF"/></linearGradient></defs>
+ <!-- 2. Site: building going up -->
+ <rect width="420" height="170" fill="url(#skyB)"/>
+ <g style="animation:p-cloud 26s linear infinite"><g fill="#fff" opacity=".9"><ellipse cx="0" cy="30" rx="22" ry="9"/><ellipse cx="16" cy="25" rx="14" ry="10"/></g></g>
+ <circle cx="360" cy="34" r="16" fill="#F4C463" class="fb" style="animation:p-bob 5s ease-in-out infinite"/>
+ <g fill="#CBD7E7"><rect x="20" y="86" width="26" height="44"/><rect x="50" y="70" width="20" height="60"/><rect x="380" y="80" width="28" height="50"/></g>
+ <rect x="0" y="128" width="420" height="42" fill="#E3D6BC"/><rect x="0" y="128" width="420" height="3" fill="#D3C29F"/>
+ <g transform="translate(120 0)"><g fill="#E9EEF5" stroke="#1C3557" stroke-width="2">
+  <rect x="0" y="104" width="110" height="24" style="animation:p-floor 8s infinite"/><rect x="0" y="80" width="110" height="24" style="animation:p-floor 8s 1.2s infinite;opacity:0"/><rect x="0" y="56" width="110" height="24" style="animation:p-floor 8s 2.4s infinite;opacity:0"/></g>
+  <g fill="#C9A84C"><rect x="12" y="111" width="14" height="10" rx="1" style="animation:p-floor 8s infinite"/><rect x="48" y="111" width="14" height="10" rx="1" style="animation:p-floor 8s infinite"/><rect x="84" y="111" width="14" height="10" rx="1" style="animation:p-floor 8s infinite"/><rect x="12" y="87" width="14" height="10" rx="1" style="animation:p-floor 8s 1.2s infinite;opacity:0"/><rect x="84" y="87" width="14" height="10" rx="1" style="animation:p-floor 8s 1.2s infinite;opacity:0"/></g></g>
+ <g stroke="#1C3557" stroke-width="3" fill="none" stroke-linecap="round"><path d="M270 128V20M270 24H150M270 24h30"/><path d="M262 30l8-6 8 6M262 44l8-6 8 6M262 58l8-6 8 6M262 72l8-6 8 6M262 86l8-6 8 6M262 100l8-6 8 6"/></g>
+ <rect x="296" y="20" width="14" height="12" fill="#1C3557"/>
+ <g style="animation:p-hook 4s ease-in-out infinite"><line x1="180" y1="24" x2="180" y2="44" stroke="#1C3557" stroke-width="1.6"/><rect x="164" y="44" width="34" height="7" rx="2" fill="#E8803A" stroke="#1C3557" stroke-width="1.4"/></g>
+ <g transform="translate(326 84)"><ellipse cx="12" cy="44" rx="16" ry="3.5" fill="#000" opacity=".08"/><rect x="4" y="26" width="7" height="16" rx="2" fill="#2B3A55"/><rect x="13" y="26" width="7" height="16" rx="2" fill="#2B3A55"/><path d="M1 14c0-6 5-9 11-9s11 3 11 9v14H1z" fill="#E8803A"/><path d="M2 18h20" stroke="#F2D27A" stroke-width="2"/>
+  <g class="fb" style="transform-origin:0% 0%;animation:p-hammer .8s ease-in-out infinite"><path d="M20 14l12-8" stroke="#E6B98F" stroke-width="4" stroke-linecap="round"/><rect x="28" y="0" width="11" height="6" rx="1" fill="#1C3557" transform="rotate(-30 33 3)"/></g>
+  <circle cx="12" cy="-2" r="9" fill="#E6B98F"/><path d="M2 -3a10 10 0 0 1 20 0z" fill="#F2C230"/><rect x="1" y="-4" width="22" height="3" rx="1.5" fill="#E2B020"/><circle cx="9" cy="0" r="1.2" fill="#1b1b1b"/><circle cx="15" cy="0" r="1.2" fill="#1b1b1b"/><path d="M9 4q3 2 6 0" stroke="#1b1b1b" stroke-width="1.1" fill="none"/></g>
+ <g transform="translate(64 92)"><ellipse cx="12" cy="36" rx="15" ry="3" fill="#000" opacity=".08"/><rect x="4" y="20" width="7" height="14" rx="2" fill="#2B3A55"/><rect x="13" y="20" width="7" height="14" rx="2" fill="#2B3A55"/><path d="M1 10c0-6 5-9 11-9s11 3 11 9v12H1z" fill="#F2C230"/><rect x="16" y="6" width="12" height="15" rx="2" fill="#1C3557"/><rect x="18" y="8" width="8" height="10" fill="#9DB4D6"/>
+  <circle cx="12" cy="-5" r="9" fill="#C98D63"/><path d="M2 -6a10 10 0 0 1 20 0z" fill="#fff" stroke="#C8D3E3"/><rect x="1" y="-7" width="22" height="3" rx="1.5" fill="#E9EEF5"/><circle cx="9" cy="-3" r="1.2" fill="#1b1b1b"/><circle cx="15" cy="-3" r="1.2" fill="#1b1b1b"/><path d="M9 1q3 2 6 0" stroke="#1b1b1b" stroke-width="1.1" fill="none"/></g>
+</svg>
+<svg viewBox="0 0 420 170"><defs><linearGradient id="skyC" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#EEF2F7"/><stop offset="1" stop-color="#FAFBFD"/></linearGradient></defs>
+ <!-- 3. Check-in: manager and employee agree the goals -->
+ <rect width="420" height="170" fill="url(#skyC)"/>
+ <rect x="0" y="128" width="420" height="42" fill="#E9DFCB"/><rect x="0" y="128" width="420" height="3" fill="#DCCFB5"/>
+ <rect x="30" y="22" width="70" height="52" rx="5" fill="#fff" stroke="#C8D3E3" stroke-width="2"/><path d="M42 62l12-14 10 8 14-20 10 10" stroke="#2E8B6A" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" style="stroke-dasharray:300;animation:p-line 7s ease-in-out infinite"/>
+ <g transform="translate(330 22)"><circle r="18" fill="#fff" stroke="#1C3557" stroke-width="2.5"/><line y2="-11" stroke="#1C3557" stroke-width="2.5" stroke-linecap="round" class="fb" style="transform-origin:0 0;animation:p-wave 6s linear infinite"/><line x2="8" stroke="#C9A84C" stroke-width="2.5" stroke-linecap="round"/></g>
+ <rect x="120" y="102" width="190" height="8" rx="3" fill="#B98A5A"/><rect x="132" y="110" width="6" height="20" fill="#8C6A44"/><rect x="292" y="110" width="6" height="20" fill="#8C6A44"/>
+ <g transform="translate(176 54)"><rect width="62" height="46" rx="4" fill="#fff" stroke="#C8D3E3" stroke-width="1.5"/>
+  <g stroke="#2E8B6A" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12l4 4 7-8" style="stroke-dasharray:22;animation:p-tick 6s infinite"/><path d="M8 26l4 4 7-8" style="stroke-dasharray:22;animation:p-tick 6s .8s infinite"/><path d="M8 40l4 4 7-8" style="stroke-dasharray:22;animation:p-tick 6s 1.6s infinite"/></g>
+  <g fill="#C8D3E3"><rect x="24" y="10" width="30" height="4" rx="2"/><rect x="24" y="24" width="26" height="4" rx="2"/><rect x="24" y="38" width="30" height="4" rx="2"/></g></g>
+ <g transform="translate(118 50)"><g style="animation:p-bob 3.4s ease-in-out infinite"><path d="M0 52c0-16 8-24 18-24s18 8 18 24z" fill="#1C3557"/><path d="M14 30l4 8 4-8" fill="#fff"/><circle cx="18" cy="16" r="12" fill="#E6B98F"/><path d="M6 14c1-11 23-11 24 0c-6-4-18-4-24 0z" fill="#4A4A4A"/><circle cx="14" cy="17" r="1.4" fill="#1b1b1b"/><circle cx="22" cy="17" r="1.4" fill="#1b1b1b"/><path d="M13 22q5 3 10 0" stroke="#1b1b1b" stroke-width="1.3" fill="none"/></g></g>
+ <g transform="translate(264 50)"><g style="animation:p-bob 3.4s 1.4s ease-in-out infinite"><path d="M0 52c0-16 8-24 18-24s18 8 18 24z" fill="#C9A84C"/><circle cx="18" cy="16" r="12" fill="#C98D63"/><path d="M5 18c0-16 26-16 26 0c0 6-2 10-2 10c0-8-6-14-11-14s-11 6-11 14c0 0-2-4-2-10z" fill="#3B2A20"/><circle cx="14" cy="17" r="1.4" fill="#1b1b1b"/><circle cx="22" cy="17" r="1.4" fill="#1b1b1b"/><path d="M13 22q5 3 10 0" stroke="#1b1b1b" stroke-width="1.3" fill="none"/></g></g>
+</svg>
+<svg viewBox="0 0 420 170"><defs><linearGradient id="skyD" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF5E3"/><stop offset="1" stop-color="#F7FAFE"/></linearGradient></defs>
+ <!-- 4. Reaching the goal -->
+ <rect width="420" height="170" fill="url(#skyD)"/>
+ <circle cx="64" cy="40" r="20" fill="#F4C463" class="fb" style="animation:p-bob 5s ease-in-out infinite"/>
+ <rect x="0" y="128" width="420" height="42" fill="#E3D6BC"/>
+ <g fill="#1C3557"><rect x="140" y="112" width="40" height="16" rx="2"/><rect x="174" y="96" width="40" height="32" rx="2"/><rect x="208" y="80" width="40" height="48" rx="2"/><rect x="242" y="64" width="40" height="64" rx="2"/></g>
+ <g fill="#C9A84C" font-family="Segoe UI,Arial" font-weight="700" font-size="11"><text x="152" y="124" fill="#fff">25</text><text x="186" y="112" fill="#fff">50</text><text x="220" y="96" fill="#fff">75</text><text x="251" y="80" fill="#fff">100</text></g>
+ <g transform="translate(276 14)"><rect x="0" y="0" width="3" height="52" fill="#1C3557"/><path d="M3 2h30l-8 9 8 9H3z" fill="#C9A84C" class="fb" style="transform-origin:0 50%;animation:p-flag 1.6s ease-in-out infinite"/></g>
+ <g style="animation:p-climb 6s steps(1,end) infinite"><g transform="translate(150 78)"><ellipse cx="11" cy="34" rx="13" ry="3" fill="#000" opacity=".08"/><rect x="4" y="18" width="7" height="14" rx="2" fill="#2B3A55"/><rect x="13" y="18" width="7" height="14" rx="2" fill="#2B3A55"/><path d="M1 8c0-6 5-9 10-9s10 3 10 9v12H1z" fill="#3E7CC4"/><path d="M19 6l8-10" stroke="#E6B98F" stroke-width="4" stroke-linecap="round"/><circle cx="11" cy="-6" r="9" fill="#E6B98F"/><path d="M2 -7c1-9 18-9 18 0c-5-3-13-3-18 0z" fill="#1b1b1b"/><circle cx="8" cy="-5" r="1.2" fill="#1b1b1b"/><circle cx="14" cy="-5" r="1.2" fill="#1b1b1b"/><path d="M7 -1q4 3 8 0" stroke="#1b1b1b" stroke-width="1.2" fill="none"/></g></g>
+ <g fill="#C9A84C" opacity=".8"><circle cx="320" cy="40" r="2.5" class="fb" style="animation:p-bob 1.4s infinite"/><circle cx="336" cy="58" r="2" class="fb" style="animation:p-bob 1.7s .3s infinite"/><circle cx="312" cy="70" r="1.8" class="fb" style="animation:p-bob 1.5s .6s infinite"/></g>
+</svg>
+<div class="cap" id="pscnCap">Reviewing the scorecard together</div><div class="dots" id="pscnDots"><i class="on"></i><i></i><i></i><i></i></div>
+</div>
+</div><div id="main"></div></main></div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, get, onValue, set as _set, update as _update, push as _push, remove as _remove, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-import { initializeAuth, browserSessionPersistence, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { initializeAuth, browserSessionPersistence, onAuthStateChanged, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 // Same project, same login as the HR Portal (session kept in this browser tab).
 const FC={apiKey:"AIzaSyA_NToPyXvchX3XrApN937DpDcWOoJ7LTY",authDomain:"ck-hr-project.firebaseapp.com",databaseURL:"https://ck-hr-project-default-rtdb.europe-west1.firebasedatabase.app",projectId:"ck-hr-project",storageBucket:"ck-hr-project.firebasestorage.app",messagingSenderId:"552309455585",appId:"1:552309455585:web:8e8ee62306cece974c15a0"};
@@ -61,7 +152,7 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const tile=(k,v,n)=>`<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="n">${n||''}</div></div>`;
 const sc=v=>v==null?'<span class="pill nv">—</span>':`<span class="sc ${v>=80?'g':v>=65?'a':'rd'}">${Math.round(v)}</span>`;
 const bar=v=>`<div class="bar"><i style="width:${Math.max(0,Math.min(100,v))}%;background:${v>=80?'#2E8B6A':v>=65?'#C27C0E':'#C0392B'}"></i></div>`;
-const toHR=()=>{location.href='./index.html'};$('toHR').onclick=toHR;$('toHR2').onclick=toHR;
+const toHR=()=>{try{if(window.opener&&!window.opener.closed){window.opener.focus();window.close();return}}catch(e){}location.href='./index.html'};$('toHR').onclick=toHR;$('toHR2').onclick=toHR;
 
 let ROLE='',ME='',MYKEY='',PG='overview';
 const P={settings:{},goals:{},dgoals:{},kpis:{},families:{},assign:{},actuals:{},myAssign:{}};let EMP={};
@@ -69,7 +160,10 @@ const P={settings:{},goals:{},dgoals:{},kpis:{},families:{},assign:{},actuals:{}
 function gate(t,m,b){$('gate').classList.remove('hide');$('app').classList.add('hide');$('gateT').textContent=t;$('gateM').textContent=m;$('gateB').innerHTML=b||''}
 gate('Opening Performance…','Checking your sign-in.');
 onAuthStateChanged(auth,async u=>{
- if(!u){$('who').textContent='Not signed in';gate('Please sign in through the HR Portal','Performance uses the same login as the HR Portal. Sign in there, then open Performance from the menu in the same browser tab.','<button class="btn p" onclick="location.href=\'./index.html\'">Go to the HR Portal</button>');return}
+ if(!u){$('who').textContent='Not signed in';gate('Sign in to Performance','Same username and password as the HR Portal.',`<div style="display:grid;gap:8px;text-align:left;margin-top:6px"><input id="lgU" placeholder="Username or company email" autocomplete="username"><input id="lgP" type="password" placeholder="Password" autocomplete="current-password"><button class="btn p" id="lgB">Sign in</button><span class="err" id="lgE"></span></div>`);
+  const go=async()=>{const raw=$('lgU').value.trim().toLowerCase(),pw=$('lgP').value;if(!raw||!pw){$('lgE').textContent='Enter your username and password.';return}$('lgB').disabled=true;$('lgB').textContent='Signing in…';
+   try{await signInWithEmailAndPassword(auth,raw.includes('@')?raw:raw+'@ckhr.internal',pw)}catch(e){$('lgE').textContent='Sign-in failed: please check the username and password.';$('lgB').disabled=false;$('lgB').textContent='Sign in'}};
+  $('lgB').onclick=go;$('lgP').onkeydown=e=>{if(e.key==='Enter')go()};return}
  const em=(u.email||'').toLowerCase();
  if(ADMINS[em]){ROLE='hr';ME=ADMINS[em]}else if(em===CEO){ROLE='ceo';ME='Cem Kapancioglu'}
  else{let m=null;try{m=(await get(ref(db,'staffMap/'+u.uid))).val()}catch(e){}
@@ -123,13 +217,15 @@ function draw(){if(!ROLE)return;
  const N=NAV[ROLE];if(!N.some(x=>x[0]===PG))PG=N[0][0];
  $('nav').innerHTML=N.map(([k,l])=>`<div class="ni ${k===PG?'on':''}" data-p="${k}">${l}</div>`).join('');
  $('nav').querySelectorAll('[data-p]').forEach(n=>n.onclick=()=>{PG=n.dataset.p;draw();window.scrollTo(0,0)});
+ const showHero=PG==='overview'||PG==='mine';$('hero').classList.toggle('hide',!showHero);
+ if(showHero){const h=new Date().getHours(),nm=String(ME||'').split(' ')[0];$('heroG').textContent=(h<12?'Good morning':h<17?'Good afternoon':'Good evening')+(nm?', '+nm:'');$('heroS').textContent=ROLE==='staff'?'Your scorecard: what you are measured on, and why.':'Performance · CK Architecture Interiors and CKC Building Contracting'}
  $('main').innerHTML=(V[PG]||V.overview)();wire()}
 const RO=()=>ROLE==='ceo'?'<div class="banner i">View only. Changes are made by HR.</div>':'';
 const canEdit=()=>ROLE==='hr';
 let FLT={q:'',fam:'',st:''};
 
 const V={
-overview(){const A=active(),fams=Object.keys(P.families).length,kp=Object.keys(P.kpis).length,as=Object.keys(P.assign).length,ack=Object.values(P.assign).filter(a=>a&&a.ack).length;
+overview(){const A=active(),fams=Object.keys(P.families).length,kp=Object.keys(P.kpis).length,nm=A.filter(([k])=>(P.assign[k]||{}).fam==='__none').length,as=A.filter(([k])=>(P.assign[k]||{}).fam&&P.assign[k].fam!=='__none').length,ack=A.filter(([k])=>(P.assign[k]||{}).fam&&P.assign[k].fam!=='__none'&&P.assign[k].ack).length;
  const unm=A.filter(([k,e])=>!((P.assign[k]||{}).fam)&&!famFor(e)).length;
  const badW=Object.values(P.families).filter(f=>famWeight(f)!==100).length;
  const empty=!kp&&!fams;
@@ -137,9 +233,9 @@ overview(){const A=active(),fams=Object.keys(P.families).length,kp=Object.keys(P
  ${needsUpd()&&canEdit()?`<div class="banner"><b>Starter set update available:</b> separate scorecards for the <b>Emiratization Programme</b>, <b>Admin &amp; IT</b> and <b>Site administration</b> (timekeeper), and <b>HR &amp; Administration</b> narrowed to the HR team only. Your own edits are kept.<div style="margin-top:8px"><button class="btn gd" id="upd11b">Apply the update</button></div></div>`:''}
  ${!empty&&!hasDeptFams()&&canEdit()?`<div class="banner"><b>Next:</b> use the HR Portal departments exactly as they are. Open <b>Assign scorecards</b> and click <b>Create department scorecards</b>.<div style="margin-top:8px"><button class="btn gd" data-go="assign">Open Assign scorecards</button></div></div>`:''}
  ${empty&&canEdit()?`<div class="banner"><b>Start here:</b> load the starter set (draft company goals, KPIs for every department and role-family scorecards). Everything is marked <i>draft</i> and can be edited, deleted or confirmed with each head. Nothing changes in the HR Portal.<div style="margin-top:8px"><button class="btn gd" id="seed">Load starter set</button></div></div>`:''}
- <div class="tiles">${tile('Company goals',Object.keys(P.goals).length,Object.values(P.goals).filter(g=>g.status==='agreed').length+' agreed')+tile('KPIs in the library',kp,Object.values(P.kpis).filter(k=>k.src!=='manager').length+' measurable')+tile('Role-family scorecards',fams,badW?badW+' weights not 100':'all weights 100')+tile('People with a scorecard',as+' / '+A.length,unm?unm+' with no matching family':'everyone matched')+tile('Acknowledged',ack,'by staff')}</div>
+ <div class="tiles">${tile('Company goals',Object.keys(P.goals).length,Object.values(P.goals).filter(g=>g.status==='agreed').length+' agreed')+tile('KPIs in the library',kp,Object.values(P.kpis).filter(k=>k.src!=='manager').length+' measurable')+tile('Role-family scorecards',fams,badW?badW+' weights not 100':'all weights 100')+tile('People with a scorecard',as+' / '+(A.length-nm),(nm?nm+' not measured · ':'')+(unm?unm+' with no matching family':'everyone matched'))+tile('Acknowledged',ack,'by staff')}</div>
  <div class="card"><h2>Set-up steps (Phase 1)</h2><table>
- ${[['1','Company goals agreed with Mr. Cem','goals',Object.values(P.goals).some(g=>g.status==='agreed')],['2','Department goals linked to company goals','goals',Object.keys(P.dgoals).length>0],['3','KPI library checked with each head','kpis',kp>0&&Object.values(P.kpis).every(k=>k.status==='agreed')],['4','Role-family scorecards with weights adding to 100','families',fams>0&&!badW],['5','Scorecards assigned to every active person','assign',A.length>0&&as>=A.length],['6','Visibility switched on for the pilot or everyone','settings',VIS()!=='hr'],['7','Staff acknowledge their scorecards','assign',as>0&&ack>=as]].map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[3]?'<span class="pill g">Done</span>':'<span class="pill a">To do</span>'}</td><td><button class="btn sm" data-go="${r[2]}">Open</button></td></tr>`).join('')}</table></div>`},
+ ${[['1','Company goals agreed with Mr. Cem','goals',Object.values(P.goals).some(g=>g.status==='agreed')],['2','Department goals linked to company goals','goals',Object.keys(P.dgoals).length>0],['3','KPI library checked with each head','kpis',kp>0&&Object.values(P.kpis).every(k=>k.status==='agreed')],['4','Role-family scorecards with weights adding to 100','families',fams>0&&!badW],['5','Scorecards assigned to every active person','assign',A.length>0&&as+nm>=A.length],['6','Visibility switched on for the pilot or everyone','settings',VIS()!=='hr'],['7','Staff acknowledge their scorecards','assign',as>0&&ack>=as]].map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[3]?'<span class="pill g">Done</span>':'<span class="pill a">To do</span>'}</td><td><button class="btn sm" data-go="${r[2]}">Open</button></td></tr>`).join('')}</table></div>`},
 
 goals(){const G=Object.entries(P.goals).sort((a,b)=>(a[1].order||0)-(b[1].order||0)),D=Object.entries(P.dgoals);
  return `<h1>Company &amp; department goals</h1><p class="sub">Every KPI links up to a department goal, and every department goal to a company goal.</p>${RO()}
@@ -156,24 +252,24 @@ kpis(){const K=Object.entries(P.kpis).filter(([id,k])=>(!FLT.q||(k.name+' '+(k.d
 families(){const F=Object.entries(P.families).sort((a,b)=>String(a[1].name).localeCompare(b[1].name));
  return `<h1>Role-family scorecards</h1><p class="sub">One scorecard per role family (not per person): 3 to 5 KPIs plus the manager's rating. Weights must add up to 100.</p>${RO()}
  ${canEdit()?'<div class="row"><button class="btn p" data-new="family">+ Role family</button>'+(hasDeptFams()?'<button class="btn" id="rmUnused">Remove unused starter scorecards</button>':'')+'</div>':''}
- ${F.sort((a,b)=>((b[1].exactDepts||[]).length?1:0)-((a[1].exactDepts||[]).length?1:0)).map(([id,f])=>{const w=famWeight(f),n=active().filter(([k,e])=>((P.assign[k]||{}).fam||famFor(e))===id).length;const dataW=famItems(f).filter(i=>(P.kpis[i.kpi]||{}).src!=='manager').reduce((s,i)=>s+(+i.w||0),0);
+ ${F.sort((a,b)=>((b[1].exactDepts||[]).length?1:0)-((a[1].exactDepts||[]).length?1:0)).map(([id,f])=>{const w=famWeight(f),n=active().filter(([k,e])=>{const a=(P.assign[k]||{}).fam;return a?a===id:famFor(e)===id}).length;const dataW=famItems(f).filter(i=>(P.kpis[i.kpi]||{}).src!=='manager').reduce((s,i)=>s+(+i.w||0),0);
  return `<div class="card"><div class="row" style="margin:0 0 6px"><h2 style="flex:1;margin:0">${esc(f.name)} ${f.labour?'<span class="pill nv">crew level</span>':''} ${f.status==='agreed'?'<span class="pill g">Agreed</span>':'<span class="pill a">Draft</span>'}</h2><span class="note" style="margin:0">${n} people · ${dataW}% data / ${w-dataW}% manager</span>${canEdit()?`<button class="btn sm" data-edit="family:${id}">Edit</button>`:''}</div>
  <p class="note">${(f.exactDepts||[]).length?'HR Portal department: <b>'+esc(f.exactDepts.join(', '))+'</b> (exactly as recorded)'+(f.basedOn?' · KPIs started from: '+esc(f.basedOn):''):'Matches designations containing: '+esc((f.desigKeys||[]).join(', ')||'—')+' · departments containing: '+esc((f.deptKeys||[]).join(', ')||'—')+(f.labour?' · Labour grade staff (when switched on in Cycle & visibility)':'')}. Supports: ${esc((P.dgoals[f.dgoalId]||{}).name||'— no department goal linked')}</p>
  <table><tr><th>KPI</th><th class="r">Weight</th><th>Target</th><th>Source</th></tr>${famItems(f).map(it=>{const k=P.kpis[it.kpi]||{name:'(KPI removed)'};return `<tr><td>${esc(k.name)}</td><td class="r">${+it.w||0}%</td><td>${k.target!=null?(k.dir==='down'?'≤ ':'≥ ')+esc(k.target)+' '+esc(k.unit||''):''}</td><td>${{auto:'automatic',manual:'manual + evidence',manager:'manager rating'}[k.src]||''}</td></tr>`}).join('')}
  <tr><td><b>Total</b></td><td class="r"><b style="color:${w===100?'#2E8B6A':'#C0392B'}">${w}%</b></td><td colspan="2">${w===100?'':'<span class="err">Weights must add up to 100</span>'}</td></tr></table></div>`}).join('')||'<div class="card note">No role families yet.</div>'}`},
 
 assign(){const A=active().map(([k,e])=>({k,e,a:P.assign[k]||null,m:famFor(e)})).filter(x=>(!FLT.q||(x.e.name+' '+(x.e.dept||'')+' '+(x.e.desig||'')).toLowerCase().includes(FLT.q.toLowerCase()))&&(!FLT.fam||(FLT.fam==='none'?!(x.a&&x.a.fam)&&!x.m:((x.a&&x.a.fam)||x.m)===FLT.fam))).sort((a,b)=>String(a.e.dept||'').localeCompare(b.e.dept||'')||String(a.e.name).localeCompare(b.e.name));
- const famOpts=v=>'<option value="">— choose —</option>'+Object.entries(P.families).sort((a,b)=>String(a[1].name).localeCompare(b[1].name)).map(([id,f])=>`<option value="${id}"${id===v?' selected':''}>${esc(f.name)}</option>`).join('');
- const pending=active().filter(([k,e])=>!(P.assign[k]||{}).fam&&famFor(e)).length;const changed=active().filter(([k,e])=>(P.assign[k]||{}).fam&&famFor(e)&&famFor(e)!==P.assign[k].fam).length;
+ const famOpts=v=>'<option value="">— choose —</option><option value="__none"'+(v==='__none'?' selected':'')+'>Not measured (e.g. CEO)</option>'+Object.entries(P.families).sort((a,b)=>String(a[1].name).localeCompare(b[1].name)).map(([id,f])=>`<option value="${id}"${id===v?' selected':''}>${esc(f.name)}</option>`).join('');
+ const pending=active().filter(([k,e])=>!(P.assign[k]||{}).fam&&famFor(e)).length;const changed=active().filter(([k,e])=>(P.assign[k]||{}).fam&&P.assign[k].fam!=='__none'&&famFor(e)&&famFor(e)!==P.assign[k].fam).length;
  const dc=deptCounts(),haveD=new Set(Object.values(P.families).flatMap(f=>(f.exactDepts||[]).map(x=>String(x).trim().toLowerCase()))),missD=Object.keys(dc).filter(d=>!haveD.has(d.toLowerCase()));
  return `<h1>${ROLE==='ceo'?'Scorecards by person':'Assign scorecards'}</h1><p class="sub">Each active person gets a scorecard for cycle <b>${esc(CYCLE())}</b>. ${hasDeptFams()?'Suggested by their <b>department exactly as recorded in the HR Portal</b>.':'Suggested from the designation, department and grade.'} HR can change it per person.</p>${RO()}
  ${canEdit()&&(missD.length||!hasDeptFams())?`<div class="banner"><b>Use the HR Portal departments as they are:</b> create one scorecard per department (${Object.keys(dc).length} departments${missD.length&&hasDeptFams()?', '+missD.length+' still without a scorecard':''}). Each starts from the closest starter scorecard and can be edited.<div style="margin-top:8px"><button class="btn gd" id="useDepts">Create department scorecards</button></div></div>`:''}
  <div class="card"><div class="row"><input id="fq" placeholder="Search name, department, designation" value="${esc(FLT.q)}" style="flex:1;min-width:200px"><select id="ffam"><option value="">All families</option><option value="none"${FLT.fam==='none'?' selected':''}>No matching family</option>${Object.entries(P.families).map(([id,f])=>`<option value="${id}"${FLT.fam===id?' selected':''}>${esc(f.name)}</option>`).join('')}</select>${canEdit()?`<button class="btn gd" id="assignAll" ${pending?'':'disabled'}>Assign suggested to ${pending} people</button>${changed?`<button class="btn" id="applyNew">Apply new suggestions to ${changed} people</button>`:''}`:''}</div>
  <div class="tw"><table><tr><th>Name</th><th>Department</th><th>Designation</th><th>Grade</th><th>Scorecard</th><th>Status</th></tr>${A.map(x=>{const cur=(x.a&&x.a.fam)||'';return `<tr><td><b>${esc(x.e.name)}</b><div class="note" style="margin:0">${esc(x.e.empId||'')}</div></td><td>${esc(x.e.dept||'')}</td><td>${esc(x.e.desig||'')}</td><td>${esc(x.e.grade||'')}</td>
- <td>${canEdit()?`<select data-as="${x.k}">${famOpts(cur||x.m)}</select>`:esc((P.families[cur||x.m]||{}).name||'—')}${!cur&&x.m?'<div class="note" style="margin:0">suggested, not yet assigned</div>':''}${!cur&&!x.m?'<div class="err">no matching family</div>':''}${cur&&x.m&&x.m!==cur?'<div class="note" style="margin:0;color:#C27C0E">now suggested: '+esc((P.families[x.m]||{}).name||'')+'</div>':''}</td>
- <td>${cur?(x.a.ack?`<span class="pill g">Acknowledged</span>`:'<span class="pill a">Assigned</span>'):'<span class="pill nv">Not assigned</span>'}</td></tr>`}).join('')||'<tr><td colspan="6" class="note">No one matches.</td></tr>'}</table></div></div>`},
+ <td>${canEdit()?`<select data-as="${x.k}">${famOpts(cur||x.m)}</select>`:esc((P.families[cur||x.m]||{}).name||'—')}${!cur&&x.m?'<div class="note" style="margin:0">suggested, not yet assigned</div>':''}${!cur&&!x.m?'<div class="err">no matching family</div>':''}${cur&&cur!=='__none'&&x.m&&x.m!==cur?'<div class="note" style="margin:0;color:#C27C0E">now suggested: '+esc((P.families[x.m]||{}).name||'')+'</div>':''}</td>
+ <td>${cur==='__none'?'<span class="pill nv">Not measured</span>':cur?(x.a.ack?`<span class="pill g">Acknowledged</span>`:'<span class="pill a">Assigned</span>'):'<span class="pill nv">Not assigned</span>'}</td></tr>`}).join('')||'<tr><td colspan="6" class="note">No one matches.</td></tr>'}</table></div></div>`},
 
-scores(){const cyc=CYCLE();const A=active().filter(([k])=>(P.assign[k]||{}).fam);const sel=FLT.emp&&P.assign[FLT.emp]?FLT.emp:(A[0]||[])[0];
+scores(){const cyc=CYCLE();const A=active().filter(([k])=>(P.assign[k]||{}).fam&&P.assign[k].fam!=='__none');const sel=FLT.emp&&P.assign[FLT.emp]&&P.assign[FLT.emp].fam!=='__none'?FLT.emp:(A[0]||[])[0];
  const rows=A.map(([k,e])=>({k,e,r:scoreFor(k,P.assign[k].fam)}));
  let detail='';if(sel){const e=EMP[sel]||{},fid=P.assign[sel].fam,r=scoreFor(sel,fid);
   detail=`<div class="card"><h2>${esc(e.name)} · ${esc((P.families[fid]||{}).name||'')}</h2><p class="note">Achievement per KPI is actual vs target (capped at 100%). The score is the weighted average of the KPIs that have a figure (coverage shows how much of the weight has data).</p>
@@ -191,7 +287,7 @@ settings(){const s=P.settings||{};return `<h1>Cycle &amp; visibility</h1><p clas
  <p class="note">Mr. Cem can always view (read-only). Staff only ever see their own scorecard. Switch to the pilot only after the company goals and the split are agreed with Mr. Cem and the staff note has been issued.</p></div>`},
 
 mine(){const a=P.myAssign||{};const f=P.families[a.fam];const e=EMP[MYKEY]||{};
- if(!a.fam||!f)return `<h1>My scorecard</h1><div class="card note">No scorecard has been assigned to you yet.</div>`;
+ if(a.fam==='__none')return `<h1>My scorecard</h1><div class="card note">Your role is not measured in this system.</div>`;if(!a.fam||!f)return `<h1>My scorecard</h1><div class="card note">No scorecard has been assigned to you yet.</div>`;
  const dg=P.dgoals[f.dgoalId]||{},g=P.goals[dg.goalId]||{};
  return `<h1>My scorecard</h1><p class="sub">${esc(e.name||ME)} · ${esc(f.name)} · cycle ${esc(a.cycle||CYCLE())}. Only you, your manager, HR and Mr. Cem can see it.</p>
  <div class="card"><h2>What I am measured on</h2><p class="note">${g.name?'Supports the company goal <b>'+esc(g.name)+'</b>'+(dg.name?' through <b>'+esc(dg.name)+'</b>':'')+'.':''} Most figures come from company records automatically; your manager adds one rating a month.</p>
@@ -313,6 +409,10 @@ async function starterUpdate(){if(!confirm('Update the starter set? This adds th
  if(hr){up['families/'+hr[0]+'/name']='Human Resources';up['families/'+hr[0]+'/desigKeys']=['hr','human resource','pro','public relations'];up['families/'+hr[0]+'/deptKeys']=['human resource','hr'];up['families/'+hr[0]+'/upd']=now}
  await W.update('perf',up);await hist('Starter update 11b: Emiratization Programme, Admin & IT, Site administration; HR & Administration renamed Human Resources (HR team only)')}
 
+// ── scenes take turns every 7 seconds (paused when the tab is hidden; still for "reduce motion")
+{const caps=['Reviewing the scorecard together','Building on site','Agreeing goals at the check-in','Reaching the target'];let k=0;
+ setInterval(()=>{if(document.hidden||matchMedia('(prefers-reduced-motion: reduce)').matches)return;const sv=[...document.querySelectorAll('#pscn svg')];if(!sv.length)return;k=(k+1)%sv.length;sv.forEach((s,i)=>s.classList.toggle('on',i===k));$('pscnCap').textContent=caps[k];document.querySelectorAll('#pscnDots i').forEach((d,i)=>d.classList.toggle('on',i===k))},7000)}
+
 // ── events
 function wire(){
  document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{PG=b.dataset.go;draw()});
@@ -325,9 +425,9 @@ function wire(){
  if($('fq'))$('fq').oninput=e=>{FLT.q=e.target.value;const p=e.target.selectionStart;draw();const x=$('fq');x.focus();x.setSelectionRange(p,p)};
  if($('fst'))$('fst').onchange=e=>{FLT.st=e.target.value;draw()};
  if($('ffam'))$('ffam').onchange=e=>{FLT.fam=e.target.value;draw()};
- document.querySelectorAll('[data-as]').forEach(s=>s.onchange=async()=>{const k=s.dataset.as,v=s.value,old=P.assign[k]||{};try{if(!v){await W.remove('perf/assign/'+k)}else{await W.set('perf/assign/'+k,{fam:v,cycle:CYCLE(),at:Date.now(),by:ME,...(old.fam===v&&old.ack?{ack:old.ack}:{})})}await hist('Scorecard for '+((EMP[k]||{}).name||k)+': '+((P.families[v]||{}).name||'removed'))}catch(e){alert(e.message)}});
+ document.querySelectorAll('[data-as]').forEach(s=>s.onchange=async()=>{const k=s.dataset.as,v=s.value,old=P.assign[k]||{};try{if(!v){await W.remove('perf/assign/'+k)}else{await W.set('perf/assign/'+k,{fam:v,cycle:CYCLE(),at:Date.now(),by:ME,...(old.fam===v&&old.ack?{ack:old.ack}:{})})}await hist('Scorecard for '+((EMP[k]||{}).name||k)+': '+(v==='__none'?'not measured':((P.families[v]||{}).name||'removed')))}catch(e){alert(e.message)}});
  if($('assignAll'))$('assignAll').onclick=async()=>{const L=active().filter(([k,e])=>!(P.assign[k]||{}).fam&&famFor(e));if(!confirm('Assign the suggested scorecard to '+L.length+' people?'))return;const up={};L.forEach(([k,e])=>up['assign/'+k]={fam:famFor(e),cycle:CYCLE(),at:Date.now(),by:ME});try{await W.update('perf',up);await hist('Assigned suggested scorecards to '+L.length+' people')}catch(e){alert(e.message)}};
- if($('applyNew'))$('applyNew').onclick=async()=>{const L=active().filter(([k,e])=>(P.assign[k]||{}).fam&&famFor(e)&&famFor(e)!==P.assign[k].fam);if(!confirm('Change the scorecard of '+L.length+' people to the new suggestion? Their acknowledgement (if any) will be asked again.'))return;const up={};L.forEach(([k,e])=>up['assign/'+k]={fam:famFor(e),cycle:CYCLE(),at:Date.now(),by:ME});try{await W.update('perf',up);await hist('Applied new suggestions to '+L.length+' people')}catch(e){alert(e.message)}};
+ if($('applyNew'))$('applyNew').onclick=async()=>{const L=active().filter(([k,e])=>(P.assign[k]||{}).fam&&P.assign[k].fam!=='__none'&&famFor(e)&&famFor(e)!==P.assign[k].fam);if(!confirm('Change the scorecard of '+L.length+' people to the new suggestion? Their acknowledgement (if any) will be asked again.'))return;const up={};L.forEach(([k,e])=>up['assign/'+k]={fam:famFor(e),cycle:CYCLE(),at:Date.now(),by:ME});try{await W.update('perf',up);await hist('Applied new suggestions to '+L.length+' people')}catch(e){alert(e.message)}};
  document.querySelectorAll('[data-emp]').forEach(b=>b.onclick=()=>{FLT.emp=b.dataset.emp;draw();window.scrollTo(0,0)});
  document.querySelectorAll('[data-act]').forEach(x=>x.onchange=async()=>{const [ek,kp]=x.dataset.act.split('|'),val=x.value.trim();try{if(val==='')await W.remove('perf/actuals/'+CYCLE()+'/'+ek+'/'+kp);else{if(isNaN(+val))throw new Error('Enter a number.');await W.set('perf/actuals/'+CYCLE()+'/'+ek+'/'+kp,{val:+val,at:Date.now(),by:ME,src:'typed'})}}catch(e){alert(e.message)}});
  if($('sSave'))$('sSave').onclick=async()=>{try{const vis=$('sVis').value;if(vis!=='hr'&&VIS()==='hr'&&!confirm('Switch Performance on for staff? Do this only after the company goals and the split are agreed with Mr. Cem and staff have been informed.'))return;await W.set('perf/settings',{cycle:$('sCyc').value,visibility:vis,labourCrews:$('sLab').value==='1',dataShare:+$('sSplit').value,upd:Date.now(),by:ME});await hist('Settings: cycle '+$('sCyc').value+', visibility '+vis);$('sMsg').textContent='Saved.'}catch(e){$('sMsg').textContent=e.message}};
