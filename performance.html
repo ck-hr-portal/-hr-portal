@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CK Portal · Performance</title>
+<style>
+:root{--navy:#1C3557;--gold:#C9A84C;--bg:#F4F6F9;--ink:#26303D;--muted:#6B7685;--line:#E3E7ED;--soft:#EEF2F7;--good:#2E8B6A;--warn:#C27C0E;--bad:#C0392B;color-scheme:light}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 "Segoe UI",system-ui,Arial,sans-serif}
+.pbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:8px;background:#fff;border-bottom:1px solid var(--line);padding:8px 16px;flex-wrap:wrap}
+.pbar .logo{display:flex;align-items:center;gap:8px;font-weight:700;color:var(--navy);margin-right:10px}.pbar .logo i{width:26px;height:26px;border-radius:7px;background:var(--navy);color:var(--gold);display:grid;place-items:center;font:700 11px Georgia;font-style:normal}
+.mod{font:inherit;font-size:13.5px;border:none;background:none;padding:6px 12px;border-radius:999px;cursor:pointer;color:var(--ink)}.mod.on{background:var(--navy);color:#fff}
+.pbar .user{margin-left:auto;font-size:12.5px;color:var(--muted)}.pbar .user b{color:var(--ink)}
+.app{display:grid;grid-template-columns:230px 1fr;min-height:calc(100vh - 47px)}
+aside{background:var(--navy);color:#DCE4EF;padding:14px 10px;position:sticky;top:47px;height:calc(100vh - 47px);overflow:auto}
+.grp{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8EA2BF;margin:12px 10px 4px}
+.ni{display:flex;gap:9px;align-items:center;padding:7px 10px;border-radius:8px;color:#C9D4E3;font-size:13.5px;cursor:pointer}.ni:hover{background:rgba(255,255,255,.08)}.ni.on{background:var(--gold);color:#1b1b1b;font-weight:600}
+main{padding:20px 26px 50px;max-width:1260px;width:100%}
+h1{font-size:22px;margin:0 0 4px;color:var(--navy)}.sub{color:var(--muted);margin:0 0 16px;font-size:13px}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:14px}.card h2{font-size:15.5px;margin:0 0 4px;color:var(--navy)}.note{font-size:12.5px;color:var(--muted);margin:0 0 10px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:14px}.tile{background:#fff;border:1px solid var(--line);border-top:3px solid var(--navy);border-radius:12px;padding:12px 14px}.tile .k{font-size:12px;color:var(--muted)}.tile .v{font:400 26px/1.2 Georgia,serif;color:var(--navy)}.tile .n{font-size:12px;color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;color:var(--navy);background:var(--soft);font-weight:600;padding:7px 9px;border-bottom:1px solid var(--line);white-space:nowrap}td{padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}td.r,th.r{text-align:right}
+.tw{overflow:auto;max-height:560px}
+.pill{display:inline-block;padding:1px 9px;border-radius:10px;font-size:11.5px;font-weight:700;white-space:nowrap}.g{background:#E5F4EE;color:var(--good)}.a{background:#FDF2DE;color:var(--warn)}.rd{background:#FBE7E5;color:var(--bad)}.nv{background:var(--soft);color:var(--navy)}
+.btn{font:inherit;font-size:13px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:#fff;cursor:pointer;color:var(--ink)}.btn.p{background:var(--navy);color:#fff;border-color:var(--navy)}.btn.gd{background:var(--gold);border-color:var(--gold);color:#1b1b1b}.btn.sm{font-size:12px;padding:3px 9px}.btn:disabled{opacity:.5;cursor:default}
+input,select,textarea{font:inherit;font-size:13px;padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}textarea{width:100%;min-height:60px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.banner{background:#FFF8EA;border:1px solid #F0D9A6;border-radius:10px;padding:9px 12px;font-size:13px;margin-bottom:14px}.banner.i{background:#EEF2F7;border-color:#D6DEE8}
+.modal{position:fixed;inset:0;background:rgba(23,35,56,.35);z-index:40;display:grid;place-items:center;padding:16px}.modal .box{background:#fff;border-radius:16px;max-width:720px;width:100%;max-height:90vh;overflow:auto;padding:20px 22px}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:10px}.fg label{font-size:12px;color:var(--muted);display:block;margin-bottom:3px}.fg .full{grid-column:1/-1}.fg input,.fg select,.fg textarea{width:100%}
+.sc{display:inline-block;min-width:38px;text-align:center;padding:1px 8px;border-radius:7px;font-weight:700}
+.bar{height:8px;border-radius:5px;background:var(--soft);overflow:hidden;min-width:80px}.bar i{display:block;height:100%}
+.hide{display:none!important}.err{color:var(--bad);font-size:12.5px}
+#gate{display:grid;place-items:center;min-height:70vh}#gate .card{max-width:460px;text-align:center}
+@media(max-width:860px){.app{grid-template-columns:1fr}aside{position:static;height:auto}.fg{grid-template-columns:1fr}}
+</style></head><body>
+<div class="pbar"><span class="logo"><i>CK</i>CK Portal</span><button class="mod" id="toHR">HR</button><button class="mod on">Performance</button><span class="user" id="who">Checking your sign-in…</span></div>
+<div id="gate"><div class="card"><h2 id="gateT">Opening Performance…</h2><p class="note" id="gateM">One moment.</p><p id="gateB"></p></div></div>
+<div class="app hide" id="app"><aside><div class="grp">Performance</div><div id="nav"></div><div class="grp">Other modules</div><div class="ni" id="toHR2">🏠 HR Portal</div></aside><main id="main"></main></div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, get, onValue, set as _set, update as _update, push as _push, remove as _remove, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { initializeAuth, browserSessionPersistence, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+// Same project, same login as the HR Portal (session kept in this browser tab).
+const FC={apiKey:"AIzaSyA_NToPyXvchX3XrApN937DpDcWOoJ7LTY",authDomain:"ck-hr-project.firebaseapp.com",databaseURL:"https://ck-hr-project-default-rtdb.europe-west1.firebasedatabase.app",projectId:"ck-hr-project",storageBucket:"ck-hr-project.firebasestorage.app",messagingSenderId:"552309455585",appId:"1:552309455585:web:8e8ee62306cece974c15a0"};
+const app=initializeApp(FC),db=getDatabase(app),auth=initializeAuth(app,{persistence:browserSessionPersistence});
+const ADMINS={'dev@ckhr.internal':'Dev Mandrekar','darleendy@ckhr.internal':'Darleendy'};
+const CEO='cem@ckhr.internal';
+
+// ── Safety lock: this module may only ever write inside perf/. Everything else is read-only.
+const okPath=p=>typeof p==='string'&&/^perf\//.test(p)&&!p.includes('..');
+function guard(p){if(!okPath(p))throw new Error('Blocked: the Performance module only writes to perf/ ('+p+')');if(ROLE==='ceo')throw new Error('View only');}
+const W={
+ set:(p,v)=>{guard(p);return _set(ref(db,p),v)},
+ update:(p,v)=>{if(p!=='perf')guard(p);if(ROLE==='ceo')throw new Error('View only');Object.keys(v).forEach(k=>guard(p+'/'+k));return _update(ref(db,p),v)},
+ push:(p,v)=>{guard(p+'/x');return _push(ref(db,p),v)},
+ remove:p=>{guard(p);return _remove(ref(db,p))}};
+window.__perfGuard=okPath;
+
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const tile=(k,v,n)=>`<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="n">${n||''}</div></div>`;
+const sc=v=>v==null?'<span class="pill nv">—</span>':`<span class="sc ${v>=80?'g':v>=65?'a':'rd'}">${Math.round(v)}</span>`;
+const bar=v=>`<div class="bar"><i style="width:${Math.max(0,Math.min(100,v))}%;background:${v>=80?'#2E8B6A':v>=65?'#C27C0E':'#C0392B'}"></i></div>`;
+const toHR=()=>{location.href='./index.html'};$('toHR').onclick=toHR;$('toHR2').onclick=toHR;
+
+let ROLE='',ME='',MYKEY='',PG='overview';
+const P={settings:{},goals:{},dgoals:{},kpis:{},families:{},assign:{},actuals:{},myAssign:{}};let EMP={};
+
+function gate(t,m,b){$('gate').classList.remove('hide');$('app').classList.add('hide');$('gateT').textContent=t;$('gateM').textContent=m;$('gateB').innerHTML=b||''}
+gate('Opening Performance…','Checking your sign-in.');
+onAuthStateChanged(auth,async u=>{
+ if(!u){$('who').textContent='Not signed in';gate('Please sign in through the HR Portal','Performance uses the same login as the HR Portal. Sign in there, then open Performance from the menu in the same browser tab.','<button class="btn p" onclick="location.href=\'./index.html\'">Go to the HR Portal</button>');return}
+ const em=(u.email||'').toLowerCase();
+ if(ADMINS[em]){ROLE='hr';ME=ADMINS[em]}else if(em===CEO){ROLE='ceo';ME='Cem Kapancioglu'}
+ else{let m=null;try{m=(await get(ref(db,'staffMap/'+u.uid))).val()}catch(e){}
+  if(!m||m.enabled!==true){gate('No access','Your HR Portal access is not active. Please contact HR.');return}
+  ROLE='staff';MYKEY=m.empKey;try{const v=(await get(ref(db,'staffView/'+m.empKey))).val()||{};ME=v.name||'';EMP[m.empKey]=v}catch(e){}}
+ $('who').innerHTML='Signed in · <b>'+esc(ME||em)+'</b> · '+({hr:'HR',ceo:'CEO (view)',staff:'Staff'}[ROLE]);
+ listen();
+});
+function listen(){
+ const open=(p,k,cb)=>onValue(ref(db,p),s=>{P[k]=s.val()||{};cb&&cb();draw()},e=>{P[k]={};draw()});
+ open('perf/settings','settings');
+ if(ROLE==='staff'){open('perf/kpis','kpis');open('perf/families','families');open('perf/goals','goals');open('perf/dgoals','dgoals');open('perf/assign/'+MYKEY,'myAssign');return}
+ ['goals','dgoals','kpis','families','assign','actuals'].forEach(k=>open('perf/'+k,k));
+ onValue(ref(db,'employees'),s=>{EMP=s.val()||{};draw()},()=>{EMP={}});
+}
+const VIS=()=>(P.settings&&P.settings.visibility)||'hr';
+const CYCLE=()=>(P.settings&&P.settings.cycle)||'2027-Q1';
+const active=()=>Object.entries(EMP).filter(([k,e])=>e&&e.status!=='Inactive'&&e.name);
+
+// ── role families: which family fits a person (designation first, then department, then grade)
+// keywords of 3 letters or fewer (HR, QS, PRO, MEP, HSE) must be whole words; longer ones may be the start of a word
+const kwRe=k=>{k=String(k||'').trim().toLowerCase();if(!k)return null;const s=k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');return new RegExp('(^|[^a-z])'+s+(k.length<=3?'($|[^a-z])':''))};
+const hit=(keys,txt)=>(keys||[]).some(k=>{const r=kwRe(k);return r&&r.test(txt)});
+function famFor(e){const F=Object.entries(P.families||{}).sort((a,b)=>(a[1].order||99)-(b[1].order||99));const d=String(e.desig||'').toLowerCase(),dp=String(e.dept||'').toLowerCase();
+ if(String(e.grade||'')==='Labour'){const lead=F.find(([id,f])=>f.leadsCrew&&hit(f.desigKeys,d));if(lead)return lead[0];const l=F.find(([id,f])=>f.labour);if(l)return l[0]}
+ for(const [id,f] of F){if(!f.labour&&hit(f.desigKeys,d))return id}
+ for(const [id,f] of F){if(!f.labour&&hit(f.deptKeys,dp))return id}
+ return ''}
+function famItems(f){return (f&&f.items)||[]}
+function famWeight(f){return famItems(f).reduce((s,x)=>s+(+x.w||0),0)}
+// ── weighted scoring (achievement per KPI capped at 100%; manager rating out of 5 vs target)
+function ach(k,val){if(val==null||val===''||isNaN(+val))return null;const t=+k.target,v=+val;if(!(t>0))return null;let a=k.dir==='down'?(v<=0?1:t/v):v/t;return Math.max(0,Math.min(1,a))}
+function scoreFor(empKey,fid){const f=P.families[fid];if(!f)return {score:null,parts:[]};const A=((P.actuals||{})[CYCLE()]||{})[empKey]||{};let sw=0,ss=0,parts=[];
+ famItems(f).forEach(it=>{const k=P.kpis[it.kpi];if(!k)return;const a=ach(k,(A[it.kpi]||{}).val);parts.push({it,k,a,val:(A[it.kpi]||{}).val});if(a!=null){sw+=+it.w;ss+=+it.w*a}});
+ return {score:sw?ss/sw*100:null,cover:famWeight(f)?Math.round(sw/famWeight(f)*100):0,parts}}
+
+// ── navigation
+const NAV={hr:[['overview','📋 Overview & set-up'],['goals','🎯 Company & department goals'],['kpis','📚 KPI library'],['families','🧩 Role-family scorecards'],['assign','👥 Assign scorecards'],['scores','🧮 Weighted scoring'],['settings','⚙️ Cycle & visibility']],
+ ceo:[['overview','📋 Overview'],['goals','🎯 Company & department goals'],['kpis','📚 KPI library'],['families','🧩 Role-family scorecards'],['assign','👥 Scorecards by person'],['scores','🧮 Weighted scoring']],
+ staff:[['mine','🎯 My scorecard']]};
+function draw(){if(!ROLE)return;
+ if(ROLE==='staff'&&VIS()==='hr'){gate('Performance is being prepared','HR is setting up the new performance scorecards. You will see your own scorecard here once it is switched on.','<button class="btn p" onclick="location.href=\'./index.html\'">Back to the HR Portal</button>');return}
+ $('gate').classList.add('hide');$('app').classList.remove('hide');
+ const N=NAV[ROLE];if(!N.some(x=>x[0]===PG))PG=N[0][0];
+ $('nav').innerHTML=N.map(([k,l])=>`<div class="ni ${k===PG?'on':''}" data-p="${k}">${l}</div>`).join('');
+ $('nav').querySelectorAll('[data-p]').forEach(n=>n.onclick=()=>{PG=n.dataset.p;draw();window.scrollTo(0,0)});
+ $('main').innerHTML=(V[PG]||V.overview)();wire()}
+const RO=()=>ROLE==='ceo'?'<div class="banner i">View only. Changes are made by HR.</div>':'';
+const canEdit=()=>ROLE==='hr';
+let FLT={q:'',fam:'',st:''};
+
+const V={
+overview(){const A=active(),fams=Object.keys(P.families).length,kp=Object.keys(P.kpis).length,as=Object.keys(P.assign).length,ack=Object.values(P.assign).filter(a=>a&&a.ack).length;
+ const unm=A.filter(([k,e])=>!((P.assign[k]||{}).fam)&&!famFor(e)).length;
+ const badW=Object.values(P.families).filter(f=>famWeight(f)!==100).length;
+ const empty=!kp&&!fams;
+ return `<h1>Performance · overview</h1><p class="sub">Cycle <b>${esc(CYCLE())}</b> · visible to: <b>${{hr:'HR only (set-up)',pilot:'HR, CEO and pilot staff',all:'everyone'}[VIS()]}</b></p>${RO()}
+ ${empty&&canEdit()?`<div class="banner"><b>Start here:</b> load the starter set (draft company goals, KPIs for every department and role-family scorecards). Everything is marked <i>draft</i> and can be edited, deleted or confirmed with each head. Nothing changes in the HR Portal.<div style="margin-top:8px"><button class="btn gd" id="seed">Load starter set</button></div></div>`:''}
+ <div class="tiles">${tile('Company goals',Object.keys(P.goals).length,Object.values(P.goals).filter(g=>g.status==='agreed').length+' agreed')+tile('KPIs in the library',kp,Object.values(P.kpis).filter(k=>k.src!=='manager').length+' measurable')+tile('Role-family scorecards',fams,badW?badW+' weights not 100':'all weights 100')+tile('People with a scorecard',as+' / '+A.length,unm?unm+' with no matching family':'everyone matched')+tile('Acknowledged',ack,'by staff')}</div>
+ <div class="card"><h2>Set-up steps (Phase 1)</h2><table>
+ ${[['1','Company goals agreed with Mr. Cem','goals',Object.values(P.goals).some(g=>g.status==='agreed')],['2','Department goals linked to company goals','goals',Object.keys(P.dgoals).length>0],['3','KPI library checked with each head','kpis',kp>0&&Object.values(P.kpis).every(k=>k.status==='agreed')],['4','Role-family scorecards with weights adding to 100','families',fams>0&&!badW],['5','Scorecards assigned to every active person','assign',A.length>0&&as>=A.length],['6','Visibility switched on for the pilot or everyone','settings',VIS()!=='hr'],['7','Staff acknowledge their scorecards','assign',as>0&&ack>=as]].map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[3]?'<span class="pill g">Done</span>':'<span class="pill a">To do</span>'}</td><td><button class="btn sm" data-go="${r[2]}">Open</button></td></tr>`).join('')}</table></div>`},
+
+goals(){const G=Object.entries(P.goals).sort((a,b)=>(a[1].order||0)-(b[1].order||0)),D=Object.entries(P.dgoals);
+ return `<h1>Company &amp; department goals</h1><p class="sub">Every KPI links up to a department goal, and every department goal to a company goal.</p>${RO()}
+ <div class="card"><h2>Company goals</h2><p class="note">Agreed with Mr. Cem (5 to 6 goals). Draft until agreed.</p>${canEdit()?'<div class="row"><button class="btn p" data-new="goal">+ Company goal</button></div>':''}
+ <table><tr><th>Goal</th><th>How it is measured</th><th>Owner</th><th>Status</th><th></th></tr>${G.map(([id,g])=>`<tr><td><b>${esc(g.name)}</b><div class="note" style="margin:0">${esc(g.desc||'')}</div></td><td>${esc(g.measure||'')}</td><td>${esc(g.owner||'')}</td><td>${g.status==='agreed'?'<span class="pill g">Agreed</span>':'<span class="pill a">Draft</span>'}</td><td>${canEdit()?`<button class="btn sm" data-edit="goal:${id}">Edit</button>`:''}</td></tr>`).join('')||'<tr><td colspan="5" class="note">No company goals yet.</td></tr>'}</table></div>
+ <div class="card"><h2>Department goals</h2>${canEdit()?'<div class="row"><button class="btn p" data-new="dgoal">+ Department goal</button></div>':''}
+ <table><tr><th>Department goal</th><th>Department</th><th>Supports company goal</th><th>Status</th><th></th></tr>${D.map(([id,g])=>`<tr><td><b>${esc(g.name)}</b></td><td>${esc(g.dept||'')}</td><td>${esc((P.goals[g.goalId]||{}).name||'— not linked')}</td><td>${g.status==='agreed'?'<span class="pill g">Agreed</span>':'<span class="pill a">Draft</span>'}</td><td>${canEdit()?`<button class="btn sm" data-edit="dgoal:${id}">Edit</button>`:''}</td></tr>`).join('')||'<tr><td colspan="5" class="note">No department goals yet.</td></tr>'}</table></div>`},
+
+kpis(){const K=Object.entries(P.kpis).filter(([id,k])=>(!FLT.q||(k.name+' '+(k.dept||'')+' '+(k.def||'')).toLowerCase().includes(FLT.q.toLowerCase()))&&(!FLT.st||k.src===FLT.st)).sort((a,b)=>String(a[1].dept).localeCompare(b[1].dept)||String(a[1].name).localeCompare(b[1].name));
+ return `<h1>KPI library</h1><p class="sub">Configurable, not hard-coded. Each KPI: definition, unit, target, direction, period, and where its figure comes from.</p>${RO()}
+ <div class="card"><div class="row"><input id="fq" placeholder="Search KPI or department" value="${esc(FLT.q)}" style="flex:1;min-width:200px"><select id="fst"><option value="">All sources</option><option value="auto"${FLT.st==='auto'?' selected':''}>Automatic (from data)</option><option value="manual"${FLT.st==='manual'?' selected':''}>Manual with evidence</option><option value="manager"${FLT.st==='manager'?' selected':''}>Manager rating</option></select>${canEdit()?'<button class="btn p" data-new="kpi">+ New KPI</button>':''}</div>
+ <div class="tw"><table><tr><th>KPI</th><th>Department</th><th>Target</th><th>Period</th><th>Source</th><th>Status</th><th></th></tr>${K.map(([id,k])=>`<tr><td><b>${esc(k.name)}</b><div class="note" style="margin:0">${esc(k.def||'')}</div></td><td>${esc(k.dept||'')}</td><td>${k.dir==='down'?'≤ ':'≥ '}${esc(k.target)} ${esc(k.unit||'')}</td><td>${esc(k.period||'')}</td><td><span class="pill ${k.src==='auto'?'g':k.src==='manager'?'nv':'a'}">${{auto:'automatic',manual:'manual + evidence',manager:'manager rating'}[k.src]||k.src}</span><div class="note" style="margin:0">${esc(k.srcName||'')}</div></td><td>${k.status==='agreed'?'<span class="pill g">Agreed</span>':'<span class="pill a">Draft</span>'}</td><td>${canEdit()?`<button class="btn sm" data-edit="kpi:${id}">Edit</button>`:''}</td></tr>`).join('')||'<tr><td colspan="7" class="note">No KPIs yet.</td></tr>'}</table></div></div>`},
+
+families(){const F=Object.entries(P.families).sort((a,b)=>String(a[1].name).localeCompare(b[1].name));
+ return `<h1>Role-family scorecards</h1><p class="sub">One scorecard per role family (not per person): 3 to 5 KPIs plus the manager's rating. Weights must add up to 100.</p>${RO()}
+ ${canEdit()?'<div class="row"><button class="btn p" data-new="family">+ Role family</button></div>':''}
+ ${F.map(([id,f])=>{const w=famWeight(f),n=active().filter(([k,e])=>((P.assign[k]||{}).fam||famFor(e))===id).length;const dataW=famItems(f).filter(i=>(P.kpis[i.kpi]||{}).src!=='manager').reduce((s,i)=>s+(+i.w||0),0);
+ return `<div class="card"><div class="row" style="margin:0 0 6px"><h2 style="flex:1;margin:0">${esc(f.name)} ${f.labour?'<span class="pill nv">crew level</span>':''} ${f.status==='agreed'?'<span class="pill g">Agreed</span>':'<span class="pill a">Draft</span>'}</h2><span class="note" style="margin:0">${n} people · ${dataW}% data / ${w-dataW}% manager</span>${canEdit()?`<button class="btn sm" data-edit="family:${id}">Edit</button>`:''}</div>
+ <p class="note">Matches designations containing: ${esc((f.desigKeys||[]).join(', ')||'—')} · departments containing: ${esc((f.deptKeys||[]).join(', ')||'—')}${f.labour?' · and Labour grade staff not matched elsewhere':''}. Supports: ${esc((P.dgoals[f.dgoalId]||{}).name||'— no department goal linked')}</p>
+ <table><tr><th>KPI</th><th class="r">Weight</th><th>Target</th><th>Source</th></tr>${famItems(f).map(it=>{const k=P.kpis[it.kpi]||{name:'(KPI removed)'};return `<tr><td>${esc(k.name)}</td><td class="r">${+it.w||0}%</td><td>${k.target!=null?(k.dir==='down'?'≤ ':'≥ ')+esc(k.target)+' '+esc(k.unit||''):''}</td><td>${{auto:'automatic',manual:'manual + evidence',manager:'manager rating'}[k.src]||''}</td></tr>`}).join('')}
+ <tr><td><b>Total</b></td><td class="r"><b style="color:${w===100?'#2E8B6A':'#C0392B'}">${w}%</b></td><td colspan="2">${w===100?'':'<span class="err">Weights must add up to 100</span>'}</td></tr></table></div>`}).join('')||'<div class="card note">No role families yet.</div>'}`},
+
+assign(){const A=active().map(([k,e])=>({k,e,a:P.assign[k]||null,m:famFor(e)})).filter(x=>(!FLT.q||(x.e.name+' '+(x.e.dept||'')+' '+(x.e.desig||'')).toLowerCase().includes(FLT.q.toLowerCase()))&&(!FLT.fam||(FLT.fam==='none'?!(x.a&&x.a.fam)&&!x.m:((x.a&&x.a.fam)||x.m)===FLT.fam))).sort((a,b)=>String(a.e.dept||'').localeCompare(b.e.dept||'')||String(a.e.name).localeCompare(b.e.name));
+ const famOpts=v=>'<option value="">— choose —</option>'+Object.entries(P.families).sort((a,b)=>String(a[1].name).localeCompare(b[1].name)).map(([id,f])=>`<option value="${id}"${id===v?' selected':''}>${esc(f.name)}</option>`).join('');
+ const pending=active().filter(([k,e])=>!(P.assign[k]||{}).fam&&famFor(e)).length;
+ return `<h1>${ROLE==='ceo'?'Scorecards by person':'Assign scorecards'}</h1><p class="sub">Each active person gets their role family's scorecard for cycle <b>${esc(CYCLE())}</b>. The suggested family comes from the designation, department and grade; HR can change it.</p>${RO()}
+ <div class="card"><div class="row"><input id="fq" placeholder="Search name, department, designation" value="${esc(FLT.q)}" style="flex:1;min-width:200px"><select id="ffam"><option value="">All families</option><option value="none"${FLT.fam==='none'?' selected':''}>No matching family</option>${Object.entries(P.families).map(([id,f])=>`<option value="${id}"${FLT.fam===id?' selected':''}>${esc(f.name)}</option>`).join('')}</select>${canEdit()?`<button class="btn gd" id="assignAll" ${pending?'':'disabled'}>Assign suggested to ${pending} people</button>`:''}</div>
+ <div class="tw"><table><tr><th>Name</th><th>Department</th><th>Designation</th><th>Grade</th><th>Scorecard</th><th>Status</th></tr>${A.map(x=>{const cur=(x.a&&x.a.fam)||'';return `<tr><td><b>${esc(x.e.name)}</b><div class="note" style="margin:0">${esc(x.e.empId||'')}</div></td><td>${esc(x.e.dept||'')}</td><td>${esc(x.e.desig||'')}</td><td>${esc(x.e.grade||'')}</td>
+ <td>${canEdit()?`<select data-as="${x.k}">${famOpts(cur||x.m)}</select>`:esc((P.families[cur||x.m]||{}).name||'—')}${!cur&&x.m?'<div class="note" style="margin:0">suggested, not yet assigned</div>':''}${!cur&&!x.m?'<div class="err">no matching family</div>':''}</td>
+ <td>${cur?(x.a.ack?`<span class="pill g">Acknowledged</span>`:'<span class="pill a">Assigned</span>'):'<span class="pill nv">Not assigned</span>'}</td></tr>`}).join('')||'<tr><td colspan="6" class="note">No one matches.</td></tr>'}</table></div></div>`},
+
+scores(){const cyc=CYCLE();const A=active().filter(([k])=>(P.assign[k]||{}).fam);const sel=FLT.emp&&P.assign[FLT.emp]?FLT.emp:(A[0]||[])[0];
+ const rows=A.map(([k,e])=>({k,e,r:scoreFor(k,P.assign[k].fam)}));
+ let detail='';if(sel){const e=EMP[sel]||{},fid=P.assign[sel].fam,r=scoreFor(sel,fid);
+  detail=`<div class="card"><h2>${esc(e.name)} · ${esc((P.families[fid]||{}).name||'')}</h2><p class="note">Achievement per KPI is actual vs target (capped at 100%). The score is the weighted average of the KPIs that have a figure (coverage shows how much of the weight has data).</p>
+  <table><tr><th>KPI</th><th class="r">Weight</th><th>Target</th><th>Actual (${esc(cyc)})</th><th>Achievement</th></tr>${r.parts.map(p=>`<tr><td>${esc(p.k.name)}</td><td class="r">${+p.it.w}%</td><td>${p.k.dir==='down'?'≤ ':'≥ '}${esc(p.k.target)} ${esc(p.k.unit||'')}</td><td>${canEdit()?`<input data-act="${sel}|${p.it.kpi}" value="${p.val==null?'':esc(p.val)}" style="width:90px" placeholder="${p.k.src==='manager'?'1 to 5':'figure'}">`:esc(p.val==null?'—':p.val)}</td><td>${p.a==null?'<span class="note">no figure</span>':bar(p.a*100)+' '+Math.round(p.a*100)+'%'}</td></tr>`).join('')}
+  <tr><td><b>Weighted score</b></td><td></td><td></td><td></td><td>${sc(r.score)} <span class="note">coverage ${r.cover}%</span></td></tr></table>
+  ${canEdit()?'<p class="note" style="margin-top:8px">Phase 1: figures can be typed here to test the scoring. From Phase 2 the automatic KPIs fill themselves every night.</p>':''}</div>`}
+ return `<h1>Weighted scoring</h1><p class="sub">How a scorecard turns into a score out of 100. Green 80+, amber 65 to 79, red below 65.</p>${RO()}${detail}
+ <div class="card"><h2>All scorecards · ${esc(cyc)}</h2><div class="tw"><table><tr><th>Name</th><th>Scorecard</th><th>Score</th><th>Coverage</th><th></th></tr>${rows.map(x=>`<tr><td>${esc(x.e.name)}</td><td>${esc((P.families[P.assign[x.k].fam]||{}).name||'')}</td><td>${sc(x.r.score)}</td><td>${x.r.cover}%</td><td><button class="btn sm" data-emp="${x.k}">Open</button></td></tr>`).join('')||'<tr><td colspan="5" class="note">Assign scorecards first.</td></tr>'}</table></div></div>`},
+
+settings(){const s=P.settings||{};return `<h1>Cycle &amp; visibility</h1><p class="sub">Only HR can change these.</p>
+ <div class="card"><div class="fg"><div><label>Current cycle</label><select id="sCyc">${['2026-Q4','2027-Q1','2027-Q2','2027-Q3','2027-Q4'].map(c=>`<option${c===CYCLE()?' selected':''}>${c}</option>`).join('')}</select></div>
+ <div><label>Who can see Performance</label><select id="sVis"><option value="hr"${VIS()==='hr'?' selected':''}>HR only (set-up)</option><option value="pilot"${VIS()==='pilot'?' selected':''}>HR, CEO and staff with a scorecard (pilot)</option><option value="all"${VIS()==='all'?' selected':''}>Everyone with a scorecard</option></select></div>
+ <div><label>Default split: data / manager judgement</label><select id="sSplit">${[[70,30],[60,40],[80,20]].map(([a,b])=>`<option value="${a}"${(s.dataShare||70)==a?' selected':''}>${a}% data / ${b}% manager</option>`).join('')}</select></div></div>
+ <div class="row" style="margin-top:12px"><button class="btn p" id="sSave">Save</button><span class="note" id="sMsg" style="margin:0"></span></div>
+ <p class="note">Mr. Cem can always view (read-only). Staff only ever see their own scorecard. Switch to the pilot only after the company goals and the split are agreed with Mr. Cem and the staff note has been issued.</p></div>`},
+
+mine(){const a=P.myAssign||{};const f=P.families[a.fam];const e=EMP[MYKEY]||{};
+ if(!a.fam||!f)return `<h1>My scorecard</h1><div class="card note">No scorecard has been assigned to you yet.</div>`;
+ const dg=P.dgoals[f.dgoalId]||{},g=P.goals[dg.goalId]||{};
+ return `<h1>My scorecard</h1><p class="sub">${esc(e.name||ME)} · ${esc(f.name)} · cycle ${esc(a.cycle||CYCLE())}. Only you, your manager, HR and Mr. Cem can see it.</p>
+ <div class="card"><h2>What I am measured on</h2><p class="note">${g.name?'Supports the company goal <b>'+esc(g.name)+'</b>'+(dg.name?' through <b>'+esc(dg.name)+'</b>':'')+'.':''} Most figures come from company records automatically; your manager adds one rating a month.</p>
+ <table><tr><th>KPI</th><th class="r">Weight</th><th>Target</th><th>How it is measured</th></tr>${famItems(f).map(it=>{const k=P.kpis[it.kpi]||{};return `<tr><td><b>${esc(k.name)}</b><div class="note" style="margin:0">${esc(k.def||'')}</div></td><td class="r">${+it.w}%</td><td>${k.dir==='down'?'≤ ':'≥ '}${esc(k.target)} ${esc(k.unit||'')}</td><td>${{auto:'Automatic from '+esc(k.srcName||'company records'),manual:'With evidence: '+esc(k.srcName||''),manager:'Your manager\'s monthly rating'}[k.src]||''}</td></tr>`}).join('')}</table>
+ <div class="row" style="margin-top:12px">${a.ack?`<span class="pill g">Acknowledged on ${new Date(a.ack.at).toLocaleDateString('en-GB')}</span>`:'<button class="btn p" id="ackBtn">I have read and understood my scorecard</button>'}</div></div>`}
+};
+
+// ── forms
+function modal(html,onSave){const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="box">${html}<div class="row" style="margin-top:14px"><button class="btn p" id="mSave">Save</button><button class="btn" id="mCancel">Cancel</button><span style="flex:1"></span><span id="mDelWrap"></span><span class="err" id="mErr"></span></div></div>`;document.body.appendChild(m);
+ $('mCancel').onclick=()=>m.remove();m.onclick=e=>{if(e.target===m)m.remove()};$('mSave').onclick=async()=>{try{$('mErr').textContent='';const r=await onSave();if(r!==false)m.remove()}catch(e){$('mErr').textContent=e.message||String(e)}};return m}
+const fv=id=>{const x=$(id);return x?String(x.value).trim():''};
+const deptList=()=>[...new Set(Object.values(EMP).map(e=>e&&e.dept).filter(Boolean))].sort();
+async function hist(what){try{await W.push('perf/history',{at:Date.now(),by:ME,what:String(what).slice(0,300)})}catch(e){}}
+function delBtn(path,label){const w=$('mDelWrap');w.innerHTML=`<button class="btn" id="mDel" style="color:#C0392B">Delete</button>`;$('mDel').onclick=async()=>{if(!confirm('Delete this '+label+'?'))return;await W.remove(path);await hist('Deleted '+label+' '+path);document.querySelector('.modal').remove()}}
+function goalForm(id){const g=id?P.goals[id]:{};modal(`<h2>${id?'Edit':'New'} company goal</h2><div class="fg"><div class="full"><label>Goal *</label><input id="fName" value="${esc(g.name||'')}"></div><div class="full"><label>What it means</label><input id="fDesc" value="${esc(g.desc||'')}"></div><div><label>How it is measured</label><input id="fMeas" value="${esc(g.measure||'')}"></div><div><label>Owner(s)</label><input id="fOwn" value="${esc(g.owner||'')}"></div><div><label>Order</label><input id="fOrd" type="number" value="${g.order||''}"></div><div><label>Status</label><select id="fSt"><option value="draft">Draft</option><option value="agreed"${g.status==='agreed'?' selected':''}>Agreed with Mr. Cem</option></select></div></div>`,
+ async()=>{const name=fv('fName');if(!name)throw new Error('Enter the goal.');const k=id||uid();await W.set('perf/goals/'+k,{name,desc:fv('fDesc'),measure:fv('fMeas'),owner:fv('fOwn'),order:+fv('fOrd')||0,status:fv('fSt'),upd:Date.now(),by:ME});await hist((id?'Edited':'Added')+' company goal: '+name)});if(id)delBtn('perf/goals/'+id,'company goal')}
+function dgoalForm(id){const g=id?P.dgoals[id]:{};modal(`<h2>${id?'Edit':'New'} department goal</h2><div class="fg"><div class="full"><label>Department goal *</label><input id="fName" value="${esc(g.name||'')}"></div><div><label>Department *</label><input id="fDept" list="dl" value="${esc(g.dept||'')}"><datalist id="dl">${deptList().map(d=>`<option value="${esc(d)}">`).join('')}</datalist></div><div><label>Supports company goal</label><select id="fGoal"><option value="">—</option>${Object.entries(P.goals).map(([k,x])=>`<option value="${k}"${k===g.goalId?' selected':''}>${esc(x.name)}</option>`).join('')}</select></div><div><label>Owner</label><input id="fOwn" value="${esc(g.owner||'')}"></div><div><label>Status</label><select id="fSt"><option value="draft">Draft</option><option value="agreed"${g.status==='agreed'?' selected':''}>Agreed</option></select></div></div>`,
+ async()=>{const name=fv('fName'),dept=fv('fDept');if(!name||!dept)throw new Error('Enter the goal and the department.');const k=id||uid();await W.set('perf/dgoals/'+k,{name,dept,goalId:fv('fGoal'),owner:fv('fOwn'),status:fv('fSt'),upd:Date.now(),by:ME});await hist((id?'Edited':'Added')+' department goal: '+name)});if(id)delBtn('perf/dgoals/'+id,'department goal')}
+function kpiForm(id){const k=id?P.kpis[id]:{dir:'up',period:'Monthly',src:'auto'};modal(`<h2>${id?'Edit':'New'} KPI</h2><div class="fg"><div class="full"><label>KPI name *</label><input id="fName" value="${esc(k.name||'')}"></div><div class="full"><label>Definition (how it is calculated)</label><input id="fDef" value="${esc(k.def||'')}"></div>
+ <div><label>Department</label><input id="fDept" list="dl" value="${esc(k.dept||'')}"><datalist id="dl">${deptList().map(d=>`<option value="${esc(d)}">`).join('')}</datalist></div><div><label>Unit</label><input id="fUnit" value="${esc(k.unit||'')}" placeholder="%, days, AED, rating"></div>
+ <div><label>Target *</label><input id="fTgt" value="${esc(k.target==null?'':k.target)}"></div><div><label>Better when</label><select id="fDir"><option value="up">Higher (at least the target)</option><option value="down"${k.dir==='down'?' selected':''}>Lower (at most the target)</option></select></div>
+ <div><label>Review period</label><select id="fPer">${['Monthly','Quarterly'].map(p=>`<option${p===k.period?' selected':''}>${p}</option>`).join('')}</select></div><div><label>Where the figure comes from</label><select id="fSrc"><option value="auto">Automatic (company data)</option><option value="manual"${k.src==='manual'?' selected':''}>Manual with evidence</option><option value="manager"${k.src==='manager'?' selected':''}>Manager rating (1 to 5)</option></select></div>
+ <div class="full"><label>Source / evidence</label><input id="fSrcN" value="${esc(k.srcName||'')}" placeholder="e.g. site registers × payroll vs BOQ"></div><div><label>Status</label><select id="fSt"><option value="draft">Draft</option><option value="agreed"${k.status==='agreed'?' selected':''}>Agreed with the head</option></select></div></div>`,
+ async()=>{const name=fv('fName'),t=fv('fTgt');if(!name)throw new Error('Enter the KPI name.');if(t===''||isNaN(+t))throw new Error('Enter a number as the target.');const key=id||uid();await W.set('perf/kpis/'+key,{name,def:fv('fDef'),dept:fv('fDept'),unit:fv('fUnit'),target:+t,dir:fv('fDir'),period:fv('fPer'),src:fv('fSrc'),srcName:fv('fSrcN'),status:fv('fSt'),upd:Date.now(),by:ME});await hist((id?'Edited':'Added')+' KPI: '+name)});
+ if(id){const used=Object.values(P.families).some(f=>famItems(f).some(i=>i.kpi===id));if(!used)delBtn('perf/kpis/'+id,'KPI');else $('mDelWrap').innerHTML='<span class="note">Used in a scorecard: remove it there first to delete.</span>'}}
+function famForm(id){const f=id?JSON.parse(JSON.stringify(P.families[id])):{items:[],desigKeys:[],deptKeys:[]};const items=f.items||[];
+ const kOpts=v=>'<option value="">— KPI —</option>'+Object.entries(P.kpis).sort((a,b)=>String(a[1].dept).localeCompare(b[1].dept)||String(a[1].name).localeCompare(b[1].name)).map(([k,x])=>`<option value="${k}"${k===v?' selected':''}>${esc(x.dept?x.dept+' · ':'')}${esc(x.name)}</option>`).join('');
+ const rowH=(it,i)=>`<div class="row" data-r="${i}"><select class="ik" style="flex:1">${kOpts(it.kpi)}</select><input class="iw" type="number" min="0" max="100" value="${+it.w||''}" style="width:80px" placeholder="%"><button class="btn sm ix">✕</button></div>`;
+ const m=modal(`<h2>${id?'Edit':'New'} role family</h2><div class="fg"><div class="full"><label>Name *</label><input id="fName" value="${esc(f.name||'')}"></div><div class="full"><label>Designations containing (comma separated)</label><input id="fDk" value="${esc((f.desigKeys||[]).join(', '))}"></div><div class="full"><label>Departments containing (comma separated)</label><input id="fPk" value="${esc((f.deptKeys||[]).join(', '))}"></div>
+ <div><label>Supports department goal</label><select id="fDg"><option value="">—</option>${Object.entries(P.dgoals).map(([k,x])=>`<option value="${k}"${k===f.dgoalId?' selected':''}>${esc(x.dept)} · ${esc(x.name)}</option>`).join('')}</select></div><div><label>Status</label><select id="fSt"><option value="draft">Draft</option><option value="agreed"${f.status==='agreed'?' selected':''}>Agreed with the head</option></select></div><div><label>Matching order (1 = checked first)</label><input id="fOrd" type="number" value="${f.order||''}"></div><div></div>
+ <div class="full"><label><input type="checkbox" id="fLab"${f.labour?' checked':''}> Labour crews (scored at crew level; also catches Labour grade staff not matched elsewhere)</label></div>
+ <div class="full"><label>KPIs and weights (must add up to 100)</label><div id="iBox">${items.map(rowH).join('')}</div><div class="row"><button class="btn sm" id="iAdd">+ KPI</button><span id="iTot" class="note" style="margin:0"></span></div></div></div>`,
+ async()=>{const name=fv('fName');if(!name)throw new Error('Enter the name.');const its=[...document.querySelectorAll('#iBox [data-r]')].map(r=>({kpi:r.querySelector('.ik').value,w:+r.querySelector('.iw').value||0})).filter(x=>x.kpi);
+  const tot=its.reduce((s,x)=>s+x.w,0);if(new Set(its.map(x=>x.kpi)).size!==its.length)throw new Error('A KPI is listed twice.');if(its.length&&tot!==100)throw new Error('Weights add up to '+tot+'%: they must add up to 100%.');
+  const split=s=>s.split(',').map(x=>x.trim()).filter(Boolean);const key=id||uid();
+  await W.set('perf/families/'+key,{name,order:+fv('fOrd')||99,leadsCrew:!!f.leadsCrew,desigKeys:split(fv('fDk')),deptKeys:split(fv('fPk')),dgoalId:fv('fDg'),status:fv('fSt'),labour:$('fLab').checked,items:its,upd:Date.now(),by:ME});await hist((id?'Edited':'Added')+' role family: '+name+' ('+its.map(x=>(P.kpis[x.kpi]||{}).name+' '+x.w+'%').join(', ')+')')});
+ const tot=()=>{const t=[...document.querySelectorAll('#iBox .iw')].reduce((s,x)=>s+(+x.value||0),0);$('iTot').innerHTML='Total: <b style="color:'+(t===100?'#2E8B6A':'#C0392B')+'">'+t+'%</b>'};
+ const wireR=()=>{document.querySelectorAll('#iBox .ix').forEach(b=>b.onclick=()=>{b.closest('[data-r]').remove();tot()});document.querySelectorAll('#iBox .iw').forEach(x=>x.oninput=tot)};
+ $('iAdd').onclick=()=>{$('iBox').insertAdjacentHTML('beforeend',rowH({},Date.now()));wireR();tot()};wireR();tot();
+ if(id){const used=Object.values(P.assign).some(a=>a&&a.fam===id);if(!used)delBtn('perf/families/'+id,'role family');else $('mDelWrap').innerHTML='<span class="note">Assigned to people: change their scorecard first to delete.</span>'}}
+
+// ── starter set (draft): company goals, KPIs for every department, role families
+async function seed(){if(!confirm('Load the starter set? It adds draft company goals, department goals, KPIs and role families. Nothing in the HR Portal changes, and everything can be edited or deleted.'))return;
+ const G={win:['Win work','Tenders submitted and won','Tenders won / submitted; value won','Business development, Estimation',1],del:['Deliver on time and on budget','Projects on plan and within the tendered cost','Projects on track; labour cost vs tender','PMs, site managers',2],paid:['Get certified and paid','Work certified and cash collected on time','Value certified; overdue receivables','QS, Finance, PMs',3],safe:['Safety and compliance','Safe sites and compliant people and documents','Lost-time injuries; NCRs closed; expiries handled','HSE, PRO, HR',4],cost:['People cost versus value','Right people, fully used, at the right cost','People cost vs certified value; idle days','HR, operations',5],talent:['Keep and grow key talent','Key roles covered, people developed and kept','Key roles with a backup; turnover of key people','HR, heads',6]};
+ const D={pm:['Projects delivered to plan','Projects','del'],site:['Sites productive and safe','Construction','del'],des:['Design issued right first time','Design & Technical','del'],mep:['MEP installed and approved first time','MEP','del'],join:['Joinery produced to plan and quality','Joinery & Factory','del'],str:['Structural works to plan','Structural','del'],qs:['Valuations and variations on time','Estimation & QS','paid'],proc:['Materials on time at the right cost','Procurement','del'],hr:['People processes on time and compliant','Human Resources','safe'],fin:['Accurate, on-time finance','Finance','paid'],sales:['Pipeline and tenders','Sales & Marketing','win'],log:['Deliveries and warehouse on time','Logistics','del'],hse:['Safe sites','HSE','safe'],crew:['Crews productive','Site labour','cost']};
+ // KPI: [key, name, def, dept, unit, target, dir, period, src, srcName]
+ const K=[['pm1','Board priorities closed on time','Share of project board priorities closed by their due date','Projects','%',90,'up','Monthly','auto','Project board'],['pm2','Approvals obtained within target','Share of client / consultant approvals obtained within 10 working days','Projects','%',85,'up','Monthly','auto','Approvals log / project mailbox'],['pm3','Valuation submitted on time','Monthly valuation submitted by the 25th','Projects','%',100,'up','Monthly','auto','QS valuations'],['pm4','Project labour cost vs tender','Labour cost to date as % of tendered labour for work done','Projects','%',100,'down','Monthly','auto','Site registers × payroll cost vs BOQ'],
+ ['st1','Progress vs plan','Physical progress against the programme on his site','Construction','%',95,'up','Monthly','auto','Daily site updates, QS'],['st2','Crew productivity vs tender','Quantity per man-day against the tender assumption','Construction','%',100,'up','Monthly','auto','BOQ × site registers'],['st3','Daily site update sent','Working days with the daily site update (photo + 3 lines)','Construction','%',95,'up','Monthly','auto','Site update emails'],['st4','HSE actions closed on time','Site HSE actions closed by their due date','Construction','%',90,'up','Monthly','auto','HSE register'],['st5','Snags closed within 7 days','Snags closed within 7 days of being raised','Construction','%',90,'up','Monthly','manual','Snag list'],
+ ['de1','Drawings issued vs plan','Drawings issued against the drawing schedule','Design & Technical','%',90,'up','Monthly','auto','NAS project folders / drawing register'],['de2','Approved first time','Drawings or submittals approved without resubmission','Design & Technical','%',80,'up','Monthly','auto','Approvals log'],['de3','Turnaround days','Average working days from request to issue','Design & Technical','days',5,'down','Monthly','auto','Drawing register dates'],
+ ['me1','Technical submittals approved first time','MEP submittals approved without resubmission','MEP','%',80,'up','Monthly','auto','Approvals log'],['me2','Inspections passed first time','MEP inspections passed at the first request','MEP','%',90,'up','Monthly','manual','Inspection requests'],['me3','Rework / defects','MEP defects or rework items raised in the month','MEP','items',2,'down','Monthly','manual','Snag / NCR list'],
+ ['jo1','Output vs production plan','Joinery items produced against the plan','Joinery & Factory','%',95,'up','Monthly','manual','Production plan'],['jo2','Delivered to site on time','Joinery deliveries on the agreed date','Joinery & Factory','%',90,'up','Monthly','manual','Delivery notes'],['jo3','Rework rate','Items returned for rework','Joinery & Factory','%',3,'down','Monthly','manual','QC log'],
+ ['sr1','Structural works vs plan','Structural progress against the programme','Structural','%',95,'up','Monthly','manual','Programme, QS'],['sr2','Inspections passed first time','Structural inspections passed at the first request','Structural','%',90,'up','Monthly','manual','Inspection requests'],
+ ['qs1','Valuations on time','Valuations submitted by the agreed date','Estimation & QS','%',100,'up','Monthly','auto','QS valuations'],['qs2','Variations priced within 7 days','Variation orders priced within 7 days of instruction','Estimation & QS','%',90,'up','Monthly','manual','VO log'],['qs3','Tenders submitted on time','Tenders submitted by the deadline','Estimation & QS','%',100,'up','Quarterly','manual','Tender log'],
+ ['pr1','Procurement turnaround','Working days from purchase request to purchase order','Procurement','days',3,'down','Monthly','auto','PO log / Tally'],['pr2','Material delivered on time','Deliveries arriving by the required date','Procurement','%',90,'up','Monthly','auto','Delivery dates'],['pr3','Cost savings achieved','Savings vs the first quotation, confirmed by Finance','Procurement','%',3,'up','Quarterly','manual','Quotations, Finance'],['pr4','Supplier performance','Average supplier rating (quality, time, service)','Procurement','rating',4,'up','Quarterly','manual','Supplier review'],
+ ['hr1','Payroll processed on time','Payroll approved and sent to the bank on schedule','Human Resources','%',100,'up','Monthly','auto','HR Portal payroll'],['hr2','Document expiries handled before expiry','Visas, IDs, licences renewed before expiry','Human Resources','%',100,'up','Monthly','auto','HR Portal expiries'],['hr3','Recruitment turnaround','Days from approved vacancy to accepted offer','Human Resources','days',30,'down','Quarterly','auto','HR Portal pending hires'],['hr4','Employee relations cases closed','Cases closed within 14 days','Human Resources','%',90,'up','Quarterly','manual','Case log'],['hr5','Documentation accuracy','Errors found in letters, contracts or records','Human Resources','items',0,'down','Monthly','manual','Corrections log'],
+ ['fi1','Payroll check on time','Payroll reviewed and confirmed on schedule','Finance','%',100,'up','Monthly','auto','HR Portal payroll'],['fi2','Month-end close on time','Accounts closed by the agreed date','Finance','%',100,'up','Monthly','manual','Tally'],['fi3','Overdue receivables','Receivables overdue more than 30 days','Finance','AED k',500,'down','Monthly','manual','Tally'],
+ ['sa1','Tenders submitted','Tenders or proposals submitted in the period','Sales & Marketing','no.',3,'up','Quarterly','manual','Tender log'],['sa2','Enquiries answered within 1 day','Enquiries answered within one working day','Sales & Marketing','%',90,'up','Monthly','manual','HubSpot'],
+ ['lo1','Deliveries on time','Deliveries to site on the requested date','Logistics','%',95,'up','Monthly','manual','Delivery log'],['lo2','Stock accuracy','Stock count matching the records','Logistics','%',98,'up','Quarterly','manual','Stock count'],
+ ['hs1','HSE actions closed on time','HSE actions closed by their due date (all sites)','HSE','%',90,'up','Monthly','auto','HSE register'],['hs2','Lost-time injury frequency','Lost-time injuries per 200,000 man-hours','HSE','rate',0,'down','Quarterly','auto','HSE register × site registers'],['hs3','Site inspections completed','Planned HSE inspections completed','HSE','%',100,'up','Monthly','manual','Inspection log'],
+ ['cr1','Quantity per man-day vs tender','Crew output against the tender assumption','Site labour','%',100,'up','Monthly','auto','BOQ × site registers (crew level)'],['cr2','Attendance','Present days against planned days','Site labour','%',95,'up','Monthly','auto','Site registers'],
+ ['mgr','Manager judgement','Quality, teamwork, safety behaviour and contribution beyond the role (one rating a month)','All','rating',4,'up','Monthly','manager','Monthly manager rating']];
+ // family: [key, name, desigKeys, deptKeys, dgoal, labour, items[[kpi,w]]]
+ const FAM=[['fpm','Project Manager',['project manager','projects manager'],['project'],'pm',false,[['pm1',25],['pm2',15],['pm3',15],['pm4',15],['mgr',30]]],
+ ['fsm','Site Manager / Construction',['site manager','construction manager','site engineer','project engineer'],['construction'],'site',false,[['st1',25],['st2',15],['st3',10],['st4',10],['st5',10],['mgr',30]]],
+ ['fsv','Site Supervisor / Foreman',['supervisor','foreman','charge hand','chargehand'],[],'site',false,[['st1',20],['st2',30],['st4',20],['mgr',30]]],
+ ['fde','Design & Technical',['draftsman','architect','designer','technical','document controller','surveyor'],['design','technical'],'des',false,[['de1',25],['de2',25],['de3',20],['mgr',30]]],
+ ['fme','MEP',['mep','electrical','plumb','hvac','mechanical'],['mep'],'mep',false,[['me1',30],['me2',20],['me3',20],['mgr',30]]],
+ ['fjo','Joinery & Factory',['joinery','factory'],['joinery','factory'],'join',false,[['jo1',30],['jo2',25],['jo3',15],['mgr',30]]],
+ ['fsr','Structural',['structural'],['structural'],'str',false,[['sr1',40],['sr2',30],['mgr',30]]],
+ ['fqs','Estimation & QS',['qs','quantity','estimat','cost control'],['estimat','qs','quantity'],'qs',false,[['qs1',30],['qs2',25],['qs3',15],['mgr',30]]],
+ ['fpr','Procurement',['procure','purchas','buyer'],['procure','purchas'],'proc',false,[['pr1',25],['pr2',25],['pr3',10],['pr4',10],['mgr',30]]],
+ ['fhr','HR & Administration',['hr','human resource','pro','admin','receptionist','office assistant','timekeeper'],['human','hr','admin','emirati'],'hr',false,[['hr1',15],['hr2',15],['hr3',15],['hr4',15],['hr5',10],['mgr',30]]],
+ ['ffi','Finance',['account','finance','cfo','cashier'],['finance','account'],'fin',false,[['fi1',25],['fi2',25],['fi3',20],['mgr',30]]],
+ ['fsa','Sales & Marketing',['sales','marketing','business development'],['sales','marketing'],'sales',false,[['sa1',40],['sa2',30],['mgr',30]]],
+ ['flo','Logistics & Warehouse',['logistic','warehouse','store','driver'],['logistic','warehouse','store'],'log',false,[['lo1',40],['lo2',30],['mgr',30]]],
+ ['fhs','HSE',['hse','safety'],['hse','safety'],'hse',false,[['hs1',30],['hs2',20],['hs3',20],['mgr',30]]],
+ ['fcr','Labour crews',['carpenter','painter','mason','helper','labour','labourer','gypsum','tiler','steel fixer','plumber','electrician','welder','fabricator'],[],'crew',true,[['cr1',50],['cr2',20],['mgr',30]]]];
+ const up={},ids={};const now=Date.now();
+ Object.entries(G).forEach(([k,g])=>{ids['g'+k]=uid();up['goals/'+ids['g'+k]]={name:g[0],desc:g[1],measure:g[2],owner:g[3],order:g[4],status:'draft',upd:now,by:ME}});
+ Object.entries(D).forEach(([k,d])=>{ids['d'+k]=uid();up['dgoals/'+ids['d'+k]]={name:d[0],dept:d[1],goalId:ids['g'+d[2]],owner:'',status:'draft',upd:now,by:ME}});
+ K.forEach(k=>{ids['k'+k[0]]=uid();up['kpis/'+ids['k'+k[0]]]={name:k[1],def:k[2],dept:k[3],unit:k[4],target:k[5],dir:k[6],period:k[7],src:k[8],srcName:k[9],status:'draft',upd:now,by:ME}});
+ const ORD=["fpm", "fme", "fjo", "fsr", "fhs", "fde", "fqs", "fpr", "ffi", "fhr", "fsa", "flo", "fsm", "fsv", "fcr"];
+ FAM.forEach(f=>{up['families/'+uid()]={name:f[1],order:ORD.indexOf(f[0])+1,leadsCrew:f[0]==='fsv',desigKeys:f[2],deptKeys:f[3],dgoalId:ids['d'+f[4]],labour:f[5],items:f[6].map(([k,w])=>({kpi:ids['k'+k],w})),status:'draft',upd:now,by:ME}});
+ await W.update('perf',up);if(!P.settings||!P.settings.cycle)await W.set('perf/settings',{cycle:'2027-Q1',visibility:'hr',dataShare:70,upd:now,by:ME});await hist('Loaded the starter set ('+K.length+' KPIs, '+FAM.length+' role families)')}
+
+// ── events
+function wire(){
+ document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{PG=b.dataset.go;draw()});
+ if($('seed'))$('seed').onclick=()=>seed().catch(e=>alert(e.message));
+ document.querySelectorAll('[data-new]').forEach(b=>b.onclick=()=>({goal:goalForm,dgoal:dgoalForm,kpi:kpiForm,family:famForm})[b.dataset.new]());
+ document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{const [t,id]=b.dataset.edit.split(':');({goal:goalForm,dgoal:dgoalForm,kpi:kpiForm,family:famForm})[t](id)});
+ if($('fq'))$('fq').oninput=e=>{FLT.q=e.target.value;const p=e.target.selectionStart;draw();const x=$('fq');x.focus();x.setSelectionRange(p,p)};
+ if($('fst'))$('fst').onchange=e=>{FLT.st=e.target.value;draw()};
+ if($('ffam'))$('ffam').onchange=e=>{FLT.fam=e.target.value;draw()};
+ document.querySelectorAll('[data-as]').forEach(s=>s.onchange=async()=>{const k=s.dataset.as,v=s.value,old=P.assign[k]||{};try{if(!v){await W.remove('perf/assign/'+k)}else{await W.set('perf/assign/'+k,{fam:v,cycle:CYCLE(),at:Date.now(),by:ME,...(old.fam===v&&old.ack?{ack:old.ack}:{})})}await hist('Scorecard for '+((EMP[k]||{}).name||k)+': '+((P.families[v]||{}).name||'removed'))}catch(e){alert(e.message)}});
+ if($('assignAll'))$('assignAll').onclick=async()=>{const L=active().filter(([k,e])=>!(P.assign[k]||{}).fam&&famFor(e));if(!confirm('Assign the suggested scorecard to '+L.length+' people?'))return;const up={};L.forEach(([k,e])=>up['assign/'+k]={fam:famFor(e),cycle:CYCLE(),at:Date.now(),by:ME});try{await W.update('perf',up);await hist('Assigned suggested scorecards to '+L.length+' people')}catch(e){alert(e.message)}};
+ document.querySelectorAll('[data-emp]').forEach(b=>b.onclick=()=>{FLT.emp=b.dataset.emp;draw();window.scrollTo(0,0)});
+ document.querySelectorAll('[data-act]').forEach(x=>x.onchange=async()=>{const [ek,kp]=x.dataset.act.split('|'),val=x.value.trim();try{if(val==='')await W.remove('perf/actuals/'+CYCLE()+'/'+ek+'/'+kp);else{if(isNaN(+val))throw new Error('Enter a number.');await W.set('perf/actuals/'+CYCLE()+'/'+ek+'/'+kp,{val:+val,at:Date.now(),by:ME,src:'typed'})}}catch(e){alert(e.message)}});
+ if($('sSave'))$('sSave').onclick=async()=>{try{const vis=$('sVis').value;if(vis!=='hr'&&VIS()==='hr'&&!confirm('Switch Performance on for staff? Do this only after the company goals and the split are agreed with Mr. Cem and staff have been informed.'))return;await W.set('perf/settings',{cycle:$('sCyc').value,visibility:vis,dataShare:+$('sSplit').value,upd:Date.now(),by:ME});await hist('Settings: cycle '+$('sCyc').value+', visibility '+vis);$('sMsg').textContent='Saved.'}catch(e){$('sMsg').textContent=e.message}};
+ if($('ackBtn'))$('ackBtn').onclick=async()=>{try{await W.set('perf/assign/'+MYKEY+'/ack',{at:serverTimestamp()})}catch(e){alert('Could not save: '+e.message)}};
+}
+</script>
+</body></html>
