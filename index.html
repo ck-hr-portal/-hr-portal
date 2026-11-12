@@ -547,6 +547,7 @@ tr:hover td{background:#fafbfc;}
       <div class="nav-section">Reports</div>
       <div class="nav-item" onclick="showPage('reports',this)"><span class="icon">📈</span>Reports &amp; Downloads</div>
       <div class="nav-item" id="navPerf" onclick="window.open('./performance.html','ckperf')" title="Opens the Performance module in its own tab; the HR Portal stays open and signed in here"><span class="icon">🎯</span>Performance <span style="font-size:9px;font-weight:800;background:#C9A84C;color:#1b1b1b;border-radius:5px;padding:0 4px;margin-left:4px;">NEW</span></div>
+      <div class="nav-item" id="navProj" onclick="window.open('./projects.html','ckproj')" title="Opens Projects in its own tab; the HR Portal stays open and signed in here"><span class="icon">🏗️</span>Projects <span style="font-size:9px;font-weight:800;background:#C9A84C;color:#1b1b1b;border-radius:5px;padding:0 4px;margin-left:4px;">NEW</span></div>
       <div class="nav-item" onclick="showPage('auditlog',this)"><span class="icon">🔍</span>Audit Log</div>
       <div class="nav-item" id="navBackup" onclick="showPage('backup',this)"><span class="icon">💾</span>Data Backup</div>
     </div>
@@ -4760,7 +4761,7 @@ function applyPROMode(){
   style.textContent=`
     .nav-item[onclick*="'loans'"] { display: none !important; }
     .nav-item[onclick*="'settlement'"] { display: none !important; }
-    #navPerf, #navPayroll, #page-payroll, #navUsage, #page-usage, #navLrep, #page-lrep, #navLro, #page-lro, #navLq, #page-lq, #navCost, #navProv, #page-cost, #page-prov, #navChecklists, #navAck, #navUnans, #page-checklists, #page-ack, #page-unanswered, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #navBackup, #backupBanner, #page-backup, #voiceToggleBtn, .briefBtn, #navHeadcount, #navSimulator, #page-headcount, #page-simulator, #greetCard, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }
+    #navPerf, #navProj, #navPayroll, #page-payroll, #navUsage, #page-usage, #navLrep, #page-lrep, #navLro, #page-lro, #navLq, #page-lq, #navCost, #navProv, #page-cost, #page-prov, #navChecklists, #navAck, #navUnans, #page-checklists, #page-ack, #page-unanswered, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #navBackup, #backupBanner, #page-backup, #voiceToggleBtn, .briefBtn, #navHeadcount, #navSimulator, #page-headcount, #page-simulator, #greetCard, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }
     button[onclick*="openEmpModal"], button[onclick="delEmp"], button[onclick*="delEmp("] { display: none !important; }
     /* Oct 2026: Kashif (PRO) access as agreed with HR. The database rules enforce the same limits. */
     .nav-item[onclick*="'salary'"], #page-salary, .nav-item[onclick*="'flight'"], #page-flight,
