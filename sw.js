@@ -2,7 +2,7 @@
 // Keeps the app installable and loads the page shell quickly. It never stores HR data:
 // Firebase requests (other domains) are not touched, so salary and personal data
 // always come live from the server and nothing is kept on the phone by this file.
-const CACHE = 'ck-hr-shell-v1';
+const CACHE = 'ck-hr-shell-v2';
 const SHELL = ['./', 'index.html', 'ck_logo.png', 'ckc_logo.png', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -23,8 +23,11 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
   // Network first, so a new index.html uploaded to GitHub is picked up straight away.
+  // Pages (index.html, projects.html, performance.html) are always re-checked with GitHub,
+  // so the browser's own 10-minute copy is not used after an update.
+  const isPage = req.mode === 'navigate' || /\.html?$/.test(url.pathname) || url.pathname.endsWith('/');
   e.respondWith(
-    fetch(req).then(res => {
+    fetch(req, isPage ? { cache: 'no-cache' } : undefined).then(res => {
       if (res && res.ok) {
         const copy = res.clone();
         caches.open(CACHE).then(c => c.put(req, copy));
