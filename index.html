@@ -202,6 +202,7 @@ tr:hover td{background:#fafbfc;}
     <div id="empGreetCard"></div>
     <div id="empAckCard" style="display:none;"></div>
     <div id="empFestive"></div>
+    <div class="card" id="empProjCard" style="display:none;border-top:3px solid #C9A84C;"></div>
     <div class="card" id="empCEOMsgCard" style="display:none;background:#fff;border-top:3px solid #C9A84C;">
       <div style="display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap;">
         <img id="empCEOMsgPhoto" src="" style="display:none;width:140px;height:140px;border-radius:50%;object-fit:cover;border:3px solid #C9A84C;flex-shrink:0;box-shadow:0 2px 10px rgba(0,0,0,0.12);">
@@ -3965,6 +3966,15 @@ function initEmployeeListeners(empKey,uid){
   if(window._myPayRev||window._myPaySif){try{prListen();}catch(e){}}
   if(window._myLicOn)_staffUnsubs.push(onValue(ref(db,'lic/'+currentEmpKey),snap=>{DB.myLic=snap.val()||{};renderMyLic();},()=>{DB.myLic={};renderMyLic();}));
   if(window._myLeaveView)_staffUnsubs.push(onValue(ref(db,'staffShared/leaveTyped'),snap=>{DB.leaveTyped=snap.val()||{};renderEmpLeaveAll();},()=>{DB.leaveTyped=null;renderEmpLeaveAll();})); // company-wide leave (name, dept, dates). Needs the updated rules; falls back to own department without them
+  // Projects pilot: the button shows only for people given a role in Projects (timekeeper, finance, project team)
+  {const PJ={s:{},p:{}};const drawProj=()=>{const el=document.getElementById('empProjCard');if(!el)return;const s=PJ.s||{},roles=[];
+    if(s.timekeepers&&s.timekeepers[empKey])roles.push('<b>Daily register</b>: download today\'s template and upload the filled register');
+    if(s.finance&&s.finance[empKey])roles.push('<b>Project money</b>: the monthly figures for the pilot projects'+(s.financeApprover&&s.financeApprover[empKey]?(PJ.wait?' · <b style="color:#C27C0E">⚠ '+PJ.wait+' waiting for your confirmation</b>':' · you confirm figures entered by others'):''));
+    const teams=Object.values(PJ.p||{}).filter(x=>x&&x.name&&x.team&&x.team[empKey]).map(x=>x.name);if(teams.length)roles.push('<b>My projects</b> ('+teams.map(esc).join(', ')+'): priorities and the daily site update');
+    if(!roles.length){el.style.display='none';el.innerHTML='';return}
+    el.style.display='';el.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;"><div><div class="card-title" style="margin:0 0 6px;">🏗️ Projects (pilot)</div><div style="font-size:13px;color:#555;line-height:1.7;">'+roles.join('<br>')+'</div></div><button class="btn btn-primary" onclick="window.open(\'./projects.html\',\'ckproj\')">Open Projects</button></div><p style="font-size:12px;color:#888;margin:8px 0 0;">Opens in a new tab with the same login. This page stays open.</p>';};
+   const subM={};const watchMoney=()=>{const s=PJ.s||{};if(!(s.financeApprover&&s.financeApprover[empKey]))return;Object.keys(PJ.p||{}).forEach(pid=>{if(subM[pid])return;subM[pid]={};optional(ref(db,'proj/money/'+pid),snap=>{const m=snap.val()||{};const k=Object.keys(m).sort().pop();subM[pid].wait=!!(k&&!m[k].confBy);PJ.wait=Object.values(subM).filter(x=>x.wait).length;drawProj();});});};
+   optional(ref(db,'proj/settings'),snap=>{PJ.s=snap.val()||{};watchMoney();drawProj();});optional(ref(db,'proj/projects'),snap=>{PJ.p=snap.val()||{};watchMoney();drawProj();});}
   _staffUnsubs.push(onValue(ref(db,'staffShared/directory'),snap=>{DB.directory=snap.val()||{};},()=>{DB.directory=null;})); // names + departments of current staff
   optional(ref(db,'staffShared/birthdays'),snap=>{DB.sharedBdays=snap.val()||{};renderEmpBirthdaysAnniversaries();});
   optional(ref(db,'staffShared/anniversaries'),snap=>{DB.sharedAnnis=snap.val()||{};renderEmpBirthdaysAnniversaries();});
