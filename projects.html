@@ -90,6 +90,7 @@ function listen(){const open=(p,k)=>onValue(ref(db,p),s=>{P[k]=s.val()||{};draw(
  onValue(recent('proj/days'),s=>{P.days=Object.assign(P.days||{},s.val()||{});draw()},()=>{});onValue(recent('proj/cost'),s=>{P.cost=Object.assign(P.cost||{},s.val()||{});draw()},()=>{});
  let updSubs=new Set();const watchUpd=()=>Object.keys(P.projects||{}).forEach(pid=>{if(updSubs.has(pid))return;updSubs.add(pid);onValue(lastN('proj/updates/'+pid,20),s=>{P.updates[pid]=s.val()||{};draw()},()=>{});onValue(lastN('proj/boq/'+pid+'/internal',2),s=>{P.boq[pid]=s.val()||{};draw()},()=>{})});onValue(ref(db,'proj/projects'),()=>setTimeout(watchUpd,50),()=>{});
  onValue(ref(db,'leave'),s=>{LEAVE=s.val()||{}},()=>{LEAVE={}});
+ if(ROLE==='hr'||ROLE==='ceo')onValue(ref(db,'holidays'),s=>{HOL=s.val()||{};draw()},()=>{HOL={}});
  onValue(ref(db,'employees'),s=>{EMP=s.val()||{};draw()},()=>{EMP={}});
  onValue(ref(db,'costSettings'),s=>{CS=s.val()||{};draw()},()=>{});onValue(ref(db,'pro/tx'),s=>{PROTX=s.val()||{};for(const k in VARC)delete VARC[k];draw()},()=>{});onValue(ref(db,'costEntries'),s=>{CE=s.val()||{};draw()},()=>{});}
 const WIN=()=>addD(today(),-62);const recent=p=>query(ref(db,p),orderByKey(),startAt(WIN()));const lastN=(p,n)=>query(ref(db,p),orderByKey(),limitToLast(n));
@@ -225,6 +226,40 @@ function attention(){const out=[],td=today(),d=lastDate();
   const u=lastUpd(id);if(!u)out.push(['a',p.name+': no site update yet.']);else if(u.date<addD(td,-2))out.push(['a',p.name+': last site update '+fmtD(u.date)+'.']);if(u&&u.blocked&&u.date>=addD(td,-2))out.push(['rd',p.name+': site reports a blocker · '+u.blocked]);
   const lm=latestMoney(id),m=moneyCalc(lm,id);if(!lm)out.push(['a',p.name+': no money figures yet.']);else{if(!lm.confBy)out.push(['a',p.name+': money figures as at '+fmtD(m.asAt)+' not yet confirmed by the CFO.']);if(moneyStale(lm))out.push(['a',p.name+': money figures older than 30 days.']);if(m.overdue>0)out.push(['rd',p.name+': '+aedM(m.overdue)+' overdue from the client.']);if(m.cashNow<0)out.push(['rd',p.name+': cash so far '+aedM(m.cashNow)+' (funded by the company).']);if(m.margin<0)out.push(['rd',p.name+': forecast at completion is a loss of '+aedM(-m.margin)+'.'])}});
  return out.sort((a,b)=>(a[0]==='rd'?0:1)-(b[0]==='rd'?0:1))}
+// ── 16 Nov 2026: Pilot health (HR and Mr. Cem, view only for him). Reads only; shows whether the pilot is getting the data the 4-week review needs.
+let HOL={};
+const phHol=()=>{const m={};Object.values(HOL||{}).forEach(h=>{if(h&&/^\d{4}-\d{2}-\d{2}$/.test(String(h.date||''))&&!/optional/i.test(String(h.type||''))&&String(h.status||'').toLowerCase()!=='cancelled')m[h.date]=h.name||'Public holiday'});return m};
+// working days for sites: Monday to Saturday, not public holidays; from..to inclusive
+const phWorkDays=(from,to)=>{const H=phHol(),out=[];for(let d=from;d<=to;d=addD(d,1)){if(new Date(d+'T00:00:00').getDay()!==0&&!H[d])out.push(d)}return out};
+function pilotHealth(){const td=today(),D=dates(),first=D[0]||'',L=projList(),R=[];
+ const row=(lvl,area,seen,todo)=>R.push({lvl,area,seen,todo});
+ const pill=l=>`<span class="pill ${l==='g'?'g':l==='a'?'a':'rd'}">${l==='g'?'OK':l==='a'?'Watch':'Missing'}</span>`;
+ const tm=new Date().getHours()>=11?td:addD(td,-1);
+ // 1. daily register
+ if(!first)row('r','Daily register','No register uploaded yet.','Ask Ajmal to upload his daily file (PEH format) in 📋 Daily register.');
+ else{const from=first>addD(td,-6)?first:addD(td,-6),exp=phWorkDays(from,tm),have=exp.filter(d=>P.days[d]),miss=exp.filter(d=>!P.days[d]),lastD=D.at(-1),lm=(P.days[lastD]||{})._meta||{};
+  row(miss.length===0?'g':miss.length<=1?'a':'r','Daily register',`${have.length} of ${exp.length} working days uploaded (last 7 days)${miss.length?' · missing: '+miss.map(fmtD).join(', '):''} · last upload ${fmtD(lastD)}${lm.at?' at '+new Date(lm.at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):''}${lm.by?' by '+esc(lm.by):''}`,miss.length?'Check with Ajmal; a missed day can still be uploaded with its own date.':'')}
+ // 2. per project
+ L.forEach(([id,p])=>{const nm=esc(p.name);
+  const from=first&&first>addD(td,-6)?first:addD(td,-6),exp=phWorkDays(from,addD(td,-1)),U=Object.values((P.updates||{})[id]||{}),got=new Set(U.map(u=>u.date)),n=exp.filter(d=>got.has(d)).length,u=lastUpd(id),okU=exp.length?n>=Math.max(1,exp.length-1):got.has(td);
+  row(!U.length?'r':okU?'g':n>0||got.has(td)?'a':'r',nm+' · site updates',U.length?`${n} of ${exp.length} working days with an update (last 7 days, up to yesterday)${got.has(td)?' · today ✓':''} · last ${fmtD(u.date)}${u.byName?' by '+esc(u.byName):''}`:'No site update yet.',okU?'':'Remind the site manager to post the daily update (done today, tomorrow, blockers, photo).');
+  const lm=latestMoney(id);
+  if(!lm)row('r',nm+' · money','No money figures yet.','Finance enters figures in 💰 Project money; Sruthi confirms.');
+  else{const st=moneyStale(lm);row(!lm.confBy||st?'a':'g',nm+' · money',`Figures as at ${asAtLbl(lm.month)}${lm.at?' · entered '+fmtD(ds(new Date(lm.at)))+(lm.by?' by '+esc(lm.by):''):''} · ${lm.confBy?'confirmed by '+esc(lm.confBy):'not yet confirmed by the CFO'}${st?' · older than 30 days':''}`,st?'Ask Finance for updated figures.':!lm.confBy?'Ask Sruthi to confirm the figures.':'')}
+  const B=Object.values((P.boq||{})[id]||{}).sort((a,b)=>(b.at||0)-(a.at||0))[0];
+  row(B?'g':'a',nm+' · BOQ (cost plan)',B?`Uploaded ${fmtD(ds(new Date(B.at)))}${B.by?' by '+esc(B.by):''}${B.file?' · '+esc(B.file):''}`:'No internal BOQ uploaded yet.',B?'':'Karthik (or HR) uploads the internal BOQ in 📑 BOQ.');
+  const need=[['client','client'],['ref','reference'],['ctype','contract type'],['btype','project type'],['pm','project manager'],['sm','site manager']].filter(([k])=>!String(p[k]||'').trim()).map(x=>x[1]);
+  row(need.length?'a':'g',nm+' · project details',need.length?'Not filled in: '+need.join(', '):'All filled in.',need.length?'⚙️ Projects set-up › edit the project.':'')});
+ // 3. roles and settings
+ const s=P.settings||{},cnt=k=>Object.keys(s[k]||{}).length,miss=[];
+ if(!cnt('timekeepers'))miss.push('timekeeper');if(!cnt('finance'))miss.push('Finance');if(!cnt('financeApprover'))miss.push('CFO who confirms');if(!cnt('boqUploaders'))miss.push('BOQ uploader (Karthik)');if(!Object.keys(P.rates||{}).length)miss.push('supply rates');
+ const emi=[...new Set(Object.values(EMP||{}).filter(e=>e&&e.status!=='Inactive'&&/emirati/i.test(String(e.dept||''))).map(e=>e.dept))].filter(d=>!untracked(d));if(emi.length)miss.push('"'+emi.join('", "')+'" in departments not tracked');
+ row(miss.length?'a':'g','Roles and settings',miss.length?'Still to set: '+miss.join(', '):'Timekeeper, Finance, CFO, BOQ uploader and supply rates all set.',miss.length?'⚙️ Projects set-up.':'');
+ const ok=R.filter(x=>x.lvl==='g').length,bad=R.filter(x=>x.lvl==='r').length;
+ const wk=first?Math.min(4,Math.floor((Date.parse(td)-Date.parse(first))/(7*864e5))+1):0,rev=first?addD(first,28):'';
+ return `<div class="card" style="border-left:5px solid ${bad?'#C0392B':ok<R.length?'#C27C0E':'#2E8B6A'}"><h2>🩺 Pilot health <span class="small" style="font-weight:400;color:var(--muted)">· HR and Mr. Cem · is the pilot getting the data the review needs?</span></h2>
+ <p class="note">${first?`Pilot week ${wk} of 4 (first register ${fmtD(first)}) · review with Mr. Cem around ${fmtD(rev)} ${rev.slice(0,4)}`:'The pilot starts with the first daily register.'} · <b>${ok} of ${R.length}</b> checks OK. Working days: Monday to Saturday, not public holidays.</p>
+ <div class="tw"><table><tr><th>Area</th><th>Status</th><th>What the portal sees</th><th>Next step</th></tr>${R.map(x=>`<tr><td><b>${x.area}</b></td><td>${pill(x.lvl)}</td><td>${x.seen}</td><td class="small">${x.todo?esc(x.todo):'—'}</td></tr>`).join('')}</table></div></div>`}
 const V={
 dash(){const L=projList(),d=lastDate(),ym=(d||today()).slice(0,7),mLbl=new Date(ym+'-01T00:00:00').toLocaleDateString('en-GB',{month:'long'});const h=new Date().getHours();
  const sitesToday=d?Object.values(P.days[d]||{}).filter(x=>x&&x.site):[];const onSite=sitesToday.reduce((s,x)=>s+(x.present||0),0);
@@ -235,6 +270,7 @@ dash(){const L=projList(),d=lastDate(),ym=(d||today()).slice(0,7),mLbl=new Date(
  return `<h1>${h<12?'Good morning':h<17?'Good afternoon':'Good evening'}${ROLE==='ceo'?', Mr. Cem':''}</h1><p class="sub">Everything in one view · ${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})} · latest register ${d?fmtD(d):'none yet'}</p>${RO()}
  <div class="tiles">${tile('People on site',d?onSite:'—',d?sitesToday.length+' sites · '+fmtD(d):'no register yet')+tile('Labour cost, '+mLbl,monthCost?aedM(monthCost):'—','full cost, all sites · gross basis '+(monthGross?aedM(monthGross):'—'))+tile('Pilot projects',`<span style="color:#2E8B6A">${cnt('g')}</span> · <span style="color:#C27C0E">${cnt('a')}</span> · <span style="color:#C0392B">${cnt('r')}</span>`,'on track · watch · action needed')+tile('Priorities',late+blk,late+' late · '+blk+' blocked')+tile('Cash so far',withM.length?aedM(cash):'—',withM.length?(unconf?unconf+' not yet confirmed':'all confirmed'):'no money figures')+tile('Forecast margin',withM.length?aedM(mar):'—',withM.length&&rev?Math.round(mar/rev*100)+'% of contract value':'')}</div>
  <div class="card" style="border-left:5px solid ${A.some(x=>x[0]==='rd')?'#C0392B':A.length?'#C27C0E':'#2E8B6A'}"><h2>Needs attention (${A.length})</h2>${A.length?A.slice(0,12).map(x=>`<div style="padding:5px 0;border-bottom:1px solid var(--line);font-size:13px;color:${x[0]==='rd'?'#C0392B':'#7A5200'}">${x[0]==='rd'?'⛔':'⚠'} ${esc(x[1])}</div>`).join('')+(A.length>12?'<p class="small">and '+(A.length-12)+' more</p>':''):'<p class="note" style="margin:0">Nothing needs attention right now.</p>'}</div>
+ ${ROLE==='hr'||ROLE==='ceo'?pilotHealth():''}
  <div class="card"><h2>Projects at a glance</h2><div class="tw"><table><tr><th>Project</th><th>Status</th><th class="r">On site</th><th class="r">Labour cost, ${mLbl} (full)</th><th>Late / blocked</th><th>Last site update</th><th class="r">Cash so far</th><th class="r">Forecast margin</th><th>Money</th></tr>
  ${F.map(x=>{const mo=monthSum(x.p.site,ym);const td=d?dayOf(d,x.p.site):null;return `<tr data-open="${x.id}" style="cursor:pointer"><td><b>${esc(x.p.name)}</b><div class="small">${pInfo(x.p)||''}</div></td><td><span class="pill ${x.f.lvl==='g'?'g':x.f.lvl==='a'?'a':'rd'}">${x.f.lvl==='g'?'On track':x.f.lvl==='a'?'Watch':'Action needed'}</span></td><td class="r">${td?td.present:'—'}</td><td class="r">${mo.full?aedM(mo.full):'—'}</td><td>${x.f.late} / ${x.f.blk}</td><td>${x.f.u?fmtD(x.f.u.date):'none'}</td><td class="r" style="color:${x.m&&x.m.cashNow<0?'#C0392B':'inherit'}">${x.m?aedM(x.m.cashNow):'—'}</td><td class="r">${x.m?aedM(x.m.margin)+' · '+(x.m.revised?Math.round(x.m.margin/x.m.revised*100):0)+'%':'—'}</td><td>${x.lm?(x.lm.confBy?'<span class="pill g">confirmed</span>':'<span class="pill a">not confirmed</span>'):'—'}</td></tr>`}).join('')||'<tr><td colspan="9" class="note">No projects yet.</td></tr>'}</table></div><p class="small">Click a project to open it.</p></div>
  <div class="grid2"><div class="card"><h2>People on site · all sites, last 14 register days</h2>${stackChart(null,14)}</div>
