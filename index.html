@@ -586,17 +586,19 @@ tr:hover td{background:#fafbfc;}
           <div id="dashLeaveSumBody"></div>
         </div>
         <div class="card" id="dashLeavePeriodCard" style="display:none;margin-bottom:16px;border-top:3px solid #C9A84C;">
-          <div class="card-title">🔎 Leave in a period</div>
-          <p style="font-size:12px;color:#888;margin-bottom:8px;">Who has leave booked between two dates, for example over the National Day holiday.</p>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><div class="card-title" style="margin:0;flex:1;">🔎 Leave in a period</div><button class="btn btn-sm btn-primary" id="lpToggle" onclick="lpToggle()">View</button></div>
+          <p style="font-size:12px;color:#888;margin:6px 0 0;">Who has leave booked between two dates, for example over the National Day holiday.</p>
+          <div id="lpWrap" style="display:none;margin-top:10px;">
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
             <div class="form-group"><label>From</label><input type="date" id="lpFrom" onchange="lpRun()"></div>
             <div class="form-group"><label>To</label><input type="date" id="lpTo" onchange="lpRun()"></div>
-            <div class="form-group"><label>Leave</label><select id="lpType" onchange="lpRun()"><option value="annual">Annual leave (incl. extensions)</option><option value="all">All leave types</option></select></div>
+            <div class="form-group"><label>Leave</label><select id="lpType" onchange="lpRun()"><option value="time">Annual and unpaid leave</option><option value="annual">Annual leave only</option><option value="all">All leave types</option></select></div>
             <div class="form-group"><label>Department</label><select id="lpDept" onchange="lpRun()"><option value="">All departments</option></select></div>
             <button class="btn btn-sm btn-gold" onclick="lpExcel()">📥 Excel</button>
             <button class="btn btn-sm btn-primary" onclick="lpPDF()">📄 PDF</button>
           </div>
           <div id="lpBody"></div>
+          </div>
         </div>
         <div class="card" id="dashUnpaidFlagCard" style="display:none;margin-bottom:16px;border-top:3px solid #c0392b;">
           <div class="card-title">🚩 Unauthorised absence: repeat flags (last 3 months)</div>
@@ -4215,7 +4217,7 @@ window.renderHRReviewQueue=function(){
       const st=describeLeaveStage(r);
       const canAdjust=canAct&&r.stage==='Completed'&&r.status==='Approved'&&r.status!=='Cancelled';
       return`<tr><td>${esc(r.empName)}</td><td>${esc(r.leaveType+(r.half?' · half day ('+(r.half==='first'?'first half':'second half')+')':''))}</td><td>${fmt(r.startDate)} – ${fmt(r.endDate)}</td>
-        <td><span class="badge ${st.cls}">${esc(st.label)}</span></td>
+        <td><span class="badge ${st.cls}">${esc(st.label)}</span>${handoverApplies(r)?(handoverState(r)==='done'?`<div style="font-size:11px;color:#1A7A6E;margin-top:4px;">✓ Handover confirmed by ${esc(r.handoverBy||'HR')}, ${fmt(r.handoverApprovedAt)}${canAct?` <button class="btn btn-sm" style="padding:1px 7px;font-size:10.5px;" onclick="undoLeaveHandover('${k}')">Undo</button>`:''}</div>`:handoverState(r)==='unpaid'?`<div style="font-size:11px;color:#c0392b;margin-top:4px;">Marked as unpaid leave (handover not completed) by ${esc(r.unpaidBy||'HR')}, ${fmt(r.unpaidAt)}${r.originalLeaveType?' · was '+esc(r.originalLeaveType):''}</div>`:`<div style="font-size:11px;color:#a35a00;margin-top:4px;">Handover pending</div>`):''}</td>
         <td style="font-size:11px;">${esc(r.hrComments||'—')}</td>
         <td style="font-size:11px;">${esc(r.lmComments||'—')}</td>
         <td style="font-size:11px;">${esc(r.addlComments||'—')}</td>
@@ -4589,7 +4591,7 @@ function handoverDue(r){const s=lnParse(r.startDate);if(!s)return null;s.setDate
 window.renderHandoverTable=function(canAct){
   const body=document.getElementById('handoverBody');if(!body)return;
   const today=lnToday(),cutoff=new Date(today);cutoff.setDate(cutoff.getDate()-30);
-  const rows=Object.entries(DB.leaveRequests||{}).filter(([k,r])=>handoverApplies(r)&&(lnParse(r.endDate)||0)>=cutoff).sort((a,b)=>String(a[1].startDate).localeCompare(String(b[1].startDate)));
+  const rows=Object.entries(DB.leaveRequests||{}).filter(([k,r])=>handoverApplies(r)&&handoverState(r)==='pending'&&(lnParse(r.endDate)||0)>=cutoff).sort((a,b)=>String(a[1].startDate).localeCompare(String(b[1].startDate)));
   body.innerHTML=rows.length?rows.map(([k,r])=>{
     const st=handoverState(r),due=handoverDue(r),overdue=due&&due<=today;
     const dueTxt=due?fmt(due):'—';
@@ -4600,7 +4602,7 @@ window.renderHandoverTable=function(canAct){
     else{stTxt=overdue?'<span style="color:#c0392b;font-weight:700;">Unauthorised / Incomplete</span><br><span style="color:#c0392b;font-size:11px;font-weight:700;">⚠ OVERDUE: due '+dueTxt+'</span>':'<span style="color:#a35a00;font-weight:700;">Approved, handover pending</span>';
       if(canAct)act='<button class="btn btn-sm btn-primary" onclick="confirmLeaveHandover(\''+k+'\')">✓ Confirm handover</button> <button class="btn btn-sm" style="background:#e67e22;color:#fff;" title="Change this leave to unpaid leave" onclick="markLeaveUnpaid(\''+k+'\')">Mark unpaid</button> <button class="btn btn-sm btn-danger" title="Reject: cancel this approved leave" onclick="openAdjustLeave(\''+k+'\')">Reject / Cancel</button>';}
     return'<tr style="'+(st==='pending'&&overdue?'background:#fdecea;':'')+'"><td><strong>'+esc(r.empName)+'</strong></td><td>'+esc(r.leaveType+(r.half?' · half day ('+(r.half==='first'?'first half':'second half')+')':''))+(r.originalLeaveType?'<br><span style="font-size:10.5px;color:#888;">was '+esc(r.originalLeaveType)+'</span>':'')+'</td><td>'+fmt(r.startDate)+' – '+fmt(r.endDate)+'</td><td>'+esc(reqDays(r))+'</td><td style="font-size:12px;">'+esc(r.relieverName||'—')+'</td><td>'+dueTxt+'</td><td>'+stTxt+'</td><td>'+act+'</td></tr>';
-  }).join(''):'<tr><td colspan="8"><div class="empty-state"><p>No approved leave of more than 3 days waiting for handover</p></div></td></tr>';
+  }).join(''):'<tr><td colspan="8"><div class="empty-state"><p>No approved leave of more than 3 days waiting for handover. Confirmed handovers and leave marked unpaid are in Full History below.</p></div></td></tr>';
 };
 window.confirmLeaveHandover=function(key){
   if(currentRole!=='admin')return;
@@ -12782,36 +12784,39 @@ window.annLiveToggleForm = function () { const th = v('annTheme'), box = documen
 
 
 // ══ 16 Nov 2026: Leave in a period (HR and Mr. Cem): who has leave booked between two dates, e.g. 2 to 4 December ══
+let LP_OPEN=false;
+window.lpToggle=function(){LP_OPEN=!LP_OPEN;const w=document.getElementById('lpWrap'),b=document.getElementById('lpToggle');if(w)w.style.display=LP_OPEN?'block':'none';if(b)b.textContent=LP_OPEN?'Hide':'View';if(LP_OPEN)lpRender()};
 function lpRender(){const card=document.getElementById('dashLeavePeriodCard');if(!card)return;
- if(currentRole!=='admin'&&currentRole!=='ceo'){card.style.display='none';return}card.style.display='block';
+ if(currentRole!=='admin'&&currentRole!=='ceo'){card.style.display='none';return}card.style.display='block';if(!LP_OPEN)return;
  const f=document.getElementById('lpFrom'),t=document.getElementById('lpTo'),dp=document.getElementById('lpDept');
  if(f&&!f.value){const d=new Date();f.value=localDateStr(d);d.setDate(d.getDate()+6);t.value=localDateStr(d)}
  if(dp){const cur=dp.value,ds=[...new Set(Object.values(DB.employees||{}).filter(e=>e&&e.status!=='Inactive').map(e=>e.dept).filter(Boolean))].sort();const h='<option value="">All departments</option>'+ds.map(d=>`<option${d===cur?' selected':''}>${esc(d)}</option>`).join('');if(dp.dataset.h!==h){dp.innerHTML=h;dp.dataset.h=h}}
  lpRun()}
-function lpData(){const from=(document.getElementById('lpFrom')||{}).value||'',to=(document.getElementById('lpTo')||{}).value||'',kind=(document.getElementById('lpType')||{}).value||'annual',dept=(document.getElementById('lpDept')||{}).value||'';
+function lpData(){const from=(document.getElementById('lpFrom')||{}).value||'',to=(document.getElementById('lpTo')||{}).value||'',kind=(document.getElementById('lpType')||{}).value||'time',dept=(document.getElementById('lpDept')||{}).value||'';
  if(!/^\d{4}-\d{2}-\d{2}$/.test(from)||!/^\d{4}-\d{2}-\d{2}$/.test(to)||to<from)return{from,to,rows:[],err:'Choose a From date and a To date (To on or after From).'};
- const idx=buildNameIndex(),rows=[],perDay={};
- Object.values(DB.leave||{}).forEach(l=>{if(!l||!leaveStatusOK(l))return;const f=String(l.from||'');if(!f||f>to||leaveEndOf(l)<from)return;
-  const k=leaveKind(l.type);if(k==='wfh')return;if(kind==='annual'&&!(k==='annual'||k==='half'||l.ext===true))return; // "Half Day Leave" comes off annual leave
+ const idx=buildNameIndex(),rows=[],perDay={},was={};Object.values(DB.leaveRequests||{}).forEach(r=>{if(r&&r.leaveRegisterKey&&r.originalLeaveType)was[r.leaveRegisterKey]=r.originalLeaveType});
+ Object.entries(DB.leave||{}).forEach(([lk,l])=>{if(!l||!leaveStatusOK(l))return;const f=String(l.from||'');if(!f||f>to||leaveEndOf(l)<from)return;
+  const k=leaveKind(l.type);if(k==='wfh')return;const isAnnual=k==='annual'||k==='half'||l.ext===true; // "Half Day Leave" comes off annual leave
+  if(kind==='annual'&&!isAnnual)return;if(kind==='time'&&!(isAnnual||k==='unpaid'))return;
   const m=matchEmpByName(l.empName,idx),e=m&&m.e?m.e:null;if(e&&e.status==='Inactive')return;if(dept&&(!e||e.dept!==dept))return;
   const ds=upDays(l).filter(x=>x.d>=from&&x.d<=to);if(!ds.length)return;const inP=ds.reduce((a,x)=>a+x.n,0);ds.forEach(x=>perDay[x.d]=(perDay[x.d]||0)+1);
-  rows.push({name:e?e.name:(l.empName||''),empId:e?(e.empId||''):'',dept:e?(e.dept||''):'',co:e?(/building/i.test(e.entity||'')?'CKC':'CK'):'',type:l.type||'',ext:l.ext===true,from:f,to:leaveEndOf(l),back:(k==='half'||String(l.days)==='0.5')?'':botNextDay(leaveEndOf(l)),inP,total:+l.days||upDays(l).reduce((a,x)=>a+x.n,0)})});
+  rows.push({name:e?e.name:(l.empName||''),empId:e?(e.empId||''):'',dept:e?(e.dept||''):'',co:e?(/building/i.test(e.entity||'')?'CKC':'CK'):'',type:(l.type||'')+(was[lk]&&was[lk]!==l.type?' (was '+was[lk]+')':''),ext:l.ext===true,from:f,to:leaveEndOf(l),back:(k==='half'||String(l.days)==='0.5')?'':botNextDay(leaveEndOf(l)),inP,total:+l.days||upDays(l).reduce((a,x)=>a+x.n,0)})});
  rows.sort((a,b)=>a.from<b.from?-1:a.from>b.from?1:String(a.name).localeCompare(b.name));
  const people=new Set(rows.map(r=>r.empId||r.name)).size;return{from,to,kind,dept,rows,perDay,people}}
 window.lpRun=function(){const out=document.getElementById('lpBody');if(!out)return;const D=lpData();if(D.err){out.innerHTML='<p style="font-size:12px;color:#c0392b;">'+D.err+'</p>';return}
  const days=[];for(let d=new Date(D.from+'T00:00:00');localDateStr(d)<=D.to&&days.length<62;d.setDate(d.getDate()+1))days.push(localDateStr(d));
- const lbl=D.kind==='annual'?'annual leave':'leave (all types)';
+ const lbl=D.kind==='annual'?'annual leave':D.kind==='time'?'annual or unpaid leave':'leave (all types)';
  out.innerHTML=`<p style="font-size:13px;margin:6px 0 8px;"><b>${D.people}</b> ${D.people===1?'person has':'people have'} ${lbl} booked between <b>${fmt(D.from)}</b> and <b>${fmt(D.to)}</b>${D.dept?' in '+esc(D.dept):''}.</p>`+
  (days.length<=31?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">${days.map(d=>`<span style="font-size:11.5px;padding:3px 8px;border-radius:10px;background:${D.perDay[d]?'#eef3fb':'#f6f6f6'};color:#1C3557;border:1px solid #d6e0ef;">${new Date(d+'T00:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}: <b>${D.perDay[d]||0}</b></span>`).join('')}</div>`:'')+
  (D.rows.length?`<div class="table-wrap"><table><thead><tr><th>Employee</th><th>Emp ID</th><th>Department</th><th>Co.</th><th>Leave type</th><th>From</th><th>To</th><th>Back on</th><th>Days in this period</th><th>Total days</th></tr></thead><tbody>${D.rows.map(r=>`<tr><td><b>${esc(r.name)}</b></td><td>${esc(r.empId)}</td><td>${esc(r.dept)}</td><td>${r.co}</td><td>${esc(r.type)}${r.ext?' <small>(extension)</small>':''}</td><td>${fmt(r.from)}</td><td>${fmt(r.to)}</td><td>${fmt(r.back)}</td><td style="text-align:right">${r.inP}</td><td style="text-align:right">${r.total}</td></tr>`).join('')}</tbody></table></div>`:'<p style="font-size:12px;color:#888;">Nobody has '+lbl+' booked in these dates.</p>')+
  '<p style="font-size:11px;color:#888;margin-top:6px;">Approved leave from the Leave Register (requests still waiting for approval are not included). Calendar days, as leave is counted; public holidays inside a leave count as leave. People who have left are not shown.</p>'};
-window.lpExcel=function(){const D=lpData();if(D.err){alert(D.err);return}const a=[['Leave in a period: '+fmt(D.from)+' to '+fmt(D.to)+(D.dept?' · '+D.dept:'')+' · '+(D.kind==='annual'?'Annual leave':'All leave types')],['Approved leave only. Generated '+fmt(localDateStr(new Date()))],[],['Employee','Emp ID','Department','Company','Leave type','From','To','Back on','Days in this period','Total days']];
+window.lpExcel=function(){const D=lpData();if(D.err){alert(D.err);return}const a=[['Leave in a period: '+fmt(D.from)+' to '+fmt(D.to)+(D.dept?' · '+D.dept:'')+' · '+(D.kind==='annual'?'Annual leave only':D.kind==='time'?'Annual and unpaid leave':'All leave types')],['Approved leave only. Generated '+fmt(localDateStr(new Date()))],[],['Employee','Emp ID','Department','Company','Leave type','From','To','Back on','Days in this period','Total days']];
  D.rows.forEach(r=>a.push([r.name,r.empId,r.dept,r.co,r.type+(r.ext?' (extension)':''),r.from,r.to,r.back,r.inP,r.total]));a.push([],['People',D.people]);
  const ws=XLSX.utils.aoa_to_sheet(a);ws['!cols']=[{wch:30},{wch:10},{wch:22},{wch:8},{wch:22},{wch:12},{wch:12},{wch:12},{wch:16},{wch:10}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Leave in period');XLSX.writeFile(wb,'Leave-'+D.from+'-to-'+D.to+'.xlsx')};
 window.lpPDF=async function(){const D=lpData();if(D.err){alert(D.err);return}
  try{await wfLoadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',()=>!!window.jspdf);await wfLoadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js',()=>!!(window.jspdf&&window.jspdf.jsPDF&&window.jspdf.jsPDF.API.autoTable))}catch(e){alert('Could not load the PDF tools. Please check the internet connection and try again.');return}
  const doc=new window.jspdf.jsPDF({orientation:'landscape',unit:'mm',format:'a4'});doc.setFontSize(14);doc.setTextColor(28,53,87);doc.text('Leave in a period: '+fmt(D.from)+' to '+fmt(D.to),14,15);doc.setFontSize(9.5);doc.setTextColor(90);
- doc.text((D.kind==='annual'?'Annual leave':'All leave types')+(D.dept?' · '+D.dept:' · All departments')+' · '+D.people+' people · approved leave only · generated '+fmt(localDateStr(new Date())),14,21);
+ doc.text((D.kind==='annual'?'Annual leave only':D.kind==='time'?'Annual and unpaid leave':'All leave types')+(D.dept?' · '+D.dept:' · All departments')+' · '+D.people+' people · approved leave only · generated '+fmt(localDateStr(new Date())),14,21);
  doc.autoTable({startY:26,head:[['Employee','Emp ID','Department','Co.','Leave type','From','To','Back on','Days in period','Total days']],body:D.rows.map(r=>[r.name,r.empId,r.dept,r.co,r.type+(r.ext?' (ext.)':''),fmt(r.from),fmt(r.to),fmt(r.back),r.inP,r.total]),styles:{fontSize:8.5},headStyles:{fillColor:[28,53,87]},columnStyles:{8:{halign:'right'},9:{halign:'right'}}});
  doc.save('Leave-'+D.from+'-to-'+D.to+'.pdf')};
 
