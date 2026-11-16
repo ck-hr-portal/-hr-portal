@@ -585,6 +585,19 @@ tr:hover td{background:#fafbfc;}
           <div class="card-title">🗓 Today's leave summary</div>
           <div id="dashLeaveSumBody"></div>
         </div>
+        <div class="card" id="dashLeavePeriodCard" style="display:none;margin-bottom:16px;border-top:3px solid #C9A84C;">
+          <div class="card-title">🔎 Leave in a period</div>
+          <p style="font-size:12px;color:#888;margin-bottom:8px;">Who has leave booked between two dates, for example over the National Day holiday.</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+            <div class="form-group"><label>From</label><input type="date" id="lpFrom" onchange="lpRun()"></div>
+            <div class="form-group"><label>To</label><input type="date" id="lpTo" onchange="lpRun()"></div>
+            <div class="form-group"><label>Leave</label><select id="lpType" onchange="lpRun()"><option value="annual">Annual leave (incl. extensions)</option><option value="all">All leave types</option></select></div>
+            <div class="form-group"><label>Department</label><select id="lpDept" onchange="lpRun()"><option value="">All departments</option></select></div>
+            <button class="btn btn-sm btn-gold" onclick="lpExcel()">📥 Excel</button>
+            <button class="btn btn-sm btn-primary" onclick="lpPDF()">📄 PDF</button>
+          </div>
+          <div id="lpBody"></div>
+        </div>
         <div class="card" id="dashUnpaidFlagCard" style="display:none;margin-bottom:16px;border-top:3px solid #c0392b;">
           <div class="card-title">🚩 Unauthorised absence: repeat flags (last 3 months)</div>
           <div id="dashUnpaidFlagBody"></div>
@@ -7902,6 +7915,7 @@ function updateDash(){
   const onLeave=new Set(_liveNow.filter(l=>!leaveIsWFH(l)).map(l=>normName(l.empName))).size;
   document.getElementById('s-leave').textContent=onLeave;
   try{lsumRender();}catch(e){}
+  try{lpRender();}catch(e){}
 
   const now=new Date(),in30=new Date();in30.setDate(in30.getDate()+30);
   let expC=0;
@@ -12766,6 +12780,40 @@ function festLiveApply(k, a) { // k = announcement key, or null to remove
 window.annLiveToggleForm = function () { const th = v('annTheme'), box = document.getElementById('annLiveBox'); if (!box) return; const ok = !!FEST_LIVE_THEMES[th]; box.style.display = ok ? '' : 'none';
   if (ok) { if (!v('annPreTitle')) sv('annPreTitle', FEST_LIVE_THEMES[th].preTitle); if (!v('annPreMsg')) sv('annPreMsg', FEST_LIVE_THEMES[th].preMsg); } };
 
+
+// ══ 16 Nov 2026: Leave in a period (HR and Mr. Cem): who has leave booked between two dates, e.g. 2 to 4 December ══
+function lpRender(){const card=document.getElementById('dashLeavePeriodCard');if(!card)return;
+ if(currentRole!=='admin'&&currentRole!=='ceo'){card.style.display='none';return}card.style.display='block';
+ const f=document.getElementById('lpFrom'),t=document.getElementById('lpTo'),dp=document.getElementById('lpDept');
+ if(f&&!f.value){const d=new Date();f.value=localDateStr(d);d.setDate(d.getDate()+6);t.value=localDateStr(d)}
+ if(dp){const cur=dp.value,ds=[...new Set(Object.values(DB.employees||{}).filter(e=>e&&e.status!=='Inactive').map(e=>e.dept).filter(Boolean))].sort();const h='<option value="">All departments</option>'+ds.map(d=>`<option${d===cur?' selected':''}>${esc(d)}</option>`).join('');if(dp.dataset.h!==h){dp.innerHTML=h;dp.dataset.h=h}}
+ lpRun()}
+function lpData(){const from=(document.getElementById('lpFrom')||{}).value||'',to=(document.getElementById('lpTo')||{}).value||'',kind=(document.getElementById('lpType')||{}).value||'annual',dept=(document.getElementById('lpDept')||{}).value||'';
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(from)||!/^\d{4}-\d{2}-\d{2}$/.test(to)||to<from)return{from,to,rows:[],err:'Choose a From date and a To date (To on or after From).'};
+ const idx=buildNameIndex(),rows=[],perDay={};
+ Object.values(DB.leave||{}).forEach(l=>{if(!l||!leaveStatusOK(l))return;const f=String(l.from||'');if(!f||f>to||leaveEndOf(l)<from)return;
+  const k=leaveKind(l.type);if(k==='wfh')return;if(kind==='annual'&&!(k==='annual'||k==='half'||l.ext===true))return; // "Half Day Leave" comes off annual leave
+  const m=matchEmpByName(l.empName,idx),e=m&&m.e?m.e:null;if(e&&e.status==='Inactive')return;if(dept&&(!e||e.dept!==dept))return;
+  const ds=upDays(l).filter(x=>x.d>=from&&x.d<=to);if(!ds.length)return;const inP=ds.reduce((a,x)=>a+x.n,0);ds.forEach(x=>perDay[x.d]=(perDay[x.d]||0)+1);
+  rows.push({name:e?e.name:(l.empName||''),empId:e?(e.empId||''):'',dept:e?(e.dept||''):'',co:e?(/building/i.test(e.entity||'')?'CKC':'CK'):'',type:l.type||'',ext:l.ext===true,from:f,to:leaveEndOf(l),back:(k==='half'||String(l.days)==='0.5')?'':botNextDay(leaveEndOf(l)),inP,total:+l.days||upDays(l).reduce((a,x)=>a+x.n,0)})});
+ rows.sort((a,b)=>a.from<b.from?-1:a.from>b.from?1:String(a.name).localeCompare(b.name));
+ const people=new Set(rows.map(r=>r.empId||r.name)).size;return{from,to,kind,dept,rows,perDay,people}}
+window.lpRun=function(){const out=document.getElementById('lpBody');if(!out)return;const D=lpData();if(D.err){out.innerHTML='<p style="font-size:12px;color:#c0392b;">'+D.err+'</p>';return}
+ const days=[];for(let d=new Date(D.from+'T00:00:00');localDateStr(d)<=D.to&&days.length<62;d.setDate(d.getDate()+1))days.push(localDateStr(d));
+ const lbl=D.kind==='annual'?'annual leave':'leave (all types)';
+ out.innerHTML=`<p style="font-size:13px;margin:6px 0 8px;"><b>${D.people}</b> ${D.people===1?'person has':'people have'} ${lbl} booked between <b>${fmt(D.from)}</b> and <b>${fmt(D.to)}</b>${D.dept?' in '+esc(D.dept):''}.</p>`+
+ (days.length<=31?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">${days.map(d=>`<span style="font-size:11.5px;padding:3px 8px;border-radius:10px;background:${D.perDay[d]?'#eef3fb':'#f6f6f6'};color:#1C3557;border:1px solid #d6e0ef;">${new Date(d+'T00:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}: <b>${D.perDay[d]||0}</b></span>`).join('')}</div>`:'')+
+ (D.rows.length?`<div class="table-wrap"><table><thead><tr><th>Employee</th><th>Emp ID</th><th>Department</th><th>Co.</th><th>Leave type</th><th>From</th><th>To</th><th>Back on</th><th>Days in this period</th><th>Total days</th></tr></thead><tbody>${D.rows.map(r=>`<tr><td><b>${esc(r.name)}</b></td><td>${esc(r.empId)}</td><td>${esc(r.dept)}</td><td>${r.co}</td><td>${esc(r.type)}${r.ext?' <small>(extension)</small>':''}</td><td>${fmt(r.from)}</td><td>${fmt(r.to)}</td><td>${fmt(r.back)}</td><td style="text-align:right">${r.inP}</td><td style="text-align:right">${r.total}</td></tr>`).join('')}</tbody></table></div>`:'<p style="font-size:12px;color:#888;">Nobody has '+lbl+' booked in these dates.</p>')+
+ '<p style="font-size:11px;color:#888;margin-top:6px;">Approved leave from the Leave Register (requests still waiting for approval are not included). Calendar days, as leave is counted; public holidays inside a leave count as leave. People who have left are not shown.</p>'};
+window.lpExcel=function(){const D=lpData();if(D.err){alert(D.err);return}const a=[['Leave in a period: '+fmt(D.from)+' to '+fmt(D.to)+(D.dept?' · '+D.dept:'')+' · '+(D.kind==='annual'?'Annual leave':'All leave types')],['Approved leave only. Generated '+fmt(localDateStr(new Date()))],[],['Employee','Emp ID','Department','Company','Leave type','From','To','Back on','Days in this period','Total days']];
+ D.rows.forEach(r=>a.push([r.name,r.empId,r.dept,r.co,r.type+(r.ext?' (extension)':''),r.from,r.to,r.back,r.inP,r.total]));a.push([],['People',D.people]);
+ const ws=XLSX.utils.aoa_to_sheet(a);ws['!cols']=[{wch:30},{wch:10},{wch:22},{wch:8},{wch:22},{wch:12},{wch:12},{wch:12},{wch:16},{wch:10}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Leave in period');XLSX.writeFile(wb,'Leave-'+D.from+'-to-'+D.to+'.xlsx')};
+window.lpPDF=async function(){const D=lpData();if(D.err){alert(D.err);return}
+ try{await wfLoadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',()=>!!window.jspdf);await wfLoadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js',()=>!!(window.jspdf&&window.jspdf.jsPDF&&window.jspdf.jsPDF.API.autoTable))}catch(e){alert('Could not load the PDF tools. Please check the internet connection and try again.');return}
+ const doc=new window.jspdf.jsPDF({orientation:'landscape',unit:'mm',format:'a4'});doc.setFontSize(14);doc.setTextColor(28,53,87);doc.text('Leave in a period: '+fmt(D.from)+' to '+fmt(D.to),14,15);doc.setFontSize(9.5);doc.setTextColor(90);
+ doc.text((D.kind==='annual'?'Annual leave':'All leave types')+(D.dept?' · '+D.dept:' · All departments')+' · '+D.people+' people · approved leave only · generated '+fmt(localDateStr(new Date())),14,21);
+ doc.autoTable({startY:26,head:[['Employee','Emp ID','Department','Co.','Leave type','From','To','Back on','Days in period','Total days']],body:D.rows.map(r=>[r.name,r.empId,r.dept,r.co,r.type+(r.ext?' (ext.)':''),fmt(r.from),fmt(r.to),fmt(r.back),r.inP,r.total]),styles:{fontSize:8.5},headStyles:{fillColor:[28,53,87]},columnStyles:{8:{halign:'right'},9:{halign:'right'}}});
+ doc.save('Leave-'+D.from+'-to-'+D.to+'.pdf')};
 
 // ══ Nov 2026: PAYROLL module (separate; never changes other HR Portal data) ══
 // HR uploads the monthly payroll authorisation Excel (CK, CKC) exactly as prepared, sends to Cem; Cem approves or sends back;
