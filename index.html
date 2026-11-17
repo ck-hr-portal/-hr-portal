@@ -161,6 +161,8 @@ tr:hover td{background:#fafbfc;}
   .portal-sub{font-size:10px;color:#7a9ab5;}
 </style>
 <style>@media print{#polViewer{display:none!important;}}</style>
+<style>.lt-comp{display:inline-block;padding:2px 9px;border-radius:999px;background:#EDE7FB;color:#4B2A9A;border:1px dashed #8C73D0;font-size:11.5px;font-weight:600}</style>
+
 </head>
 <body>
 
@@ -237,6 +239,11 @@ tr:hover td{background:#fafbfc;}
       <div class="card-title">🗓 My Week (projects)</div>
       <p style="font-size:12px;color:#888;margin-bottom:8px;">Every Friday: roughly what % of your week went to each site (a day can be split between several sites).</p>
       <div id="empWeek"></div>
+    </div>
+    <div class="card" id="empCompAllCard" style="display:none;">
+      <div class="card-title">🔁 Compensatory Leave Taken (company)</div>
+      <p style="font-size:12px;color:#888;margin-bottom:8px;">Visible only to you and HR: who is on compensatory leave, last 7 days and coming up.</p>
+      <div id="empCompAll" style="max-height:240px;overflow-y:auto;"></div>
     </div>
     <div class="card" id="empTeamLeaveCard" style="display:none;">
       <div class="card-title">👥 My Team: Leave</div>
@@ -2603,7 +2610,7 @@ async function startStaffSession(user){
     showLoginError('Your profile is not ready yet. Please contact HR.');
     return;
   }
-  currentAdmin=user.email||''; currentRole='employee'; currentEmpKey=m.empKey; window._myLeaveView=m.leaveView===true; window._myLicOn=m.licOn===true; window._myPayRev=m.payRev===true; window._myPaySif=m.paySif===true;
+  currentAdmin=user.email||''; currentRole='employee'; currentEmpKey=m.empKey; window._myLeaveView=m.leaveView===true;window._myCompView=m.compView===true; window._myLicOn=m.licOn===true; window._myPayRev=m.payRev===true; window._myPaySif=m.paySif===true;
   adminName=view.name||''; adminTitle=view.desig||''; adminSignName=view.name||'';
   initEmployeeListeners(m.empKey,user.uid);
   applyEmployeeMode();
@@ -3120,7 +3127,9 @@ async function syncStaffMirrors(){
       if(emp.status!=='Inactive'&&!(l.source==='Employee Self-Service Request'))teamAdd(emp,'l'+lk,{n:emp.name||l.empName,d:emp.dept||'',ty:(l.type||'')+(l.ext===true?' (extension)':''),f:l.from,t:l.to,st:'Approved'});
       if(emp.status!=='Inactive'&&l.from<=localDateStr(new Date(today0.getFullYear(),today0.getMonth(),today0.getDate()+30)))sh.leaveTyped[lk]={n:emp.name||l.empName,d:emp.dept||'',ty:(l.type||'')+(l.ext===true?' (extension)':''),f:l.from,t:l.to}; // with leave type: only for staff given access (rules)
     });
-    for(const part of ['birthdays','anniversaries','leave','leaveAll','leaveTyped','directory','team']){
+    // 17 Nov 2026: compensatory leave taken, for staff HR ticks "Let see comp leave" (e.g. Arlenne)
+    sh.compTaken={};if(!window._compLoadFailed){const lo=localDateStr(new Date(today0.getFullYear(),today0.getMonth(),today0.getDate()-7));Object.entries(DB.compLeave||{}).forEach(([ck,c])=>{if(!c||c.kind!=='taken'||!c.date||c.date<lo||c.date>horizon)return;const e=DB.employees[c.empKey];if(!e||!isCurrentEmployee(c.empKey,e,todayStr))return;sh.compTaken[ck]={n:e.name||c.empName||'',d:e.dept||'',dt:c.date,h:parseFloat(c.hours)||0};});}
+    for(const part of ['birthdays','anniversaries','leave','leaveAll','leaveTyped','directory','team','compTaken']){
       const nv=prune(sh[part]);
       if(stable(nv)!==stable(prune(_mirrorCache.shared[part]))){
         if(nv===undefined)await _fbRemove(ref(db,'staffShared/'+part));
@@ -3172,7 +3181,8 @@ window.renderPortalAccess=function(){
         <button class="btn btn-sm ${on?'btn-danger':'btn-primary'}" onclick="toggleStaffAccess('${k}',${on?'false':'true'})">${on?'Turn access off':'Turn access on'}</button>
         ${currentRole==='admin'?`<button class="btn btn-sm" style="background:${e.payRev?'#e8f6f3':'#f4f6f8'};color:${e.payRev?'#1A7A6E':'#555'};" title="Finance review of the approved payroll (all lines)" onclick="togglePayAccess('${k}','rev',${e.payRev?'false':'true'})">${e.payRev?'✓ Payroll review':'Payroll review'}</button><button class="btn btn-sm" style="background:${e.paySif?'#e8f6f3':'#f4f6f8'};color:${e.paySif?'#1A7A6E':'#555'};" title="SIF check and bank upload (totals only)" onclick="togglePayAccess('${k}','sif',${e.paySif?'false':'true'})">${e.paySif?'✓ SIF check':'SIF check'}</button>`:''}
         ${currentRole==='admin'?`<button class="btn btn-sm" style="background:${e.licOn?'#e8f6f3':'#f4f6f8'};color:${e.licOn?'#1A7A6E':'#555'};" title="Record professional licences and cards in the portal" onclick="toggleLicOn('${k}',${e.licOn?'false':'true'})">${e.licOn?'✓ Licences & cards':'Licences & cards'}</button>`:''}
-        ${currentRole==='admin'?`<button class="btn btn-sm" style="background:${e.leaveView?'#e8f6f3':'#f4f6f8'};color:${e.leaveView?'#1A7A6E':'#555'};" title="See who is on leave: all staff, today and the next 30 days, with leave type" onclick="toggleLeaveView('${k}',${e.leaveView?'false':'true'})">${e.leaveView?'✓ Sees all leave':'Let see all leave'}</button>`:''}`;
+        ${currentRole==='admin'?`<button class="btn btn-sm" style="background:${e.leaveView?'#e8f6f3':'#f4f6f8'};color:${e.leaveView?'#1A7A6E':'#555'};" title="See who is on leave: all staff, today and the next 30 days, with leave type" onclick="toggleLeaveView('${k}',${e.leaveView?'false':'true'})">${e.leaveView?'✓ Sees all leave':'Let see all leave'}</button>`:''}
+         ${currentRole==='admin'?`<button class="btn btn-sm" style="background:${e.compView?'#EDE7FB':'#f4f6f8'};color:${e.compView?'#4B2A9A':'#555'};" title="See compensatory leave taken by all staff (only for the people you choose)" onclick="toggleCompView('${k}',${e.compView?'false':'true'})">${e.compView?'✓ Sees comp leave':'Let see comp leave'}</button>`:''}`;
     }
     return`<tr>
       <td><strong>${esc(e.name||'')}</strong><br><span style="font-size:11px;color:#888;">${esc(e.empId||'')} — ${esc(e.dept||'')}</span></td>
@@ -4010,6 +4020,7 @@ function initEmployeeListeners(empKey,uid){
   // Company-wide content and low-sensitivity shared lists
   optional(ref(db,'holidays'),snap=>{DB.holidays=snap.val()||{};});
   optional(ref(db,'staffShared/team/'+empKey),snap=>{DB.teamLeave=snap.val()||{};renderEmpTeamLeave();});
+  if(window._myCompView)optional(ref(db,'staffShared/compTaken'),snap=>{DB.compTakenAll=snap.val()||{};renderEmpCompAll();});
   _staffUnsubs.push(onValue(ref(db,'staffShared/leaveAll'),snap=>{DB.leaveAll=snap.val()||{};},()=>{DB.leaveAll=null;}));
   if(window._myPayRev||window._myPaySif){try{prListen();}catch(e){}}
   if(window._myLicOn)_staffUnsubs.push(onValue(ref(db,'lic/'+currentEmpKey),snap=>{DB.myLic=snap.val()||{};renderMyLic();},()=>{DB.myLic={};renderMyLic();}));
@@ -4472,6 +4483,9 @@ window.tsSave=async()=>{const F=TS.form,msg=document.getElementById('tsMsg');con
  const sites={};R.forEach(r=>{const k=tsKey(r.s);sites[k]={s:r.s,d:(sites[k]?sites[k].d:0)+(+r.d)}});
  try{await set(ref(db,'proj/time/'+currentEmpKey+'/'+F.week),{at:Date.now(),unit:'pct',sites,other:+F.other||0,total:100});F.dirty=false;msg.textContent='Saved ✓'}catch(err){msg.textContent='Could not save: '+err.message}};
 
+function renderEmpCompAll(){const card=document.getElementById('empCompAllCard'),el=document.getElementById('empCompAll');if(!card||!el)return;if(!window._myCompView){card.style.display='none';return}card.style.display='block';
+  const today=localDateStr(new Date()),L=Object.values(DB.compTakenAll||{}).filter(x=>x&&x.dt).sort((a,b)=>a.dt>b.dt?1:-1);
+  el.innerHTML=L.length?L.map(x=>`<div style="padding:7px 0;border-bottom:1px solid #f0f0f0;font-size:13px;"><strong>${esc(x.n)}</strong> <small style="color:#888;">${esc(x.d||'')}</small> · ${fmt(x.dt)} · ${Math.round(x.h*10)/10} h ${x.dt===today?'<span class="badge badge-pending">Today</span>':x.dt<today?'<span class="badge" style="background:#f2f2f2;color:#777;">Taken</span>':'<span class="badge" style="background:#e8f0fb;color:#2563A8;">Upcoming</span>'}</div>`).join(''):'<div class="empty-state"><p>No compensatory leave in this period</p></div>';}
 function renderEmpTeamLeave(){
   const card=document.getElementById('empTeamLeaveCard'),el=document.getElementById('empTeamLeave');if(!card||!el)return;
   const L=Object.values(DB.teamLeave||{}).filter(x=>x&&x.n&&x.t);if(!L.length){card.style.display='none';return;}card.style.display='block';
@@ -7584,7 +7598,7 @@ function initListeners(){
       if(pg&&pg.classList.contains('active'))renderPortalAccess();
       scheduleStaffMirrorSync();
     });
-    // Compensatory leave: Dev and Darleendy only
+    // Compensatory leave: Dev and Darleendy edit; Mr. Cem and Kashif see it on the dashboard (rules)
     onValue(ref(db,'compLeave'),snap=>{
       DB.compLeave=snap.val()||{};
       window._compLoadFailed=false;
@@ -7592,9 +7606,11 @@ function initListeners(){
       const pg=document.getElementById('page-comp');
       if(pg&&pg.classList.contains('active'))renderCompPage();
       if(document.getElementById('compDetailModal').classList.contains('open')&&window._compDetailKey)openCompDetail(window._compDetailKey);
+      try{updateDash();}catch(e){}try{lsumRender();}catch(e){}
       scheduleStaffMirrorSync();
     },()=>{window._compLoadFailed=true;_mirrorLoaded.compLeave=true;scheduleStaffMirrorSync();});
   }
+  if(currentRole==='ceo'||currentRole==='pro'){onValue(ref(db,'compLeave'),snap=>{DB.compLeave=snap.val()||{};try{updateDash();}catch(e){}},()=>{DB.compLeave={};});}
   if(currentRole==='admin'){try{initBatch2Listeners();initBatch3Listeners();}catch(e){console.error(e);}try{lqStart();}catch(e){console.error(e);}}
   if(currentRole==='ceo'){try{initBatch2Listeners(true);initBatch3Listeners();}catch(e){console.error(e);}try{lqStart();}catch(e){console.error(e);}}
   // When the last backup was taken: Dev and Darleendy get the weekly reminder, Cem can see the status (view only)
@@ -8070,6 +8086,11 @@ function updateDash(){
           <td>${isActiveNow?'<span class="badge badge-pending">🟠 On Leave Now</span>':'<span class="badge" style="background:#e8f0fb;color:#2563A8;">📅 Upcoming</span>'}</td>
         </tr>`;
       }).join(''):'<tr><td colspan="8"><div class="empty-state"><p>No active or upcoming approved leave</p></div></td></tr>';
+      // 17 Nov 2026: compensatory leave taken (only Dev, Darleendy, Mr. Cem and Kashif can read it)
+      const compRows=Object.values(DB.compLeave||{}).filter(c=>c&&c.kind==='taken'&&c.date&&c.date>=todayStr&&c.date<=localDateStr(new Date(Date.now()+60*864e5))).map(c=>({c,e:DB.employees[c.empKey]||{}})).filter(x=>x.e.status!=='Inactive').sort((a,b)=>a.c.date>b.c.date?1:-1);
+      if(compRows.length){const h=x=>(Math.round((parseFloat(x.c.hours)||0)*10)/10)+' h';
+        const html=compRows.map(x=>`<tr><td><strong>${esc(x.e.name||x.c.empName||'')}</strong></td><td><span class="lt-comp">Compensatory Leave</span></td><td>${esc(x.e.desig||'—')}</td><td>${esc(x.e.dept||'—')}</td><td>${fmt(x.c.date)}</td><td>${fmt(x.c.date)}</td><td>${h(x)}</td><td>${x.c.date===todayStr?'<span class="badge badge-pending">🟠 On Leave Now</span>':'<span class="badge" style="background:#e8f0fb;color:#2563A8;">📅 Upcoming</span>'}</td></tr>`).join('');
+        onLeaveBody.innerHTML=(onLeave.length?onLeaveBody.innerHTML:'')+html;}
     }
     const noteEl=document.getElementById('d-onleave-note');
     if(noteEl){
@@ -12514,6 +12535,12 @@ function upReportPdf() {
     summaryLines: [`Employees listed: ${L.length}`, `Unauthorised absence days: ${L.reduce((s, r) => s + Object.values(r.m).reduce((a, x) => a + x.days, 0), 0)} · approved unpaid days: ${L.reduce((s, r) => s + Object.values(r.ap).reduce((a, x) => a + x.days, 0), 0)}`, `Red months (4+ days): ${L.reduce((s, r) => s + Object.values(r.m).filter(x => x.days >= 4).length, 0)}`, `Extensions recorded: ${L.reduce((s, r) => s + r.ext.length, 0)}`] });
 }
 // ── "Who is on leave" for chosen staff (e.g. Zaheer Islam, Arlenne): all departments, with leave type
+window.toggleCompView = async function (k, on) {
+  if (currentRole !== 'admin') return; const e = DB.employees[k]; if (!e || !e.portalUid) { alert('This employee needs a portal login first.'); return; }
+  if (!confirm((on ? 'Let ' : 'Stop ') + e.name + (on ? ' see compensatory leave taken by all staff?' : ' seeing compensatory leave?'))) return;
+  try { await set(ref(db, 'staffMap/' + e.portalUid + '/compView'), on ? true : null); await set(ref(db, 'employees/' + k + '/compView'), on ? true : null); logAudit(on ? 'Compensatory leave view given' : 'Compensatory leave view removed', e.name, ''); renderPortalAccess(); }
+  catch (err) { alert('Could not save: ' + ((err && err.code) || 'unknown error')); }
+};
 window.toggleLeaveView = async function (k, on) {
   if (currentRole !== 'admin') return; const e = DB.employees[k]; if (!e || !e.portalUid) { alert('This employee needs a portal login first.'); return; }
   if (!confirm((on ? 'Let ' : 'Stop ') + e.name + (on ? ' see who is on leave (all staff, today and the next 30 days, with leave type)?' : ' seeing the company-wide leave list?'))) return;
