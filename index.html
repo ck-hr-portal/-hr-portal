@@ -233,6 +233,11 @@ tr:hover td{background:#fafbfc;}
       </div>
     </div>
 
+    <div class="card" id="empTeamLeaveCard" style="display:none;">
+      <div class="card-title">👥 My Team: Leave</div>
+      <p style="font-size:12px;color:#888;margin-bottom:8px;">People who report to you (you are their line manager or final approver), whatever their department: leave requests in progress and approved leave.</p>
+      <div id="empTeamLeave" style="max-height:320px;overflow-y:auto;"></div>
+    </div>
     <div class="card" id="empLicCard" style="display:none;">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><div class="card-title" style="margin:0;">🪪 My licences and cards</div><button class="btn btn-sm btn-primary" onclick="licAddMine()">+ Add a card</button></div>
       <p style="font-size:12px;color:#888;margin:6px 0 10px;">Professional licences and cards (e.g. SOE, Dubai Municipality, Civil Defence, Trakhees, HSE) with a copy. HR checks them and reminds you before they expire. Every change is recorded.</p>
@@ -3059,7 +3064,24 @@ async function syncStaffMirrors(){
     }
 
     // 3. Company-wide lists, kept small on purpose: only the next few weeks, and birthdays as day + month only
-    const sh={birthdays:{},anniversaries:{},leave:{},leaveAll:{},leaveTyped:{},directory:{}};
+    // 17 Nov 2026: a request still waiting for its line manager follows the line manager now set on the employee
+    for(const [rk,r] of Object.entries(DB.leaveRequests||{})){
+      if(!r||r.status!=='Pending'||r.lmActedAt||!(r.stage==='HR Review'||r.stage==='Line Manager Approval'))continue;
+      const e=DB.employees[r.empKey];if(!e||!e.lineManagerKey||e.lineManagerKey===r.lineManagerKey)continue;
+      await set(ref(db,'leaveRequests/'+rk+'/lineManagerKey'),e.lineManagerKey);await set(ref(db,'leaveRequests/'+rk+'/lineManagerName'),e.lineManagerName||'');r.lineManagerKey=e.lineManagerKey;r.lineManagerName=e.lineManagerName||'';
+      logAudit('Leave Request Line Manager Updated',r.empName||rk,'now '+(e.lineManagerName||e.lineManagerKey));
+    }
+    const sh={birthdays:{},anniversaries:{},leave:{},leaveAll:{},leaveTyped:{},directory:{},team:{}};
+    // 17 Nov 2026: each line manager (and additional approver) sees the leave of the people who report to them, whatever their department
+    const mgrsOf=e=>[e&&e.lineManagerKey,e&&e.needsAdditionalApproval?e.additionalApproverKey:null].filter(Boolean);
+    const teamAdd=(e,id,o)=>mgrsOf(e).forEach(mk=>{if(!/^[-A-Za-z0-9_]{1,60}$/.test(mk))return;(sh.team[mk]=sh.team[mk]||{})[id]=o;});
+    const pastLimit=localDateStr(new Date(today0.getFullYear(),today0.getMonth(),today0.getDate()-30));
+    Object.entries(DB.leaveRequests||{}).forEach(([rk,r])=>{
+      if(!r||!r.endDate||r.endDate<pastLimit||r.status==='Cancelled')return;
+      const e=DB.employees[r.empKey];if(!e||!isCurrentEmployee(r.empKey,e,todayStr))return;
+      let st='';try{st=describeLeaveStage(r).label}catch(err){st=r.stage||r.status||''}
+      teamAdd(e,'r'+rk,{n:e.name||r.empName,d:e.dept||'',ty:r.leaveType||'',f:r.startDate,t:r.endDate,st:String(st).slice(0,80)});
+    });
     const milestones=[5,10,15,20,25,30];
     const nameIdx=buildNameIndex();
     Object.entries(DB.employees).forEach(([k,e])=>{
@@ -3090,9 +3112,10 @@ async function syncStaffMirrors(){
       const slug=slugDept(emp.dept);
       (sh.leave[slug]=sh.leave[slug]||{})[lk]={n:l.empName+((l.type==='Half Day Leave'||String(l.days)==='0.5')?' (half day)':''),f:l.from,t:l.to};
       if(emp.status!=='Inactive')sh.leaveAll[lk]={n:l.empName+((l.type==='Half Day Leave'||String(l.days)==='0.5')?' (half day)':''),d:emp.dept||'',f:l.from,t:l.to}; // name, dept and dates only: never the type of leave
+      if(emp.status!=='Inactive'&&!(l.source==='Employee Self-Service Request'))teamAdd(emp,'l'+lk,{n:emp.name||l.empName,d:emp.dept||'',ty:(l.type||'')+(l.ext===true?' (extension)':''),f:l.from,t:l.to,st:'Approved'});
       if(emp.status!=='Inactive'&&l.from<=localDateStr(new Date(today0.getFullYear(),today0.getMonth(),today0.getDate()+30)))sh.leaveTyped[lk]={n:emp.name||l.empName,d:emp.dept||'',ty:(l.type||'')+(l.ext===true?' (extension)':''),f:l.from,t:l.to}; // with leave type: only for staff given access (rules)
     });
-    for(const part of ['birthdays','anniversaries','leave','leaveAll','leaveTyped','directory']){
+    for(const part of ['birthdays','anniversaries','leave','leaveAll','leaveTyped','directory','team']){
       const nv=prune(sh[part]);
       if(stable(nv)!==stable(prune(_mirrorCache.shared[part]))){
         if(nv===undefined)await _fbRemove(ref(db,'staffShared/'+part));
@@ -3980,6 +4003,7 @@ function initEmployeeListeners(empKey,uid){
   try{lqEmpInit(empKey);}catch(e){console.error(e);}
   // Company-wide content and low-sensitivity shared lists
   optional(ref(db,'holidays'),snap=>{DB.holidays=snap.val()||{};});
+  optional(ref(db,'staffShared/team/'+empKey),snap=>{DB.teamLeave=snap.val()||{};renderEmpTeamLeave();});
   _staffUnsubs.push(onValue(ref(db,'staffShared/leaveAll'),snap=>{DB.leaveAll=snap.val()||{};},()=>{DB.leaveAll=null;}));
   if(window._myPayRev||window._myPaySif){try{prListen();}catch(e){}}
   if(window._myLicOn)_staffUnsubs.push(onValue(ref(db,'lic/'+currentEmpKey),snap=>{DB.myLic=snap.val()||{};renderMyLic();},()=>{DB.myLic={};renderMyLic();}));
@@ -4405,6 +4429,13 @@ function renderEmpBirthdaysAnniversaries(){
     <strong>${esc(x.name)}</strong> <span style="color:#888;font-size:12px;">(${esc(x.dept||'')})</span>
     — ${x.years}-Year Anniversary · ${x.occursOn.toLocaleDateString('en-AE',{day:'numeric',month:'short'})} ${x.daysUntil===0?'(today)':'(in '+x.daysUntil+'d)'}
   </div>`).join(''):'<div class="empty-state"><p>None in the next 45 days</p></div>';
+}
+function renderEmpTeamLeave(){
+  const card=document.getElementById('empTeamLeaveCard'),el=document.getElementById('empTeamLeave');if(!card||!el)return;
+  const L=Object.values(DB.teamLeave||{}).filter(x=>x&&x.n&&x.t);if(!L.length){card.style.display='none';return;}card.style.display='block';
+  const today=localDateStr(new Date());L.sort((a,b)=>a.f>b.f?1:a.f<b.f?-1:0);
+  const cls=s=>/approved/i.test(s)&&!/unpaid|pending|unauthorised/i.test(s)?'badge-approved':/reject|unpaid|unauthorised/i.test(s)?'badge-rejected':'badge-pending';
+  el.innerHTML=L.map(x=>`<div style="padding:7px 0;border-bottom:1px solid #f0f0f0;font-size:13px;"><strong>${esc(x.n)}</strong> <small style="color:#888;">${esc(x.d||'')}</small><br>${esc(x.ty||'Leave')} · ${fmt(x.f)} to ${fmt(x.t)} <span class="badge ${cls(x.st||'')}" style="margin-left:6px;">${esc(x.st||'')}</span>${x.f<=today&&x.t>=today&&/approved/i.test(x.st||'')?' <span class="badge badge-pending">On Leave Now</span>':''}</div>`).join('');
 }
 function renderEmpDeptLeave(){
   const el=document.getElementById('empDeptLeave');if(!el)return;
