@@ -235,7 +235,7 @@ tr:hover td{background:#fafbfc;}
 
     <div class="card" id="empWeekCard" style="display:none;border-top:3px solid #C9A84C;">
       <div class="card-title">🗓 My Week (projects)</div>
-      <p style="font-size:12px;color:#888;margin-bottom:8px;">Every Friday: about how many days of your week went to each site.</p>
+      <p style="font-size:12px;color:#888;margin-bottom:8px;">Every Friday: roughly what % of your week went to each site (a day can be split between several sites).</p>
       <div id="empWeek"></div>
     </div>
     <div class="card" id="empTeamLeaveCard" style="display:none;">
@@ -4447,7 +4447,8 @@ const tsLbl=w=>'Week of '+new Date(w+'T00:00:00').toLocaleDateString('en-GB',{da
 function tsOn(){const me=(DB.employees||{})[currentEmpKey]||{};const D=(TS.s&&TS.s.timesheetDepts)||null;if(D&&Object.keys(D).length)return !!D[tsKey(me.dept)];return /design/i.test(me.dept||'')&&/technical/i.test(me.dept||'')}
 function tsDue(){const now=new Date(),thisW=tsMon(now),day=now.getDay();// Fri, Sat, Sun: this week is due; Mon to Thu: last week if still missing
  if(day===5||day===6||day===0)return TS.mine[thisW]?null:thisW;const lastW=tsAdd(thisW,-7);return TS.mine[lastW]?null:lastW}
-function tsFormFor(w){const e=TS.mine[w];return {week:w,rows:e&&e.sites?Object.values(e.sites).map(x=>({s:x.s,d:x.d})):[],other:e&&e.other?e.other:0,dirty:false}}
+const tsPct=(e,v)=>e&&e.unit==='pct'?(+v||0):Math.round((+v||0)/((e&&e.total)||1)*100);
+function tsFormFor(w){const e=TS.mine[w];return {week:w,rows:e&&e.sites?Object.values(e.sites).map(x=>({s:x.s,d:tsPct(e,x.d)})):[],other:e&&e.other?tsPct(e,e.other):0,dirty:false}}
 function renderMyWeek(){const card=document.getElementById('empWeekCard');if(!card)return;if(!tsOn()){card.style.display='none';return}card.style.display='block';
  const thisW=tsMon(new Date()),weeks=[0,1,2,3].map(i=>tsAdd(thisW,-7*i));if(!TS.form||(!TS.form.dirty&&TS.loaded))TS.form=tsFormFor(TS.picked&&weeks.includes(TS.picked)?TS.picked:(tsDue()||thisW));
  const F=TS.form,due=tsDue(),e=TS.mine[F.week];const sites=[...new Set([...(TS.sites||[]),...F.rows.map(r=>r.s).filter(Boolean)])].sort();
@@ -4456,20 +4457,20 @@ function renderMyWeek(){const card=document.getElementById('empWeekCard');if(!ca
  document.getElementById('empWeek').innerHTML=`${due?`<div style="background:#FDF2DE;color:#8A5300;border:1px solid #F0D9A6;border-radius:8px;padding:9px 12px;font-size:13px;margin-bottom:10px;">Please fill in your ${due===thisW?'week':'last week'} (${tsLbl(due)}).</div>`:''}
   <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px;"><select id="tsWeek" onchange="tsPickWeek(this.value)">${weeks.map(w=>`<option value="${w}"${w===F.week?' selected':''}>${tsLbl(w)}${TS.mine[w]?' ✓':''}</option>`).join('')}</select>
   <span style="font-size:12px;color:#888;">${e?'Saved '+new Date(e.at).toLocaleString('en-GB',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Not filled in yet'}</span></div>
-  <table style="width:100%;font-size:13px;"><thead><tr><th style="text-align:left;">Site</th><th style="text-align:right;width:110px;">Days</th></tr></thead><tbody>
-  ${rows.map((r,i)=>`<tr><td><select onchange="tsSet(${i},'s',this.value)" style="width:100%;"><option value="">${r.s?'— remove —':'— add a site —'}</option>${sites.map(s=>`<option${s===r.s?' selected':''}>${esc(s)}</option>`).join('')}</select></td><td style="text-align:right;"><input type="number" min="0" max="7" step="0.5" value="${r.d}" onchange="tsSet(${i},'d',this.value)" style="width:80px;" ${r.s?'':'disabled'}></td></tr>`).join('')}
-  <tr><td>Tenders, new projects, office work (not one site)</td><td style="text-align:right;"><input type="number" min="0" max="7" step="0.5" value="${F.other||''}" onchange="tsOther(this.value)" style="width:80px;"></td></tr>
-  <tr><td style="font-weight:700;">Total days</td><td style="text-align:right;font-weight:700;">${tot}</td></tr></tbody></table>
+  <table style="width:100%;font-size:13px;"><thead><tr><th style="text-align:left;">Site</th><th style="text-align:right;width:110px;">% of my week</th></tr></thead><tbody>
+  ${rows.map((r,i)=>`<tr><td><select onchange="tsSet(${i},'s',this.value)" style="width:100%;"><option value="">${r.s?'— remove —':'— add a site —'}</option>${sites.map(s=>`<option${s===r.s?' selected':''}>${esc(s)}</option>`).join('')}</select></td><td style="text-align:right;"><input type="number" min="0" max="100" step="5" value="${r.d}" onchange="tsSet(${i},'d',this.value)" style="width:80px;" ${r.s?'':'disabled'}> %</td></tr>`).join('')}
+  <tr><td>Tenders, new projects, office work (not one site)</td><td style="text-align:right;"><input type="number" min="0" max="100" step="5" value="${F.other||''}" onchange="tsOther(this.value)" style="width:80px;"> %</td></tr>
+  <tr><td style="font-weight:700;">Total (must be 100%)</td><td style="text-align:right;font-weight:700;color:${Math.abs(tot-100)<0.5?'#1D6B4F':'#C0392B'}">${tot}%</td></tr></tbody></table>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;"><button class="btn btn-sm" onclick="tsSameAsLast()">Same as last week</button><button class="btn btn-sm btn-primary" onclick="tsSave()">Save my week</button><span id="tsMsg" style="font-size:12px;color:#888;align-self:center;"></span></div>
-  <p style="font-size:11.5px;color:#888;margin-top:8px;">Roughly is fine, in half days (e.g. 2 + 2.5 + 0.5). Used only to share the department's cost fairly across projects; no costs or salaries are shown to anyone here.</p>`}
+  <p style="font-size:11.5px;color:#888;margin-top:8px;">Roughly is fine, e.g. LV 31 50% + O-52 40% + tenders 10%. Used only to share the department's cost fairly across projects; no costs or salaries are shown to anyone here.</p>`}
 window.tsPickWeek=w=>{TS.picked=w;TS.form=tsFormFor(w);renderMyWeek()};
-window.tsSet=(i,k,v)=>{const F=TS.form;F.dirty=true;if(i>=F.rows.length)F.rows.push({s:'',d:''});if(k==='s'&&!v){F.rows.splice(i,1)}else F.rows[i][k]=k==='d'?v:v;if(k==='s'&&v&&!F.rows[i].d)F.rows[i].d=1;renderMyWeek()};
+window.tsSet=(i,k,v)=>{const F=TS.form;F.dirty=true;if(i>=F.rows.length)F.rows.push({s:'',d:''});if(k==='s'&&!v){F.rows.splice(i,1)}else F.rows[i][k]=k==='d'?v:v;if(k==='s'&&v&&!F.rows[i].d){const used=F.rows.reduce((a,r)=>a+(+r.d||0),0)+(+F.other||0);F.rows[i].d=Math.max(0,100-used)};renderMyWeek()};
 window.tsOther=v=>{TS.form.other=+v||0;TS.form.dirty=true;renderMyWeek()};
-window.tsSameAsLast=()=>{const F=TS.form,prev=TS.mine[tsAdd(F.week,-7)];if(!prev){document.getElementById('tsMsg').textContent='Nothing saved for the week before.';return}F.rows=Object.values(prev.sites||{}).map(x=>({s:x.s,d:x.d}));F.other=prev.other||0;F.dirty=true;renderMyWeek()};
-window.tsSave=async()=>{const F=TS.form,msg=document.getElementById('tsMsg');const R=F.rows.filter(r=>r.s&&(+r.d)>0);const bad=R.find(r=>!(+r.d<=7)||Math.round(+r.d*2)!==+r.d*2);if(bad){msg.textContent='Use half days, e.g. 1, 1.5, 2.';return}
- const tot=R.reduce((a,r)=>a+(+r.d),0)+(+F.other||0);if(!(tot>0)){msg.textContent='Enter at least one day.';return}if(tot>7){msg.textContent='The total is '+tot+' days; a week has at most 7.';return}
+window.tsSameAsLast=()=>{const F=TS.form,prev=TS.mine[tsAdd(F.week,-7)];if(!prev){document.getElementById('tsMsg').textContent='Nothing saved for the week before.';return}F.rows=Object.values(prev.sites||{}).map(x=>({s:x.s,d:tsPct(prev,x.d)}));F.other=prev.other?tsPct(prev,prev.other):0;F.dirty=true;renderMyWeek()};
+window.tsSave=async()=>{const F=TS.form,msg=document.getElementById('tsMsg');const R=F.rows.filter(r=>r.s&&(+r.d)>0);const bad=R.find(r=>!(+r.d<=100));if(bad){msg.textContent='Each line must be between 0 and 100%.';return}
+ const tot=R.reduce((a,r)=>a+(+r.d),0)+(+F.other||0);if(Math.abs(tot-100)>=0.5){msg.textContent='The total is '+tot+'%. It must be 100%.';return}
  const sites={};R.forEach(r=>{const k=tsKey(r.s);sites[k]={s:r.s,d:(sites[k]?sites[k].d:0)+(+r.d)}});
- try{await set(ref(db,'proj/time/'+currentEmpKey+'/'+F.week),{at:Date.now(),sites,other:+F.other||0,total:tot});F.dirty=false;msg.textContent='Saved ✓'}catch(err){msg.textContent='Could not save: '+err.message}};
+ try{await set(ref(db,'proj/time/'+currentEmpKey+'/'+F.week),{at:Date.now(),unit:'pct',sites,other:+F.other||0,total:100});F.dirty=false;msg.textContent='Saved ✓'}catch(err){msg.textContent='Could not save: '+err.message}};
 
 function renderEmpTeamLeave(){
   const card=document.getElementById('empTeamLeaveCard'),el=document.getElementById('empTeamLeave');if(!card||!el)return;
