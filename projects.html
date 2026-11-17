@@ -431,6 +431,14 @@ function portalLabour(pid){const p=P.projects[pid];if(!p)return null;if(ROLE==='
  const months=[...new Set(dates().map(d=>d.slice(0,7)))],M={};months.forEach(ym=>{const mo=monthSum(p.site,ym),c=ohCalc(ym);M[ym]=Math.round(mo.full+(c?(c.projSite[p.site]||0)+(c.share('labour')[p.site]||0):0))});return {months:M,total:Object.values(M).reduce((a,v)=>a+v,0),from:dates()[0]||''}}
 // ── upload state (one at a time)
 let UPX=null; // {kind:'soa'|'cboq', pid, file, data}
+// 17 Nov 2026: recognise a file put in the wrong place and say where it belongs
+function fileKind(wb){const kinds=new Set();for(const sn of wb.SheetNames){const R=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''}).slice(0,40);const cells=R.map(r=>r.map(txt));
+  if(/^staff \(ck/i.test(sn)||/^supply and subcontract/i.test(sn))kinds.add('register');
+  if(cells.some(c=>c.some(x=>/^particulars$/i.test(x))&&c.some(x=>/lpo amount/i.test(x))))kinds.add('soa');
+  if(cells.some(c=>c.some(x=>/^item\s*no/i.test(x))&&c.some(x=>/^description/i.test(x))&&c.some(x=>/total\s*cost/i.test(x))))kinds.add('cboq')}return kinds}
+const WRONGPLACE={soa:'This file looks like Finance\'s statement of account (SOA). Please upload it in the project\'s "Money and SOA" tab › "⬆ Upload statement of account".',
+ cboq:'This file looks like the client BOQ (the priced BOQ sent to the client). Please upload it in the project\'s "Cost plan (BOQs)" tab › "⬆ Upload client BOQ".',
+ register:'This file looks like the daily register (Ajmal\'s file). Please upload it in "📋 Daily register".'};
 async function readBook(f){const b=await f.arrayBuffer();return XLSX.read(b,{type:'array',cellDates:true})}
 function upBanner(kind,pid){if(!UPX||UPX.kind!==kind||UPX.pid!==pid)return '';const d=UPX.data;
  const info=kind==='cboq'?`${d.sections.length} sections, ${d.sections.reduce((a,s)=>a+s.items.filter(i=>!i.h).length,0)} items · total ${aed(d.total)}${d.disc?' · discounted '+aed(d.disc):''}`:`${d.cats.length} categories, ${d.cats.reduce((a,c)=>a+c.n,0)} lines · LPO total ${aed(soaSum(d).l)}${d.summary.net?' · net contract '+aed(d.summary.net):''}`;
@@ -888,7 +896,7 @@ function wire(){
  document.querySelectorAll('[data-money]').forEach(b=>b.onclick=()=>moneyForm(b.dataset.money));
  document.querySelectorAll('[data-editproj]').forEach(b=>b.onclick=()=>projForm(b.dataset.editproj));
  document.querySelectorAll('[data-big]').forEach(im=>im.onclick=async()=>{const [pid,id]=im.dataset.big.split('|');let src=im.src||(((P.updates||{})[pid]||{})[id]||{}).thumb||'';try{const s=await get(ref(db,'proj/photos/'+pid+'/'+id));if(s.val())src=s.val()}catch(e){}const w=window.open('');if(w)w.document.write('<title>Site photo</title><img src="'+src+'" style="max-width:100%">')});
- if($('regFile'))$('regFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;const o=$('regOut');o.innerHTML='Reading…';try{REG=await readRegister(f);REGFILE=f.name;REG.useDate=REG.date;REG.okReplace=false;REG.okWarn=false;REGHTML=regHTML();o.innerHTML=REGHTML;wire()}catch(err){REG=null;REGHTML='<span class="err">'+esc(err.message)+'</span>';o.innerHTML=REGHTML}e.target.value=''};
+ if($('regFile'))$('regFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;const o=$('regOut');o.innerHTML='Reading…';try{const K=fileKind(await readBook(f));if(!K.has('register')&&(K.has('soa')||K.has('cboq'))){e.target.value='';o.innerHTML='';alert('Wrong place: '+WRONGPLACE[K.has('soa')?'soa':'cboq']);return}}catch(err){}try{REG=await readRegister(f);REGFILE=f.name;REG.useDate=REG.date;REG.okReplace=false;REG.okWarn=false;REGHTML=regHTML();o.innerHTML=REGHTML;wire()}catch(err){REG=null;REGHTML='<span class="err">'+esc(err.message)+'</span>';o.innerHTML=REGHTML}e.target.value=''};
  const regRedraw=()=>{REGHTML=regHTML();const o=$('regOut');if(o){o.innerHTML=REGHTML;wire()}};
  if($('regOkReplace'))$('regOkReplace').onchange=e=>{REG.okReplace=e.target.checked;regRedraw()};
  if($('regOkWarn'))$('regOkWarn').onchange=e=>{REG.okWarn=e.target.checked;regRedraw()};
@@ -911,7 +919,7 @@ function wire(){
  if($('utSel'))$('utSel').onchange=async e=>{const d=e.target.value;if(!d)return;try{await W.set('proj/settings/untrackedDepts/'+keyOf(d),d)}catch(err){alert(err.message)}};
  document.querySelectorAll('[data-unut]').forEach(b=>b.onclick=async()=>{try{await W.remove('proj/settings/untrackedDepts/'+b.dataset.unut)}catch(err){alert(err.message)}});
  document.querySelectorAll('details[data-ohk]').forEach(el=>el.querySelector('summary').onclick=ev=>{ev.preventDefault();const k=el.dataset.ohk;if(OHOPEN.has(k))OHOPEN.delete(k);else OHOPEN.add(k);draw()});
- document.querySelectorAll('[data-upfile]').forEach(inp=>inp.onchange=async e=>{const f=e.target.files[0];if(!f)return;const [kind,pid]=inp.dataset.upfile.split('|');try{const wb=await readBook(f);UPX={kind,pid,file:f.name,data:kind==='cboq'?readClientBoq(wb):readSOA(wb)}}catch(err){UPX=null;alert(err.message)}draw()});
+ document.querySelectorAll('[data-upfile]').forEach(inp=>inp.onchange=async e=>{const f=e.target.files[0];if(!f)return;const [kind,pid]=inp.dataset.upfile.split('|');try{const wb=await readBook(f);const K=fileKind(wb);if(!K.has(kind)){const other=['soa','cboq','register'].find(k=>K.has(k));if(other){UPX=null;inp.value='';alert('Wrong place: '+WRONGPLACE[other]);draw();return}}UPX={kind,pid,file:f.name,data:kind==='cboq'?readClientBoq(wb):readSOA(wb)}}catch(err){UPX=null;inp.value='';alert(err.message+(kind==='cboq'?' Is this the client BOQ? The internal BOQ (procurement tracker) goes in the internal BOQ box below; Finance\'s SOA goes in the "Money and SOA" tab.':' Is this Finance\'s statement of account? Client and internal BOQs go in the "Cost plan (BOQs)" tab.'))}draw()});
  document.querySelectorAll('[data-upcancel]').forEach(b=>b.onclick=()=>{UPX=null;draw()});
  document.querySelectorAll('[data-upsave]').forEach(b=>b.onclick=async()=>{if(!UPX)return;const {kind,pid,file,data}=UPX;b.disabled=true;try{const k=Date.now().toString(36);await W.set('proj/'+kind+'/'+pid+'/'+k,Object.assign({at:Date.now(),by:ME,file:file.slice(0,120)},data));await hist((kind==='cboq'?'Client BOQ':'Statement of account')+' uploaded for '+P.projects[pid].name+': '+file);UPX=null;draw()}catch(err){b.disabled=false;alert(err.message)}});
  if($('tsdSel'))$('tsdSel').onchange=async e=>{const d=e.target.value;if(!d)return;try{await W.set('proj/settings/timesheetDepts/'+keyOf(d),d)}catch(err){alert(err.message)}};
@@ -929,7 +937,7 @@ function wire(){
  document.querySelectorAll('[data-unup]').forEach(b=>b.onclick=async()=>{try{await W.remove('proj/settings/untrackedPeople/'+b.dataset.unup)}catch(err){alert(err.message)}});
  if($('bqSel'))$('bqSel').onchange=async e=>{const k=e.target.value;if(!k)return;try{await W.set('proj/settings/boqUploaders/'+k,true)}catch(err){alert(err.message)}};
  document.querySelectorAll('[data-unbq]').forEach(b=>b.onclick=async()=>{try{await W.remove('proj/settings/boqUploaders/'+b.dataset.unbq)}catch(err){alert(err.message)}});
- document.querySelectorAll('[data-boqfile]').forEach(x=>x.onchange=async e=>{const f=e.target.files[0];if(!f)return;try{await boqPrepare(x.dataset.boqfile,f);draw()}catch(err){alert(err.message)}});
+ document.querySelectorAll('[data-boqfile]').forEach(x=>x.onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const K=fileKind(await readBook(f));if(K.has('soa')||K.has('register')){x.value='';alert('Wrong place: '+WRONGPLACE[K.has('soa')?'soa':'register']);return}}catch(err){}try{await boqPrepare(x.dataset.boqfile,f);draw()}catch(err){x.value='';let msg=err.message;try{const K=fileKind(await readBook(f));if(K.has('cboq'))msg='Wrong place: '+WRONGPLACE.cboq}catch(e2){}alert(msg)}});
  document.querySelectorAll('[data-boqsheet]').forEach(x=>x.onchange=e=>{try{BOQUP.sheet=e.target.value;boqParse();draw()}catch(err){alert(err.message)}});
  document.querySelectorAll('[data-boqcancel]').forEach(b=>b.onclick=()=>{BOQUP=null;draw()});
  document.querySelectorAll('[data-boqsave]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{await boqSave(b.dataset.boqsave);draw()}catch(err){alert(err.message);b.disabled=false}});
