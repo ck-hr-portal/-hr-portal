@@ -233,6 +233,11 @@ tr:hover td{background:#fafbfc;}
       </div>
     </div>
 
+    <div class="card" id="empWeekCard" style="display:none;border-top:3px solid #C9A84C;">
+      <div class="card-title">🗓 My Week (projects)</div>
+      <p style="font-size:12px;color:#888;margin-bottom:8px;">Every Friday: about how many days of your week went to each site.</p>
+      <div id="empWeek"></div>
+    </div>
     <div class="card" id="empTeamLeaveCard" style="display:none;">
       <div class="card-title">👥 My Team: Leave</div>
       <p style="font-size:12px;color:#888;margin-bottom:8px;">People who report to you (you are their line manager or final approver), whatever their department: leave requests in progress and approved leave.</p>
@@ -2184,7 +2189,7 @@ function set(...args){
   }
   if(currentRole==='employee'){
     const path=args[0]?.toString()||'';
-    if(!path.includes('leaveRequests')&&!path.includes('letterRequests')&&!path.includes('payrollState')&&!/(^|\/)(lic|licFiles|licHist)\//.test(path)){ // + own licences and cards (rules check it is their own)
+    if(!path.includes('leaveRequests')&&!path.includes('letterRequests')&&!path.includes('payrollState')&&!/(^|\/)(lic|licFiles|licHist)\//.test(path)&&!/(^|\/)proj\/time\//.test(path)){ // + own licences and cards, own weekly timesheet (rules check it is their own)
       return Promise.reject(new Error('employee-restricted-write'));
     }
   }
@@ -3976,6 +3981,7 @@ function initEmployeeListeners(empKey,uid){
     renderMyLeaveBalance(view);
     renderMyComp(view);
     renderMyLeaveHistory();
+    try{renderMyWeek();}catch(e){}
     if(view.deptSlug&&_staffDeptSub!==view.deptSlug){
       _staffDeptSub=view.deptSlug;
       optional(ref(db,'staffShared/leave/'+view.deptSlug),s=>{DB.deptLeave=s.val()||{};renderEmpDeptLeave();});
@@ -4017,7 +4023,9 @@ function initEmployeeListeners(empKey,uid){
     if(!roles.length){el.style.display='none';el.innerHTML='';return}
     el.style.display='';el.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;"><div><div class="card-title" style="margin:0 0 6px;">🏗️ Projects (pilot)</div><div style="font-size:13px;color:#555;line-height:1.7;">'+roles.join('<br>')+'</div></div><button class="btn btn-primary" onclick="window.open(\'./projects.html\',\'ckproj\')">Open Projects</button></div><p style="font-size:12px;color:#888;margin:8px 0 0;">Opens in a new tab with the same login. This page stays open.</p>';};
    const subM={};const watchMoney=()=>{const s=PJ.s||{};if(!(s.financeApprover&&s.financeApprover[empKey]))return;Object.keys(PJ.p||{}).forEach(pid=>{if(subM[pid])return;subM[pid]={};optional(ref(db,'proj/money/'+pid),snap=>{const m=snap.val()||{};const k=Object.keys(m).sort().pop();subM[pid].wait=!!(k&&!m[k].confBy);PJ.wait=Object.values(subM).filter(x=>x.wait).length;drawProj();});});};
-   optional(ref(db,'proj/settings'),snap=>{PJ.s=snap.val()||{};watchMoney();drawProj();});optional(ref(db,'proj/projects'),snap=>{PJ.p=snap.val()||{};watchMoney();drawProj();});}
+   optional(ref(db,'proj/settings'),snap=>{PJ.s=snap.val()||{};TS.s=PJ.s;watchMoney();drawProj();renderMyWeek();});
+   optional(ref(db,'proj/siteList'),snap=>{TS.sites=((snap.val()||{}).sites)||[];renderMyWeek();});
+   optional(ref(db,'proj/time/'+empKey),snap=>{TS.mine=snap.val()||{};TS.loaded=true;renderMyWeek();});optional(ref(db,'proj/projects'),snap=>{PJ.p=snap.val()||{};watchMoney();drawProj();});}
   _staffUnsubs.push(onValue(ref(db,'staffShared/directory'),snap=>{DB.directory=snap.val()||{};},()=>{DB.directory=null;})); // names + departments of current staff
   optional(ref(db,'staffShared/birthdays'),snap=>{DB.sharedBdays=snap.val()||{};renderEmpBirthdaysAnniversaries();});
   optional(ref(db,'staffShared/anniversaries'),snap=>{DB.sharedAnnis=snap.val()||{};renderEmpBirthdaysAnniversaries();});
@@ -4430,6 +4438,39 @@ function renderEmpBirthdaysAnniversaries(){
     — ${x.years}-Year Anniversary · ${x.occursOn.toLocaleDateString('en-AE',{day:'numeric',month:'short'})} ${x.daysUntil===0?'(today)':'(in '+x.daysUntil+'d)'}
   </div>`).join(''):'<div class="empty-state"><p>None in the next 45 days</p></div>';
 }
+// ══ 17 Nov 2026: weekly timesheet for office-based project staff (pilot: Design & Technical). Each person fills in, on Friday, about how many days of the week went to each site. No costs or salaries are shown here.
+const TS={s:null,sites:[],mine:{},week:'',form:null,loaded:false};
+const tsKey=s=>String(s||'').trim().toLowerCase().replace(/[.#$\[\]\/]/g,' ').replace(/\s+/g,' ').trim().replace(/ /g,'_').slice(0,90)||'x';
+const tsMon=d=>{const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-((x.getDay()+6)%7));return localDateStr(x)};
+const tsAdd=(s,n)=>{const d=new Date(s+'T00:00:00');d.setDate(d.getDate()+n);return localDateStr(d)};
+const tsLbl=w=>'Week of '+new Date(w+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' to '+new Date(tsAdd(w,4)+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+function tsOn(){const me=(DB.employees||{})[currentEmpKey]||{};const D=(TS.s&&TS.s.timesheetDepts)||null;if(D&&Object.keys(D).length)return !!D[tsKey(me.dept)];return /design/i.test(me.dept||'')&&/technical/i.test(me.dept||'')}
+function tsDue(){const now=new Date(),thisW=tsMon(now),day=now.getDay();// Fri, Sat, Sun: this week is due; Mon to Thu: last week if still missing
+ if(day===5||day===6||day===0)return TS.mine[thisW]?null:thisW;const lastW=tsAdd(thisW,-7);return TS.mine[lastW]?null:lastW}
+function tsFormFor(w){const e=TS.mine[w];return {week:w,rows:e&&e.sites?Object.values(e.sites).map(x=>({s:x.s,d:x.d})):[],other:e&&e.other?e.other:0,dirty:false}}
+function renderMyWeek(){const card=document.getElementById('empWeekCard');if(!card)return;if(!tsOn()){card.style.display='none';return}card.style.display='block';
+ const thisW=tsMon(new Date()),weeks=[0,1,2,3].map(i=>tsAdd(thisW,-7*i));if(!TS.form||(!TS.form.dirty&&TS.loaded))TS.form=tsFormFor(TS.picked&&weeks.includes(TS.picked)?TS.picked:(tsDue()||thisW));
+ const F=TS.form,due=tsDue(),e=TS.mine[F.week];const sites=[...new Set([...(TS.sites||[]),...F.rows.map(r=>r.s).filter(Boolean)])].sort();
+ const tot=F.rows.reduce((a,r)=>a+(+r.d||0),0)+(+F.other||0);
+ const rows=[...F.rows,{s:'',d:''}];
+ document.getElementById('empWeek').innerHTML=`${due?`<div style="background:#FDF2DE;color:#8A5300;border:1px solid #F0D9A6;border-radius:8px;padding:9px 12px;font-size:13px;margin-bottom:10px;">Please fill in your ${due===thisW?'week':'last week'} (${tsLbl(due)}).</div>`:''}
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px;"><select id="tsWeek" onchange="tsPickWeek(this.value)">${weeks.map(w=>`<option value="${w}"${w===F.week?' selected':''}>${tsLbl(w)}${TS.mine[w]?' ✓':''}</option>`).join('')}</select>
+  <span style="font-size:12px;color:#888;">${e?'Saved '+new Date(e.at).toLocaleString('en-GB',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Not filled in yet'}</span></div>
+  <table style="width:100%;font-size:13px;"><thead><tr><th style="text-align:left;">Site</th><th style="text-align:right;width:110px;">Days</th></tr></thead><tbody>
+  ${rows.map((r,i)=>`<tr><td><select onchange="tsSet(${i},'s',this.value)" style="width:100%;"><option value="">${r.s?'— remove —':'— add a site —'}</option>${sites.map(s=>`<option${s===r.s?' selected':''}>${esc(s)}</option>`).join('')}</select></td><td style="text-align:right;"><input type="number" min="0" max="7" step="0.5" value="${r.d}" onchange="tsSet(${i},'d',this.value)" style="width:80px;" ${r.s?'':'disabled'}></td></tr>`).join('')}
+  <tr><td>Tenders, new projects, office work (not one site)</td><td style="text-align:right;"><input type="number" min="0" max="7" step="0.5" value="${F.other||''}" onchange="tsOther(this.value)" style="width:80px;"></td></tr>
+  <tr><td style="font-weight:700;">Total days</td><td style="text-align:right;font-weight:700;">${tot}</td></tr></tbody></table>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;"><button class="btn btn-sm" onclick="tsSameAsLast()">Same as last week</button><button class="btn btn-sm btn-primary" onclick="tsSave()">Save my week</button><span id="tsMsg" style="font-size:12px;color:#888;align-self:center;"></span></div>
+  <p style="font-size:11.5px;color:#888;margin-top:8px;">Roughly is fine, in half days (e.g. 2 + 2.5 + 0.5). Used only to share the department's cost fairly across projects; no costs or salaries are shown to anyone here.</p>`}
+window.tsPickWeek=w=>{TS.picked=w;TS.form=tsFormFor(w);renderMyWeek()};
+window.tsSet=(i,k,v)=>{const F=TS.form;F.dirty=true;if(i>=F.rows.length)F.rows.push({s:'',d:''});if(k==='s'&&!v){F.rows.splice(i,1)}else F.rows[i][k]=k==='d'?v:v;if(k==='s'&&v&&!F.rows[i].d)F.rows[i].d=1;renderMyWeek()};
+window.tsOther=v=>{TS.form.other=+v||0;TS.form.dirty=true;renderMyWeek()};
+window.tsSameAsLast=()=>{const F=TS.form,prev=TS.mine[tsAdd(F.week,-7)];if(!prev){document.getElementById('tsMsg').textContent='Nothing saved for the week before.';return}F.rows=Object.values(prev.sites||{}).map(x=>({s:x.s,d:x.d}));F.other=prev.other||0;F.dirty=true;renderMyWeek()};
+window.tsSave=async()=>{const F=TS.form,msg=document.getElementById('tsMsg');const R=F.rows.filter(r=>r.s&&(+r.d)>0);const bad=R.find(r=>!(+r.d<=7)||Math.round(+r.d*2)!==+r.d*2);if(bad){msg.textContent='Use half days, e.g. 1, 1.5, 2.';return}
+ const tot=R.reduce((a,r)=>a+(+r.d),0)+(+F.other||0);if(!(tot>0)){msg.textContent='Enter at least one day.';return}if(tot>7){msg.textContent='The total is '+tot+' days; a week has at most 7.';return}
+ const sites={};R.forEach(r=>{const k=tsKey(r.s);sites[k]={s:r.s,d:(sites[k]?sites[k].d:0)+(+r.d)}});
+ try{await set(ref(db,'proj/time/'+currentEmpKey+'/'+F.week),{at:Date.now(),sites,other:+F.other||0,total:tot});F.dirty=false;msg.textContent='Saved ✓'}catch(err){msg.textContent='Could not save: '+err.message}};
+
 function renderEmpTeamLeave(){
   const card=document.getElementById('empTeamLeaveCard'),el=document.getElementById('empTeamLeave');if(!card||!el)return;
   const L=Object.values(DB.teamLeave||{}).filter(x=>x&&x.n&&x.t);if(!L.length){card.style.display='none';return;}card.style.display='block';
