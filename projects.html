@@ -382,7 +382,11 @@ const isNumCell=v=>typeof v==='number'||(/^-?[\d,]+(\.\d+)?$/.test(String(v||'')
 const txt=v=>String(v==null?'':v).replace(/\s+/g,' ').trim();
 const isPM=pid=>ROLE==='staff'&&!!MYKEY&&!!P.projects[pid]&&P.projects[pid].pm===MYKEY;const canSoaUp=pid=>ROLE==='hr'||isFin()||isBoq()||isPM(pid);const canCboqUp=()=>ROLE==='hr'||isBoq();
 const canSoaSee=pid=>canFinSee(pid);
-const latest2=(src,pid)=>{const B=(src||{})[pid]||{};const K=Object.keys(B).sort();return {cur:K.length?B[K.at(-1)]:null,prev:K.length>1?B[K.at(-2)]:null,n:K.length}};
+// 17 Nov 2026: the database drops empty lists and empty values (e.g. a category with no lines yet); put them back before showing
+const arr=v=>Array.isArray(v)?v:(v&&typeof v==='object'?Object.keys(v).sort((a,b)=>(+a)-(+b)).map(k=>v[k]):[]);
+function fixUp(x){if(!x)return x;const o=Object.assign({},x);if('cats' in o||o.summary&&!Array.isArray(o.summary)&&!('sections' in o)){o.cats=arr(o.cats).map(c=>Object.assign({sec:'',no:'',name:'',l:0,i:0,p:0,b:0,f:0,n:0},c,{lines:arr(c&&c.lines)}));o.summary=o.summary||{};o.totals=o.totals||{}}
+ if('sections' in o||Array.isArray(o.summary)){o.sections=arr(o.sections).map(s=>Object.assign({code:'',name:'',client:0,ck:0},s,{items:arr(s&&s.items)}));o.summary=arr(o.summary)}return o}
+const latest2=(src,pid)=>{const B=(src||{})[pid]||{};const K=Object.keys(B).sort();return {cur:K.length?fixUp(B[K.at(-1)]):null,prev:K.length>1?fixUp(B[K.at(-2)]):null,n:K.length}};
 // ── client BOQ (e.g. "BOQ-F47 ... R2.xlsx"): summary per section, totals, discount, VAT, CK cost per item
 function readClientBoq(wb){for(const sn of wb.SheetNames){const R=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''});
   const h=R.slice(0,40).findIndex(r=>{const c=r.map(txt);return c.some(x=>/^item\s*no/i.test(x))&&c.some(x=>/^description/i.test(x))&&c.some(x=>/total\s*cost/i.test(x))});if(h<0)continue;
@@ -799,7 +803,8 @@ function boqUploadHTML(pid){const U=BOQUP&&BOQUP.pid===pid?BOQUP:null;if(!U)retu
  ${U.checks.map(c=>`<p style="margin:6px 0;color:#7A5200">⚠ ${esc(c)}</p>`).join('')}<div class="row" style="margin:8px 0 0"><button class="btn p" data-boqsave="${pid}">Save this upload</button><button class="btn" data-boqcancel="${pid}">Cancel</button></div></div>`}
 async function boqSave(pid){const U=BOQUP;if(!U||U.pid!==pid)return;const v={at:Date.now(),by:ME,file:String(U.file).slice(0,120),sheet:U.sheet,sections:U.b.sections,...(U.b.totalRow?{totalRow:U.b.totalRow}:{}),...(U.var?{variations:U.var.rows}:{}),...(U.auth?{authority:U.auth.rows}:{})};
  const s=JSON.stringify(v).length;if(s>900000)throw new Error('This file is too large to store ('+Math.round(s/1024)+' KB).');await W.push('proj/boq/'+pid+'/internal',JSON.parse(JSON.stringify(v)));await hist('Internal BOQ uploaded for '+P.projects[pid].name+' ('+U.file+')');BOQUP=null}
-const boqLatest=pid=>{const B=(P.boq||{})[pid]||{};const K=Object.keys(B).sort();return {cur:K.length?B[K.at(-1)]:null,prev:K.length>1?B[K.at(-2)]:null}};
+const boqFix=b=>b?Object.assign({},b,{sections:(Array.isArray(b.sections)?b.sections:Object.values(b.sections||{})).map(s=>Object.assign({},s,{items:Array.isArray(s&&s.items)?s.items:Object.values((s&&s.items)||{})}))}):b;
+const boqLatest=pid=>{const B=(P.boq||{})[pid]||{};const K=Object.keys(B).sort();return {cur:K.length?boqFix(B[K.at(-1)]):null,prev:K.length>1?boqFix(B[K.at(-2)]):null}};
 function boqHTML(pid,full){const {cur,prev}=boqLatest(pid);const up=(canBoqUp()||isPMof(pid))?`<div style="margin-top:10px">${boqUploadHTML(pid)}</div>`:'';if(!canFinSee(pid))return NOVIEW+up;if(!cur)return `<p class="note">No internal BOQ uploaded yet.</p>${up}`;
  const {T,S}=boqTotals(cur);const D=boqDiff(cur,prev);const pc=(a,b)=>b>0?Math.round(a/b*100)+'%':'—';
  return `<p class="note">Uploaded ${new Date(cur.at).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})} by ${esc(cur.by)} · ${esc(cur.file)} (tab ${esc(cur.sheet)})</p>
