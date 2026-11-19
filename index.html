@@ -898,9 +898,12 @@ tr:hover td{background:#fafbfc;}
         <div class="card"><div id="cmNotes" style="font-size:12.5px;color:#555;line-height:1.6;"></div></div>
       </div>
       <div id="page-prov" class="page">
-        <div class="page-header"><h2>Year-End Provision</h2><p>The amount to set aside for end-of-service gratuity and unused leave, as at a date you choose (normally 31 December). For the finance team. Dev, Darleendy and Cem can see this. Cem has view and download only.</p></div>
+        <div class="page-header"><h2>Year-End Provision</h2><p>The amount to set aside for end-of-service gratuity (EOSB) and unused leave, as at a date you choose (normally 31 December), or for a period (from / to): gratuity at the start, at the end, accrued in the period, and staff who left in the period. For the finance team. Dev, Darleendy and Cem can see this. Cem has view and download only.</p></div>
         <div class="card" style="margin-bottom:14px;"><div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;">
-          <div class="form-group"><label>As at date</label><input type="date" id="provDate" onchange="renderProvisionPage()"></div>
+          <div class="form-group"><label>Period from (optional)</label><input type="date" id="provFrom" onchange="renderProvisionPage()" title="Leave empty for a single 'as at' date. Fill it in for a period report: gratuity at the start, at the end, accrued in the period, and staff who left in the period."></div>
+      <div class="form-group"><label>As at date (period to)</label><input type="date" id="provDate" onchange="renderProvisionPage()"></div>
+      <button class="btn" style="background:#fff;border:1px solid #c9d3e3;" onclick="provQuick('fy')" title="1 January to today">This year</button>
+      <button class="btn" style="background:#fff;border:1px solid #c9d3e3;" onclick="provQuick('clear')">Single date</button>
           <div class="form-group"><label>Company</label><select id="provEntity" onchange="renderProvisionPage()"></select></div>
           <button class="btn btn-gold" onclick="provDownloadPDF()">⬇ Download PDF</button>
           <button class="btn btn-gold" onclick="provDownloadExcel()">⬇ Download Excel</button>
@@ -6496,31 +6499,45 @@ function calcEOSBAt(e,refDate){
   return{years,eosb:years<=5?(daily*21*years):(daily*21*5+daily*30*(years-5))};
 }
 function provAsAt(){return v('provDate')||(new Date().getFullYear()+'-12-31');}
+function provFrom(){const f=v('provFrom');return f&&f<=provAsAt()?f:'';}
+window.provQuick=function(w){if(w==='clear'){sv('provFrom','');}else{const d=new Date();sv('provFrom',d.getFullYear()+'-01-01');sv('provDate',localDateStr(d));}renderProvisionPage();};
+const provDayBefore=s=>{const d=cmDate(s);d.setDate(d.getDate()-1);return d;};
 function provRows(){
-  const ent=v('provEntity'),ref0=cmDate(provAsAt());
+  const ent=v('provEntity'),end=provAsAt(),ref0=cmDate(end),from=provFrom();
   const rows=[];
   Object.entries(DB.employees||{}).forEach(([k,e])=>{
-    if(!e||e.status==='Inactive')return;
+    if(!e)return;
+    // on the books at the end date: active now, or left after the end date
+    if(e.exitDate&&e.exitDate<=end)return; // left on or before the end date (listed under 'Left during the period')
+    if(e.status==='Inactive'&&!e.exitDate)return;
     if(ent&&e.entity!==ent)return;
     if(e.join&&cmDate(e.join)>ref0)return; // not yet joined on that date
     const basic=smNum(e.basicSalary),g=calcEOSBAt(e,ref0),uae=isUAENational(e);
     const grat=g?g.eosb:0;
+    let gratStart=0;if(from){const gs=calcEOSBAt(e,provDayBefore(from));gratStart=gs?gs.eosb:0;}
     const hasBal=e.annualLeaveBalance!=null&&e.annualLeaveBalance!=='';
     const bal=hasBal?Math.max(0,smNum(e.annualLeaveBalance)):0;
     const leaveVal=basic/30*bal;
-    rows.push({k,name:e.name,entity:e.entity||'',dept:e.dept||'',basic,years:g?g.years:null,uae,grat,hasBal,bal,leaveVal,total:grat+leaveVal,noJoin:!e.join,noBasic:!basic});
+    rows.push({k,name:e.name,entity:e.entity||'',dept:e.dept||'',basic,years:g?g.years:null,uae,grat,gratStart,move:grat-gratStart,joinedIn:!!(from&&e.join&&e.join>=from),hasBal,bal,leaveVal,total:grat+leaveVal,noJoin:!e.join,noBasic:!basic});
   });
   return rows.sort((a,b)=>b.total-a.total);
 }
+// staff who left during the period (gratuity at their last day; normally paid in the final settlement)
+function provLeavers(){const from=provFrom(),end=provAsAt(),ent=v('provEntity');if(!from)return [];const out=[];
+  Object.entries(DB.employees||{}).forEach(([k,e])=>{if(!e||!e.exitDate||e.exitDate<from||e.exitDate>end)return;if(ent&&e.entity!==ent)return;const g=calcEOSBAt(e,cmDate(e.exitDate)),gs=calcEOSBAt(e,provDayBefore(from));
+   out.push({k,name:e.name,entity:e.entity||'',dept:e.dept||'',basic:smNum(e.basicSalary),exit:e.exitDate,years:g?g.years:null,uae:isUAENational(e),grat:g?g.eosb:0,gratStart:gs?gs.eosb:0})});
+  return out.sort((a,b)=>a.exit<b.exit?-1:1);}
 function renderProvisionPage(){
   const el=document.getElementById('provBody');if(!el)return;
   if(!document.getElementById('provDate').value)sv('provDate',new Date().getFullYear()+'-12-31');
   const sel=document.getElementById('provEntity');
   if(sel&&!sel.options.length){const ents=[...new Set(Object.values(DB.employees||{}).map(e=>e&&e.entity).filter(Boolean))].sort();sel.innerHTML='<option value="">Both companies</option>'+ents.map(x=>'<option>'+esc(x)+'</option>').join('');}
-  const rows=provRows();
-  const T=rows.reduce((a,r)=>({g:a.g+r.grat,l:a.l+r.leaveVal,t:a.t+r.total}),{g:0,l:0,t:0});
+  const rows=provRows(),from=provFrom(),L=provLeavers();
+  const T=rows.reduce((a,r)=>({g:a.g+r.grat,l:a.l+r.leaveVal,t:a.t+r.total,s:a.s+r.gratStart,m:a.m+r.move}),{g:0,l:0,t:0,s:0,m:0});
+  const TL=L.reduce((a,r)=>({g:a.g+r.grat,s:a.s+r.gratStart}),{g:0,s:0});
   const miss=rows.filter(r=>r.noJoin||r.noBasic||!r.hasBal).length;
-  window._prov={rows,T,miss,asAt:provAsAt(),ent:v('provEntity')};
+  window._prov={rows,T,miss,asAt:provAsAt(),ent:v('provEntity'),from,L,TL};
+  if(from){renderProvPeriod();return;}
   const card=(l,val,c)=>'<div style="flex:1;min-width:150px;padding:12px 14px;border-radius:9px;background:#f4f7fb;border:1px solid #d9e2ef;"><div style="font-size:11px;color:#888;">'+l+'</div><div style="font-size:19px;font-weight:700;color:'+(c||'#1C3557')+';">'+val+'</div></div>';
   let h=b2Note()+'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">'+card('Active staff',rows.length)+card('Gratuity provision','AED '+cmFmt(T.g))+card('Unused leave provision','AED '+cmFmt(T.l))+card('Total provision','AED '+cmFmt(T.t),'#a02020')+'</div>';
   const byE={};rows.forEach(r=>{const n=r.entity||'(no company)';const x=byE[n]=byE[n]||{n:0,g:0,l:0};x.n++;x.g+=r.grat;x.l+=r.leaveVal;});
@@ -6531,9 +6548,33 @@ function renderProvisionPage(){
   const nt=document.getElementById('provNotes');
   if(nt)nt.innerHTML='<b>How this is worked out</b><br>• Gratuity: the same formula as the Salary tab and Final Settlement, with service counted up to '+esc(fmt(provAsAt()))+', using each person\'s current basic salary. Under one year of service = nil. Emirati staff are on the GPSSA pension instead, so they show nil here.<br>• Unused leave: the recorded annual leave balance today × basic salary ÷ 30 (company policy: leave left at the end of service is paid on basic salary). The balance at the chosen date is not known, so today\'s balance is used. A negative balance counts as zero.<br>• People who have not joined by the chosen date are left out. Not included: notice pay, outstanding loans or advances, flight allowance and anything else due at exit.'+(miss?'<br><b style="color:#a02020;">'+miss+' of '+rows.length+' people have a missing joining date, basic salary or leave balance, so their figures are understated. They are marked in the table.</b>':'');
 }
-function provFileName(ext){const P=window._prov;return 'CK_Year-End_Provision_'+(P?P.asAt:'')+(P&&P.ent?'_'+P.ent.replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,''):'')+'.'+ext;}
+function renderProvPeriod(){const P=window._prov,el=document.getElementById('provBody'),{rows,T,L,TL,from,asAt}=P;const st=fmt(localDateStr(provDayBefore(from)));
+  const card=(l,val,sub,c)=>'<div style="flex:1;min-width:150px;padding:12px 14px;border-radius:9px;background:#f4f7fb;border:1px solid #d9e2ef;"><div style="font-size:11px;color:#888;">'+l+'</div><div style="font-size:19px;font-weight:700;color:'+(c||'#1C3557')+';">'+val+'</div><div style="font-size:11px;color:#888;">'+(sub||'')+'</div></div>';
+  let h=b2Note()+'<div style="background:#fff8e6;border:1px solid #f0d9a6;border-radius:9px;padding:9px 12px;font-size:13px;margin-bottom:12px;"><b>Period report:</b> '+esc(fmt(from))+' to '+esc(fmt(asAt))+'. Gratuity at the start = as at '+esc(st)+'.</div>';
+  h+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">'+card('Staff at '+fmt(asAt),rows.length,'on the books at the end date')+card('Gratuity at start','AED '+cmFmt(T.s),'as at '+st)+card('Accrued in the period','AED '+cmFmt(T.m),fmt(from)+' to '+fmt(asAt),'#1D6B4F')+card('Gratuity at end','AED '+cmFmt(T.g),'as at '+fmt(asAt),'#a02020')+card('Left in the period',L.length,L.length?'gratuity at exit AED '+cmFmt(TL.g):'none')+'</div>';
+  const byE={};rows.forEach(r=>{const n=r.entity||'(no company)';const x=byE[n]=byE[n]||{n:0,s:0,m:0,g:0,l:0};x.n++;x.s+=r.gratStart;x.m+=r.move;x.g+=r.grat;x.l+=r.leaveVal;});
+  h+='<div style="overflow-x:auto;margin-bottom:14px;"><table><thead><tr><th>Company</th><th>Staff</th><th>Gratuity at start</th><th>Accrued in period</th><th>Gratuity at end</th><th>Unused leave (today\'s balance)</th></tr></thead><tbody>'+Object.entries(byE).map(([n,x])=>'<tr><td>'+esc(n)+'</td><td>'+x.n+'</td><td>AED '+cmFmt(x.s)+'</td><td>AED '+cmFmt(x.m)+'</td><td><b>AED '+cmFmt(x.g)+'</b></td><td>AED '+cmFmt(x.l)+'</td></tr>').join('')+'</tbody></table></div>';
+  h+='<div style="overflow-x:auto;"><table><thead><tr><th>Name</th><th>Company</th><th>Basic</th><th>Years at end</th><th>Gratuity at start</th><th>Accrued in period</th><th>Gratuity at end</th><th>Leave days</th><th>Leave value</th></tr></thead><tbody>'
+   +rows.map(r=>'<tr><td>'+esc(r.name)+(r.noJoin?' <span title="No joining date" style="color:#a02020;">⚠</span>':'')+(r.joinedIn?' <span style="font-size:11px;color:#1D6B4F;">joined in period</span>':'')+'</td><td>'+esc(cmShortEnt(r.entity))+'</td><td>'+(r.noBasic?'<span style="color:#a02020;">missing</span>':'AED '+cmFmt(r.basic))+'</td><td>'+(r.years==null?'—':r.years.toFixed(1))+'</td>'+(r.uae?'<td colspan="3" style="color:#888;">GPSSA (no gratuity)</td>':'<td>AED '+cmFmt(r.gratStart)+'</td><td>AED '+cmFmt(r.move)+'</td><td><b>AED '+cmFmt(r.grat)+'</b></td>')+'<td>'+(r.hasBal?r.bal:'<span style="color:#a02020;">not recorded</span>')+'</td><td>AED '+cmFmt(r.leaveVal)+'</td></tr>').join('')+'</tbody></table></div>';
+  if(L.length)h+='<h3 style="margin:18px 0 6px;font-size:15px;color:#1C3557;">Left during the period</h3><div style="overflow-x:auto;"><table><thead><tr><th>Name</th><th>Company</th><th>Last day</th><th>Years</th><th>Gratuity at start</th><th>Gratuity at last day</th></tr></thead><tbody>'+L.map(r=>'<tr><td>'+esc(r.name)+'</td><td>'+esc(cmShortEnt(r.entity))+'</td><td>'+fmt(r.exit)+'</td><td>'+(r.years==null?'—':r.years.toFixed(1))+'</td>'+(r.uae?'<td colspan="2" style="color:#888;">GPSSA</td>':'<td>AED '+cmFmt(r.gratStart)+'</td><td><b>AED '+cmFmt(r.grat)+'</b></td>')+'</tr>').join('')+'</tbody></table></div>';
+  el.innerHTML=h;
+  const nt=document.getElementById('provNotes');if(nt)nt.innerHTML='<b>How this is worked out</b><br>• Gratuity (EOSB): the same UAE formula as Final Settlement (21 days of basic per year for the first five years, 30 days after; under one year = nil), using each person\'s current basic salary. Emirati staff are on GPSSA, so nil here.<br>• Gratuity at start = as at '+esc(st)+' (the day before the period). Gratuity at end = as at '+esc(fmt(asAt))+'. Accrued in the period = end minus start (it includes the jump when someone completes one year of service).<br>• Staff at the end date include people who left after it. Staff who left during the period are listed separately with their gratuity at their last day (normally paid in the final settlement).<br>• Unused leave uses today\'s recorded balance (the balance on a past date is not known).'+(P.miss?'<br><b style="color:#a02020;">'+P.miss+' people have a missing joining date, basic salary or leave balance, so their figures are understated.</b>':'');}
+function provFileName(ext){const P=window._prov;return (P&&P.from?'CK_EOSB_'+P.from+'_to_':'CK_Year-End_Provision_')+(P?P.asAt:'')+(P&&P.ent?'_'+P.ent.replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,''):'')+'.'+ext;}
 window.provDownloadPDF=async function(){
   const D=window._prov;if(!D||!D.rows.length){alert('No staff to report.');return;}
+  if(D.from){let P;try{P=await b3Pdf('End of Service Benefits (EOSB) Report',fmt(D.from)+' to '+fmt(D.asAt)+'   |   '+(D.ent||'Both companies')+'   |   '+D.rows.length+' staff at the end date');}catch(e){alert('Could not load the PDF tools. Please check the internet connection and try again.');return;}
+   const {doc,m}=P;const st=fmt(localDateStr(provDayBefore(D.from)));
+   P.cards([{n:'AED '+cmFmt(D.T.s),l:'Gratuity at start',sub:'as at '+st},{n:'AED '+cmFmt(D.T.m),l:'Accrued in the period',sub:fmt(D.from)+' to '+fmt(D.asAt),rgb:[29,107,79]},{n:'AED '+cmFmt(D.T.g),l:'Gratuity at end',sub:'as at '+fmt(D.asAt),rgb:[160,32,32]},{n:D.L.length,l:'Left in the period',sub:D.L.length?'gratuity at exit AED '+cmFmt(D.TL.g):'none',rgb:[201,168,76]}]);
+   const byE={};D.rows.forEach(r=>{const n=r.entity||'(no company)';const x=byE[n]=byE[n]||{n:0,s:0,m:0,g:0};x.n++;x.s+=r.gratStart;x.m+=r.move;x.g+=r.grat;});
+   let y=27+17+8;P.section('By company',y);const right={};for(let i=1;i<=4;i++)right[i]={halign:'right'};
+   doc.autoTable(P.common({startY:y+2,head:[['Company','Staff','Gratuity at start (AED)','Accrued in period (AED)','Gratuity at end (AED)']],body:Object.entries(byE).map(([n,x])=>[n,x.n,cmFmt(x.s),cmFmt(x.m),cmFmt(x.g)]).concat([['Total',D.rows.length,cmFmt(D.T.s),cmFmt(D.T.m),cmFmt(D.T.g)]]),columnStyles:Object.assign({0:{halign:'left',cellWidth:90}},right),didParseCell:P.totalStyle(Object.keys(byE).length+1)}));
+   y=doc.lastAutoTable.finalY+8;if(y>P.H-50){doc.addPage();P.drawHeader();y=34;}P.section('By employee',y);
+   doc.autoTable(P.common({startY:y+2,head:[['Employee','Company','Basic (AED)','Years at end','Gratuity at start','Accrued in period','Gratuity at end']],body:D.rows.map(r=>[r.name+(r.joinedIn?' (joined in period)':''),cmShortEnt(r.entity),r.noBasic?'missing':cmFmt(r.basic),r.years==null?'—':r.years.toFixed(1),r.uae?'GPSSA':cmFmt(r.gratStart),r.uae?'':cmFmt(r.move),r.uae?'':cmFmt(r.grat)]).concat([['Total','','','',cmFmt(D.T.s),cmFmt(D.T.m),cmFmt(D.T.g)]]),columnStyles:{0:{halign:'left',cellWidth:66},1:{halign:'center',cellWidth:18},2:{halign:'right'},3:{halign:'center'},4:{halign:'right'},5:{halign:'right'},6:{halign:'right'}},didParseCell:P.totalStyle(D.rows.length+1)}));
+   if(D.L.length){y=doc.lastAutoTable.finalY+8;if(y>P.H-50){doc.addPage();P.drawHeader();y=34;}P.section('Left during the period',y);
+    doc.autoTable(P.common({startY:y+2,head:[['Employee','Company','Last day','Years','Gratuity at start','Gratuity at last day']],body:D.L.map(r=>[r.name,cmShortEnt(r.entity),fmt(r.exit),r.years==null?'—':r.years.toFixed(1),r.uae?'GPSSA':cmFmt(r.gratStart),r.uae?'':cmFmt(r.grat)]).concat([['Total','','','',cmFmt(D.TL.s),cmFmt(D.TL.g)]]),columnStyles:{0:{halign:'left',cellWidth:66},4:{halign:'right'},5:{halign:'right'}},didParseCell:P.totalStyle(D.L.length+1)}))}
+   let ny=doc.lastAutoTable.finalY+8;if(ny>P.H-34){doc.addPage();P.drawHeader();ny=34;}doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(110,110,110);
+   doc.text(doc.splitTextToSize('Basis: UAE gratuity formula used in Final Settlement (21 days of basic per year for the first five years, 30 days after; under one year nil), at current basic salary. Gratuity at start = as at '+st+'; at end = as at '+fmt(D.asAt)+'; accrued = end minus start. Staff at the end date include people who left after it; staff who left in the period are listed separately at their last day. Emirati staff are covered by GPSSA.'+(D.miss?' '+D.miss+' people have missing data, so the totals are understated.':''),P.W-2*m),m,ny);
+   P.finish(provFileName('pdf'));return;}
   let P;try{P=await b3Pdf('Year-End Provision Report','Gratuity and unused leave as at '+fmt(D.asAt)+'   |   '+(D.ent||'Both companies')+'   |   '+D.rows.length+' active staff');}catch(e){alert('Could not load the PDF tools. Please check the internet connection and try again.');return;}
   const {doc,m}=P;
   P.cards([{n:D.rows.length,l:'Active staff',sub:'at '+fmt(D.asAt)},{n:'AED '+cmFmt(D.T.g),l:'Gratuity provision',sub:'non-Emirati staff'},{n:'AED '+cmFmt(D.T.l),l:'Unused leave provision',sub:'balance x basic / 30',rgb:[201,168,76]},{n:'AED '+cmFmt(D.T.t),l:'Total provision',sub:'gratuity + unused leave',rgb:[160,32,32]}]);
@@ -6553,6 +6594,21 @@ window.provDownloadExcel=async function(){
   const D=window._prov;if(!D||!D.rows.length){alert('No staff to report.');return;}
   let X;try{X=await b3Xl();}catch(e){alert('Could not load the Excel tools. Please check the internet connection and try again.');return;}
   const {wb,title,table,kpis}=X;
+  if(D.from){const st=fmt(localDateStr(provDayBefore(D.from)));const sub='End of Service Benefits (EOSB), '+fmt(D.from)+' to '+fmt(D.asAt)+'   |   '+(D.ent||'Both companies');
+   const ws=wb.addWorksheet('Summary',{views:[{showGridLines:false}]});title(ws,'End of Service Benefits (EOSB) Report',sub,8);
+   kpis(ws,5,[['Gratuity at start ('+st+')',Math.round(D.T.s)],['Accrued in the period',Math.round(D.T.m)],['Gratuity at end ('+fmt(D.asAt)+')',Math.round(D.T.g)],['Left in the period (gratuity at exit)',Math.round(D.TL.g)]]);
+   const byE={};D.rows.forEach(r=>{const n=r.entity||'(no company)';const x=byE[n]=byE[n]||{n:0,s:0,m:0,g:0};x.n++;x.s+=r.gratStart;x.m+=r.move;x.g+=r.grat;});
+   let r=8;const c=ws.getCell(r,1);c.value='By company';c.font={name:'Calibri',size:12,bold:true,color:{argb:'FF1C3557'}};r++;
+   r=table(ws,r,['Company','Staff','Gratuity at start (AED)','Accrued in period (AED)','Gratuity at end (AED)'],Object.entries(byE).map(([n,x])=>[n,x.n,Math.round(x.s),Math.round(x.m),Math.round(x.g)]).concat([['Total',D.rows.length,Math.round(D.T.s),Math.round(D.T.m),Math.round(D.T.g)]]),{left:[0],num:[2,3,4],totalLast:true})+1;
+   if(D.miss){const m2=ws.getCell(r,1);m2.value=D.miss+' people have a missing joining date, basic salary or leave balance, so the totals are understated.';m2.font={name:'Calibri',size:10,bold:true,color:{argb:'FFA02020'}};}
+   [38,10,22,22,22,10,10,10].forEach((w,i)=>ws.getColumn(i+1).width=w);
+   const we=wb.addWorksheet('By employee',{views:[{showGridLines:false,state:'frozen',ySplit:5}]});title(we,'EOSB by Employee',sub,11);we.getRow(4).height=6;
+   table(we,5,['Employee','Company','Department','Joining date','Basic (AED)','Years at end','Gratuity at start (AED)','Accrued in period (AED)','Gratuity at end (AED)','Note'],D.rows.map(x=>{const e=DB.employees[x.k]||{};return [x.name,cmShortEnt(x.entity),x.dept,e.join?fmt(e.join):'',Math.round(x.basic),x.years==null?'':Number(x.years.toFixed(2)),Math.round(x.gratStart),Math.round(x.move),Math.round(x.grat),[x.uae?'Emirati: GPSSA, no gratuity':'',x.joinedIn?'Joined in the period':'',x.noJoin?'No joining date':'',x.noBasic?'No basic salary':''].filter(Boolean).join('; ')]}).concat([['Total','','','','','',Math.round(D.T.s),Math.round(D.T.m),Math.round(D.T.g),'']]),{left:[0,2,3,9],num:[4,6,7,8],totalLast:true});
+   [30,10,22,14,14,12,18,18,18,30].forEach((w,i)=>we.getColumn(i+1).width=w);we.autoFilter={from:{row:5,column:1},to:{row:5+D.rows.length,column:10}};
+   if(D.L.length){const wl=wb.addWorksheet('Left in the period',{views:[{showGridLines:false,state:'frozen',ySplit:5}]});title(wl,'Staff who left in the period',sub,7);wl.getRow(4).height=6;
+    table(wl,5,['Employee','Company','Department','Last day','Years','Gratuity at start (AED)','Gratuity at last day (AED)'],D.L.map(x=>[x.name,cmShortEnt(x.entity),x.dept,fmt(x.exit),x.years==null?'':Number(x.years.toFixed(2)),x.uae?0:Math.round(x.gratStart),x.uae?0:Math.round(x.grat)]).concat([['Total','','','','',Math.round(D.TL.s),Math.round(D.TL.g)]]),{left:[0,2,3],num:[5,6],totalLast:true});
+    [30,10,22,14,10,20,22].forEach((w,i)=>wl.getColumn(i+1).width=w)}
+   await X.download(provFileName('xlsx'));return;}
   const sub='Gratuity and unused leave as at '+fmt(D.asAt)+'   |   '+(D.ent||'Both companies');
   const ws=wb.addWorksheet('Summary',{views:[{showGridLines:false}]});
   title(ws,'Year-End Provision Report',sub,8);
