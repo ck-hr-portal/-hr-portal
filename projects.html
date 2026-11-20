@@ -39,8 +39,8 @@ input,select,textarea{font:inherit;font-size:13px;padding:6px 9px;border:1px sol
 
 /* ── 20 Nov 2026: professional theme (light side menu, consistent cards and figures) ── */
 aside{background:#E6ECF5!important;color:#3D4A5C!important;border-right:1px solid #D3DDEB;padding:16px 12px!important}
-aside .grp{color:#6E7F96!important;font-weight:700;letter-spacing:.1em}
-.ni{color:#3D4A5C!important;font-size:13.5px;padding:8px 12px!important;border-radius:8px!important;margin:1px 0}
+aside .grp{color:#4F6079!important;font-weight:700;letter-spacing:.1em}
+.ni{color:#1F2A37!important;font-size:13.5px;font-weight:600;padding:8px 12px!important;border-radius:8px!important;margin:1px 0}
 .ni:hover{background:#D3DDEB!important;color:#1C3557!important}
 .ni.on{background:#fff!important;color:#1C3557!important;font-weight:700;box-shadow:inset 3px 0 0 var(--gold),0 1px 3px rgba(28,53,87,.12)}
 .pbar{box-shadow:0 1px 3px rgba(28,53,87,.06)}
@@ -62,6 +62,10 @@ aside .grp{color:#6E7F96!important;font-weight:700;letter-spacing:.1em}
 .chk-w{font-size:12.5px;color:#6B7685;margin-top:6px}.chk-w b{color:#26303D}
 .chk-btn{white-space:nowrap;align-self:center;font-weight:600;border-color:#C9D3E3}
 table th{font-weight:700;color:#4A5563}
+
+.card .btn.sm[data-ptab],.card [data-ckmore],.cneed .btn.sm[data-ptab]{background:#E8EEF7;color:#1C3557;border:1px solid #9FB3CF;font-weight:700;border-radius:999px;padding:6px 14px}
+.card .btn.sm[data-ptab]:hover,.card [data-ckmore]:hover{background:#1C3557;color:#fff;border-color:#1C3557}
+.cneed .btn.sm[data-ptab]{background:#fff;border-color:#fff}
 </style></head><body>
 <div class="pbar"><span class="logo"><i>CK</i>CK Portal</span><button class="mod" id="toHR" title="Back to the HR Portal tab">HR</button><button class="mod on">Projects</button><span class="user" id="who">Checking your sign-in…</span></div>
 <div id="gate"><div class="card"><h2 id="gateT">Opening Projects…</h2><p class="note" id="gateM">One moment.</p><div id="gateB"></div></div></div>
@@ -792,7 +796,7 @@ function ceoProject(pid){const x=ceoF(pid);if(!x.p)return '';const NA=ceoNeeds([
  <section class="card" style="margin:0"><h2>This week vs last week</h2><div class="cwk"><span>People on site (average per day)</span><b>${a1??'—'}</b>${ch(a1,a0)}<span>Site labour cost (per register day)</span><b>${c1?'AED '+M(c1):'—'}</b>${c1&&c0?ch(c1,c0,true):'<span></span>'}<span>Look-ahead dates moved</span><b>${moved}</b><span></span><span>Priorities closed</span><b>${closed}</b><span></span><span>Site updates sent</span><b>${upd} of ${W1.length} days</b><span></span></div>
  ${lbm.length?`<div class="ceo-h" style="margin-top:12px">Labour cost by month (site, project staff${OH.on?', overhead':''})</div>${lbm.map(([m,l])=>`<div class="mrow"><span>${new Date(m+'-01T00:00:00').toLocaleDateString('en-GB',{month:'short',year:'2-digit'})}</span><div><i style="width:${Math.min(100,(l&&l.all||0)/Math.max(1,...lbm.map(z=>z[1]&&z[1].all||0))*100)}%;background:#1C3557"></i></div><b>${l&&l.all?M(l.all):'—'}</b></div>`).join('')}`:''}</section></div>
  <div style="margin-top:16px">${ceoDetails([x],true)}</div>
- ${iss.length?`<div class="card" style="margin-top:16px"><div class="row" style="margin:0 0 8px"><h2 style="flex:1;margin:0">Blocked and late</h2><button class="btn sm" data-ptab="priorities">All priorities ›</button></div>${iss.map(i=>`<div class="ceo-ms"><span><span class="pill ${i.status==='Blocked'?'rd':'a'}">${i.status==='Blocked'?'Blocked':'Late'}</span> <b>${esc(String(i.title||''))}</b>${i.due?' · due '+fmtD(i.due):''}${i.owner?' · '+esc(i.owner):''}</span>${i.note?`<span class="small">${esc(String(i.note).slice(0,200))}</span>`:''}</div>`).join('')}</div>`:''}`}
+ ${iss.length?`<div class="card" style="margin-top:16px"><div class="row" style="margin:0 0 8px"><h2 style="flex:1;margin:0">Blocked and late <span class="cnt rd">${iss.length}</span></h2><button class="btn sm" data-ptab="priorities">🎯 All priorities ›</button></div><div class="issl">${iss.map(i=>`<div class="iss-it"><div class="iss-h"><span class="pill ${i.status==='Blocked'?'rd':'a'}">${i.status==='Blocked'?'● Blocked':'Late'}</span><b>${esc(String(i.title||''))}</b>${i.due?`<span class="iss-due">due <b>${fmtD(i.due)}</b></span>`:''}</div>${i.owner?`<div class="small">${esc(i.owner)}</div>`:''}${i.note?`<div class="iss-t">${esc(String(i.note))}</div>`:''}</div>`).join('')}</div></div>`:''}`}
 const V={
 ceo(){const L=projList(),d=lastDate(),ym=(d||today()).slice(0,7),mLb=new Date(ym+'-01T00:00:00').toLocaleDateString('en-GB',{month:'long'}),h=new Date().getHours();
  const M=v=>{const a=Math.abs(v||0),s=(v||0)<0?'-':'';return a>=1e6?s+(a/1e6).toFixed(2)+'m':a>=1e4?s+Math.round(a/1e3)+'k':s+Math.round(a).toLocaleString('en-US')};const pc=(a,b)=>b?Math.round(a/b*100)+'%':'—';
