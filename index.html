@@ -540,6 +540,7 @@ tr:hover td{background:#fafbfc;}
       <div class="nav-item" id="navSimulator" onclick="showPage('simulator',this)"><span class="icon">🧮</span>Cost Simulator</div>
       <div class="nav-item" id="navCost" onclick="showPage('cost',this)"><span class="icon">💰</span>Total Cost Analysis</div>
       <div class="nav-item" id="navProv" onclick="showPage('prov',this)"><span class="icon">🏦</span>Year-End Provision</div>
+      <div class="nav-item" id="navHealth" onclick="showPage('health',this)"><span class="icon">🩺</span>Data Health Check<span id="healthBadge" style="display:none;margin-left:6px;font-size:10px;background:#C0392B;color:#fff;border-radius:999px;padding:1px 7px;font-weight:700;"></span></div>
       <div class="nav-item" id="navWeekly" onclick="showPage('weekly',this)" style="background:rgba(201,168,76,.18);font-weight:600;"><span class="icon">📅</span>Weekly HR Report<span id="wkMonBadge" style="display:none;margin-left:6px;font-size:10px;background:#C9A84C;color:#1C3557;border-radius:999px;padding:1px 7px;font-weight:700;">Monday</span></div>
       <div class="nav-section">Finance</div>
       <div class="nav-item" onclick="showPage('loans',this)"><span class="icon">🏦</span>Employee Loans</div>
@@ -898,6 +899,10 @@ tr:hover td{background:#fafbfc;}
           <div class="btn-row"><button class="btn btn-primary" onclick="cmSaveSettings()">Save settings</button></div>
         </div>
         <div class="card"><div id="cmNotes" style="font-size:12.5px;color:#555;line-height:1.6;"></div></div>
+      </div>
+      <div id="page-health" class="page">
+        <div class="page-header"><h2>Data Health Check</h2><p>Finds figures and links that can drift apart between modules (names on leave and loan records, managers, salaries, exit dates, leave, loans, leaver gratuity), so they are put right before they affect an employee's pay, leave or settlement. Runs each time you open this page.</p></div>
+        <div id="healthBody"></div>
       </div>
       <div id="page-weekly" class="page">
         <div class="page-header"><h2>Weekly HR Report</h2><p>One clear page for Mr. Cem every Monday: headcount, joiners and leavers, leave, requests waiting, documents, probation and compensatory leave, from the HR Portal's own records. Dev, Darleendy and Cem can see this.</p></div>
@@ -1752,7 +1757,7 @@ tr:hover td{background:#fafbfc;}
         <div class="form-group"><label>Bank Name</label><input type="text" id="eBank"></div>
         <div class="form-group form-full"><label>IBAN / WPS</label><input type="text" id="eIban"></div>
         <div class="form-group"><label>Annual Leave Entitlement</label><input type="number" id="eLeaveEnt"></div>
-        <div class="form-group"><label>Annual Leave Balance</label><input type="number" id="eLeaveBal"></div>
+        <div class="form-group"><label>Annual Leave Balance <span style="font-weight:400;color:#888;font-size:11px;">(worked out from the leave register; to change it, add a leave adjustment)</span></label><input type="number" id="eLeaveBal" readonly style="background:#f3f5f8;color:#555;" title="Kept in step automatically with the Leave Summary"></div>
         <div class="form-group" data-grat-field><label>Gratuity (AED) — manual note / final settlement</label><input type="number" id="eGrat"></div>
         <div class="form-group" data-grat-field><label>Live Accrued Gratuity (auto-calculated as of today)</label><div id="eGratLive" style="padding:10px 12px;background:#f0f7f5;border:1px solid #d3e8e3;border-radius:6px;font-weight:700;color:#1A7A6E;">—</div></div>
       </div>
@@ -3072,7 +3077,7 @@ async function syncStaffMirrors(){
         empId:e.empId,name:e.name,dept:e.dept,desig:e.desig,entity:e.entity,join:e.join,dob:e.dob, // own birthday: for the personal birthday card
         passport:e.passport,passExp:e.passExp,visa:e.visa,visaExp:e.visaExp,
         eid:e.eid,eidExp:e.eidExp,lab:e.lab,labExp:e.labExp,
-        annualLeaveBalance:e.annualLeaveBalance,
+        annualLeaveBalance:(()=>{try{const c=annualCalc(e,alYr,alIdx);return c?c.bal:e.annualLeaveBalance}catch(err){return e.annualLeaveBalance}})(),
         _bal:(()=>{try{return annualCalc(e,alYr,alIdx)}catch(err){return undefined}})(),
         lineManagerKey:e.lineManagerKey,lineManagerName:e.lineManagerName,
         needsAdditionalApproval:!!e.needsAdditionalApproval,
@@ -3084,6 +3089,13 @@ async function syncStaffMirrors(){
         _comp:compMirrorFor(k)
       });
     });
+    // 23 Nov 2026: one balance everywhere: the stored "Annual Leave Balance" follows the leave register (Leave Summary) for all active staff
+    {let nFix=0;const yr=String(new Date().getFullYear());for(const [k,e] of Object.entries(DB.employees||{})){if(!e||!e.name||e.status==='Inactive')continue;if(e.exitDate&&e.exitDate<todayStr)continue;
+      let c=null;try{c=annualCalc(e,yr,alIdx)}catch(err){c=null}if(!c||isNaN(c.bal))continue;const st=(e.annualLeaveBalance!=null&&e.annualLeaveBalance!=='')?parseFloat(e.annualLeaveBalance):null;
+      if(st===null||Math.abs(st-c.bal)>=0.05){try{await set(ref(db,'employees/'+k+'/annualLeaveBalance'),c.bal);e.annualLeaveBalance=c.bal;nFix++}catch(err){}}}
+     for(const [k,e] of Object.entries(DB.employees||{})){if(!e||e.status==='Inactive')continue;const lm=e.lineManagerKey&&DB.employees[e.lineManagerKey];if(lm&&lm.name&&e.lineManagerName!==lm.name){try{await set(ref(db,'employees/'+k+'/lineManagerName'),lm.name);e.lineManagerName=lm.name}catch(err){}}const ap=e.additionalApproverKey&&DB.employees[e.additionalApproverKey];if(ap&&ap.name&&e.additionalApproverName!==ap.name){try{await set(ref(db,'employees/'+k+'/additionalApproverName'),ap.name);e.additionalApproverName=ap.name}catch(err){}}}
+     try{await autoHeal()}catch(err){}
+     if(nFix){try{logAudit('Leave balances kept in step','',nFix+' stored annual leave balance'+(nFix>1?'s':'')+' set to the leave register figure')}catch(err){}}}
     for(const k of Object.keys(newView)){
       if(stable(newView[k])!==stable(prune(_mirrorCache.view[k]))){
         await _fbSet(ref(db,'staffView/'+k),newView[k]);
@@ -4905,7 +4917,7 @@ function applyPROMode(){
   style.textContent=`
     .nav-item[onclick*="'loans'"] { display: none !important; }
     .nav-item[onclick*="'settlement'"] { display: none !important; }
-    #navPerf, #navProj, #navPayroll, #page-payroll, #navUsage, #page-usage, #navLrep, #page-lrep, #navLro, #page-lro, #navLq, #page-lq, #navCost, #navProv, #navWeekly, #page-cost, #page-prov, #page-weekly, #navChecklists, #navAck, #navUnans, #page-checklists, #page-ack, #page-unanswered, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #navBackup, #backupBanner, #page-backup, #voiceToggleBtn, .briefBtn, #navHeadcount, #navSimulator, #page-headcount, #page-simulator, #greetCard, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }
+    #navPerf, #navProj, #navPayroll, #page-payroll, #navUsage, #page-usage, #navLrep, #page-lrep, #navLro, #page-lro, #navLq, #page-lq, #navCost, #navProv, #navWeekly, #navHealth, #page-cost, #page-prov, #page-weekly, #page-health, #navChecklists, #navAck, #navUnans, #page-checklists, #page-ack, #page-unanswered, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #navBackup, #backupBanner, #page-backup, #voiceToggleBtn, .briefBtn, #navHeadcount, #navSimulator, #page-headcount, #page-simulator, #greetCard, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }
     button[onclick*="openEmpModal"], button[onclick="delEmp"], button[onclick*="delEmp("] { display: none !important; }
     /* Oct 2026: Kashif (PRO) access as agreed with HR. The database rules enforce the same limits. */
     .nav-item[onclick*="'salary'"], #page-salary, .nav-item[onclick*="'flight'"], #page-flight,
@@ -6666,6 +6678,7 @@ function wkHighlights(D){const H=[];const net=D.head.total-D.head.before;
  if(D.prob.length)H.push(D.prob.length+' probation period'+(D.prob.length>1?'s':'')+' ending in the next 30 days.');
  if(D.compT.length)H.push('Compensatory leave taken: '+D.compT.length+' entr'+(D.compT.length>1?'ies':'y')+'.');
  return H}
+setTimeout(()=>{try{if(currentRole==='admin'){const H=healthChecks();const b=document.getElementById('healthBadge');if(b){b.textContent=H.length||'';b.style.display=H.length?'inline-block':'none'}}}catch(e){}},9000);
 setTimeout(()=>{try{if(new Date().getDay()===1){const b=document.getElementById('wkMonBadge');if(b)b.style.display='inline-block'}}catch(e){}},1500);
 function renderWeeklyPage(){const el=document.getElementById('wkBody');if(!el)return;if(v('wkMode')==='pick'){document.getElementById('wkDateBox').style.display=''}else{const b=document.getElementById('wkDateBox');if(b)b.style.display='none'}
  const D=wkData();window._wk=D;const card=(l,n,s,c)=>'<div style="flex:1;min-width:150px;padding:12px 14px;border-radius:10px;background:#fff;border:1px solid #d9e2ef;border-top:3px solid '+(c||'#1C3557')+'"><div style="font-size:11.5px;color:#6B7685;">'+l+'</div><div style="font-size:22px;font-weight:700;color:'+(c||'#1C3557')+';">'+n+'</div><div style="font-size:11.5px;color:#6B7685;">'+(s||'')+'</div></div>';
@@ -6841,7 +6854,9 @@ function lrCompute(o){
       let sk=0,wf2=0;recW.forEach(l=>{if(!leaveCounts(l))return;const kd=leaveKind(l.type);if(kd==='sick')sk+=leaveDaysOf(l);else if(kd==='wfh')wf2+=leaveDaysOf(l);});
       const adjR=(adjG[e.name]||[]).filter(a=>adjOf(a,y));
       const adj=adjR.reduce((s,a)=>s+(parseFloat(a.days||0)||0),0);
-      yearRows.push({y,ws,we,months:LR_MON3[parseInt(ws.slice(5),10)-1]+(ws===we?'':' - '+LR_MON3[parseInt(we.slice(5),10)-1]),entitled,adj,total:entitled+adj,used,usedWin,balance:entitled+adj-used,sick:sk,wfh:wf2});
+      let used2=used,usedWin2=usedWin,bal2=entitled+adj-used,ruleAdj=0;
+      try{const alS=alYearSummary(e.name,String(y),null,idx);if(alS){used2=alS.used;bal2=alS.balance;ruleAdj=Math.round((alS.used-used)*10)/10;if(ws===ys&&(we===ye||we>=lrYM(y,new Date().getMonth()+1)||y<new Date().getFullYear()))usedWin2=alS.used;else usedWin2=usedWin+ruleAdj*0}}catch(err){}
+      yearRows.push({y,ws,we,months:LR_MON3[parseInt(ws.slice(5),10)-1]+(ws===we?'':' - '+LR_MON3[parseInt(we.slice(5),10)-1]),entitled,adj,total:entitled+adj,used:used2,usedWin:usedWin2,balance:bal2,sick:sk,wfh:wf2,ruleAdj});
     });
     const last=yearRows[yearRows.length-1]||{entitled:0,adj:0,used:0,usedWin:0,balance:0};
     // ---- the period as a whole ----
@@ -6985,7 +7000,7 @@ window.lrDownloadPDF=async function(onlyKey){
       else none('No years in the period for this employee.');
     }
     sec('Leave taken, '+R.per+' (approved), by type');
-    if(r.byType.length){doc.autoTable(tbl({startY:y,head:[['Leave type','Records','Days','Comes off annual leave']],body:r.byType.map(b=>[b.type,b.n,lrN(b.days),lrN(b.ded)]),columnStyles:{0:{halign:'left'},1:{halign:'center'},2:{halign:'center'},3:{halign:'center'}}}));after();}
+    if(r.byType.length){doc.autoTable(tbl({startY:y,head:[['Leave type','Records','Days','Comes off annual leave']],body:r.byType.map(b=>[b.type,b.n,lrN(b.days),lrN(b.ded)]).concat((r.yearRows||[]).filter(yr=>yr.ruleAdj).map(yr=>['Annual leave rules '+yr.y+' (public holidays inside leave, edge days)','','',(yr.ruleAdj>0?'+':'')+lrN(yr.ruleAdj)])),columnStyles:{0:{halign:'left'},1:{halign:'center'},2:{halign:'center'},3:{halign:'center'}}}));after();}
     else none('No approved leave in '+R.per+'.');
     sec('Leave records');
     if(r.records.length){doc.autoTable(tbl({startY:y,head:[['From','To','Type','Days','Status','Off annual','Notes']],body:r.records.map(x=>[fmt(x.from),fmt(x.to),x.type,lrN(x.days),x.status,x.ded?lrN(x.ded):'-',x.note||'']),columnStyles:{0:{cellWidth:22},1:{cellWidth:22},2:{halign:'left',cellWidth:30},3:{halign:'center',cellWidth:12},4:{halign:'center',cellWidth:20},5:{halign:'center',cellWidth:17},6:{halign:'left'}},
@@ -7868,6 +7883,7 @@ window.showPage=function(page,el){
   if(page==='cost')initCostPage();
   if(page==='prov')renderProvisionPage();
   if(page==='weekly')renderWeeklyPage();
+  if(page==='health')renderHealthPage();
   if(page==='leave')setTimeout(()=>{try{lvBalCheck()}catch(err){}},300);
   if(page==='checklists')renderChecklistsPage();
   if(page==='ack')renderAckPage();
@@ -8652,9 +8668,13 @@ window.saveEmp=function(){
   delete data.loginPassword;delete data.loginUsername; // old plain-text login design — never kept any more
   if(!data.name){alert('Employee name required');return;}
   const key=editKeyForSave;
+  const oldName=key&&DB.employees[key]?DB.employees[key].name:'';let doRename=false;
+  if(key&&oldName&&oldName!==data.name){const M=rnMatches(key,oldName);const by={};M.forEach(([c,rk,l])=>by[l]=(by[l]||0)+1);
+   doRename=confirm('The name changes from "'+oldName+'" to "'+data.name+'".\n\n'+(M.length?'These records are linked to the name and will be updated so they stay with this employee:\n'+Object.entries(by).map(([l,n])=>'• '+n+' '+l).join('\n')+'\n\n':'')+'Managers\' names on other employees and the leavers record are updated too.\n\nOK = update them (recommended). Cancel = change only the employee record.');}
   const op=key?set(ref(db,'employees/'+key),data):set(push(ref(db,'employees')),data);
   op.then(async()=>{
     logAudit(key?'Edit Employee':'Add Employee',data.name,`ID:${data.empId} Dept:${data.dept}`);
+    if(doRename){try{const n=await renameCascade(key,oldName,data.name);showAlert('emp-alert',n+' linked record'+(n===1?'':'s')+' updated to the new name.')}catch(err){}}
     if(key&&data.status==='Inactive'&&currentRole!=='pro')await syncToLeaversIfInactive(key,data);
     closeModal('empModal');showAlert('emp-alert',`Employee ${key?'updated':'added'} successfully!`);
   });
@@ -12577,12 +12597,87 @@ function annualCalc(e,year,idx){if(!e||!e.name)return null;const y=String(year);
  const used=alS?alS.used:alDays,bal=alS?alS.balance:entitled+adjTotal-used;
  return {y,ent:Math.round((entitled+adjTotal)*10)/10,used:Math.round(used*10)/10,bal:Math.round(bal*10)/10,sick:Math.round(slDays*10)/10,wfh:Math.round(wfhDays*10)/10}}
 function lvBalCheck(){const el=document.getElementById('lvBalCheck');if(!el||currentRole!=='admin')return;let idx=null;try{idx=buildNameIndex()}catch(err){}const y=String(new Date().getFullYear());
- const D=Object.entries(DB.employees||{}).filter(([k,e])=>e&&e.status!=='Inactive'&&e.name).map(([k,e])=>{const c=annualCalc(e,y,idx);const st=(e.annualLeaveBalance!=null&&e.annualLeaveBalance!=='')?parseFloat(e.annualLeaveBalance):null;return {k,name:e.name,st,c}}).filter(x=>x.c&&(x.st==null||Math.abs(x.st-x.c.bal)>=0.05));
+ const td_=localDateStr(new Date());const D=Object.entries(DB.employees||{}).filter(([k,e])=>e&&e.status!=='Inactive'&&e.name&&!(e.exitDate&&e.exitDate<td_)).map(([k,e])=>{const c=annualCalc(e,y,idx);const st=(e.annualLeaveBalance!=null&&e.annualLeaveBalance!=='')?parseFloat(e.annualLeaveBalance):null;return {k,name:e.name,st,c}}).filter(x=>x.c&&(x.st==null||Math.abs(x.st-x.c.bal)>=0.05));
  window._lvBal=D;if(!D.length){el.innerHTML='';return}
- el.innerHTML='<div style="background:#FFF8E6;border:1px solid #F0D9A6;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;"><b>Leave balance check:</b> '+D.length+' active staff have a stored "Annual Leave Balance" that differs from their leave record for '+y+' (the Leave Summary figure, which staff now also see in their own portal). The stored figure is still used by Year-End Provision. <button class="btn btn-sm" onclick="document.getElementById(\'lvBalList\').style.display=document.getElementById(\'lvBalList\').style.display===\'none\'?\'\':\'none\'">Show</button> <button class="btn btn-sm btn-primary" onclick="lvBalFix()">Update the stored balance to the leave record</button>'
+ el.innerHTML='<div style="background:#FFF8E6;border:1px solid #F0D9A6;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;"><b>Leave balance check:</b> '+D.length+' active staff have a stored "Annual Leave Balance" that differs from their leave record for '+y+' (the Leave Summary figure, which staff now also see in their own portal). The HR portal now keeps these in step by itself whenever it is open (this note disappears once done); you can also do it now. <button class="btn btn-sm" onclick="document.getElementById(\'lvBalList\').style.display=document.getElementById(\'lvBalList\').style.display===\'none\'?\'\':\'none\'">Show</button> <button class="btn btn-sm btn-primary" onclick="lvBalFix()">Update the stored balance to the leave record</button>'
   +'<div id="lvBalList" style="display:none;margin-top:8px;max-height:260px;overflow:auto;"><table><thead><tr><th>Employee</th><th>Stored balance</th><th>Leave record '+y+' (entitled − used = balance)</th></tr></thead><tbody>'+D.sort((a,b)=>a.name.localeCompare(b.name)).map(x=>'<tr><td>'+esc(x.name)+'</td><td>'+(x.st==null?'—':x.st)+'</td><td>'+x.c.ent+' − '+x.c.used+' = <b>'+x.c.bal+'</b></td></tr>').join('')+'</tbody></table></div></div>'}
 window.lvBalFix=async function(){const D=window._lvBal||[];if(!D.length)return;if(!confirm('Update the stored "Annual Leave Balance" of '+D.length+' staff to the balance from their leave record (Leave Summary)?'))return;let n=0;
  for(const x of D){try{await set(ref(db,'employees/'+x.k+'/annualLeaveBalance'),x.c.bal);if(DB.employees[x.k])DB.employees[x.k].annualLeaveBalance=x.c.bal;n++}catch(err){}}logAudit('Leave balances updated','',n+' stored balances set to the Leave Summary figure');alert(n+' stored balance'+(n===1?'':'s')+' updated.');lvBalCheck()};
+
+// ══ 23 Nov 2026: DATA HEALTH CHECK (HR): finds figures and links that can drift apart, so they are put right before they reach an employee ══
+const RN_COLL=[['leave','leave records'],['leaveAdjustments','leave adjustments'],['leaveRequests','leave requests'],['loans','loans'],['repayments','loan repayments'],['salary','salary history'],['flightAllowance','flight allowance'],['compLeave','compensatory leave'],['checklists','checklists'],['assets','assets']];
+// records that belong to this employee: by record key where the record has one, otherwise by the (old) name
+function rnMatches(key,oldName){const on=normName(oldName),out=[];RN_COLL.forEach(([c,l])=>Object.entries(DB[c]||{}).forEach(([rk,r])=>{if(!r)return;if(r.empKey?r.empKey===key:normName(r.empName)===on)out.push([c,rk,l])}));return out}
+async function renameCascade(key,oldName,newName){const M=rnMatches(key,oldName);let n=0;for(const [c,rk] of M){try{await set(ref(db,c+'/'+rk+'/empName'),newName);if(DB[c]&&DB[c][rk])DB[c][rk].empName=newName;n++}catch(err){}}
+ for(const [k,e] of Object.entries(DB.employees||{})){if(!e)continue;if(e.lineManagerKey===key&&e.lineManagerName!==newName){try{await set(ref(db,'employees/'+k+'/lineManagerName'),newName);n++}catch(err){}}if(e.additionalApproverKey===key&&e.additionalApproverName!==newName){try{await set(ref(db,'employees/'+k+'/additionalApproverName'),newName);n++}catch(err){}}}
+ const lv=Object.entries(DB.leavers||{}).find(([k,l])=>l&&l.sourceEmpKey===key);if(lv&&lv[1].name!==newName){try{await set(ref(db,'leavers/'+lv[0]+'/name'),newName);n++}catch(err){}}
+ logAudit('Employee renamed: records updated',newName,'was '+oldName+' · '+n+' linked records updated');return n}
+// ══ 23 Nov 2026: automatic fixes (employee records are the reference): names on linked records, manager names, salary components ══
+function nmSim(a,b){a=normName(a);b=normName(b);if(!a||!b)return 0;if(a===b)return 1;if(a.replace(/ /g,'')===b.replace(/ /g,''))return .99;
+ const A=new Set(a.split(' ')),B=new Set(b.split(' '));const inter=[...A].filter(x=>B.has(x)).length;const jac=inter/new Set([...A,...B]).size;
+ const s1=a.replace(/ /g,''),s2=b.replace(/ /g,'');const m=s1.length,n=s2.length;let d=Array.from({length:m+1},(_,i)=>i);for(let j=1;j<=n;j++){let prev=d[0];d[0]=j;for(let i=1;i<=m;i++){const t=d[i];d[i]=Math.min(d[i]+1,d[i-1]+1,prev+(s1[i-1]===s2[j-1]?0:1));prev=t}}const lev=1-d[m]/Math.max(m,n);
+ const sub=(A.size&&[...A].every(x=>B.has(x)))||(B.size&&[...B].every(x=>A.has(x)))?.9:0;return Math.max(jac,lev,sub)}
+function bestEmpFor(name,E){let best=null,b2=0;E.forEach(e=>{const s=nmSim(name,e.name);if(!best||s>best.s){if(best)b2=Math.max(b2,best.s);best={e,s}}else b2=Math.max(b2,s)});return best&&best.s>=.8&&best.s-b2>=.08?best.e:null}
+let _autoHealDone={};
+async function autoHeal(){if(currentRole!=='admin')return {linked:0,mgr:0,sal:0,left:[]};const E=Object.values(DB.employees||{}).filter(e=>e&&e.name);const names=new Set(E.map(e=>normName(e.name)));let linked=0,mgr=0,sal=0;const left={};
+ // 1. records whose name matches no employee: link them to the employee with the clearly closest name
+ for(const [c] of RN_COLL){for(const [rk,r] of Object.entries(DB[c]||{})){if(!r||!r.empName)continue;let tgt=null;if(r.empKey&&DB.employees[r.empKey])tgt=DB.employees[r.empKey];else if(!names.has(normName(r.empName)))tgt=bestEmpFor(r.empName,E);else continue;
+   if(tgt&&tgt.name&&r.empName!==tgt.name&&normName(r.empName)!==normName(tgt.name)||(tgt&&r.empKey&&r.empName!==tgt.name)){try{await set(ref(db,c+'/'+rk+'/empName'),tgt.name);r.empName=tgt.name;linked++}catch(err){}}
+   else if(!tgt&&!names.has(normName(r.empName)))left[r.empName]=(left[r.empName]||0)+1}}
+ // 2. line manager / final approver names
+ for(const [k,e] of Object.entries(DB.employees||{})){if(!e)continue;const lm=e.lineManagerKey&&DB.employees[e.lineManagerKey];if(lm&&lm.name&&e.lineManagerName!==lm.name){try{await set(ref(db,'employees/'+k+'/lineManagerName'),lm.name);e.lineManagerName=lm.name;mgr++}catch(err){}}const ap=e.additionalApproverKey&&DB.employees[e.additionalApproverKey];if(ap&&ap.name&&e.additionalApproverName!==ap.name){try{await set(ref(db,'employees/'+k+'/additionalApproverName'),ap.name);e.additionalApproverName=ap.name;mgr++}catch(err){}}}
+ // 3. salary components: gross and basic stay exactly as recorded (pay and gratuity unchanged); "other allowances" takes the difference so the parts add up to the gross
+ const n_=v=>parseFloat(v)||0;for(const [k,e] of Object.entries(DB.employees||{})){if(!e||e.status==='Inactive')continue;const g=n_(e.grossSalary),b=n_(e.basicSalary);if(!g||!b)continue;const parts=b+n_(e.house)+n_(e.transport)+n_(e.otherAllowances)+n_(e.tempBonus);const diff=Math.round((g-parts)*100)/100;if(Math.abs(diff)<=1)continue;const newOther=Math.round((n_(e.otherAllowances)+diff)*100)/100;if(newOther<0)continue; // would need a lower housing / transport: left for HR
+   const oldO=n_(e.otherAllowances);try{await set(ref(db,'employees/'+k+'/otherAllowances'),String(newOther));e.otherAllowances=String(newOther);sal++;logAudit('Salary parts balanced',e.name,'Other allowances '+oldO+' → '+newOther+' so that basic + allowances = gross '+g+' (gross and basic unchanged)')}catch(err){}}
+ if(linked||mgr)logAudit('Data health: fixed automatically','',linked+' records linked to the employee name, '+mgr+' manager names');
+ const today_=localDateStr(new Date());const d=_autoHealDone[today_]=_autoHealDone[today_]||{linked:0,mgr:0,sal:0};d.linked+=linked;d.mgr+=mgr;d.sal+=sal;
+ return {linked,mgr,sal,left:Object.entries(left)}}
+
+function healthChecks(){const H=[];const E=Object.entries(DB.employees||{}).filter(([k,e])=>e&&e.name);const td=localDateStr(new Date());const act=E.filter(([k,e])=>e.status!=='Inactive'&&!(e.exitDate&&e.exitDate<td));const y=String(new Date().getFullYear());let idx=null;try{idx=buildNameIndex()}catch(err){}
+ const add=(id,lvl,title,why,rows,head,fix)=>{if(rows.length)H.push({id,lvl,title,why,rows,head,fix})};
+ // 1. records linked by a name that matches no employee (they drop out of balances, loans and settlements)
+ {const names=new Set(E.map(([k,e])=>normName(e.name)));const det={};RN_COLL.forEach(([c,l])=>Object.entries(DB[c]||{}).forEach(([rk,r])=>{if(!r||r.empKey||!r.empName)return;if(names.has(normName(r.empName)))return;const g=det[r.empName]=det[r.empName]||{n:{},sug:null};g.n[l]=(g.n[l]||0)+1}));
+  Object.entries(det).forEach(([nm,g])=>{try{const m=matchEmpByName(nm,idx);if(m&&m.e)g.sug=m.e.name}catch(err){}});
+  add('detached','r','Records linked to a name that matches no employee','Leave, loans or salary records whose name does not match any employee record are left out of that person\'s leave balance, loan deduction and reports.',Object.entries(det).map(([nm,g])=>[nm,Object.entries(g.n).map(([l,c])=>c+' '+l).join(', '),g.sug||'—']),['Name on the records','Records','Closest employee'],Object.values(det).some(g=>g.sug)?'detached':null)}
+ // 2. line manager / final approver names out of date
+ {const R=[];act.forEach(([k,e])=>{const lm=e.lineManagerKey&&DB.employees[e.lineManagerKey];if(lm&&e.lineManagerName!==lm.name)R.push([e.name,'Line manager',e.lineManagerName||'—',lm.name]);const ap=e.additionalApproverKey&&DB.employees[e.additionalApproverKey];if(ap&&e.additionalApproverName!==ap.name)R.push([e.name,'Final approver',e.additionalApproverName||'—',ap.name])});
+  add('mgrname','a','Line manager / final approver name out of date','The name shown on leave requests and in the staff portal differs from the manager\'s current name.',R,['Employee','Role','Name stored','Current name'],'mgrname')}
+ // 3. line manager or final approver has left / is inactive
+ {const R=[];act.forEach(([k,e])=>{[['lineManagerKey','Line manager'],['additionalApproverKey','Final approver']].forEach(([f,l])=>{const m=e[f]&&DB.employees[e[f]];if(e[f]&&(!m||m.status==='Inactive'||(m.exitDate&&m.exitDate<td)))R.push([e.name,l,m?m.name:'(record deleted)'])})});
+  add('mgrleft','r','Line manager or final approver has left','Leave requests of these staff would go to someone who is no longer here.',R,['Employee','Role','Set to'],null)}
+ // 4. gross salary does not add up
+ {const n_=v=>parseFloat(v)||0;const R=[];act.forEach(([k,e])=>{const g=n_(e.grossSalary);if(!g||!n_(e.basicSalary))return;const parts=n_(e.basicSalary)+n_(e.house)+n_(e.transport)+n_(e.otherAllowances)+n_(e.tempBonus);if(Math.abs(parts-g)>1)R.push([e.name,cmFmt?cmFmt(g):g,cmFmt?cmFmt(parts):parts,cmFmt?cmFmt(g-parts):g-parts])});
+  add('gross','a','Gross salary is lower than basic + housing + transport','Gross is used for notice pay and payroll; basic for gratuity and leave salary. If they disagree, an employee can be paid on the wrong figure.',R,['Employee','Gross on record','Basic + housing + transport + other + temporary bonus','Difference'],null)}
+ // 5. status and exit dates
+ {const R=[];E.forEach(([k,e])=>{if(e.status!=='Inactive'&&e.exitDate&&e.exitDate<td)R.push([e.name,'Active, but exit date '+fmt(e.exitDate)+' has passed']);if(e.status==='Inactive'&&!e.exitDate)R.push([e.name,'Inactive without an exit date'])});
+  add('status','a','Status and exit date do not agree','Affects headcount, gratuity and who can still log in.',R,['Employee','Issue'],null)}
+ // 6. duplicates
+ {const ids={},nm={};act.forEach(([k,e])=>{if(e.empId){(ids[e.empId]=ids[e.empId]||[]).push(e.name)}(nm[normName(e.name)]=nm[normName(e.name)]||[]).push(e.empId||'no ID')});const R=[];Object.entries(ids).forEach(([i,L])=>{if(L.length>1)R.push(['Employee ID '+i,L.join(', ')])});Object.entries(nm).forEach(([n,L])=>{if(L.length>1)R.push(['Same name: '+n,L.join(', ')])});
+  add('dup','r','Duplicate employee IDs or names','Records linked by name (leave, loans) cannot tell two people with the same name apart.',R,['What','Who'],null)}
+ // 7. missing key data
+ {const R=[];act.forEach(([k,e])=>{const m=[];if(!e.join)m.push('joining date');if(!(parseFloat(e.basicSalary)>0))m.push('basic salary');if(!e.entity)m.push('company');if(m.length)R.push([e.name,m.join(', ')])});
+  add('missing','a','Key data missing','Without these, gratuity, leave and provision figures for the person are wrong or zero.',R,['Employee','Missing'],null)}
+ // 8. negative leave balance
+ {const R=[];act.forEach(([k,e])=>{let c=null;try{c=annualCalc(e,y,idx)}catch(err){}if(c&&c.bal<0)R.push([e.name,c.ent,c.used,c.bal])});
+  add('neg','r','Annual leave used is more than the entitlement','The extra days must be treated as unpaid leave (UAE law); check that payroll deducted them.',R,['Employee','Entitled '+y,'Used','Balance'],null)}
+ // 9. people who left with a loan still outstanding
+ {const R=[];E.forEach(([k,e])=>{if(!(e.status==='Inactive'||(e.exitDate&&e.exitDate<td)))return;let o=0;try{o=computeOutstandingLoanBalance(e.name)}catch(err){}if(o>0)R.push([e.name,e.exitDate?fmt(e.exitDate):'—','AED '+(cmFmt?cmFmt(o):o)])});
+  add('loanleft','a','Staff who left with a loan still outstanding','Should have been deducted in the final settlement; check the settlement or record the repayment.',R,['Employee','Exit date','Outstanding'],null)}
+ // 10. leavers register gratuity differs from the calculation
+ {const R=[];Object.values(DB.leavers||{}).forEach(l=>{if(!l||!l.sourceEmpKey)return;const e=DB.employees[l.sourceEmpKey];if(!e||!e.exitDate)return;let g=null;try{g=calcEOSBAt(e,cmDate(e.exitDate))}catch(err){}if(!g)return;const st=parseFloat(l.gratuity)||0;if(Math.abs(st-g.eosb)>1)R.push([l.name||e.name,fmt(e.exitDate),'AED '+(cmFmt?cmFmt(st):st),'AED '+(cmFmt?cmFmt(g.eosb):Math.round(g.eosb))])});
+  add('lvgrat','a','Leavers register gratuity differs from the calculation','Usually the basic salary or dates were changed after the person left; confirm which figure was paid.',R,['Leaver','Exit date','In the register','Calculated now'],null)}
+ return H}
+async function renderHealthPage(){const el=document.getElementById('healthBody');if(!el)return;el.innerHTML='<p style="color:#888">Checking and fixing…</p>';let R={linked:0,mgr:0,sal:0};try{R=await autoHeal()}catch(err){}const D=_autoHealDone[localDateStr(new Date())]||R;const H=healthChecks().filter(h=>h.id!=='gross'||h.rows.length);window._health=H;const red=H.filter(h=>h.lvl==='r').length;
+ const fixedTxt=(D.linked||D.mgr||D.sal)?`<div style="background:#E5F4EE;border:1px solid #BFE3D3;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13.5px;"><b>✓ Fixed automatically today:</b> ${D.linked} record${D.linked===1?'':'s'} linked to the correct employee name · ${D.mgr} manager name${D.mgr===1?'':'s'} · ${D.sal} salary breakdown${D.sal===1?'':'s'} balanced (other allowances; gross and basic unchanged). All logged in the audit trail.</div>`:'';
+ el.innerHTML=fixedTxt+(H.length?`<div style="background:${red?'#FFF4F2':'#FFF8E6'};border:1px solid ${red?'#F3C9C2':'#F0D9A6'};border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13.5px;"><b>${H.length} check${H.length>1?'s':''} need attention</b> (${red} important). These could not be fixed automatically because the portal cannot know the right answer (for example an exit date, or who the new line manager is).</div>`:'<div style="background:#E5F4EE;border:1px solid #BFE3D3;border-radius:10px;padding:12px 14px;font-size:14px;"><b>✓ All checks passed.</b> Leave balances, names, managers, salaries, exit dates, loans and leaver records agree.</div>')
+ +H.map(h=>`<div class="card" style="margin-bottom:12px;border-left:4px solid ${h.lvl==='r'?'#C0392B':'#C9A84C'};"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;"><div><b style="font-size:15px;color:#1C3557;">${esc(h.title)}</b> <span class="badge" style="background:${h.lvl==='r'?'#FBE7E5':'#FDF2DE'};color:${h.lvl==='r'?'#9E2F24':'#8A5300'}">${h.rows.length}</span><div style="font-size:12.5px;color:#666;margin-top:3px;">${esc(h.why)}</div></div>${h.fix?`<button class="btn btn-sm btn-primary" onclick="healthFix('${h.fix}')">Fix automatically</button>`:''}</div>
+  <div style="overflow-x:auto;margin-top:8px;max-height:280px;overflow-y:auto;"><table><thead><tr>${h.head.map(x=>'<th>'+esc(x)+'</th>').join('')}</tr></thead><tbody>${h.rows.map(r=>'<tr>'+r.map(c=>'<td>'+esc(String(c))+'</td>').join('')+'</tr>').join('')}</tbody></table></div></div>`).join('');
+ const b=document.getElementById('healthBadge');if(b){b.textContent=H.length||'';b.style.display=H.length?'inline-block':'none'}}
+window.healthFix=async function(kind){if(kind==='mgrname'){if(!confirm('Update the stored line manager / final approver names to their current names?'))return;let n=0;for(const [k,e] of Object.entries(DB.employees||{})){if(!e)continue;const lm=e.lineManagerKey&&DB.employees[e.lineManagerKey];if(lm&&e.lineManagerName!==lm.name){await set(ref(db,'employees/'+k+'/lineManagerName'),lm.name);e.lineManagerName=lm.name;n++}const ap=e.additionalApproverKey&&DB.employees[e.additionalApproverKey];if(ap&&e.additionalApproverName!==ap.name){await set(ref(db,'employees/'+k+'/additionalApproverName'),ap.name);e.additionalApproverName=ap.name;n++}}logAudit('Data health: manager names updated','',n+' names');alert(n+' name'+(n===1?'':'s')+' updated.')}
+ if(kind==='detached'){let idx=null;try{idx=buildNameIndex()}catch(err){}const names=new Set(Object.values(DB.employees||{}).filter(e=>e&&e.name).map(e=>normName(e.name)));const todo=[];RN_COLL.forEach(([c])=>Object.entries(DB[c]||{}).forEach(([rk,r])=>{if(!r||r.empKey||!r.empName||names.has(normName(r.empName)))return;let m=null;try{m=matchEmpByName(r.empName,idx)}catch(err){}if(m&&m.e)todo.push([c,rk,r.empName,m.e.name])}));
+  if(!todo.length){alert('No record has a clear match. Use Leave Register › Fix names for the rest.');return}const byPair={};todo.forEach(([c,rk,a,b])=>{const k=a+' → '+b;byPair[k]=(byPair[k]||0)+1});
+  if(!confirm('Link these records to the employee with the closest name?\n\n'+Object.entries(byPair).map(([k,n])=>k+' ('+n+')').join('\n')+'\n\nOnly the name on the record changes; dates, days and amounts stay as they are.'))return;let n=0;for(const [c,rk,a,b] of todo){try{await set(ref(db,c+'/'+rk+'/empName'),b);if(DB[c]&&DB[c][rk])DB[c][rk].empName=b;n++}catch(err){}}logAudit('Data health: records linked by name','',n+' records');alert(n+' record'+(n===1?'':'s')+' linked.')}
+ renderHealthPage()};
 
 function refreshLeaveSummary(empName){
   const lsIdx=buildNameIndex();
