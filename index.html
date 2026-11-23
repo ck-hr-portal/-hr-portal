@@ -540,6 +540,7 @@ tr:hover td{background:#fafbfc;}
       <div class="nav-item" id="navSimulator" onclick="showPage('simulator',this)"><span class="icon">🧮</span>Cost Simulator</div>
       <div class="nav-item" id="navCost" onclick="showPage('cost',this)"><span class="icon">💰</span>Total Cost Analysis</div>
       <div class="nav-item" id="navProv" onclick="showPage('prov',this)"><span class="icon">🏦</span>Year-End Provision</div>
+      <div class="nav-item" id="navWeekly" onclick="showPage('weekly',this)" style="background:rgba(201,168,76,.18);font-weight:600;"><span class="icon">📅</span>Weekly HR Report<span id="wkMonBadge" style="display:none;margin-left:6px;font-size:10px;background:#C9A84C;color:#1C3557;border-radius:999px;padding:1px 7px;font-weight:700;">Monday</span></div>
       <div class="nav-section">Finance</div>
       <div class="nav-item" onclick="showPage('loans',this)"><span class="icon">🏦</span>Employee Loans</div>
       <div class="nav-section">Assets</div>
@@ -743,6 +744,7 @@ tr:hover td{background:#fafbfc;}
         <div class="page-header"><h2>Leave Register</h2><p>UAE Labour Law compliant — Federal Decree-Law No. 33/2021</p></div>
         <div class="alert alert-success" id="leave-alert"></div>
         <div class="card">
+          <div id="lvBalCheck"></div>
           <div id="alCheckBox"></div>
           <div id="leaveUnlinkedNote"></div>
           <div id="leaveViewTabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
@@ -896,6 +898,15 @@ tr:hover td{background:#fafbfc;}
           <div class="btn-row"><button class="btn btn-primary" onclick="cmSaveSettings()">Save settings</button></div>
         </div>
         <div class="card"><div id="cmNotes" style="font-size:12.5px;color:#555;line-height:1.6;"></div></div>
+      </div>
+      <div id="page-weekly" class="page">
+        <div class="page-header"><h2>Weekly HR Report</h2><p>One clear page for Mr. Cem every Monday: headcount, joiners and leavers, leave, requests waiting, documents, probation and compensatory leave, from the HR Portal's own records. Dev, Darleendy and Cem can see this.</p></div>
+        <div class="card"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+          <div class="form-group" style="margin:0;"><label>Week</label><select id="wkMode" onchange="renderWeeklyPage()"><option value="last">Last week (Monday to Sunday)</option><option value="this">This week so far</option><option value="pick">Another week</option></select></div>
+          <div class="form-group" id="wkDateBox" style="margin:0;display:none;"><label>Any day in that week</label><input type="date" id="wkDate" onchange="renderWeeklyPage()"></div>
+          <button class="btn" style="background:#B42318;color:#fff;font-weight:700;border-radius:999px;padding:9px 18px;" onclick="wkPdf()">📄 Download weekly report (PDF)</button>
+        </div></div>
+        <div id="wkBody" style="margin-top:12px;"></div>
       </div>
       <div id="page-prov" class="page">
         <div class="page-header"><h2>Year-End Provision</h2><p>The amount to set aside for end-of-service gratuity and unused leave, as at a date you choose (normally 31 December). For the finance team. Dev, Darleendy and Cem can see this. Cem has view and download only.</p></div>
@@ -3062,6 +3073,7 @@ async function syncStaffMirrors(){
         passport:e.passport,passExp:e.passExp,visa:e.visa,visaExp:e.visaExp,
         eid:e.eid,eidExp:e.eidExp,lab:e.lab,labExp:e.labExp,
         annualLeaveBalance:e.annualLeaveBalance,
+        _bal:(()=>{try{return annualCalc(e,alYr,alIdx)}catch(err){return undefined}})(),
         lineManagerKey:e.lineManagerKey,lineManagerName:e.lineManagerName,
         needsAdditionalApproval:!!e.needsAdditionalApproval,
         additionalApproverKey:e.additionalApproverKey,additionalApproverName:e.additionalApproverName,
@@ -4094,6 +4106,15 @@ function renderMyInfo(e){
 }
 function renderMyLeaveBalance(e){
   const lv=e._leave||{};
+  if(e._bal){const b=e._bal;const others0={};Object.values(lv.bt||{}).forEach(x=>{if(x.t!=='Annual Leave')others0[x.t]=x.d});
+   let h=`<div style="display:flex;gap:22px;flex-wrap:wrap;margin-bottom:12px;align-items:flex-end;">
+    <div><div style="color:#888;font-size:11px;">Annual Leave Balance (${esc(b.y)})</div><div style="font-weight:700;font-size:22px;color:#1A7A6E;">${b.bal}</div></div>
+    <div><div style="color:#888;font-size:11px;">Entitled ${esc(b.y)}</div><div style="font-weight:700;font-size:16px;">${b.ent}</div></div>
+    <div><div style="color:#888;font-size:11px;">Annual leave used ${esc(b.y)}</div><div style="font-weight:700;font-size:16px;">${b.used}</div></div>
+    <div><div style="color:#888;font-size:11px;">Sick leave used</div><div style="font-weight:700;font-size:16px;">${b.sick}</div></div>
+    ${b.wfh?`<div><div style="color:#888;font-size:11px;">Work from home</div><div style="font-weight:700;font-size:16px;">${b.wfh}</div></div>`:''}</div>
+    <div style="font-size:11.5px;color:#888;">Same figures as HR's leave record for ${esc(b.y)} (entitlement plus any adjustments, less approved leave this year). Questions: please contact HR.</div>`;
+   document.getElementById('empLeaveBalance').innerHTML=h;try{renderMyLeaveHistory&&0}catch(err){}return}
   const byType={};
   Object.values(lv.bt||{}).forEach(x=>{byType[x.t]=x.d;});
   const annualUsed=byType['Annual Leave']||0;
@@ -4884,7 +4905,7 @@ function applyPROMode(){
   style.textContent=`
     .nav-item[onclick*="'loans'"] { display: none !important; }
     .nav-item[onclick*="'settlement'"] { display: none !important; }
-    #navPerf, #navProj, #navPayroll, #page-payroll, #navUsage, #page-usage, #navLrep, #page-lrep, #navLro, #page-lro, #navLq, #page-lq, #navCost, #navProv, #page-cost, #page-prov, #navChecklists, #navAck, #navUnans, #page-checklists, #page-ack, #page-unanswered, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #navBackup, #backupBanner, #page-backup, #voiceToggleBtn, .briefBtn, #navHeadcount, #navSimulator, #page-headcount, #page-simulator, #greetCard, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }
+    #navPerf, #navProj, #navPayroll, #page-payroll, #navUsage, #page-usage, #navLrep, #page-lrep, #navLro, #page-lro, #navLq, #page-lq, #navCost, #navProv, #navWeekly, #page-cost, #page-prov, #page-weekly, #navChecklists, #navAck, #navUnans, #page-checklists, #page-ack, #page-unanswered, #navSectionPortal, #navPortalAccess, #navMolImport, #navPolicyImport, #navComp, #navBackup, #backupBanner, #page-backup, #voiceToggleBtn, .briefBtn, #navHeadcount, #navSimulator, #page-headcount, #page-simulator, #greetCard, #annFormCard, #polFormCard, #ceoMsgFormCard, #orgChartUploadCard, #orgChartAddNote { display: none !important; }
     button[onclick*="openEmpModal"], button[onclick="delEmp"], button[onclick*="delEmp("] { display: none !important; }
     /* Oct 2026: Kashif (PRO) access as agreed with HR. The database rules enforce the same limits. */
     .nav-item[onclick*="'salary'"], #page-salary, .nav-item[onclick*="'flight'"], #page-flight,
@@ -6611,6 +6632,73 @@ window.eosbRun=async function(kind,co){
   table(wl,5,['Emp ID','Employee','Company','Last day','Years','Gratuity at start (AED)','Gratuity at last day (AED)'],D.L.map(r=>[r.empId,r.name,cmShortEnt(r.entity),fmt(r.exit),r.years==null?'':Number(r.years.toFixed(2)),r.uae?0:Math.round(r.gratStart),r.uae?0:Math.round(r.grat)]).concat([['','Total','','','',Math.round(D.TL.s),Math.round(D.TL.g)]]),{left:[0,1,3],num:[5,6],totalLast:true});[10,30,10,14,10,20,22].forEach((w,i)=>wl.getColumn(i+1).width=w)}
  const wn=wb.addWorksheet('Basis',{views:[{showGridLines:false}]});xt(wn,'Basis',sub,2);wn.getCell(5,1).value=basis;wn.getCell(5,1).alignment={wrapText:true,vertical:'top'};wn.getColumn(1).width=120;wn.getRow(5).height=90;
  await X.download(D.file+'.xlsx');};
+// ══ 23 Nov 2026: WEEKLY HR REPORT (for Mr. Cem, every Monday): one page per week from the HR Portal's own records ══
+function wkMon(d){const x=cmDate(d);const k=(x.getDay()+6)%7;x.setDate(x.getDate()-k);return localDateStr(x)}
+function wkAdd(s,n){const x=cmDate(s);x.setDate(x.getDate()+n);return localDateStr(x)}
+function wkRange(){const mode=v('wkMode')||'last';const t0=localDateStr(new Date());if(mode==='this'){const ws=wkMon(t0);return [ws,t0,'This week so far']}if(mode==='pick'&&v('wkDate')){const ws=wkMon(v('wkDate'));return [ws,wkAdd(ws,6),'Week of '+fmt(ws)]}const ws=wkAdd(wkMon(t0),-7);return [ws,wkAdd(ws,6),'Last week']}
+function wkData(){const [ws,we,lbl]=wkRange();const E=Object.entries(DB.employees||{}).filter(([k,e])=>e);const co=e=>/building/i.test(e.entity||'')?'CKC':'CK';
+ const activeAt=d=>E.filter(([k,e])=>(!e.join||e.join<=d)&&!(e.exitDate&&e.exitDate<=d)&&!(e.status==='Inactive'&&!e.exitDate));
+ const A=activeAt(we),A0=activeAt(wkAdd(ws,-1));const cnt=(L,f)=>L.filter(([k,e])=>f(e)).length;
+ const head={total:A.length,ck:cnt(A,e=>co(e)==='CK'),ckc:cnt(A,e=>co(e)==='CKC'),wc:cnt(A,e=>lpGradeOf(e)==='White Collar'),lab:cnt(A,e=>lpGradeOf(e)==='Labour'),before:A0.length};
+ const joiners=E.filter(([k,e])=>e.join&&e.join>=ws&&e.join<=we).map(([k,e])=>e),leavers=E.filter(([k,e])=>e.exitDate&&e.exitDate>=ws&&e.exitDate<=we).map(([k,e])=>e);
+ // leave during the week (approved, not work from home), and starting next week
+ const idx=buildNameIndex();const lv=[],nx=[];Object.values(DB.leave||{}).forEach(l=>{if(!l||!leaveStatusOK(l))return;const f=String(l.from||'');if(!f)return;const k=leaveKind(l.type);if(k==='wfh')return;const m=matchEmpByName(l.empName,idx),e=m&&m.e?m.e:null;
+  const row={name:e?e.name:(l.empName||''),dept:e?(e.dept||''):'',co:e?co(e):'',cat:e?lpGradeOf(e):'',type:l.type||'',from:f,to:leaveEndOf(l),back:(k==='half'||String(l.days)==='0.5')?'':botNextDay(leaveEndOf(l))};
+  if(f<=we&&leaveEndOf(l)>=ws){const d=upDays(l).filter(x=>x.d>=ws&&x.d<=we).reduce((a,x)=>a+x.n,0);if(d>0)lv.push(Object.assign(row,{days:d,annual:k==='annual'||k==='half'}))}
+  else if(f>we&&f<=wkAdd(we,7))nx.push(row)});
+ lv.sort((a,b)=>a.from<b.from?-1:1);nx.sort((a,b)=>a.from<b.from?-1:1);
+ const pend=Object.entries(DB.leaveRequests||{}).filter(([k,r])=>r&&r.status==='Pending').map(([k,r])=>({name:r.empName||'',type:r.leaveType||'',from:r.startDate||'',to:r.endDate||'',stage:r.stage||'',days:r.submittedAt?Math.floor((Date.now()-r.submittedAt)/864e5):null})).sort((a,b)=>(b.days||0)-(a.days||0));
+ const comp=Object.values(DB.compLeave||{}).filter(c=>c&&c.date>=ws&&c.date<=we);const compT=comp.filter(c=>c.kind==='taken'),compE=comp.filter(c=>c.kind==='earned');
+ // documents expired or expiring in the next 30 days (active staff)
+ const docs=[];A.forEach(([k,e])=>[['passExp','Passport'],['visaExp','Visa'],['eidExp','Emirates ID'],['labExp','Labour card']].forEach(([f,l])=>{if(!e[f])return;const dl=daysLeft(e[f]);if(dl!=null&&dl<=30)docs.push({name:e.name,dept:e.dept||'',doc:l,exp:e[f],dl})}));docs.sort((a,b)=>a.dl-b.dl);
+ // probation (6 months after joining) ending in the next 30 days
+ const prob=A.map(([k,e])=>e).filter(e=>e.join).map(e=>{const p=cmDate(e.join);p.setMonth(p.getMonth()+6);return {name:e.name,dept:e.dept||'',join:e.join,end:localDateStr(p)}}).filter(x=>x.end>=localDateStr(new Date())&&x.end<=wkAdd(localDateStr(new Date()),30)).sort((a,b)=>a.end<b.end?-1:1);
+ // records to complete
+ const miss={join:cnt(A,e=>!e.join),basic:cnt(A,e=>!smNum(e.basicSalary)),visa:cnt(A,e=>!e.visaExp&&!isUAENational(e)),eid:cnt(A,e=>!e.eidExp),lm:cnt(A,e=>!e.lineManagerKey&&lpGradeOf(e)==='White Collar')};
+ const annualDays=lv.filter(r=>r.annual).reduce((a,r)=>a+r.days,0);
+ return {ws,we,lbl,head,joiners,leavers,lv,nx,pend,compT,compE,docs,prob,miss,annualDays}}
+function wkHighlights(D){const H=[];const net=D.head.total-D.head.before;
+ H.push('Headcount '+D.head.total+(net?' ('+(net>0?'+':'')+net+' in the week)':' (no change)')+': CK '+D.head.ck+', CKC '+D.head.ckc+' · White collar '+D.head.wc+', Labour '+D.head.lab+'.');
+ if(D.joiners.length||D.leavers.length)H.push(D.joiners.length+' joined, '+D.leavers.length+' left.');
+ H.push(new Set(D.lv.map(r=>r.name)).size+' people on leave during the week ('+D.annualDays+' annual leave days); '+D.nx.length+' leave'+(D.nx.length===1?'':'s')+' starting next week.');
+ if(D.pend.length)H.push(D.pend.length+' leave request'+(D.pend.length>1?'s':'')+' waiting for approval'+(D.pend[0].days!=null?' (oldest '+D.pend[0].days+' days)':'')+'.');
+ const ex=D.docs.filter(x=>x.dl<0).length,so=D.docs.length-ex;if(D.docs.length)H.push((ex?ex+' document'+(ex>1?'s':'')+' expired':'')+(ex&&so?', ':'')+(so?so+' expiring within 30 days':'')+' (passport, visa, Emirates ID, labour card).');
+ if(D.prob.length)H.push(D.prob.length+' probation period'+(D.prob.length>1?'s':'')+' ending in the next 30 days.');
+ if(D.compT.length)H.push('Compensatory leave taken: '+D.compT.length+' entr'+(D.compT.length>1?'ies':'y')+'.');
+ return H}
+setTimeout(()=>{try{if(new Date().getDay()===1){const b=document.getElementById('wkMonBadge');if(b)b.style.display='inline-block'}}catch(e){}},1500);
+function renderWeeklyPage(){const el=document.getElementById('wkBody');if(!el)return;if(v('wkMode')==='pick'){document.getElementById('wkDateBox').style.display=''}else{const b=document.getElementById('wkDateBox');if(b)b.style.display='none'}
+ const D=wkData();window._wk=D;const card=(l,n,s,c)=>'<div style="flex:1;min-width:150px;padding:12px 14px;border-radius:10px;background:#fff;border:1px solid #d9e2ef;border-top:3px solid '+(c||'#1C3557')+'"><div style="font-size:11.5px;color:#6B7685;">'+l+'</div><div style="font-size:22px;font-weight:700;color:'+(c||'#1C3557')+';">'+n+'</div><div style="font-size:11.5px;color:#6B7685;">'+(s||'')+'</div></div>';
+ const tbl=(h,rows,empty)=>rows.length?'<div style="overflow-x:auto;"><table><thead><tr>'+h.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(c=>'<td>'+c+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>':'<p style="color:#888;font-size:13px;">'+empty+'</p>';
+ const sec=(t,b)=>'<div class="card" style="margin-top:14px;"><h3 style="margin:0 0 8px;font-size:16px;color:#1C3557;">'+t+'</h3>'+b+'</div>';
+ const net=D.head.total-D.head.before,ex=D.docs.filter(x=>x.dl<0).length;
+ el.innerHTML='<div style="background:#FFF8E6;border:1px solid #F0D9A6;border-radius:10px;padding:10px 14px;font-size:13.5px;margin-bottom:12px;"><b>'+esc(D.lbl)+': '+fmt(D.ws)+' to '+fmt(D.we)+'</b></div>'
+ +'<div style="display:flex;gap:10px;flex-wrap:wrap;">'+card('Headcount',D.head.total,(net?(net>0?'+':'')+net+' in the week':'no change')+' · CK '+D.head.ck+' · CKC '+D.head.ckc)+card('Joined / left',D.joiners.length+' / '+D.leavers.length,'in the week',D.leavers.length>D.joiners.length?'#8A5300':'#1D6B4F')+card('On leave in the week',new Set(D.lv.map(r=>r.name)).size,D.annualDays+' annual leave days')+card('Leave requests waiting',D.pend.length,D.pend.length&&D.pend[0].days!=null?'oldest '+D.pend[0].days+' days':'',D.pend.length?'#8A5300':'#1D6B4F')+card('Documents',ex+' expired',(D.docs.length-ex)+' expiring in 30 days',ex?'#C0392B':D.docs.length?'#8A5300':'#1D6B4F')+'</div>'
+ +sec('Highlights','<ul style="margin:0;padding-left:20px;line-height:1.8;font-size:13.5px;">'+wkHighlights(D).map(h=>'<li>'+esc(h)+'</li>').join('')+'</ul>')
+ +sec('People: joined and left',tbl(['','Name','Department','Company','Date'],D.joiners.map(e=>['<span class="badge" style="background:#E5F4EE;color:#1D6B4F">Joined</span>',esc(e.name),esc(e.dept||''),esc(/building/i.test(e.entity||'')?'CKC':'CK'),fmt(e.join)]).concat(D.leavers.map(e=>['<span class="badge" style="background:#FBE7E5;color:#9E2F24">Left</span>',esc(e.name),esc(e.dept||''),esc(/building/i.test(e.entity||'')?'CKC':'CK'),fmt(e.exitDate)])),'No one joined or left in the week.'))
+ +sec('On leave during the week',tbl(['Name','Department','Type','From','To','Days in the week','Back on'],D.lv.map(r=>[esc(r.name),esc(r.dept),esc(r.type),fmt(r.from),fmt(r.to),r.days,r.back?fmt(r.back):'—']),'No approved leave in the week.'))
+ +sec('Leave starting next week',tbl(['Name','Department','Type','From','To','Back on'],D.nx.map(r=>[esc(r.name),esc(r.dept),esc(r.type),fmt(r.from),fmt(r.to),r.back?fmt(r.back):'—']),'No leave starting next week.'))
+ +sec('Leave requests waiting for approval',tbl(['Name','Type','Dates','Waiting with','Days waiting'],D.pend.map(r=>[esc(r.name),esc(r.type),fmt(r.from)+' – '+fmt(r.to),esc(r.stage),r.days==null?'—':r.days]),'No leave requests waiting.'))
+ +sec('Documents expired or expiring within 30 days',tbl(['Name','Department','Document','Expiry','Days left'],D.docs.map(x=>[esc(x.name),esc(x.dept),x.doc,fmt(x.exp),'<b style="color:'+(x.dl<0?'#C0392B':'#8A5300')+'">'+(x.dl<0?'expired '+(-x.dl)+' days ago':x.dl)+'</b>']),'Nothing expiring in the next 30 days.'))
+ +sec('Probation ending in the next 30 days',tbl(['Name','Department','Joined','Probation ends (6 months)'],D.prob.map(x=>[esc(x.name),esc(x.dept),fmt(x.join),fmt(x.end)]),'No probation period ending in the next 30 days.'))
+ +sec('Compensatory leave in the week',tbl(['Name','Type','Date','Hours'],D.compT.map(c=>[esc(c.empName||''),'Taken',fmt(c.date),c.hours||'']).concat(D.compE.map(c=>[esc(c.empName||''),'Earned',fmt(c.date),c.hours||''])),'No compensatory leave recorded in the week.'))
+ +sec('Records to complete (active staff)','<p style="font-size:13px;margin:0;">Missing joining date: <b>'+D.miss.join+'</b> · basic salary: <b>'+D.miss.basic+'</b> · visa expiry: <b>'+D.miss.visa+'</b> · Emirates ID expiry: <b>'+D.miss.eid+'</b> · line manager (white collar): <b>'+D.miss.lm+'</b></p>')}
+window.wkPdf=async function(){const D=window._wk||wkData();let P;try{P=await b3Pdf('Weekly HR Report',D.lbl+': '+fmt(D.ws)+' to '+fmt(D.we)+'   |   CK Architecture Interiors and CKC Building Contracting   |   Confidential',true);}catch(e){alert('Could not load the PDF tools. Please check the internet connection and try again.');return;}
+ const {doc,m}=P;const net=D.head.total-D.head.before,ex=D.docs.filter(x=>x.dl<0).length;
+ P.cards([{n:D.head.total,l:'Headcount',sub:(net?(net>0?'+':'')+net+' in the week':'no change')+' · CK '+D.head.ck+' · CKC '+D.head.ckc},{n:D.joiners.length+' / '+D.leavers.length,l:'Joined / left',sub:'in the week',rgb:[29,107,79]},{n:new Set(D.lv.map(r=>r.name)).size,l:'On leave in the week',sub:D.annualDays+' annual leave days',rgb:[201,168,76]},{n:D.pend.length,l:'Leave requests waiting',sub:D.pend.length&&D.pend[0].days!=null?'oldest '+D.pend[0].days+' days':'none',rgb:D.pend.length?[192,57,43]:[29,107,79]},{n:ex+' / '+(D.docs.length-ex),l:'Documents expired / due',sub:'within 30 days',rgb:ex?[192,57,43]:[201,168,76]}]);
+ let y=27+17+8;const need=h=>{if(y>P.H-h){doc.addPage();P.drawHeader();y=30}};
+ P.section('Highlights',y);y+=4;doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(40,40,40);wkHighlights(D).forEach(h=>{const ls=doc.splitTextToSize('- '+h,P.W-2*m-4);need(ls.length*4.4+4);doc.text(ls,m+2,y);y+=ls.length*4.4+1.2});y+=4;
+ const T=(title,head,body,empty)=>{need(30);P.section(title,y);if(!body.length){doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(120,120,120);doc.text(empty,m,y+6);y+=12;return}doc.autoTable(P.common({startY:y+2,head:[head],body,columnStyles:{0:{halign:'left'}}}));y=doc.lastAutoTable.finalY+8};
+ T('People: joined and left',['','Name','Department','Company','Date'],D.joiners.map(e=>['Joined',e.name,e.dept||'',/building/i.test(e.entity||'')?'CKC':'CK',fmt(e.join)]).concat(D.leavers.map(e=>['Left',e.name,e.dept||'',/building/i.test(e.entity||'')?'CKC':'CK',fmt(e.exitDate)])),'No one joined or left in the week.');
+ T('On leave during the week',['Name','Department','Type','From','To','Days in week','Back on'],D.lv.map(r=>[r.name,r.dept,r.type,fmt(r.from),fmt(r.to),r.days,r.back?fmt(r.back):'-']),'No approved leave in the week.');
+ T('Leave starting next week',['Name','Department','Type','From','To','Back on'],D.nx.map(r=>[r.name,r.dept,r.type,fmt(r.from),fmt(r.to),r.back?fmt(r.back):'-']),'No leave starting next week.');
+ T('Leave requests waiting for approval',['Name','Type','Dates','Waiting with','Days waiting'],D.pend.map(r=>[r.name,r.type,fmt(r.from)+' - '+fmt(r.to),r.stage,r.days==null?'-':r.days]),'No leave requests waiting.');
+ T('Documents expired or expiring within 30 days',['Name','Department','Document','Expiry','Days left'],D.docs.map(x=>[x.name,x.dept,x.doc,fmt(x.exp),x.dl<0?'expired '+(-x.dl)+' days ago':x.dl]),'Nothing expiring in the next 30 days.');
+ T('Probation ending in the next 30 days',['Name','Department','Joined','Probation ends'],D.prob.map(x=>[x.name,x.dept,fmt(x.join),fmt(x.end)]),'No probation period ending in the next 30 days.');
+ T('Compensatory leave in the week',['Name','Type','Date','Hours'],D.compT.map(c=>[c.empName||'','Taken',fmt(c.date),c.hours||'']).concat(D.compE.map(c=>[c.empName||'','Earned',fmt(c.date),c.hours||''])),'No compensatory leave recorded in the week.');
+ need(20);P.section('Records to complete (active staff)',y);doc.setFont('helvetica','normal');doc.setFontSize(8.8);doc.setTextColor(40,40,40);doc.text(doc.splitTextToSize('Missing joining date: '+D.miss.join+'  ·  basic salary: '+D.miss.basic+'  ·  visa expiry: '+D.miss.visa+'  ·  Emirates ID expiry: '+D.miss.eid+'  ·  line manager (white collar): '+D.miss.lm,P.W-2*m),m,y+6);
+ P.finish('CK_Weekly_HR_Report_'+D.ws+'_to_'+D.we+'.pdf');try{logAudit('Weekly HR report','','PDF downloaded for '+D.ws+' to '+D.we)}catch(e){}};
+
 function provFileName(ext){const P=window._prov;return (P&&P.from?'CK_EOSB_'+P.from+'_to_':'CK_Year-End_Provision_')+(P?P.asAt:'')+(P&&P.ent?'_'+P.ent.replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,''):'')+'.'+ext;}
 window.provDownloadPDF=async function(){
   const D=window._prov;if(!D||!D.rows.length){alert('No staff to report.');return;}
@@ -7779,6 +7867,8 @@ window.showPage=function(page,el){
   if(page==='lq')initLetterPage();
   if(page==='cost')initCostPage();
   if(page==='prov')renderProvisionPage();
+  if(page==='weekly')renderWeeklyPage();
+  if(page==='leave')setTimeout(()=>{try{lvBalCheck()}catch(err){}},300);
   if(page==='checklists')renderChecklistsPage();
   if(page==='ack')renderAckPage();
   if(page==='unanswered')renderUnansweredPage();
@@ -12477,6 +12567,23 @@ function leaveDeductFor(type,days,relation){
   if(['annual','half','emergency','hajj','umrah'].includes(k))return days;
   if(k==='compassion')return Math.max(0,days-(relation==='spouse'?5:3));
   return 0;}
+// ══ 23 Nov 2026: one leave balance everywhere: the same calculation as HR's Leave Summary (entitled + adjustments − leave counted this year) ══
+function annualCalc(e,year,idx){if(!e||!e.name)return null;const y=String(year);idx=idx||buildNameIndex();const empName=e.name;
+ const recs=Object.values(DB.leave||{}).filter(l=>leaveBelongsTo(l,empName,idx));
+ const entitled=parseFloat(e.annualLeaveEnt||30)||30;let alDays=0,slDays=0,wfhDays=0;
+ recs.forEach(l=>{if(!leaveCounts(l))return;if(String(l.from||'').slice(0,4)!==y)return;const d=leaveDaysOf(l),k=leaveKind(l.type);alDays+=leaveDeductFor(l.type,d,compRelation(l.relation,l.notes||l.reason));if(k==='sick')slDays+=d;else if(k==='wfh')wfhDays+=d});
+ const adjTotal=Object.values(DB.leaveAdjustments||{}).filter(a=>leaveBelongsTo(a,empName,idx)&&String(a.year)===y).reduce((s,a)=>s+parseFloat(a.days||0),0);
+ let alS=null;try{alS=alYearSummary(empName,y,null,idx)}catch(err){alS=null}
+ const used=alS?alS.used:alDays,bal=alS?alS.balance:entitled+adjTotal-used;
+ return {y,ent:Math.round((entitled+adjTotal)*10)/10,used:Math.round(used*10)/10,bal:Math.round(bal*10)/10,sick:Math.round(slDays*10)/10,wfh:Math.round(wfhDays*10)/10}}
+function lvBalCheck(){const el=document.getElementById('lvBalCheck');if(!el||currentRole!=='admin')return;let idx=null;try{idx=buildNameIndex()}catch(err){}const y=String(new Date().getFullYear());
+ const D=Object.entries(DB.employees||{}).filter(([k,e])=>e&&e.status!=='Inactive'&&e.name).map(([k,e])=>{const c=annualCalc(e,y,idx);const st=(e.annualLeaveBalance!=null&&e.annualLeaveBalance!=='')?parseFloat(e.annualLeaveBalance):null;return {k,name:e.name,st,c}}).filter(x=>x.c&&(x.st==null||Math.abs(x.st-x.c.bal)>=0.05));
+ window._lvBal=D;if(!D.length){el.innerHTML='';return}
+ el.innerHTML='<div style="background:#FFF8E6;border:1px solid #F0D9A6;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;"><b>Leave balance check:</b> '+D.length+' active staff have a stored "Annual Leave Balance" that differs from their leave record for '+y+' (the Leave Summary figure, which staff now also see in their own portal). The stored figure is still used by Year-End Provision. <button class="btn btn-sm" onclick="document.getElementById(\'lvBalList\').style.display=document.getElementById(\'lvBalList\').style.display===\'none\'?\'\':\'none\'">Show</button> <button class="btn btn-sm btn-primary" onclick="lvBalFix()">Update the stored balance to the leave record</button>'
+  +'<div id="lvBalList" style="display:none;margin-top:8px;max-height:260px;overflow:auto;"><table><thead><tr><th>Employee</th><th>Stored balance</th><th>Leave record '+y+' (entitled − used = balance)</th></tr></thead><tbody>'+D.sort((a,b)=>a.name.localeCompare(b.name)).map(x=>'<tr><td>'+esc(x.name)+'</td><td>'+(x.st==null?'—':x.st)+'</td><td>'+x.c.ent+' − '+x.c.used+' = <b>'+x.c.bal+'</b></td></tr>').join('')+'</tbody></table></div></div>'}
+window.lvBalFix=async function(){const D=window._lvBal||[];if(!D.length)return;if(!confirm('Update the stored "Annual Leave Balance" of '+D.length+' staff to the balance from their leave record (Leave Summary)?'))return;let n=0;
+ for(const x of D){try{await set(ref(db,'employees/'+x.k+'/annualLeaveBalance'),x.c.bal);if(DB.employees[x.k])DB.employees[x.k].annualLeaveBalance=x.c.bal;n++}catch(err){}}logAudit('Leave balances updated','',n+' stored balances set to the Leave Summary figure');alert(n+' stored balance'+(n===1?'':'s')+' updated.');lvBalCheck()};
+
 function refreshLeaveSummary(empName){
   const lsIdx=buildNameIndex();
   const empLeave=Object.values(DB.leave)
