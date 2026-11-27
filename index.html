@@ -4722,7 +4722,7 @@ window.decideLeaveApproval=async function(key,role,approve){
   }
 };
 // ===== Leave advance-notice rule + HR handover confirmation (v39) =====
-// Notice needed by length of leave (calendar days): 1-3 -> 2 weeks, 4-10 -> 3 weeks, 11-20 -> 4 weeks, 21+ -> 3 months.
+// Notice needed by length of leave (calendar days): 1-3 -> 2 weeks, 4-10 -> 3 weeks, 11-22 -> 4 weeks, 23+ -> 3 months (changed 27 Nov 2026: was 21+).
 // Over 10 days the rule is HARD (employee cannot submit; HR can submit an exception). Up to 10 days it is a warning only.
 // Handover: any approved leave of more than 3 days needs HR (Dev/Darleendy) to confirm the handover.
 // Leaves that ended before LEAVE_RULE_FROM are left exactly as they were.
@@ -4735,7 +4735,7 @@ function leaveNoticeRule(days){
   if(days<=0)return null;
   if(days<=3)return{label:'2 weeks',earliest:t=>{t.setDate(t.getDate()+14);return t;}};
   if(days<=10)return{label:'3 weeks',earliest:t=>{t.setDate(t.getDate()+21);return t;}};
-  if(days<=20)return{label:'4 weeks',earliest:t=>{t.setDate(t.getDate()+28);return t;}};
+  if(days<=22)return{label:'4 weeks',earliest:t=>{t.setDate(t.getDate()+28);return t;}};
   return{label:'3 months',earliest:t=>{t.setMonth(t.getMonth()+3);return t;}};
 }
 function leaveNoticeCheck(type,startStr,days,refTs){
