@@ -6801,6 +6801,9 @@ function rmPeopleIn(txt){const n=' '+normName(txt||'')+' ',out=[];const E=Object
  const add=(rx,test)=>{if(rx.test(txt||'')){const f=E.find(([k,e])=>test(e));if(f&&!out.some(x=>x[0]===f[0]))out.push(f)}};
  add(/\bMr\.? ?Cem\b|\bCEO\b/i,e=>/kapancioglu/i.test(e.name)||/\bceo\b|chief executive/i.test(e.desig||''));
  add(/\bPRO\b/,e=>/kashif/i.test(e.name)||/\bPRO\b|public relation/i.test(e.desig||''));
+ // HR items go to the HR Manager (Darleendy); Finance items to the accounts staff who are not leaving (not the CFO)
+ add(/\bHR\b/,e=>/darleendy/i.test(e.name)||/\bHR Manager\b/i.test(e.desig||''));
+ if(/\bFinance\b/i.test(txt||'')){const t0=localDateStr(new Date());E.filter(([k,e])=>/account/i.test(e.desig||'')&&!/\bCFO\b|chief financial/i.test(e.desig||'')&&!(e.exitDate&&e.exitDate>=t0)).slice(0,2).forEach(f=>{if(!out.some(x=>x[0]===f[0]))out.push(f)})}
  return out}
 function rmBtns(k,msg,subj){const e=(DB.employees||{})[k];if(!e)return '';const first=String(e.name||'').split(' ')[0],body=(/kapancioglu/i.test(e.name)?'Dear Mr. Cem':'Hi '+first)+',\n\n'+msg+'\n\nThank you for your support.\n\nKind regards,\nHR Department\nCK Architecture Interiors / CKC Building Contracting';const ph=rmPhone(e.mobile),em=String(e.email||'').trim();
  const wa=ph?`<a class="rm-b rm-w" href="https://wa.me/${ph}?text=${encodeURIComponent(body)}" target="_blank" rel="noopener" title="WhatsApp ${esc(e.name)}: opens with the message written; check it and press Send">WhatsApp</a>`:`<span class="rm-b rm-x" title="No mobile number in ${esc(e.name)}'s record">no mobile</span>`;
