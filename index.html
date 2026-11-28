@@ -1625,6 +1625,12 @@ tr:hover td{background:#fafbfc;}
         <div class="page-header"><h2>Reports &amp; Downloads</h2><p>All reports export to Excel — formatted and ready to share</p></div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
           <div class="card" style="cursor:pointer;border-top:3px solid #1C3557;" onclick="runReport('headcount')"><div class="card-title">👥 Headcount Report</div><p style="font-size:12px;color:#888;">By dept, entity, nationality, grade</p><div class="btn-row"><button class="btn btn-sm btn-primary">📥 Download Excel</button><button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="event.stopPropagation();runReportPDF('headcount')">📄 PDF</button></div></div>
+          <div class="card" style="border-top:3px solid #8A6A1E;">
+            <div class="card-title">👷 Labour Profile</div>
+            <p style="font-size:12px;color:#888;margin-bottom:8px;">Skill level, age group and length of service: summary tables, by trade, and the staff list.</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;"><select id="lbCat" style="padding:6px 8px;"><option value="Labour">Labour (blue collar)</option><option value="White Collar">White collar</option><option value="All">All staff</option></select><select id="lbCo" style="padding:6px 8px;"><option value="">CK and CKC</option><option value="CK">CK only</option><option value="CKC">CKC only</option></select></div>
+            <div class="btn-row"><button class="btn btn-sm btn-primary" onclick="lbExcel()">📥 Download Excel</button><button class="btn btn-sm" style="background:#8e44ad;color:#fff;" onclick="lbPdf()">📄 PDF</button></div>
+          </div>
           <div class="card" style="border-top:3px solid #C9A84C;">
             <div class="card-title">💰 Gratuity / EOSB Report</div>
             <p style="font-size:12px;color:#888;margin-bottom:8px;">Per UAE Federal Decree-Law No. 33/2021: 21 days/yr (first 5 yrs), 30 days/yr (after). Gratuity only.</p>
@@ -6500,6 +6506,48 @@ async function b3Pdf(title,filters,portrait){
     doc.save(name);};
   return {doc,W,H,m,NAVY,cards,common,section,totalStyle,drawHeader,finish};
 }
+// ══ 27 Nov 2026: Labour profile report (skills, age groups, length of service) for Mr. Cem ══
+const LB_AGE=[['Under 25',0,25],['25 to 34',25,35],['35 to 44',35,45],['45 to 54',45,55],['55 and over',55,200]];
+const LB_SVC=[['Under 1 year',0,1],['1 to 2 years',1,3],['3 to 5 years',3,6],['6 to 10 years',6,11],['Over 10 years',11,200]];
+const LB_SK=['Skilled','Semi-Skilled','Unskilled','Not set'];
+function lbYears(from,to){if(!from)return null;const a=cmDate(from),b=to||new Date();if(isNaN(a))return null;let y=b.getFullYear()-a.getFullYear();const m=b.getMonth()-a.getMonth();if(m<0||(m===0&&b.getDate()<a.getDate()))y--;return y}
+function lbYearsDec(from){if(!from)return null;const a=cmDate(from);if(isNaN(a))return null;return (Date.now()-a)/(365.25*864e5)}
+function lbData(){const cat=v('lbCat')||'Labour',co=v('lbCo')||'';const t0=localDateStr(new Date());
+ const rows=Object.values(DB.employees||{}).filter(e=>e&&e.name&&e.status!=='Inactive'&&!(e.exitDate&&e.exitDate<t0)).filter(e=>cat==='All'||lpGradeOf(e)===cat).filter(e=>!co||(co==='CKC'?/building/i.test(e.entity||''):!/building/i.test(e.entity||'')))
+  .map(e=>{const age=lbYears(e.dob),svc=lbYearsDec(e.join);const sk=LB_SK.slice(0,3).find(s=>normName(s)===normName(e.skillLevel||''))||'Not set';
+   return {id:e.empId||'',name:e.name,trade:e.desig||'',dept:e.dept||'',co:/building/i.test(e.entity||'')?'CKC':'CK',nat:e.nationality||'',dob:e.dob||'',age,join:e.join||'',svc,sk,ag:age==null?'Not recorded':(LB_AGE.find(([l,a,b])=>age>=a&&age<b)||['Not recorded'])[0],sg:svc==null?'Not recorded':(LB_SVC.find(([l,a,b])=>svc>=a&&svc<b)||['Not recorded'])[0]}}).sort((a,b)=>a.trade.localeCompare(b.trade)||a.name.localeCompare(b.name));
+ const AG=LB_AGE.map(x=>x[0]).concat(rows.some(r=>r.ag==='Not recorded')?['Not recorded']:[]),SG=LB_SVC.map(x=>x[0]).concat(rows.some(r=>r.sg==='Not recorded')?['Not recorded']:[]);
+ const SK=LB_SK.filter(s=>s!=='Not set'||rows.some(r=>r.sk==='Not set'));
+ const cross=(key,cols)=>SK.map(s=>{const R=rows.filter(r=>r.sk===s);return [s,...cols.map(c=>R.filter(r=>r[key]===c).length),R.length]}).concat([['Total',...cols.map(c=>rows.filter(r=>r[key]===c).length),rows.length]]);
+ const tr={};rows.forEach(r=>{const x=tr[r.trade||'Not set']=tr[r.trade||'Not set']||{n:0,sk:{},a:[],s:[]};x.n++;x.sk[r.sk]=(x.sk[r.sk]||0)+1;if(r.age!=null)x.a.push(r.age);if(r.svc!=null)x.s.push(r.svc)});
+ const avg=L=>L.length?L.reduce((s,x)=>s+x,0)/L.length:null;
+ const trades=Object.entries(tr).sort((a,b)=>b[1].n-a[1].n).map(([k,x])=>[k,x.n,...SK.map(s=>x.sk[s]||0),avg(x.a)==null?'—':avg(x.a).toFixed(0),avg(x.s)==null?'—':avg(x.s).toFixed(1)]);
+ const A=rows.filter(r=>r.age!=null).map(r=>r.age),S=rows.filter(r=>r.svc!=null).map(r=>r.svc);
+ return {rows,AG,SG,SK,byAge:cross('ag',AG),bySvc:cross('sg',SG),trades,avgAge:avg(A),avgSvc:avg(S),noDob:rows.filter(r=>r.age==null).length,noSkill:rows.filter(r=>r.sk==='Not set').length,
+  label:(cat==='All'?'All staff':cat==='Labour'?'Labour (blue collar)':'White collar')+' · '+(co||'CK and CKC')+' · as at '+fmt(t0),cat,co,t0}}
+const lbFile=(D,ext)=>'CK_Labour_Profile_'+(D.cat==='All'?'All':D.cat.replace(' ','_'))+(D.co?'_'+D.co:'')+'_'+D.t0+'.'+ext;
+window.lbExcel=async function(){const D=lbData();if(!D.rows.length){alert('No staff match these choices.');return}let X;try{X=await b3Xl()}catch(e){alert('Could not load the Excel tools. Please check the internet connection and try again.');return}
+ const {wb,title,table,kpis,download}=X;const ws=wb.addWorksheet('Summary',{views:[{showGridLines:false}]});title(ws,'Labour Profile: skills, age and length of service',D.label,10);
+ kpis(ws,5,[['Staff',D.rows.length],['Average age',D.avgAge==null?'—':Number(D.avgAge.toFixed(1))],['Average service (years)',D.avgSvc==null?'—':Number(D.avgSvc.toFixed(1))],['Skill level not set',D.noSkill],['Date of birth missing',D.noDob]]);
+ let r=8;const st=(t)=>{const c=ws.getCell(r,1);c.value=t;c.font={name:'Calibri',size:12,bold:true,color:{argb:'FF1C3557'}};r++;};
+ st('Skill level by age group');r=table(ws,r,['Skill level',...D.AG,'Total'],D.byAge,{left:[0],num:D.AG.map((_,i)=>i+1).concat([D.AG.length+1]),totalLast:true})+2;
+ st('Skill level by length of service');r=table(ws,r,['Skill level',...D.SG,'Total'],D.bySvc,{left:[0],num:D.SG.map((_,i)=>i+1).concat([D.SG.length+1]),totalLast:true})+2;
+ st('By trade');r=table(ws,r,['Trade','Staff',...D.SK,'Average age','Average service (yrs)'],D.trades,{left:[0],num:[1]})+2;
+ ws.getColumn(1).width=30;for(let i=2;i<=10;i++)ws.getColumn(i).width=15;
+ const wl=wb.addWorksheet('Staff list',{views:[{state:'frozen',ySplit:5,showGridLines:false}]});title(wl,'Labour Profile: staff list',D.label,12);
+ table(wl,5,['Emp ID','Name','Trade','Skill level','Age','Age group','Joined','Service (yrs)','Service group','Company','Department','Nationality'],D.rows.map(x=>[x.id,x.name,x.trade,x.sk,x.age==null?'—':x.age,x.ag,x.join?fmt(x.join):'—',x.svc==null?'—':Number(x.svc.toFixed(1)),x.sg,x.co,x.dept,x.nat]),{left:[1,2,10,11]});
+ [12,30,24,13,7,14,13,12,15,9,20,16].forEach((w,i)=>wl.getColumn(i+1).width=w);wl.autoFilter={from:{row:5,column:1},to:{row:5+D.rows.length,column:12}};wl.pageSetup={orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0,printTitlesRow:'5:5'};
+ await download(lbFile(D,'xlsx'));try{logAudit('Labour profile report','','Excel downloaded: '+D.label)}catch(e){}};
+window.lbPdf=async function(){const D=lbData();if(!D.rows.length){alert('No staff match these choices.');return}let P;try{P=await b3Pdf('Labour Profile: skills, age and length of service',D.label+'   |   Confidential')}catch(e){alert('Could not load the PDF tools. Please check the internet connection and try again.');return}
+ const {doc,m}=P;P.cards([{n:D.rows.length,l:'Staff',sub:D.label.split(' · ')[0]},{n:D.avgAge==null?'—':D.avgAge.toFixed(1),l:'Average age',sub:'years'},{n:D.avgSvc==null?'—':D.avgSvc.toFixed(1),l:'Average service',sub:'years with us'},{n:D.noSkill,l:'Skill level not set',sub:'to complete',rgb:[201,168,76]},{n:D.noDob,l:'Date of birth missing',sub:'to complete',rgb:[201,168,76]}]);
+ let y=52;const T=(ttl,head,body,tot)=>{if(y>P.H-40){doc.addPage();P.drawHeader();y=32}P.section(ttl,y);doc.autoTable(P.common({startY:y+3,head:[head],body,columnStyles:{0:{halign:'left',fontStyle:'bold'}},styles:{halign:'center',font:'helvetica',fontSize:8,cellPadding:1.6,lineColor:[222,226,232],lineWidth:0.2},didParseCell:tot?P.totalStyle(body.length):undefined}));y=doc.lastAutoTable.finalY+9};
+ T('Skill level by age group',['Skill level',...D.AG,'Total'],D.byAge,true);
+ T('Skill level by length of service',['Skill level',...D.SG,'Total'],D.bySvc,true);
+ T('By trade',['Trade','Staff',...D.SK,'Avg age','Avg service (yrs)'],D.trades,false);
+ doc.addPage();P.drawHeader();y=32;P.section('Staff list',y);
+ doc.autoTable(P.common({startY:y+3,head:[['Emp ID','Name','Trade','Skill','Age','Joined','Service (yrs)','Company']],body:D.rows.map(x=>[x.id,x.name,x.trade,x.sk,x.age==null?'—':x.age,x.join?fmt(x.join):'—',x.svc==null?'—':x.svc.toFixed(1),x.co]),columnStyles:{1:{halign:'left'},2:{halign:'left'}},styles:{halign:'center',font:'helvetica',fontSize:7.2,cellPadding:1.2,lineColor:[222,226,232],lineWidth:0.2}}));
+ P.finish(lbFile(D,'pdf'));try{logAudit('Labour profile report','','PDF downloaded: '+D.label)}catch(e){}};
+
 async function b3Xl(){
   await wfLoadScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js',()=>!!window.ExcelJS);
   const wb=new ExcelJS.Workbook();wb.creator='CK HR Portal';wb.created=new Date();
